@@ -1,0 +1,417 @@
+__seed_meta__:
+  actions:
+  - Examine the singed ledger for specific names.
+  - Ask Vance how much the commissioner actually knows.
+  - Demand James Riley step back and give me space.
+  - Check the crime scene photo for any overlooked details.
+  opening_narrative: 'The heavy scent of stale coffee and cheap tobacco clings to
+    the humid air of the Fourth District precinct. Above you, a single ceiling light
+    flickers rhythmically, casting long, twitchy shadows across the floor, which is
+    slick from the rain tracked in by a dozen wet coats. The constant, mechanical
+    clatter of a typewriter with a stuck ''e'' key provides a staccato heartbeat to
+    the room, punctuated only by the distant, frantic tapping of the teletype machine
+    in the corner. You sit on a wooden chair that creaks under your weight, feeling
+    the dampness of your own coat through your shirt.
+
+
+    Detective Scott Vance leans over your desk, his face a map of exhausted lines
+    and shadow. He drops a manila folder onto the scarred wood between you, the sound
+    sharp as a gunshot in the cramped office. Beside him, Officer James Riley stands
+    rigid, his eyes darting toward the door every time a heavy boot thuds in the hallway.
+    Vance doesn''t look at the file; he looks at you, his expression unreadable under
+    the dim light.
+
+
+    "The warehouse on Fourth and Main is a charred skeleton, Anthony," Vance says,
+    his voice low and raspy. "The boys from the north side are claiming it was a botched
+    raid by your old union associates, but the fire started from the inside out. We
+    found this in the rubble."
+
+
+    Vance pushes a single, singed document toward you. It is a ledger, partially blackened
+    by flame, but the names on the last page are still legible. They belong to the
+    very men who control the dockyard boundaries—men who have been pushing deeper
+    into the precinct''s territory for weeks. James Riley shifts his weight, his hand
+    resting uncomfortably close to his holster. "If we file this as arson, the north
+    side will burn the south side down just to prove a point," Riley adds, his voice
+    tight with an ambition that borders on nervous energy. "But if we sit on it, the
+    commissioner will have our heads for ignoring a direct threat to the district."
+
+
+    Vance leans closer, his eyes searching yours for something more than just a professional
+    reaction. He is waiting to see if you will play the role of the impartial investigator
+    or if the debt you owe him will force your hand. The tension in the room is thick,
+    a physical weight that makes the air feel even heavier than the smoke hanging
+    under the ceiling lights. You can feel the weight of the Colt Detective Special
+    in your pocket, a cold reminder of the thin line between finding the truth and
+    becoming part of the chaos.'
+  outcome_summary: A singed ledger recovered from a warehouse arson points toward
+    a gang conflict involving dockyard territories.
+__seed_pools__:
+  arc:
+    description: ''
+    id: gang_territory_dispute
+    incompatible_with: []
+    tags:
+    - gang
+    - territory
+    - dispute_boundary
+  character_dynamic:
+    description: ''
+    id: free_agent
+    incompatible_with:
+    - embedded_investigator
+    - established_authority
+    tags:
+    - independent
+    - unaligned
+    - self_reliant
+  moral_pressure:
+    description: ''
+    id: evidence_vs_justice
+    incompatible_with: []
+    tags:
+    - evidence
+    - justice
+    - procedural_morality
+  npc_bond:
+    description: The NPC is a former informant who saved the PC's skin on a dockyard
+      case. The PC owes a favor that keeps getting called.
+    id: debt_to_informant
+    incompatible_with: []
+    tags:
+    - underground
+    - information
+    - leverage
+  scene_bundle:
+    conditions:
+    - the floor slick from tracked-in rain
+    - smoke hanging under the ceiling lights
+    id: police_precinct
+    items:
+    - a typewriter with a stuck 'e' key
+    - a filing cabinet with the bottom drawer padlocked
+    sensory:
+    - the clatter of a teletype machine
+    - the smell of stale coffee and cheap tobacco
+  situation:
+    description: ''
+    id: gang_war
+    incompatible_with: []
+    tags:
+    - gang
+    - war
+    - territorial_conflict
+arc:
+  completed_threads: []
+  goal_context: The sudden arrival of twelve officers turned a targeted ambush into
+    a mass riot, forcing Anthony Miller out of the alley and into the open street.
+  last_thread_created_turn: 29
+  resolution: null
+  threads:
+  - active: false
+    id: territory_escalation
+    last_updated_turn: 7
+    progress:
+    - kind: advancement
+      text: Arson linked to Syndicate professional hit.
+    summary: Gang skirmishes are increasing along the district boundary lines.
+    urgency: normal
+  - active: false
+    added_turn: 4
+    id: syndicate_involvement
+    last_updated_turn: 19
+    progress:
+    - kind: shift
+      text: Syndicate observers monitored Miller's movements.
+    summary: Iron Anchor Syndicate's role in the warehouse arson investigation
+    urgency: normal
+    urgency_set_turn: 12
+  - active: false
+    added_turn: 5
+    id: elias_thorne_connection
+    last_updated_turn: 21
+    progress:
+    - kind: setback
+      text: Ledger lacks immediate arson connections.
+    - kind: shift
+      text: Photo analysis yields no immediate Thorne links
+    summary: Investigate Elias Thorne's role in the Warehouse 4 disposal.
+    urgency: normal
+    urgency_set_turn: 14
+  - active: true
+    added_turn: 27
+    id: police_intervention_chaos
+    last_updated_turn: 29
+    progress:
+    - kind: advancement
+      text: Twelve officers flood the alley causing a bottleneck.
+    - kind: shift
+      text: Officers push Miller out of the alleyway.
+    summary: Incoming law enforcement creates a chaotic three-way confrontation.
+    urgency: urgent
+    urgency_set_turn: 27
+  - active: true
+    id: street_level_pursuit
+    progress: []
+    summary: Navigate the crowded Fourth District Streets while being pursued or observed.
+    urgency: normal
+  visible_goal: Manage the chaotic three-way confrontation between Miller, the Scarred
+    Man, and the arriving officers.
+compendium:
+  npcs:
+    detective_scott:
+      bio: A weary man who has seen too many gang wars spill into civilian streets.
+      bond: He is a former informant who saved the PC's skin on a dockyard case. The
+        PC owes a favor that keeps getting called.
+      fear: Losing his badge to a political scandal.
+      last_presence_turn: 15
+      last_seen_location: Fourth District Streets
+      leverage: He has access to the sealed evidence files.
+      motivation: To maintain order despite the systemic corruption.
+      name: Scott Vance
+      personality: resigned_functionary
+      position: walking beside Anthony Miller
+      presence: known
+      title: Precinct Detective
+    men_in_wool_coats:
+      aliases:
+      - men in heavy wool coats
+      bio: Two figures wearing thick, salt-stained wool coats that obscure their frames.
+        They stand with a practiced, motionless stillness common among those used
+        to watching the docks.
+      first_seen_turn: 5
+      last_presence_turn: 15
+      last_seen_location: Fourth District Streets
+      name: Two men in heavy wool coats
+      personality: wary_opportunist
+      position: trailing behind in the narrow alley
+      presence: known
+    officer_james:
+      bio: A junior officer eager to prove himself by cracking the local gang dispute.
+      bond: null
+      fear: Being seen as soft on organized crime.
+      last_presence_turn: 6
+      last_seen_location: Fourth District Streets
+      leverage: He knows which precinct captains are on the payroll.
+      motivation: Promotion through high profile arrests.
+      name: James Riley
+      personality: ambitious_climber
+      position: standing close to Miller
+      presence: known
+      title: Patrol Officer
+    officers_in_blue:
+      bio: A sudden surge of law enforcement personnel wearing heavy, dark blue coats
+        and carrying swinging lanterns. They move with a chaotic energy, pushing through
+        the narrow alleyway to respond to the disturbance.
+      first_seen_turn: 27
+      last_presence_turn: 29
+      last_seen_location: Fourth District Streets
+      name: Twelve officers in blue coats
+      notes: surging through the narrow alleyway
+      personality: wary_opportunist
+      position: bottleneck of the service alley
+      presence: nearby
+    patrolman_at_corner:
+      aliases:
+      - patrolman at corner
+      bio: A solitary figure standing under a flickering gaslight. His silhouette
+        is sharp and watchful against the dim, hazy light of the street.
+      first_seen_turn: 14
+      last_presence_turn: 29
+      last_seen_location: Fourth District Streets
+      name: Patrolman at Corner
+      position: at the alley entrance
+      presence: known
+    unknown_figure_in_fog:
+      aliases:
+      - unknown figure in fog
+      bio: A man with a jagged scar running from his temple to his jaw and eyes that
+        gleam with predatory hunger. He carries himself with a terrifying lack of
+        fear, even when facing a firearm.
+      fear: unknown
+      first_seen_turn: 19
+      last_presence_turn: 29
+      last_seen_location: Fourth District Streets
+      leverage: has connections to local law enforcement
+      motivation: unknown
+      name: Scarred Man
+      notes: lunging through officers toward player
+      personality: volatile_loyalist
+      position: deep in the service alley bottleneck
+      presence: nearby
+      title: Thug
+inventory:
+- aliases: []
+  amount: 1
+  id: revolver
+  name: Colt Detective Special
+  notes: ''
+- aliases: []
+  amount: 4
+  id: bullets
+  name: .38 Caliber Rounds
+  notes: ''
+- aliases: []
+  amount: 1
+  id: notebook
+  name: Leather Bound Ledger
+  notes: ''
+- aliases: []
+  amount: 1
+  id: flashlight
+  name: Silver Flashlight
+  notes: ''
+- aliases: []
+  amount: 1
+  id: evidence_photo
+  name: Damaged Crime Scene Photo
+  notes: A grainy shot of a warehouse fire.
+- aliases: []
+  amount: 50
+  id: dollars
+  name: Dollars
+  notes: ''
+location:
+  description: A wide thoroughfare illuminated by the steady, amber glow of distant
+    storefronts. Heavy sheets of rain blur the silhouettes of buildings and wash over
+    the dark, open pavement.
+  id: fourth_district_streets
+  name: Fourth District Streets
+meta:
+  _pack_source: noir-1930s
+  _seed_type: dynamic
+  compendium_touch_order:
+  - officer_james
+  - men_in_wool_coats
+  - detective_scott
+  - unknown_figure_in_fog
+  - patrolman_at_corner
+  - officers_in_blue
+  last_arc_resolve_turn: 29
+  last_thread_created_turn: 27
+  model: large_language_model
+  prior_history:
+  - '- [T10] Anthony Miller attempts to find clues in the crime scene photo but is
+    forcibly steered away by Scott Vance to avoid a confrontation with the men in
+    wool coats.'
+  - '- [T11] Anthony Miller checks the alley for pursuit but finds only empty fog
+    and Scott Vance''s grim warning.'
+  - '- [T12] Anthony Miller sweeps his flashlight through the thickening fog, but
+    the sudden wind and mist obscure any potential pursuit.'
+  - '- [T13] Anthony Miller sweeps his flashlight through the fog but finds no immediate
+    threats lurking near Scott Vance.'
+  - '- [T14] Anthony Miller uses his silver flashlight to examine the damaged crime
+    scene photo for hidden silhouettes.'
+  - '- [T15] Anthony Miller fails to find immediate connections in the ledger while
+    being escorted away from the wharf by Scott Vance.'
+  - '- [T16] Anthony Miller''s attempt to gather information from the patrolman results
+    in a dismissive refusal.'
+  - '- [T17] Anthony Miller''s examination of the crime scene photo draws suspicious
+    scrutiny from the patrolman at the corner.'
+  - '- [T18] Anthony Miller hides the crime scene photo and prepares for a confrontation
+    with the patrolman at the corner.'
+  - '- [T19] Anthony Miller raises his hands to signal he is unarmed, but the patrolman
+    remains on high alert.'
+  - '- [T20] Anthony Miller''s attempt to retrieve his flashlight is interrupted by
+    a second figure emerging from the fog, leaving him trapped between the patrolman
+    and a new presence.'
+  - '- [T21] Anthony Miller stumbles into a service alley after being forced back
+    by the unknown figure and the patrolman.'
+  - '- [T22] Anthony Miller draws his revolver and shines his flashlight on the cellar
+    door as the unknown figure closes in.'
+  - '- [T23] Anthony Miller confronts the Scarred Man with his revolver, only to learn
+    the man intends to bribe the patrolman to facilitate an ambush.'
+  - '- [T24] Anthony Miller attempts to intimidate the Scarred Man with his revolver,
+    but the man continues his advance with mocking amusement.'
+  - '- [T25] Anthony Miller shoots the Scarred Man in the thigh, wounding him but
+    inciting a murderous rage while alerting the patrolman.'
+  - '- [T26] Anthony Miller shoots the Scarred Man and threatens the Patrolman at
+    Corner, causing the officer to flee for reinforcements.'
+  - '- [T27] Anthony Miller aims his revolver at the wounded Scarred Man as the sound
+    of approaching police reinforcements fills the alley.'
+  - '- [T28] Anthony Miller observes a dozen officers flooding the alley just as the
+    wounded Scarred Man lunges through the crowd toward him.'
+  - '- [T29] Anthony Miller is blinded by a shattering lantern and swept out of the
+    alleyway by the surging police force.'
+  recent_beats:
+  - surface_as: player_discovery
+    turn: 25
+    type: revelation
+  - surface_as: null
+    turn: 26
+    type: null
+  - surface_as: null
+    turn: 27
+    type: null
+  - surface_as: null
+    turn: 28
+    type: null
+  - surface_as: null
+    turn: 29
+    type: null
+  recent_rolls:
+  - band: partial
+    turn: 29
+  - band: fail
+    turn: 27
+  - band: success
+    turn: 26
+  - band: success
+    turn: 25
+  - band: fail
+    turn: 24
+  setting_pack: noir-1930s
+  turn: 29
+pc:
+  actions:
+  - Wipe the hot oil from your eyes to regain vision.
+  - Sprint toward the amber light of the nearby storefronts.
+  - Call out to the officers to explain the Scarred Man's attack.
+  - Search the gutter for the dropped Colt Detective Special.
+  bio: After a corruption scandal cleared out the dockyard unions, Anthony went private
+    to keep his head above water. He has a reputation for finding things people want
+    buried, but he carries a heavy debt to a man who knows where the bodies are.
+  conditions: []
+  drive: ''
+  name: Anthony Miller
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 2
+    wits: 4
+  tagline: Former union investigator, expert at reading paper trails
+resolved_arcs:
+- closed_threads: []
+  goal_context: The tension in the service alley has reached its breaking point with
+    the arrival of heavy law enforcement presence.
+  resolution: The standoff has escalated into a chaotic multi-party confrontation
+    as police reinforcements flood the alley, forcing a decisive climax.
+  resolved_turn: 28
+  visible_goal: The standoff escalates into a chaotic multi-party confrontation as
+    police reinforcements arrive.
+- closed_threads: []
+  goal_context: The sudden arrival of twelve officers turned a targeted ambush into
+    a mass riot, forcing Anthony Miller out of the alley and into the open street.
+  resolution: The immediate confrontation in the service alley has broken apart due
+    to the police surge, scattering the combatants into the wider streets.
+  resolved_turn: 29
+  visible_goal: Manage the chaotic three-way confrontation between Miller, the Scarred
+    Man, and the arriving officers.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 2
+  curtain_call: ''
+  location_entered_turn: 29
+  scene_phase: CLIMAX
+  tagline: Fourth District Streets  heavy rain, amber storefront lights
+  tags:
+  - gang
+  - territory
+  - dispute_boundary
+  turn_entered: 29
+  world_state:
+  - District boundaries are enforced by armed gang patrols.
+  - All private investigators require a city-issued permit to carry firearms.
+  - Dockyard access is restricted to union members with active credentials.
+schema_version: 1

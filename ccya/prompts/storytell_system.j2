@@ -52,7 +52,7 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 `chapter_end: true` — signal that the chapter is ending without resetting arc state. Use this when the chapter's tension has resolved but the core goal remains. The arc continues with its current threads.
 
-`goal_update` — the arc's direction shifted but the arc isn't over. Use this; reserve `arc_resolve` for chapter endings.
+`goal_update` — the arc's direction shifted but the arc isn't over. **Use sparingly; arcs are meant to last 7+ turns.** Only update when: the main objective is impossible (target dead, location destroyed, ally betrayed); a revelation invalidates the current goal; the player's situation changed so drastically a different objective is now primary; the arc has coasted 8+ turns without meaningful progress. **Do NOT update when:** a thread resolved/failed/changed urgency; progress was made; the goal is still viable; a parallel thread became dominant. **Do NOT emit a no-op** — if the goal hasn't genuinely shifted, omit this field entirely.
 
 ## GM Beat
 

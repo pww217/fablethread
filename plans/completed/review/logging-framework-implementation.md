@@ -1,7 +1,7 @@
 # Logging Framework — Log Levels and Structured Error Instrumentation
 
 ## Status
-`open`
+`completed`
 **Created:** 2026-06-17
 **Design doc:** `docs/design/complete/logging-framework-design.md`
 

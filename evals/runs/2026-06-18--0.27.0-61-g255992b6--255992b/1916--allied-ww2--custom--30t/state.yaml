@@ -1,0 +1,429 @@
+__seed_meta__:
+  actions:
+  - Dive behind the heavy wooden desk to seek cover.
+  - Shout instructions to Anthony Vance to secure the morphine supplies.
+  - Grab your M1 Garand and peer through the canvas slit.
+  - Attempt to send a frantic distress signal on the radio.
+  opening_narrative: 'The hiss of a low-fuel lantern is the only steady sound in the
+    room, cutting through the heavy, humid air of the barn. You sit hunched over your
+    radio kit, the smell of ozone and unwashed bodies thick enough to taste. On the
+    triage table just feet away, blood-soaked sawdust clings to the floorboards, absorbing
+    the slow drip from a fresh wound. A clipboard sits nearby, its pages fluttering
+    slightly in the draft, covered in morphine doses signed by hands that were shaking
+    when they wrote them. The light flickers, casting long, erratic shadows against
+    the canvas walls that separate this small sanctuary from the chaos of the field.
+
+
+    You are trying to tune the frequency, your fingers moving with practiced precision
+    despite the chill, when the world suddenly fractures. A sudden burst of machine
+    gun fire erupts from the tree line outside, sharp and rhythmic, tearing through
+    the silence of the Marshmouth outskirts. The sound is followed immediately by
+    a frantic shouting from the perimeter sentries. Dust shakes loose from the barn
+    rafters, coating your radio equipment in a fine gray powder.
+
+
+    Anthony Vance lunges across the triage table, his hands stained with antiseptic
+    and dried blood. He doesn''t look at you; he looks toward the door, his eyes wide
+    and hollowed by exhaustion. ''Get down!'' he screams over the sudden rattle of
+    small arms fire hitting the wooden siding of the barn. One of the orderlies trips
+    over a discarded crate, letting out a sharp yelp that is swallowed by a nearby
+    explosion. The lantern on your desk wobbles dangerously, its flame dancing wildly
+    as the floor vibrates from a heavy impact just outside the entrance. You realize
+    with a jolt of adrenaline that the perimeter has been breached, and the very people
+    you were supposed to be calling for help are now the ones in immediate peril.'
+  outcome_summary: A sudden enemy raid has compromised the field hospital, leaving
+    medical staff and communications personnel exposed.
+__seed_pools__:
+  arc:
+    description: ''
+    id: logistics_breakdown
+    incompatible_with: []
+    tags:
+    - supply_failure
+    - isolation
+    - resource_crisis
+  character_dynamic:
+    description: ''
+    id: radioman_behind_lines
+    incompatible_with: []
+    tags:
+    - communications
+    - rear_area
+    - information_flow
+  moral_pressure:
+    description: ''
+    id: friendly_fire_aftermath
+    incompatible_with: []
+    tags:
+    - grief
+    - accountability
+    - unit_guilt
+  npc_bond:
+    description: The NPC was under the PC's care in a previous engagement and carries
+      a visible scar from it.
+    id: wounded_before
+    incompatible_with: []
+    tags:
+    - injury
+    - care
+    - shared_history
+  scene_bundle:
+    conditions:
+    - low on supplies
+    - lantern light flickering
+    id: field_hospital
+    items:
+    - a triage table with blood-soaked sawdust on the floor
+    - a clipboard of morphine doses signed by different hands
+    sensory:
+    - the hiss of a low-fuel lantern
+    - the moan of wounded men through canvas
+  situation:
+    description: ''
+    id: firefight_starting_unexpected
+    incompatible_with: []
+    tags:
+    - combat
+    - surprise
+    - immediate_action
+arc:
+  completed_threads:
+  - active: false
+    added_turn: 24
+    id: ceiling_collapse_risk
+    last_updated_turn: 28
+    outcome: The immediate threat of falling shale has passed as the group reached
+      the chamber floor.
+    progress:
+    - kind: advancement
+      text: Artillery tremors cause falling shale and dust.
+    resolution_state: abandoned
+    resolved_turn: 30
+    summary: Falling shale and debris from artillery-induced tremors
+    urgency: urgent
+    urgency_set_turn: 24
+  goal_context: The group's focus shifts from negotiating with Anthony Vance to surviving
+    an imminent encounter in the alcove.
+  last_thread_created_turn: 30
+  resolution: null
+  threads:
+  - active: true
+    added_turn: null
+    id: subterranean_survival
+    last_updated_turn: 30
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Group discovered Anthony Vance's campsite.
+    resolution_state: null
+    resolved_turn: null
+    summary: Find a way out of the dark cavern system.
+    urgency: normal
+    urgency_set_turn: null
+  - active: false
+    added_turn: 18
+    id: resource_scarcity_tension
+    last_updated_turn: 27
+    outcome: null
+    progress:
+    - kind: setback
+      text: Manual remains grit-covered and difficult to read.
+    resolution_state: null
+    resolved_turn: null
+    summary: Manage limited medical supplies and light in the dark cavern
+    urgency: background
+    urgency_set_turn: 26
+  - active: true
+    added_turn: 25
+    id: descending_void_exploration
+    last_updated_turn: 29
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Group reached secondary chamber alcove.
+    resolution_state: null
+    resolved_turn: null
+    summary: Navigate the steep descent into the massive hollowed void
+    urgency: normal
+    urgency_set_turn: 25
+  - active: true
+    added_turn: null
+    id: melee_combat_chaos
+    last_updated_turn: null
+    outcome: null
+    progress:
+    - kind: setback
+      text: Tall Shadowy Figure attacks Timothy Miller.
+    - kind: setback
+      text: Flashlight and rifle knocked away.
+    resolution_state: null
+    resolved_turn: null
+    summary: Survive the physical struggle with the Tall Shadowy Figure.
+    urgency: urgent
+    urgency_set_turn: null
+  visible_goal: Survive the sudden violent encounter in the secondary chamber.
+compendium:
+  npcs:
+    anthony_vance:
+      bio: A weary medic who has seen too many men pass through these canvas walls.
+      bond: The NPC was under the PC's care in a previous engagement and carries a
+        visible scar from it.
+      fear: Running out of bandages during a mass casualty event.
+      last_presence_turn: 30
+      last_seen_location: Secondary Chamber Descent
+      leverage: He knows exactly how many doses of morphine are left in the kit.
+      motivation: To keep as many patients alive as possible with limited morphine.
+      name: Anthony Vance
+      notes: collapsed inward clutching knees
+      personality: broken_defeated
+      position: on the ground near campsite
+      presence: present
+      title: Corporal
+    elias_vance:
+      bio: A civilian laborer with a frantic, wary demeanor; currently clutching his
+        shoulder after being knocked by sliding earth.
+      first_seen_turn: 7
+      last_presence_turn: 27
+      last_seen_location: Secondary Chamber Descent
+      name: Elias Vance
+      personality: wary_opportunist
+      position: seated on a granite slab
+      presence: present
+      title: Orderly
+    tall_shadowy_figure:
+      bio: A tall, imposing silhouette moving with sudden, violent speed. Moves with
+        a heavy, purposeful stride that suggests significant physical strength.
+      first_seen_turn: 29
+      last_presence_turn: 30
+      last_seen_location: Secondary Chamber Descent
+      name: Tall Shadowy Figure
+      notes: lunging violently at Timothy Miller
+      personality: volatile_loyalist
+      position: edge of the campsite light
+      presence: present
+      title: The Attacker
+    thomas_reed:
+      bio: A civilian laborer with wide, wary eyes; prone to frantic movements when
+        under pressure.
+      first_seen_turn: 7
+      last_presence_turn: 27
+      last_seen_location: Secondary Chamber Descent
+      name: Thomas Reed
+      personality: wary_opportunist
+      position: crouched near Elias Vance
+      presence: present
+      title: Orderly
+    two_orderlies:
+      bio: Local civilians pressed into service to move stretchers and clean floors;
+        they are currently disoriented and coughing from dust.
+      bond: null
+      fear: null
+      last_presence_turn: 30
+      last_seen_location: Secondary Chamber Descent
+      leverage: null
+      motivation: null
+      name: Two orderlies
+      notes: screaming and scrambling away in panic
+      personality: wary_opportunist
+      position: far side of the alcove
+      presence: present
+      title: ''
+inventory:
+- aliases: []
+  amount: 1
+  id: m1_rifle
+  name: M1 Garand
+  notes: ''
+- aliases: []
+  amount: 1
+  id: personal_locket
+  name: Silver Locket
+  notes: A keepsake from his sister containing a small photo.
+- aliases: []
+  amount: 1
+  id: field_manual
+  name: Signal Corps Field Manual
+  notes: ''
+- aliases: []
+  amount: 75
+  id: dollars
+  name: Dollars
+  notes: ''
+- amount: 1
+  id: morphine_ampules
+  name: Morphine Ampules
+  notes: sealed canister, in hands
+- amount: 1
+  id: flashlight
+  name: Flashlight
+  notes: handheld, on belt
+location:
+  description: The chamber is a wide expanse of wet granite and grit-covered floors,
+    illuminated by a spinning flashlight casting frantic shadows. The campsite's smoldering
+    heat source flickers weakly against the stone walls as the group is pushed toward
+    a steep, downward slope.
+  id: secondary_chamber_descent
+  name: Secondary Chamber Descent
+meta:
+  _pack_source: allied-ww2
+  _seed_type: dynamic
+  compendium_touch_order:
+  - elias_vance
+  - thomas_reed
+  - anthony_vance
+  - two_orderlies
+  - tall_shadowy_figure
+  last_arc_resolve_turn: 30
+  last_chapter_end_turn: 11
+  last_thread_created_turn: 29
+  model: gpt-4o
+  prior_history:
+  - '- [T11] Timothy Miller leads the orderlies into the smoke-filled Valley Pass
+    after a shell strike buries their previous path.'
+  - '- [T12] Timothy Miller struggles to stabilize the group as artillery tremors
+    cause a landslide that nearly sends Elias Vance over a drop-off.'
+  - '- [T13] Timothy Miller attempts to save Elias Vance but a secondary landslide
+    sweeps the entire group into a smoke-filled debris pocket.'
+  - '- [T14] Timothy Miller successfully anchors Elias Vance to a bedrock ledge and
+    discovers a splintered medical supply crate unearthed by the landslide.'
+  - '- [T15] Timothy Miller discovers morphine ampules in a supply crate just as an
+    artillery shell impact opens a fissure into a cavern system.'
+  - '- [T16] Timothy Miller is thrown into a dark, silt-filled cavern chamber by a
+    shell strike hitting the fissure rim.'
+  - '- [T17] Timothy Miller attempts to consult his field manual for guidance while
+    the group recovers from the landslide.'
+  - '- [T18] Timothy Miller fails to locate a flashlight, leaving the group in darkness
+    as tremors continue to shake the cavern.'
+  - '- [T19] Timothy Miller leads Elias Vance and Thomas Reed through a newly opened
+    fissure into a sloping tunnel just as the cavern ceiling collapses.'
+  - '- [T20] Timothy Miller fails to find a light source while applying pressure to
+    Elias Vance''s shoulder wound.'
+  - '- [T21] Timothy Miller fails to find useful signaling information due to poor
+    light and grit-covered pages.'
+  - '- [T22] Timothy Miller uses his flashlight to locate a chimney vent, leading
+    the group out of the narrow tunnel and into a vast cavern system.'
+  - '- [T23] Timothy Miller discovers coordinates for Relay Point Alpha-Four within
+    the Signal Corps Field Manual.'
+  - '- [T24] Timothy Miller directs the group toward a drafty wall opening just as
+    an artillery strike triggers a localized ceiling collapse.'
+  - '- [T25] Timothy Miller catches a falling orderly and leads the group through
+    a narrow fissure into a steep secondary chamber descent.'
+  - '- [T26] Timothy Miller searches the cavern walls with his flashlight but finds
+    no signs of telegraph lines or radio equipment.'
+  - '- [T27] Timothy Miller consults the Signal Corps Field Manual for subterranean
+    radio configurations while the group recovers from the descent.'
+  - '- [T28] Timothy Miller discovers Anthony Vance and a group of scavenging orderlies
+    at a makeshift campsite within the secondary chamber.'
+  - '- [T29] Timothy Miller''s attempt at de-escalation fails as rhythmic footsteps
+    approach from the darkness behind Anthony Vance.'
+  - '- [T30] Timothy Miller is knocked backward by the Tall Shadowy Figure, causing
+    his M1 Garand to swing wide and his flashlight to roll away into the darkness.'
+  recent_beats:
+  - surface_as: ambient
+    turn: 26
+    type: breathing_room
+  - surface_as: player_discovery
+    turn: 27
+    type: revelation
+  - surface_as: player_discovery
+    turn: 28
+    type: revelation
+  - surface_as: null
+    turn: 29
+    type: null
+  - surface_as: null
+    turn: 30
+    type: null
+  recent_rolls:
+  - band: fail
+    turn: 30
+  - band: fail
+    turn: 29
+  - band: success
+    turn: 25
+  - band: success
+    turn: 24
+  - band: crit_success
+    turn: 23
+  setting_pack: allied-ww2
+  turn: 30
+pc:
+  actions:
+  - Lunge for the M1 Garand near the spinning flashlight.
+  - Grapple with the Tall Shadowy Figure to prevent further lunges.
+  - Shout for Anthony Vance to provide medical or defensive aid.
+  - Use the Morphine Ampules as a blunt improvised weapon.
+  bio: Raised in a small postal hub in Marshmouth, Timothy spent his youth sorting
+    mail before the draft. He has a knack for fixing broken gear but struggles with
+    the sudden weight of life-and-death decisions.
+  conditions: []
+  drive: ''
+  name: Timothy Miller
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 2
+    wits: 4
+  tagline: Signal Corps radioman, former postal clerk
+resolved_arcs:
+- closed_threads: []
+  goal_context: The previous path via the ridge slope has been destroyed by artillery
+    and landslides.
+  resolution: The ridge slope is no longer a viable route; movement must shift toward
+    the valley pass.
+  resolved_turn: 11
+  visible_goal: The group has transitioned from the ridge slope into the hazardous
+    Valley Pass.
+- closed_threads: []
+  goal_context: The group is caught in a landslide and heavy shelling while descending
+    the slope.
+  resolution: The descent through the Valley Pass has become a life-threatening struggle
+    against terrain and artillery.
+  resolved_turn: 12
+  visible_goal: Navigate through the Valley Pass to reach safety.
+- closed_threads: []
+  goal_context: The group is now trapped in a dark cavern system after being swept
+    down by a landslide.
+  resolution: The descent into the cavern has fundamentally changed the nature of
+    the escape, shifting from a surface trek to a subterranean survival situation.
+  resolved_turn: 16
+  visible_goal: Navigate through the Valley Pass to reach safety.
+- closed_threads: []
+  goal_context: ''
+  resolution: ''
+  resolved_turn: 24
+  visible_goal: The group has successfully transitioned from the narrow tunnels into
+    a larger cavern expanse.
+- closed_threads: []
+  goal_context: The group's focus shifts from negotiating with Anthony Vance to surviving
+    an imminent encounter in the alcove.
+  resolution: The encounter with the attacker has escalated into a chaotic melee,
+    forcing the group away from the campsite and toward the steep descent.
+  resolved_turn: 30
+  visible_goal: The group's focus shifts from negotiating with Anthony Vance to surviving
+    an imminent encounter in the alcove.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 2
+  curtain_call: ''
+  location_entered_turn: 25
+  scene_phase: CLIMAX
+  tagline: Secondary Chamber Descent  chaotic struggle near alcove
+  tags:
+  - combat
+  - surprise
+  - immediate_action
+  - resource_crisis
+  turn_entered: 25
+  world_state:
+  - Supply lines from the coast are currently blocked by enemy-held territory.
+  - Local civilian movement is strictly prohibited under martial law.
+  - Motorized transport is reserved exclusively for high-ranking officer movements.
+  - id: command_broadcast_received
+    text: Instructions received and movement toward relay initiated.
+    tier: persistent
+  - id: tunnel_navigation_risk
+    text: The group successfully ascended through a chimney vent into a larger cavern
+      system.
+    tier: persistent
+schema_version: 1

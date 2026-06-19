@@ -45,7 +45,7 @@ Narration:
 
 @register_checker(
     "directive_tone_match", "llm",
-    requires_fields=["ruling.band", "ruling.intent", "narrate"],
+    requires_fields=["ruling.intent", "narrate"],
     description="Does narration tone match the rules directive? (per-turn LLM call)",
 )
 def directive_tone_match(events: list[dict[str, Any]]) -> CheckerResult:
@@ -58,8 +58,16 @@ def directive_tone_match(events: list[dict[str, Any]]) -> CheckerResult:
     ev = events[0]
     ruling = extract_field(ev, "ruling") or {}
     band = ruling.get("band", "")
+    
+    # Skip turns where no roll was made (no band) — pass by default
+    if not band:
+        return CheckerResult(
+            checker_id="directive_tone_match", passed=True, score=1.0,
+            detail="No band in ruling (rolled=false, no dice roll made)",
+        )
+    
     intent = ruling.get("intent", "")
-    narrate = extract_field(ev, "narrate") or ""
+    narrate = extract_field(ev, "narrate.prose") or ""
 
     user_prompt = f"""Ruling:
   Band: {band}
@@ -123,12 +131,12 @@ def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
     pending_beat = meta.get("pending_gm_beat") or {}
     beat_type = pending_beat.get("type", "")
     surface_as = pending_beat.get("surface_as", "ambient")
-    narrate = extract_field(ev, "narrate") or ""
+    narrate = extract_field(ev, "narrate.prose") or ""
 
     # Look for next turn's narration if available
     next_narrate = ""
     if len(events) > 1:
-        next_narrate = extract_field(events[1], "narrate") or ""
+        next_narrate = extract_field(events[1], "narrate.prose") or ""
 
     user_prompt = f"""GM Beat:
   Type: {beat_type}
@@ -186,7 +194,7 @@ Conditions removed:
 
 @register_checker(
     "state_fidelity", "llm",
-    requires_fields=["narrate", "extraction_context",
+    requires_fields=["narrate",
                      "applied.inventory_add", "applied.inventory_remove",
                      "applied.pc_condition_add", "applied.pc_condition_remove"],
     description="Does extraction match what narration describes?",
@@ -199,13 +207,22 @@ def state_fidelity(events: list[dict[str, Any]]) -> CheckerResult:
         )
 
     ev = events[0]
-    narrate = extract_field(ev, "narrate") or ""
+    narrate = extract_field(ev, "narrate.prose") or ""
     applied = extract_field(ev, "applied") or {}
 
     inventory_add = applied.get("inventory_add") or []
     inventory_remove = applied.get("inventory_remove") or []
     condition_add = applied.get("pc_condition_add") or []
     condition_remove = applied.get("pc_condition_remove") or []
+
+    # No inventory/condition changes extracted — nothing to verify.
+    # The extractor only captures player inventory/conditions, not
+    # environmental damage or NPC state changes.
+    if not inventory_add and not inventory_remove and not condition_add and not condition_remove:
+        return CheckerResult(
+            checker_id="state_fidelity", passed=True, score=1.0,
+            detail="No inventory or condition changes extracted (nothing to verify)",
+        )
 
     user_prompt = f"""Narration:
 {narrate}
