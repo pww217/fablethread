@@ -1,7 +1,11 @@
 {% if threads %}
 ### Active Threads ({{ threads | length }} active — target: 3-4, ~5 total)
-{% for t in threads %}{% set never_updated = t.get('last_updated_turn') is none %}{% set stale = not never_updated and (turn_no - t.last_updated_turn) > 2 %}{% if not stale %}- `{{ t.id }}`{% if not t.active %} (latent){% endif %} [{{ t.urgency | upper }}] {{ t.summary }}
-{%- if never_updated %} [new — never updated]{% elif t.get('last_updated_turn') is not none %} ({{ turn_no - t.last_updated_turn }} turns ago){% endif %}
+{% for t in threads %}{% if not t.dormant %}- `{{ t.id }}` [{{ t.urgency | upper }}] {{ t.summary }}
+{%- if t.last_updated_turn is not none %} ({{ turn_no - t.last_updated_turn }} turns ago){% endif %}
 {%- for entry in t.progress %}   - {{ entry }}{% endfor %}
 {% endif %}{% endfor %}{% else %}No active threads.
 {% endif %}
+{% if threads | selectattr('dormant') | list %}
+### Dormant Threads (faded but recoverable)
+{% for t in threads %}{% if t.dormant %}- `{{ t.id }}` [DORMANT] {{ t.summary }} ({{ turn_no - t.last_updated_turn }} turns ago)
+{% endif %}{% endfor %}{% endif %}
