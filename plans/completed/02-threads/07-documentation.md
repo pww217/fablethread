@@ -37,7 +37,7 @@ Review each affected module's documentation and update: model shapes, function s
 
 ## Status
 
-`open`
+`completed`
 
 ## Implementation — Phase 7: Documentation updates
 
