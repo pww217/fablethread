@@ -356,20 +356,20 @@ async def generate_seed(
                 messages.append({"role": "user", "content": fb})
             continue
 
-        # Copy arc from envelope top-level into seed_state; enforce hard limits on active threads and urgency
+        # Copy arc from envelope top-level into seed_state; enforce hard limits on non-dormant threads and urgency
         if envelope.arc:
             envelope.seed_state.arc = envelope.arc
             arc = envelope.seed_state.arc
             if arc and hasattr(arc, "threads"):
-                active_threads = [t for t in (arc.threads or []) if getattr(t, "active", True)]
-                non_active_threads = [t for t in (arc.threads or []) if not getattr(t, "active", False)]
+                non_dormant_threads = [t for t in (arc.threads or []) if not getattr(t, "dormant", False)]
+                dormant_threads = [t for t in (arc.threads or []) if getattr(t, "dormant", False)]
 
-                # Hard limit: at most 2 threads can be active at game start
-                max_active = min(2, len(active_threads)) if active_threads else 0
-                excess_active = active_threads[max_active:]
+                # Hard limit: at most 2 threads can be non-dormant at game start
+                max_non_dormant = min(2, len(non_dormant_threads)) if non_dormant_threads else 0
+                excess_non_dormant = non_dormant_threads[max_non_dormant:]
 
-                for t in excess_active:
-                    object.__setattr__(t, "active", False)
+                for t in excess_non_dormant:
+                    object.__setattr__(t, "dormant", True)
                     object.__setattr__(t, "urgency", "background")
                     # Ensure urgency_set_turn is set so urgency decay can track this thread's age
                     if getattr(t, "urgency_set_turn") is None:
@@ -377,8 +377,8 @@ async def generate_seed(
                     if getattr(t, "added_turn") is None:
                         object.__setattr__(t, "added_turn", envelope.seed_state.meta.get("turn", 1))
 
-                # Force all non-active threads to background/normal urgency (never urgent)
-                for t in non_active_threads + excess_active:
+                # Force all dormant threads to background urgency (never urgent)
+                for t in dormant_threads + excess_non_dormant:
                     current_urgency = getattr(t, "urgency", "normal") or "normal"
                     if current_urgency == "urgent":
                         object.__setattr__(t, "urgency", "background")
@@ -389,8 +389,8 @@ async def generate_seed(
                         object.__setattr__(t, "added_turn", envelope.seed_state.meta.get("turn", 1))
 
                 _log.info(
-                    "enforce_thread_limits active=%d non_active=%d excess_capped=%d pack=%s",
-                    max_active, len(non_active_threads), len(excess_active),
+                    "enforce_thread_limits non_dormant=%d dormant=%d excess_capped=%d pack=%s",
+                    max_non_dormant, len(dormant_threads), len(excess_non_dormant),
                     pack.manifest.id,
                     extra={"trace_id": trace_id},
                 )
