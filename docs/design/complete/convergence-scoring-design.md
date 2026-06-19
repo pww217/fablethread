@@ -82,7 +82,7 @@ Five states: SETUP → RISING → CRISIS → RESOLUTION → BREATHER (plus BREAT
 
 ### Narration directives (`turn.py:_compute_narration_directive`)
 
-Priority stack: Breathe → Scene Imperative → Scene Pressure → (empty). Scene Imperative fires when `effective_scene_age >= scene_imperative_threshold` (default 4). Scene Pressure fires when `effective_scene_age >= scene_pressure_threshold` (default 3). `outcome_hint` overrides to `"transition"` when Scene Imperative is active.
+Priority stack: Breathe → Scene Imperative → Scene Pressure → (empty). Scene Imperative fires when `effective_scene_age >= scene_imperative_threshold` (default 5). Scene Pressure fires when `effective_scene_age >= scene_pressure_threshold` (default 3). `outcome_hint` overrides to `"transition"` when Scene Imperative is active.
 
 ### Beat classification (`_pacing.py`)
 
@@ -401,7 +401,7 @@ The convergence score still enters CLIMAX when appropriate (3 of 5 components ag
 ## What Is Unchanged
 
 - `EngineConfig.scene_pressure_threshold` (default 3)
-- `EngineConfig.scene_imperative_threshold` (default 4)
+- `EngineConfig.scene_imperative_threshold` (default 5)
 - `EngineConfig.breather_max_turns` (default 3)
 - `EngineConfig.thread_urgency_max_age` (default 8, auto-demotion)
 - `EngineConfig.thread_stale_threshold` (default 3, auto-latent)

@@ -9,8 +9,8 @@
 | `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config(); NpcPresence enum (PRESENT/NEARBY/KNOWN/DEPARTED); CompendiumNpcUpdate with departed_reason/departed_turn/personality (archetype id; write-once, immutable) |
 | `ccya/errors.py` | ErrorKind string constants (LLM_TIMEOUT, LLM_RATE_LIMIT, etc.) + LlmcError exception hierarchy (LlmcTimeout, LlmcRateLimit, LlmcApiError) |
 | `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream); clear_all_turn_locks() |
-| `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active, nearby_decay_ttl, departed_archive_ttl, climax_turn_limit, breather_max_turns, convergence_threshold), _EventLock, is_turn_in_progress(), clear_all_turn_locks(), Jinja env setup |
-| `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup(), _apply_thread_updates(config) with content dedup + auto-latent demotion every turn (not gated on mutation) + thread cap eviction, _compute_scene_phase() 5-state phase machine, _compute_narration_directive() phase-driven priority stack, _compute_pacing_context() with new signal set, _compute_ages(), _recent_turn_count() |
+| `ccya/engine/config.py` | EngineConfig dataclass (including thread_max_active, nearby_decay_ttl, departed_archive_ttl, climax_turn_limit, breather_max_turns, convergence_threshold, thread_completion_threshold, thread_creation_cooldown), _EventLock, is_turn_in_progress(), clear_all_turn_locks(), Jinja env setup |
+| `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup(), _apply_thread_updates(config) with content dedup + auto-dormant every turn (urgent threads excluded) + thread completion threshold (configurable via thread_completion_threshold) + thread cap eviction + engine culling (≥3 dormant), _compute_scene_phase() 5-state phase machine with turns_in_phase tracking, _compute_narration_directive() phase-driven priority stack, _compute_pacing_context() with new signal set, _compute_ages(), _recent_turn_count() |
 | `ccya/engine/_pacing.py` | BEAT_PHASE_MAP, BEAT_BUCKETS, detect_spiral(), derive_allowed_beat_types() — beat constraint derivation from scene phase and directive |
 | `ccya/engine/narrate.py` | _narrate_messages(), _get_resolved_arcs(), _fmt_progress(), NPC name helpers for prompt building |
 | `ccya/engine/pack_gen.py` | generate_pack() — LLM-generated ScenarioBrief, writes to packs/custom/<slug>/ |
@@ -175,12 +175,12 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 ### Scene thread lifecycle (unified arc.threads[])
 - All scene_pressure functionality migrated to arc.threads[] with `scope: scene` — ccya/engine/pressure.py module deleted in phase 06 validation sweep
-- **Three-layer engine governance:** (1) Auto-latent demotion at `thread_stale_threshold=3` turns, (2) Urgency decay stepwise urgent→normal→background after `thread_urgency_max_age=8` turns at same level (Python-side floor), (3) Scene-scoped two-stage expiration: active→latent after 5 silent turns (`active: false`, urgency handled by decay pass above); latent→removed entirely after 10 total unsurfaced turns
+- **Three-layer engine governance:** (1) Auto-dormant at 4 turns with no activity (urgent threads excluded), (2) Urgency decay stepwise urgent→normal→background after `thread_urgency_max_age=8` turns at same level (Python-side floor), (3) Thread completion threshold auto-resolve when progress entries >= `thread_completion_threshold`
 - **Scene-scoped threads purged on location change:** `apply_delta()` in delta_builder.py removes all threads with `scope: "scene"` from `arc.threads[]` when `location_change` is present in the delta, since they are localized to the prior location
 
 ### Arc thread state machine
-- States: LATENT → ACTIVE (via thread_update with active=True) → COMPLETE/FAILED (via thread_resolve from StorytellerResult) / DORMANT (via thread_update with active=False). **Additional transitions:** urgent→normal→background via Python urgency decay pass; scene-scoped threads auto-latent after 5 silent turns, removed at 10 unsurfaced
-- Storyteller controls all thread state transitions via `thread_update` — engine applies them without cap/cooldown enforcement. Engine also enforces urgency decay (stepwise demotion) and scene-scoped expiration as structural floors above LLM control.
+- States: ACTIVE → DORMANT (via auto-dormant at 4 turns no activity, or storyteller thread_update with dormant=True) → COMPLETE/FAILED/ABANDONED (via thread_resolve or engine culling at ≥3 dormant). **Additional transitions:** urgent→normal→background via Python urgency decay pass; dormant threads with ≥3 dormant count trigger engine culling of oldest dormant
+- Storyteller controls all thread state transitions via `thread_update` — engine applies them with cooldown enforcement (thread_creation_cooldown, thread_add only when turns since last add >= cooldown). Engine also enforces urgency decay (stepwise demotion), auto-dormant (4 turns no activity), thread completion (auto-resolve at progress threshold), and culling (≥3 dormant → cull oldest).
 - Engine owns thread creation (`added_turn`, `urgency_set_turn` set at creation time in turn.py thread_add path); storyteller owns urgency/active/progress state
 - TTL-based cleanup: completed threads and resolved arcs are pruned from prompt context after `completed_thread_ttl` / `resolved_arc_ttl` turns (default 3)
 - ArcThread.resolution_state: str | None — set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads for narrative context
@@ -189,7 +189,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
   - ArcThread.resolved_turn: int | None — turn when thread was resolved; used for TTL filtering in prompts
 
-  - ArcThread.last_updated_turn: int | None — turn when thread was last updated (active, urgency, or progress change); persisted to state; used for auto-latent demotion and staleness display in prompts
+  - ArcThread.last_updated_turn: int | None — turn when thread was last updated (dormant, urgency, type, or progress change); persisted to state; used for auto-dormant detection and staleness display in prompts
 
   - ArcThread.added_turn: int | None — turn when thread was created (thread_add or seed); enables age calculations for decay/expiration passes
 
@@ -200,7 +200,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 ### Storyteller system prompt (`ccya/prompts/storytell_system.j2`)
 - JSON schema example shows ArcThread without `key` or `tags`; `thread_update` supports `active`, `urgency`, `progress`, and `progress_kind`; `thread_add` no longer includes `tags` or `key`
-- CRITICAL instruction added: storyteller must check all active/latent thread summaries for conceptual overlap before emitting new threads; update existing threads via `thread_update` instead of creating duplicates when tension is the same
+- CRITICAL instruction added: storyteller must check all active/dormant thread summaries for conceptual overlap before emitting new threads; update existing threads via `thread_update` instead of creating duplicates when tension is the same
 - Phase→beat constraints table replaces old directive→beat mapping: phase table (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER) with allowed beat types per phase, driven by `scene_phase` and `allowed_beat_types` context variables. Roll-band table becomes secondary constraint. Phase overrides roll band. RISING→CLIMAX transition now uses `convergence_score` (5-component composite) instead of binary urgency checks.
 - Choice momentum section added: instructs LLM to escalate from prior turns, connect pacing context to choice urgency, and avoid passive options
 ### Narrator system prompt (`ccya/prompts/narrate_system.j2`)
@@ -218,13 +218,13 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - CompendiumEntry model has explicit motivation/fear/leverage/personality optional string fields alongside existing name/title/bio/bond/presence/notes; seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings; seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only) and a 12-archetype reference table
 - Scene ideal: 1–4 present NPCs; narrative pressure for exits above that (soft guidance only, engine does NOT track or enforce NPC count at runtime — hard cap removed per Phase 01)
 ### Storyteller user prompt (`ccya/prompts/storytell_user.j2`)
-- Renders all threads in unified list with scope tags ([SCENE]/[ARC]), dormant markers for inactive threads, urgency levels; completed_threads rendered as "## past resolutions" section after active threads loop (for continuity — do not re-open resolved tensions)
+- Renders all threads in unified list with scope tags ([SCENE]/[ARC]), dormant markers for threads with dormant=True, urgency levels; completed_threads rendered as "## past resolutions" section after active threads loop (for continuity — do not re-open resolved tensions)
 - Sections reordered by recency: inventory → conditions → characters → location → arc/threads → past resolutions → world_state → pacing_context → scene_phase → rules_outcome → player_intent → CURRENT TURN NARRATION (most important signal last)
 - `pacing_context` section no longer renders `gate` field (always "allow" after Plan 2); `scene_phase` and `allowed_beat_types` rendered as separate section after pacing_context
 ### Narrator user prompt (`ccya/prompts/narrate_user.j2`)
 - Sections reordered by recency: Player Character → Inventory → Location → Characters → World State → Immutable Reference → Scene Context → Scene phase → Prior History (renamed from Prior Turns) → Recent Turns → Campaign Arc → This Turn's Result → PLAYER INPUT → directives (most important signal last)
 - Thread rendering code extracted to shared `sections/_thread_list.j2` include (eliminated duplicated for-loop in if/elif branches)
-- Renders ALL threads (active + latent/dormant, scene-scoped + arc-scoped) with scope tags and (latent) markers; completed_threads rendered as "### Past Resolutions" section after _arc.j2 include for full narrative continuity
+- Renders ALL threads (active + dormant, scene-scoped + arc-scoped) with scope tags and [DORMANT] markers; completed_threads rendered as "### Past Resolutions" section after _arc.j2 include for full narrative continuity
 - Impossible action block: when `rules_outcome.impossible=true`, renders `**IMPOSSIBLE:**` fact with reason before the band/no-roll section
 - `outcome_hint` replaces `directive` as narrator's scene-motion signal: renders `**Outcome:** hold/advance/transition` with value-specific guidance
 - Scene phase display added after Scene Context section: `## Scene phase: {{ state.scene.scene_phase }}` for narrator tone calibration
@@ -240,7 +240,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Gate block (`**Gate: blocked** — new threads will not be added this turn`) removed — gate is always "allow" after Plan 2, phase-derived `allowed_beat_types` is the gating mechanism
 ### Latent thread handling in system prompts
 - narrate_system.j2: instructs narrator to push players toward latent threads through narration, environmental detail, NPC behaviour — show don't tell (NPC glancing at locked door, torchlight from tunnel, curious sounds); build 4 choices toward discovery; increase pressure for unsurfaced threads
-- storytell_system.j2: instructs storyteller to use dormant/latent thread knowledge when generating suggestions and beats — craft situations where dormant threads naturally surface (character's past catching up, long-silent threat stirring); steer player via choices/suggestions/complications without exposing latent content directly
+- storytell_system.j2: instructs storyteller to use dormant thread knowledge when generating suggestions and beats — craft situations where dormant threads naturally surface (character's past catching up, long-silent threat stirring); steer player via choices/suggestions/complications without exposing dormant content directly
 
 ### Pacing context and beat lifecycle (Phase 03 pacing overhaul)
 - `_compute_pacing_context()` sets `outcome_hint` overridden to "transition" when CLIMAX hits turn limit. Phase engine runs between ruling and narrate, computing `scene_phase` from thread urgency and scene age.
@@ -256,7 +256,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - **Seed emotional framing contract**: The seed generation prompt enforces `goal_context` (2-3 sentences of personal stakes for the PC), NPC `relation` field, and character-shaped action text. This emotional data is embedded in the initial state and the sidebar, not reintroduced per-turn via prompts.
 ### EngineConfig field naming (Phase 06b)
 
-- Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3), thread_stale_threshold (default 3), thread_max_active (default 5), sanitize_every (default 5, 0=disabled). **Thread lifecycle enforcement:** thread_urgency_max_age (default 8, stepwise urgency decay threshold). YAML keys match Python field names directly. **Debug mode:** debug_mode (read from `game.debug.enabled` in config.yaml, default False) — gates streaming metadata display (scene_phase, gm_beat, outcome_hint, summary) in UI turn_complete handler.
+- Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3), thread_max_active (default 5), sanitize_every (default 5, 0=disabled). **Thread lifecycle enforcement:** thread_urgency_max_age (default 8, stepwise urgency decay threshold), thread_completion_threshold (default 3, auto-resolve when progress entries reach threshold), thread_creation_cooldown (default 3, minimum turns between thread_add). YAML keys match Python field names directly. **Debug mode:** debug_mode (read from `game.debug.enabled` in config.yaml, default False) — gates streaming metadata display (scene_phase, gm_beat, outcome_hint, summary) in UI turn_complete handler.
 - Sampling parameters: ruling_temperature/ruling_top_p, extract_temperature/extract_top_p/extract_frequency_penalty, narrate_temperature/narrate_top_p/narrate_frequency_penalty, generate_seed_temperature/generate_seed_top_p, pack_generation_temperature/pack_generation_top_p; stub fields always null until mlx-lm SDK support: seed, top_k, min_p, rep_penalty, rep_penalty_window. Config structure migrated from flat keys to nested `llm.<stage>.<param>` format (Phase 08).
 
 ### Computation functions (Phase 06b)
@@ -339,7 +339,7 @@ arc:                           # managed by engine/turn.py (_apply_thread_update
   threads: list[ArcThread]     # unified arc.threads[] with active flag; dedup is id-only (no key or fuzzy merge); ArcThread.outcome nullable on active, set from ThreadResolution when completed; ArcThread.resolved_turn tracks when thread was resolved for TTL filtering
   completed_threads: list[ArcThread]   # resolved/failed/abandoned threads moved here by _apply_thread_resolutions(); each has resolution_state + outcome + resolved_turn from ThreadResolution
   resolution: str | None       # set when arc is resolved via arc_resolve
-  last_thread_created_turn: int  # tracks when a thread was last created for pacing
+  last_thread_created_turn: int  # tracks when a thread was last created for thread_add cooldown gate
 
 resolved_arcs: list[dict]     # stored at state level, TTL-pruned in prompts; each entry has visible_goal, resolution, goal_context, resolved_turn
 

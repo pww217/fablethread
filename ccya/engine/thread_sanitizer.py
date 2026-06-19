@@ -394,6 +394,12 @@ def _apply_sanitization(
                     "after": prog_list,
                 }
 
+        # Enforce invariant: dormant threads cannot be urgent
+        if updates_dict.get("dormant") is True:
+            final_urgency = updates_dict.get("urgency", getattr(arc.threads[found_idx], "urgency", "normal"))
+            if final_urgency == "urgent":
+                updates_dict["urgency"] = "background"
+
         if updates_dict:
             arc.threads[found_idx] = arc.threads[found_idx].model_copy(update=updates_dict)
             updated_ids.append(tid)

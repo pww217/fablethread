@@ -13,6 +13,7 @@ from ccya.ev.events import (
     is_compaction_event,
     load_state_yaml,
 )
+
 from ccya.ev.output import (
     _describe_collection_change,
     _shorten_value,
@@ -21,6 +22,19 @@ from ccya.ev.output import (
     _wrap_text,
     format_trace_value,
 )
+
+
+def _thread_is_dormant(th: dict[str, Any]) -> bool:
+    """Check if thread is dormant. Handles old (active) and new (dormant) schemas."""
+    if "dormant" in th:
+        return bool(th["dormant"])
+    if "active" in th:
+        return not bool(th["active"])
+    return False
+
+
+def _thread_is_active(th: dict[str, Any]) -> bool:
+    return not _thread_is_dormant(th)
 
 
 def cmd_state(fmt: str = "full", save_dir_path: Path | None = None) -> None:
@@ -187,14 +201,14 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_com
             if isinstance(th, dict) and th.get("id"):
                 threads.append({
                     "id": th["id"],
-                    "active": th.get("active", True),
+                    "dormant": _thread_is_dormant(th),
                     "urgency": th.get("urgency", "normal"),
                     "progress": (th.get("progress") or [])[-1] if th.get("progress") else "",
                 })
                 tid = th["id"]
                 if tid not in all_thread_events:
                     all_thread_events[tid] = {"created_turn": t, "resolved_turn": None, "updates": 0}
-                if not th.get("active", True) and all_thread_events[tid]["resolved_turn"] is None:
+                if _thread_is_dormant(th) and all_thread_events[tid]["resolved_turn"] is None:
                     all_thread_events[tid]["resolved_turn"] = t
 
         if threads:
@@ -207,11 +221,11 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_com
             if st and st not in seen_turns:
                 st_threads = []
                 for tid in (ev.get("threads_added") or []):
-                    st_threads.append({"id": tid, "active": True, "urgency": "normal", "progress": "(new)"})
+                    st_threads.append({"id": tid, "dormant": False, "urgency": "normal", "progress": "(new)"})
                     if tid not in all_thread_events:
                         all_thread_events[tid] = {"created_turn": st, "resolved_turn": None, "updates": 0}
                 for tid in (ev.get("threads_updated") or []):
-                    st_threads.append({"id": tid, "active": True, "urgency": "(updated)", "progress": ""})
+                    st_threads.append({"id": tid, "dormant": False, "urgency": "(updated)", "progress": ""})
                     if tid in all_thread_events:
                         all_thread_events[tid]["updates"] += 1
                 for tid in (ev.get("threads_resolved") or []):
@@ -280,7 +294,7 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_com
         for tid in thread_ids:
             if tid in threads_at_turn:
                 th = threads_at_turn[tid]
-                status = "active" if th.get("active") else "latent"
+                status = "dormant" if th.get("dormant") else "active"
                 urgency = th.get("urgency", "")
                 if isinstance(urgency, str) and urgency not in ("normal", "high", "background"):
                     status = urgency
@@ -595,7 +609,7 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
             ss = ev.get("state_snapshot") or {}
             arc = ss.get("arc") or {}
             for th in (arc.get("threads") or []):
-                if isinstance(th, dict) and th.get("urgency") == "high" and th.get("active", True):
+                if isinstance(th, dict) and th.get("urgency") == "high" and not _thread_is_dormant(th):
                     thread_weight = 1
                     urgency_depth += 1
             if urgency_depth >= 2:
@@ -1096,7 +1110,7 @@ def _render_arc_section(state: dict[str, Any]) -> None:
     if goal:
         print(f"  Goal: {goal}")
     threads = arc.get("threads", []) or []
-    active_threads = [t for t in threads if isinstance(t, dict) and t.get("active")]
+    active_threads = [t for t in threads if isinstance(t, dict) and _thread_is_active(t)]
     completed = arc.get("completed_threads", []) or []
     discovered = arc.get("discovered_truths", []) or []
     hidden = arc.get("hidden_truths", []) or []

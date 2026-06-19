@@ -9,7 +9,7 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 ```json
 {
   "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "...", "promote_to_world_state": true}],
-  "thread_update": [{"id": "...", "progress": "...", "progress_kind": "advancement|setback|shift", "urgency": "background|normal|urgent", "active": true}],
+  "thread_update": [{"id": "...", "progress": "...", "progress_kind": "advancement|setback|shift", "urgency": "background|normal|urgent", "dormant": true}],
   "thread_add": {"id": "...", "summary": "...", "urgency": "normal"},
    "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["..."], "new_threads": [{"id": "...", "summary": "...", "urgency": "normal"}]},
    "goal_update": "...",
@@ -26,9 +26,9 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 
 **Thread IDs are 2–4 word broad conceptual buckets.** No proper nouns. If your ID contains a character name, location, or object name, it is too narrow. `enemy_contact_advance` ✓ — `naval_boarding_action` ✗ (it is a scene), `the_missing_ledger` ✗ (one object).
 
-**`thread_resolve`:** Use when a thread concluded, failed, was absorbed into a broader thread, or urgency fully decayed. `promote_to_world_state: true` only when the outcome is a permanent world fact. Do NOT resolve threads still meaningfully active — prefer `active: false` for threads that might resurface. If a thread went unaddressed for 3+ turns, resolve or demote rather than update. **Close actively:** don't let resolved threads linger. If a thread is done, emit `thread_resolve`. **IMPORTANT: `thread_resolve` removes the thread from the active list and moves it to completed_threads. This is the ONLY way to drop threads from the active list.**
+**`thread_resolve`:** Use when a thread concluded, failed, was absorbed into a broader thread, or urgency fully decayed. `promote_to_world_state: true` only when the outcome is a permanent world fact. Do NOT resolve threads still meaningfully active — prefer `dormant: true` for threads that might resurface. If a thread went unaddressed for 3+ turns, resolve or demote rather than update. **Close actively:** don't let resolved threads linger. If a thread is done, emit `thread_resolve`. **IMPORTANT: `thread_resolve` removes the thread from the active list and moves it to completed_threads. This is the ONLY way to drop threads from the active list.**
 
-**`thread_update`:** Only `progress` (5–7 words max) — factual, confirmed by this turn's events, no speculation. `progress_kind` classifies the change. If the thread is no longer relevant, resolve it (thread_resolve) or set active: false, then create a new thread via thread_add — do not repurpose with progress that contradicts the summary.
+**`thread_update`:** Only `progress` (5–7 words max) — factual, confirmed by this turn's events, no speculation. `progress_kind` classifies the change. If the thread is no longer relevant, resolve it (thread_resolve) or set dormant: true, then create a new thread via thread_add — do not repurpose with progress that contradicts the summary.
 
 **CRITICAL: Progress must be a new fact, not a rephrasing.** The system rejects progress entries that are 70%+ text-similar to the last entry. "Telegram reveals Captain Miller's involvement" followed by "Telegram confirms Captain Miller's involvement" will be rejected — changing one verb is not progress. Each progress entry must add genuinely new information: a new discovery, a setback, a shift in circumstances, or a concrete development. If you cannot state a new fact about the thread, do not emit an update.
 
