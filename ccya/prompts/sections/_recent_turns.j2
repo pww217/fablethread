@@ -1,0 +1,4 @@
+{% if recent_turns %}
+## Prior Turn
+**T{{ recent_turns[-1].turn }}:** {{ recent_turns[-1].narrative }}
+{% endif %}

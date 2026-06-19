@@ -58,13 +58,7 @@
 {% endfor -%}
 {% endif -%}
 
-## Recent Turns
-{% if recent_turns -%}
-{% for t in recent_turns %}
-**T{{ t.turn }}:** {{ t.narrative }}
-
-{% endfor -%}
-{% endif -%}
+{% include "sections/_recent_turns.j2" %}
 
 {% include "sections/_arc.j2" %}
 

@@ -5,15 +5,8 @@
 {% if npc_roster -%}
 <<<TRACE_IMMUTABLE_START>>>
 ## known_characters (compendium — reuse `id` for compendium_npc_update)
-{% include "sections/_npc_roster_slim.j2" %}
+{% include "sections/_npc_roster.j2" %}
 <<<TRACE_IMMUTABLE_END>>>
-{% endif -%}
-{% if recent_turns -%}
-{% set prev = recent_turns[-1] if recent_turns | length >= 1 else none %}
-{% if prev %}
-## previous_turn_narration (T{{ prev.turn }} context)
-{{ prev.narrative }}
-{% endif %}
 {% endif -%}
 ## CURRENT TURN {{ turn_no }} NARRATION
 {{ narration }}

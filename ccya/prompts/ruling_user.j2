@@ -9,7 +9,7 @@
 Location: {{ location.name or location.id or "Unknown" }}
 {%- if npc_roster %}
 ## Present NPCs (in scene right now)
-{% for n in npc_roster %}{% if n.presence == "present" %}- {% if n.name %}{{ n.name }}{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% endif %}
+{% for n in npc_roster %}{% if n.presence == "present" %}- {% if n.name %}{{ n.name }}{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.bond %} | bond: {{ n.bond }}{% endif %}{% endif %}
 {% endfor -%}
 {% endif -%}
 {%- if urgent_threads %}
@@ -27,14 +27,7 @@ Location: {{ location.name or location.id or "Unknown" }}
 - {{ item.name }} ({{ item.amount }}){% if item.notes %}: {{ item.notes }}{% endif %}
 {% endfor -%}
 {% endif -%}
-{%- if last_outcome %}
-## Last Turn Outcome
-{{ last_outcome }}
-{%- endif %}
-{% if recent_turns %}
-## Last Turn Narrative (T{{ recent_turns[-1].turn }})
-{{ recent_turns[-1].narrative }}
-{% endif %}
+{% include "sections/_recent_turns.j2" %}
 
 ## Current Turn: {{ meta.turn | default('?') }}
 ## Scene Phase: {{ scene_phase | default('SETUP') }}

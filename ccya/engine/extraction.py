@@ -239,7 +239,6 @@ def _extract_scene_messages(
     narration: str,
     state: dict[str, Any],
     *,
-    recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 1 (NPC presence, location, tags)."""
@@ -255,7 +254,6 @@ def _extract_scene_messages(
             "narration": narration,
             "location": location,
             "npc_roster": npc_roster,
-            "recent_turns": recent_turns or [],
             "turn_no": turn_no,
         },
     )
@@ -331,14 +329,6 @@ def _storytell_messages(
     evicted_ids: set[str] = {ct["id"] for ct in completed_threads if isinstance(ct, dict) and ct.get("id")}
     prior_history = list((state.get("meta") or {}).get("prior_history", [])[:-1])
     prior_history = _filter_evicted_threads(prior_history, evicted_ids)
-    # recent_turns is list[dict[str, Any]] — extract narrative strings for filtering
-    recent_turns_strs: list[str] = []
-    for rt in (recent_turns or []):
-        if isinstance(rt, str):
-            recent_turns_strs.append(rt)
-        elif isinstance(rt, dict):
-            recent_turns_strs.append(rt.get("narrative", ""))
-    recent_turns_filtered = _filter_evicted_threads(recent_turns_strs, evicted_ids)
 
     system_text = _render(
         env, "storytell_system.j2", {
@@ -367,7 +357,7 @@ def _storytell_messages(
             "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
             "intent": intent,
             "pacing_context": pacing_context,
-            "recent_turns": recent_turns_filtered,
+            "recent_turns": recent_turns or [],
             "prior_history": prior_history,
             "pending_beat": (state.get("meta") or {}).get("pending_gm_beat"),
             "recent_beats": list((state.get("meta") or {}).get("recent_beats", [])),
@@ -547,7 +537,6 @@ async def _run_extraction_pipeline(
     t_scene = asyncio.get_event_loop().time()
     scene_msgs = _extract_scene_messages(
         env, narration, state,
-        recent_turns=(recent_turns or [])[-1:],
         turn_no=turn_no,
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes

@@ -40,10 +40,6 @@ def _ruling_messages(
                 "progress": t.get("progress", []),
             })
     
-    # Last turn outcome from prior_history
-    prior_history = list((state.get("meta") or {}).get("prior_history") or [])
-    last_outcome = prior_history[-1] if prior_history else None
-    
     user_text = _render(
         env,
         "ruling_user.j2",
@@ -57,7 +53,6 @@ def _ruling_messages(
             "recent_turns": recent_turns or [],
             "scene_phase": scene_phase,
             "urgent_threads": urgent_threads,
-            "last_outcome": last_outcome,
         },
     )
     return [
