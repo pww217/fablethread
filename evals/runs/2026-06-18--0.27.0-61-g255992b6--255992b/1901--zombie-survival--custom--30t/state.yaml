@@ -1,0 +1,417 @@
+arc:
+  completed_threads:
+  - active: true
+    added_turn: 1
+    id: escape_dark_room
+    last_updated_turn: 4
+    outcome: The character fell through the floor into a new expanse.
+    progress:
+    - kind: advancement
+      text: found jagged indentation and pulsing light fracture
+    - kind: advancement
+      text: stone slab collapses into the dark void
+    - kind: advancement
+      text: silver ring slides across dark glass surface
+    resolution_state: failed
+    resolved_turn: 5
+    summary: find an exit or light source in the pitch-black room
+    urgency: normal
+    urgency_set_turn: 1
+  - active: false
+    added_turn: null
+    id: locate_lost_signet_ring
+    last_updated_turn: null
+    outcome: The ring was lost during the initial fall and remains unreachable.
+    progress: []
+    resolution_state: abandoned
+    resolved_turn: 10
+    summary: Find the silver signet ring lost during the fall.
+    urgency: normal
+    urgency_set_turn: null
+  - active: true
+    added_turn: 10
+    id: descend_ribbed_corridor
+    last_updated_turn: 14
+    outcome: The encounter in the chamber ended abruptly when the floor collapsed,
+      swallowing the combatants into a chasm.
+    progress:
+    - kind: advancement
+      text: Character slides into a ribbed corridor.
+    - kind: advancement
+      text: Approaching the circular chamber threshold.
+    - kind: setback
+      text: Movement noise alerts shadows in the chamber.
+    - kind: advancement
+      text: Combat erupts with shadowy figures in chamber
+    - kind: advancement
+      text: One shadow is slain by a sword strike.
+    resolution_state: failed
+    resolved_turn: 15
+    summary: Navigate the narrow ribbed corridor and circular chamber.
+    urgency: normal
+    urgency_set_turn: 10
+  - active: true
+    added_turn: 15
+    id: descent_into_organism
+    last_updated_turn: null
+    outcome: The party successfully landed on the obsidian floor after a violent tumble.
+    progress:
+    - kind: advancement
+      text: Party falls into a violet chasm.
+    resolution_state: resolved
+    resolved_turn: 16
+    summary: Survive the slide down the calcified bone incline
+    urgency: urgent
+    urgency_set_turn: 15
+  - active: false
+    added_turn: null
+    id: shadow_entity_encounter
+    last_updated_turn: null
+    outcome: The shadowy figures fell into the chasm during the floor collapse.
+    progress: []
+    resolution_state: resolved
+    resolved_turn: 19
+    summary: Deal with the hostile shadows in the circular chamber.
+    urgency: normal
+    urgency_set_turn: null
+  - active: true
+    added_turn: 18
+    id: plummeting_into_void
+    last_updated_turn: 20
+    outcome: The party successfully landed on a calcified bone floor after the fall.
+    progress:
+    - kind: advancement
+      text: Party clings to swaying muscular veins.
+    - kind: advancement
+      text: Debris and shadows fall past party.
+    resolution_state: resolved
+    resolved_turn: 21
+    summary: Survive the freefall through the collapsing organism throat
+    urgency: urgent
+    urgency_set_turn: 18
+  - active: true
+    added_turn: null
+    id: stabilize_in_chasm
+    last_updated_turn: 22
+    outcome: The party successfully landed on the bone floor of the corridor.
+    progress:
+    - kind: advancement
+      text: Landed on solid bone floor in dark corridor.
+    - kind: advancement
+      text: Character manages to stand despite rib injuries.
+    resolution_state: resolved
+    resolved_turn: 23
+    summary: Find stable footing or grip within the vertical organic landscape.
+    urgency: urgent
+    urgency_set_turn: null
+  - active: true
+    added_turn: 21
+    id: navigate_bone_corridor
+    last_updated_turn: null
+    outcome: The party was swept through a wall rupture into a new chamber.
+    progress:
+    - kind: advancement
+      text: Corridor walls pulse with rhythmic contractions.
+    resolution_state: resolved
+    resolved_turn: 26
+    summary: Find a way through the narrow calcified bone corridor.
+    urgency: normal
+    urgency_set_turn: 21
+  - active: true
+    added_turn: 23
+    id: corridor_pathfinding
+    last_updated_turn: null
+    outcome: A spasm in the corridor walls forced the party into a secondary passage.
+    progress: []
+    resolution_state: resolved
+    resolved_turn: 26
+    summary: Navigate through the narrowing calcified bone corridor.
+    urgency: normal
+    urgency_set_turn: 23
+  goal_context: After being swept through a wall rupture, the party has landed on
+    an obsidian floor within a massive chamber characterized by violet ceiling veins
+    and heavy psychic weight from nearby bystanders.
+  last_thread_created_turn: 30
+  resolution: null
+  threads:
+  - active: false
+    added_turn: 5
+    id: negotiate_with_strangers
+    last_updated_turn: 9
+    outcome: null
+    progress:
+    - kind: shift
+      text: Character and Elara slide down chute.
+    resolution_state: null
+    resolved_turn: null
+    summary: establish trust or intentions with Elara Vance and Kaelen Voss
+    urgency: normal
+    urgency_set_turn: 5
+  - active: false
+    added_turn: 9
+    id: biological_network_discovery
+    last_updated_turn: 24
+    outcome: null
+    progress:
+    - kind: shift
+      text: Walls transitioned to interlocking calcium plates.
+    resolution_state: null
+    resolved_turn: null
+    summary: Investigate the pulsing violet veins beneath the obsidian floor
+    urgency: normal
+    urgency_set_turn: 17
+  - active: true
+    added_turn: 22
+    id: unseen_threat_detection
+    last_updated_turn: 30
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Bystanders exert heavy psychic weight nearby.
+    - kind: shift
+      text: Bystanders lunged toward a wall rupture before being swept away.
+    - kind: shift
+      text: Psychic weight settles heavily over obsidian floor.
+    - kind: advancement
+      text: Bystanders exert heavy psychic weight nearby.
+    - kind: advancement
+      text: Psychic weight flares as bystanders shift in gloom.
+    - kind: advancement
+      text: Bystanders exert heavy psychic weight nearby.
+    resolution_state: null
+    resolved_turn: null
+    summary: Identify the location and nature of the nearby bystanders
+    urgency: background
+    urgency_set_turn: 30
+  - active: true
+    added_turn: 26
+    id: explore_obsidian_chamber
+    last_updated_turn: null
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Party landed on polished obsidian floor.
+    resolution_state: null
+    resolved_turn: null
+    summary: Investigate the vast chamber and its violet ceiling canopy.
+    urgency: normal
+    urgency_set_turn: 26
+  - active: true
+    added_turn: 30
+    id: obsidian_chamber_rhythms
+    last_updated_turn: null
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Floor heartbeat syncs with violet pulses.
+    resolution_state: null
+    resolved_turn: null
+    summary: Investigate the rhythmic violet pulses and heartbeat of the obsidian
+      chamber.
+    urgency: normal
+    urgency_set_turn: 30
+  visible_goal: The party must navigate the vast obsidian chamber while managing injuries
+    and psychic pressure.
+compendium:
+  npcs:
+    bystanders:
+      aliases:
+      - bystanders
+      bio: Unseen figures in the dark; no movement or sound is detectable.
+      first_seen_turn: 0
+      last_presence_turn: 30
+      last_seen_location: Obsidian Chamber
+      name: Two Bystanders
+      notes: motionless psychic weight in gloom
+      personality: wary_opportunist
+      position: unseen in the darkness
+      presence: present
+    elara_vance:
+      bio: Alert and poised, with a hand resting habitually on her weapon. Watches
+        newcomers with sharp, suspicious eyes.
+      first_seen_turn: 4
+      last_presence_turn: 30
+      last_seen_location: Obsidian Chamber
+      name: Elara Vance
+      notes: tracking shifting shadows intently
+      personality: cold_pragmatist
+      position: coiled and ready near the wall
+      presence: present
+    kaelen_voss:
+      bio: Heavy-set frame with a steady, grounding presence. Carries a flickering
+        lantern that cuts through the oppressive gloom.
+      first_seen_turn: 4
+      last_presence_turn: 30
+      last_seen_location: Obsidian Chamber
+      name: Kaelen Voss
+      notes: swinging lantern light wide
+      personality: wary_opportunist
+      position: shifting stance in center of light
+      presence: present
+      title: Lantern Bearer
+    shadowy_figures:
+      aliases:
+      - shadowy figures
+      bio: Two indistinct silhouettes moving within the violet light. Their forms
+        are obscured by the erratic flickering of the pulsing veins.
+      departed_reason: fell into chasm — Swallowed by the void during the floor's
+        catastrophic collapse.
+      departed_turn: 13
+      first_seen_turn: 10
+      last_presence_turn: 19
+      last_seen_location: Organism Throat Cavern
+      name: Two shadowy figures
+      notes: vanished into the lightless depths
+      personality: wary_opportunist
+      position: at the edge of the chasm above
+      presence: archived
+inventory: []
+location:
+  description: A vast hall of polished black obsidian where rhythmic violet pulses
+    from ceiling veins sync with a subterranean heartbeat. The air is thick with suffocating
+    psychic density, and long, erratic shadows dance across the floor.
+  id: obsidian_chamber
+  name: Obsidian Chamber
+meta:
+  compendium_touch_order:
+  - shadowy_figures
+  - elara_vance
+  - kaelen_voss
+  - bystanders
+  game_name: default
+  last_thread_created_turn: 30
+  model: ''
+  pending_gm_beat:
+    beat_expires_turn: 32
+    surface_as: environmental
+    type: escalation
+  prior_history:
+  - '- [T11] The character edges toward the chamber while Elara Vance and Kaelen Voss
+    prepare for a potential encounter with two shadowy figures.'
+  - '- [T12] The character''s attempt at stealth fails when a bone fragment cracks,
+    alerting the shadowy figures in the chamber.'
+  - '- [T13] The character strikes a shadow but takes a wounding blow to the ribs
+    during the exchange.'
+  - '- [T14] The character slays one shadowy figure, but the remaining silhouette
+    lunges at Kaelen Voss.'
+  - '- [T15] The character stumbles due to a rib injury and is swept into a violet
+    chasm along with the lantern and Kaelen Voss as the floor collapses.'
+  - '- [T16] The character falls from the bone chute and lands hard on a vibrating
+    obsidian floor alongside Elara Vance and Kaelen Voss.'
+  - '- [T17] The character attempts to stand and scan for weapons despite their rib
+    injury.'
+  - '- [T18] The character fails to grab Elara Vance''s cloak and falls into the violet
+    chasm alongside Kaelen Voss.'
+  - '- [T19] The character caught a pulsing vein to arrest their fall, narrowly avoiding
+    Elara Vance and Kaelen Voss while the shadowy figures fell into the void.'
+  - '- [T20] The character successfully clings to a muscular vein to avoid the falling
+    debris alongside Elara Vance and Kaelen Voss.'
+  - '- [T21] The character and companions land heavily on a calcified bone floor after
+    being swept through a mucosal passage.'
+  - '- [T22] The character forces themselves upright despite intense rib pain to scan
+    the dark corridor for exits.'
+  - '- [T23] The character assesses their rib injury and observes the oppressive darkness
+    and silent bystanders in the corridor.'
+  - '- [T24] The character edges toward Elara Vance while enduring rib pain amidst
+    psychic pressure from the bystanders.'
+  - '- [T25] The character whispers to Elara Vance while the corridor walls begin
+    pulsing rhythmically against their back.'
+  - '- [T26] The party is swept through a wall rupture into a vast obsidian chamber
+    after a spasm in the bone corridor.'
+  - '- [T27] The character forces themselves upright despite intense rib pain to scan
+    the obsidian chamber for threats.'
+  - '- [T28] The character moves cautiously toward Elara Vance while enduring rib
+    pain and heavy psychic pressure from the nearby bystanders.'
+  - '- [T29] The character asks Elara Vance about movement while the floor''s rhythmic
+    heartbeat intensifies and psychic pressure surges.'
+  - '- [T30] The character steadies themselves against a bone wall while scanning
+    the obsidian chamber''s shadows and psychic pressure.'
+  recent_beats:
+  - surface_as: null
+    turn: 26
+    type: null
+  - surface_as: environmental
+    turn: 27
+    type: pressure
+  - surface_as: environmental
+    turn: 28
+    type: complication
+  - surface_as: environmental
+    turn: 29
+    type: pressure
+  - surface_as: environmental
+    turn: 30
+    type: escalation
+  recent_rolls:
+  - band: fail
+    turn: 24
+  - band: success
+    turn: 22
+  - band: success
+    turn: 21
+  - band: success
+    turn: 20
+  - band: success
+    turn: 19
+  setting_pack: ''
+  turn: 30
+pc:
+  actions:
+  - Signal Elara Vance to fan out toward the violet ceiling veins.
+  - Press Kaelen Voss's lantern closer to the motionless Bystanders.
+  - Probe the pulsing obsidian floor for structural weaknesses or exits.
+  - Attempt to steady breathing to mitigate the psychic pressure.
+  allegiance: null
+  bio: ''
+  conditions:
+  - added_turn: 12
+    description: A hot line of pain carved across your ribs; physical exertion and
+      injury make movement difficult.
+    id: wounded
+    label: Wounded
+  - added_turn: 20
+    description: The sudden impact against the bone floor has aggravated your existing
+      injury, causing sharp pain upon movement.
+    id: bruised_ribs
+    label: bruised ribs
+  - added_turn: 28
+    description: The suffocating psychic weight makes your vision swim and focus difficult.
+    id: disoriented
+    label: Disoriented
+  name: ''
+  stats:
+    charisma: 2
+    dexterity: 2
+    strength: 2
+    wits: 2
+  tagline: ''
+resolved_arcs: []
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  curtain_call: ''
+  location_entered_turn: 26
+  scene_phase: RISING
+  tagline: Obsidian Chamber  pulsing violet light, psychic pressure
+  tags: []
+  turn_entered: 26
+  world_state:
+  - id: descent_into_organism
+    text: The party successfully landed on the obsidian floor after a violent tumble.
+    tier: persistent
+  - id: plummeting_into_void
+    text: The party successfully landed on a calcified bone floor after the fall.
+    tier: persistent
+  - id: stabilize_in_chasm
+    text: The party successfully landed on the bone floor of the corridor.
+    tier: persistent
+  - id: navigate_bone_corridor
+    text: The party was swept through a wall rupture into a new chamber.
+    tier: persistent
+  - id: corridor_pathfinding
+    text: A spasm in the corridor walls forced the party into a secondary passage.
+    tier: persistent
+schema_version: 1
+world:
+  factions: []
+  locations: []

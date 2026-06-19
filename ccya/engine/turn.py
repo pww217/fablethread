@@ -542,11 +542,6 @@ def _compute_scene_phase(
             climax_turn_count = 1
 
     elif phase == "CLIMAX":
-        _curtain_call = ""
-        if climax_turn_count >= config.climax_turn_limit - 1:
-            _curtain_call = "forced"
-        elif climax_turn_count == 1:
-            _curtain_call = "active"
         climax_turn_count += 1
         if climax_turn_count >= config.climax_turn_limit:
             phase = "RESOLUTION"
@@ -562,8 +557,13 @@ def _compute_scene_phase(
             phase = "RISING"
             breather_turn_count = 0
 
-    if phase != "CLIMAX":
-        _curtain_call = ""
+    # Compute curtain_call after phase may have changed
+    _curtain_call = ""
+    if phase == "CLIMAX":
+        if climax_turn_count >= config.climax_turn_limit - 1:
+            _curtain_call = "forced"
+        elif climax_turn_count == 1:
+            _curtain_call = "active"
 
     return {**scene, "scene_phase": phase, "climax_turn_count": climax_turn_count, "breather_turn_count": breather_turn_count, "curtain_call": _curtain_call}
 
@@ -1168,7 +1168,7 @@ async def run_turn(
 
             # Persist condition change reason for debugging
             if delta and (delta.pc_condition_add or delta.pc_condition_remove):
-                if delta.condition_change_reason:
+                if hasattr(delta, "condition_change_reason") and delta.condition_change_reason:
                     meta["last_condition_change_reason"] = delta.condition_change_reason
                 else:
                     meta.pop("last_condition_change_reason", None)
