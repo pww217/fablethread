@@ -267,6 +267,7 @@ class WorldStateFact(BaseModel):
 
 class StateDelta(BaseModel):
     inventory_change_reason: str = ""
+    condition_change_reason: str = ""
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
     inventory_remove: list[InventoryRemove] = Field(default_factory=list)
     inventory_update: list[InventoryUpdate] = Field(default_factory=list, max_length=6)
