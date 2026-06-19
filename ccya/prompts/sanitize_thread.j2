@@ -40,11 +40,18 @@ Review each active thread and output a JSON object inside <sanitize> tags.
 ### Per-thread checks
 1. **Resolved?** → add to resolved_threads[] with resolution_state + outcome.
 2. **Urgency wrong?** → update urgency field.
-3. **Should be latent or re-activated?** → set active field.
-4. **Progress noisy or redundant?** → consolidate to fewer entries (5–7 words, factual, net outcomes over step-by-step logs).
+3. **Type wrong?** → update type field (threat/opportunity/complication/revelation).
+4. **Should be dormant or re-activated?** → set dormant field.
+5. **Progress noisy or redundant?** → consolidate to fewer entries (5–7 words, factual, net outcomes over step-by-step logs).
 
-### Temporal decay
-If a thread is inactive (active=false) and has no new progress for 3+ turns with no ongoing narrative reason to persist, move it to resolved_threads[] or remove it. Background threads with no updates across multiple sanitizer cycles should be removed.
+### Abandonment criteria
+If a thread has no narrative mention in 5+ turns AND no activity (progress/urgency change) in 3+ turns, consider resolving as abandoned with narrative justification. Do not abandon threads still relevant to the current situation.
+
+### Dormant guidance
+If a thread has no activity in 4+ turns, consider setting dormant: True. Dormant threads represent tensions faded from immediate relevance but can be reactivated.
+
+### Culling guidance
+If there are >= 3 dormant threads, consider resolving the oldest (by last_updated_turn) as abandoned with a narrative outcome sentence.
 
 ### Progress consolidation
 Threads should shrink over time, not accumulate. Consolidate when:
@@ -56,7 +63,7 @@ Threads should shrink over time, not accumulate. Consolidate when:
 Update a thread's summary if it no longer matches the current narrative; keep it broad enough for 3–4+ progress updates, not a single scene.
 
 ### Thread count
-Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold ones (active=false), merge overlapping ones, prefer fewer meaningful threads.
+Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold ones (dormant: true), merge overlapping ones, prefer fewer meaningful threads.
 
 ### Arc goal vs. threads
 **Do NOT pivot visible_goal when:**
@@ -81,8 +88,9 @@ Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold
   "thread_updates": [            // only threads needing changes
     {
       "id": "existing_id",
-      "active": true,
+      "dormant": true,
       "urgency": "...",
+      "type": "threat|opportunity|complication|revelation",
       "progress": ["str"],
       "progress_kind": "advancement|setback|shift"
     }
@@ -99,7 +107,7 @@ Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold
       "id": "new_unique_id",
       "summary": "Thread summary",
       "urgency": "normal",
-      "active": true
+      "dormant": false
     }
   ],
   "_checklist": {                // MANDATORY
