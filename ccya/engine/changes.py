@@ -254,8 +254,8 @@ def summarize_changes(
                 changes = []
                 if po.get("urgency") != pr.get("urgency"):
                     changes.append(f"urgency: {pr.get('urgency', '?')}→{po.get('urgency', '?')}")
-                if po.get("active") != pr.get("active"):
-                    changes.append("reactivated" if po.get("active") else "dormant")
+                if po.get("dormant") != pr.get("dormant"):
+                    changes.append("deactivated" if po.get("dormant") else "activated")
                 if po.get("summary") and po.get("summary") != pr.get("summary"):
                     changes.append("summary updated")
                 pre_progress = pr.get("progress") or []

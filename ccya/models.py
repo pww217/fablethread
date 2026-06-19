@@ -422,6 +422,7 @@ class ThreadUpdate(BaseModel):
     id: str
     dormant: bool | None = None
     urgency: Literal["background", "normal", "urgent"] | None = None
+    type: Literal["threat", "opportunity", "complication", "revelation"] | None = None
     progress: str | None = None
     progress_kind: Literal["advancement", "setback", "shift"] | None = None
 

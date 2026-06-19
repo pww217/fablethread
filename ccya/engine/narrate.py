@@ -61,11 +61,11 @@ def _narrate_messages(
                     "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
                     "urgency": t.get("urgency", "normal") if isinstance(t, dict) else getattr(t, "urgency", "normal"),
                     "id": t.get("id", "") if isinstance(t, dict) else getattr(t, "id", ""),
-                    "active": t.get("active", True) if isinstance(t, dict) else getattr(t, "active", True),
+                    "dormant": t.get("dormant", False) if isinstance(t, dict) else getattr(t, "dormant", False),
                     "progress": _fmt_progress(t.get("progress")) if isinstance(t, dict) else (_fmt_progress(t.progress) if hasattr(t, "progress") else []),
                     "last_updated_turn": t.get("last_updated_turn") if isinstance(t, dict) else getattr(t, "last_updated_turn", None),
                 }
-                for t in all_threads if not (isinstance(t, dict) and t.get("active") is False) or not hasattr(t, "active") or getattr(t, "active", True)
+                for t in all_threads if not (isinstance(t, dict) and t.get("dormant") is True) or not hasattr(t, "dormant") or not getattr(t, "dormant", False)
             ],
             "completed_threads": _filter_completed_threads(arc, turn_no, ttl=thread_ttl),
         }
