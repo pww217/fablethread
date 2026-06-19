@@ -84,7 +84,7 @@ def derive_allowed_beat_types(
 
 def compute_convergence_score(
     scene_phase: str,
-    thread_urgency_count: int,
+    active_threads: list[dict[str, Any]],
     scene_age: int,
     recent_beats: list[dict[str, Any]],
     current_outcome: RulesOutcome | None,
@@ -94,15 +94,24 @@ def compute_convergence_score(
 
     Each component is worth +1. Threshold is config.convergence_threshold (default 3).
     Score cannot reach threshold without at least one urgent thread.
+    Dormant threads are excluded from all components.
     """
     score = 0
 
-    # Component 1: Thread weight (+1)
-    if thread_urgency_count >= 1:
+    # Component 1: any urgent thread (+1)
+    any_urgent = any(
+        t.get("urgency") == "urgent" and not t.get("dormant", False)
+        for t in active_threads
+    )
+    if any_urgent:
         score += 1
 
-    # Component 2: Urgency depth (+1)
-    if thread_urgency_count >= 2:
+    # Component 2: active threat (+1)
+    any_threat = any(
+        t.get("type") == "threat" and not t.get("dormant", False)
+        for t in active_threads
+    )
+    if any_threat:
         score += 1
 
     # Component 3: Scene age (+1)
@@ -121,10 +130,10 @@ def compute_convergence_score(
 
     # Component 5: Dice weight (+1)
     if (
-        current_outcome is not None
+        any_urgent
+        and current_outcome is not None
         and current_outcome.rolled
         and current_outcome.band in ("crit_fail", "fail")
-        and thread_urgency_count >= 1
     ):
         score += 1
 
