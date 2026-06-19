@@ -314,3 +314,12 @@ Marcus Thorne lunges across the splintered timber of the raft, his hand closing 
 The sudden weight of the secured crate shifts the center of gravity for the entire cluster, causing the raft to tilt sharply. Elias Vance shrieks as he slides toward the edge, his fingers clawing at the brine-slicked wood to find purchase. Silas Reed remains a silent, unmoving statue amidst the chaos, staring blankly at the splashing water near the crate Marcus Thorne just secured.
 
 The frantic splashing near the merchant crate intensifies, growing more rhythmic and desperate. Something heavy strikes the underside of the floating timber from below, sending a shudder through the entire debris pile that nearly unseats Marcus Thorne from his position beside the Iron-bound Chest.
+
+
+## Turn 31 — evals/packs/golden-piracy.yaml
+
+Marcus Thorne reaches toward the churning white foam near the Merchant Crate, his fingers grasping for anything solid amidst the spray, but his hands find only empty air and biting salt. He fumbles at his belt for a tool or a weapon to steady himself against the violent shuddering of the debris pile, but his grip slips on the brine-slicked wood as another heavy strike thuds against the underside of the raft.
+
+Elias Vance lets out a strangled cry, his knuckles white as he clings to the edge of the raft, his eyes fixed on the rhythmic splashing near the crate Marcus Thorne just secured. Silas Reed remains motionless, his hollow gaze locked on the same spot where something large and unseen thrashes just beneath the surface of the dark water. 
+
+Two crewmen drift within reach, their hands clawing desperately at passing timbers as they struggle to keep their heads above the swell. The Merchant Crate groans under the pressure of a new surge, tilting dangerously toward the trough as the rhythmic splashing grows louder, more focused, and closer to the raft's edge.

@@ -99,18 +99,14 @@ __seed_pools__:
 arc:
   completed_threads:
   - active: false
-    added_turn: null
     id: naval_blockade_tension
-    last_updated_turn: null
     outcome: The ship has wrecked, making the blockade irrelevant to immediate survival.
     progress: []
     resolution_state: abandoned
     resolved_turn: 15
     summary: The Royal Navy patrols are tightening their grip on the coastline.
     urgency: background
-    urgency_set_turn: null
   - active: true
-    added_turn: null
     id: wreckage_stability_crisis
     last_updated_turn: 15
     outcome: The mainmast platform buckled and collapsed into the sea.
@@ -121,7 +117,6 @@ arc:
     resolved_turn: 16
     summary: The splintered mast platform is breaking apart under the weight of survivors.
     urgency: urgent
-    urgency_set_turn: null
   - active: true
     added_turn: 16
     id: isolation_in_storm
@@ -152,7 +147,6 @@ arc:
   - active: true
     added_turn: 20
     id: lifeboat_retrieval_crisis
-    last_updated_turn: null
     outcome: The lifeboat was successfully tethered and pulled alongside the raft.
     progress:
     - kind: setback
@@ -163,7 +157,6 @@ arc:
     urgency: urgent
     urgency_set_turn: 20
   - active: true
-    added_turn: null
     id: searching_for_survivors
     last_updated_turn: 21
     outcome: Marcus reached the wreckage pile and secured survivors; no more immediate
@@ -175,7 +168,6 @@ arc:
     resolved_turn: 22
     summary: Locate and rescue survivors or supplies drifting in the wreckage
     urgency: normal
-    urgency_set_turn: null
   - active: true
     added_turn: 24
     id: merchant_hull_entry
@@ -223,29 +215,21 @@ arc:
   resolution: null
   threads:
   - active: false
-    added_turn: null
     id: internal_crew_unrest
     last_updated_turn: 26
-    outcome: null
     progress:
     - kind: shift
       text: Crewman nearly swept overboard by waves
-    resolution_state: null
-    resolved_turn: null
     summary: Discontent is brewing among the crew regarding the distribution of recent
       spoils.
     urgency: normal
-    urgency_set_turn: null
   - active: true
     added_turn: 17
     id: salvage_debris_recovery
     last_updated_turn: 29
-    outcome: null
     progress:
     - kind: advancement
       text: Secured chest, satchel, and merchant crate.
-    resolution_state: null
-    resolved_turn: null
     summary: Recover vital supplies and equipment from the drifting wreckage
     urgency: normal
     urgency_set_turn: 25
@@ -253,27 +237,21 @@ arc:
     added_turn: 22
     id: crimson_crate_discovery
     last_updated_turn: 26
-    outcome: null
     progress:
     - kind: advancement
       text: Crate lid splinters revealing metallic contents
-    resolution_state: null
-    resolved_turn: null
     summary: Investigate the vivid crimson crate surfacing near the wreckage
     urgency: normal
     urgency_set_turn: 22
-  - active: true
+  - active: false
     added_turn: 26
     id: unknown_threat_presence
-    last_updated_turn: 28
-    outcome: null
+    last_updated_turn: 31
     progress:
     - kind: advancement
       text: Large silhouette seen inside submerged hull.
     - kind: advancement
       text: Heavy rhythmic thuds strike the wreckage.
-    resolution_state: null
-    resolved_turn: null
     summary: Investigate claw marks and disturbances inside the merchant hull
     urgency: urgent
     urgency_set_turn: 26
@@ -281,25 +259,19 @@ arc:
     added_turn: 28
     id: drifting_wreckage_instability
     last_updated_turn: 29
-    outcome: null
     progress:
     - kind: shift
       text: Raft slammed into new wreckage cluster.
-    resolution_state: null
-    resolved_turn: null
     summary: Maintain stability of the raft amidst shifting currents and swells
     urgency: urgent
     urgency_set_turn: 28
   - active: true
     added_turn: 29
     id: surface_struggle_investigation
-    last_updated_turn: null
-    outcome: null
+    last_updated_turn: 31
     progress:
     - kind: advancement
       text: Frantic splashing detected near merchant crate.
-    resolution_state: null
-    resolved_turn: null
     summary: Investigate the frantic splashing near the new debris pile
     urgency: urgent
     urgency_set_turn: 29
@@ -326,22 +298,23 @@ compendium:
       bio: Drenched, frantic sailors struggling for purchase on the slick deck. They
         move with desperate urgency to prevent further loss of life.
       first_seen_turn: 8
-      last_presence_turn: 29
+      last_presence_turn: 31
       last_seen_location: Deep-water Wreckage Trough
       name: Two crewmen
+      notes: clawing desperately at passing timbers
       personality: wary_opportunist
-      position: on the raft
-      presence: nearby
+      position: drifting within reach of the raft
+      presence: present
     elias_vance:
       bio: Drenched and gasping for air, his eyes are bloodshot from salt spray. A
         frantic sailor who has just narrowly escaped the churning sea.
       first_seen_turn: 20
-      last_presence_turn: 30
+      last_presence_turn: 31
       last_seen_location: Deep-water Wreckage Trough
       name: Elias Vance
-      notes: clawing at wood to avoid sliding
+      notes: clinging to edge with white knuckles
       personality: wary_opportunist
-      position: sliding toward the raft edge
+      position: at the edge of the raft
       presence: present
       title: Crewman
     james_vance:
@@ -368,23 +341,23 @@ compendium:
         amidst a storm. He shows physical grit, bracing himself against heavy furniture
         to prevent loss.
       first_seen_turn: 1
-      last_presence_turn: 30
+      last_presence_turn: 31
       last_seen_location: Deep-water Wreckage Trough
       name: Marcus Thorne
-      notes: bracing against shifting weight near chest
+      notes: fumbling for grip on slick wood
       personality: wary_opportunist
-      position: beside the Iron-bound Chest
+      position: on the tilting raft near the crate
       presence: present
     silas_reed:
       bio: Shaking and pale, he clings to floating timber with white-knuckled intensity.
         He appears traumatized by the recent chaos of the debris pile.
       first_seen_turn: 20
-      last_presence_turn: 30
+      last_presence_turn: 31
       last_seen_location: Deep-water Wreckage Trough
       name: Silas Reed
-      notes: staring blankly at splashing water
+      notes: staring hollowly at splashing water
       personality: broken_defeated
-      position: motionless amidst the chaos
+      position: motionless on the debris pile
       presence: present
       title: Crewman
     thomas_lowe:
@@ -443,9 +416,10 @@ inventory:
   name: Merchant Crate
   notes: heavy, wedged against raft beams
 location:
-  description: A dense graveyard of heavy hull beams and merchant crates wedged into
-    a turbulent trough. The debris pile tilts precariously under shifting weight,
-    surrounded by churning white foam and dark, deep water.
+  description: A precarious cluster of splintered hull beams and merchant crates tilting
+    violently amidst churning white foam. The dark water surges rhythmically against
+    the underside of the wreckage, creating heavy, unsettling thuds. Salt spray and
+    violent swells make every surface brine-slicked and unstable.
   id: deep_water_wreckage_trough
   name: Deep-water Wreckage Trough
 meta:
@@ -455,18 +429,19 @@ meta:
   - thomas_lowe
   - crewman
   - james_vance
-  - crewmen
   - marcus_thorne
   - elias_vance
   - silas_reed
+  - crewmen
   last_arc_resolve_turn: 15
   last_chapter_end_turn: 15
-  last_inventory_change_reason: Player secured merchant crate
   last_thread_created_turn: 29
   model: gpt-4o
+  pending_gm_beat:
+    beat_expires_turn: 33
+    surface_as: player_discovery
+    type: revelation
   prior_history:
-  - '- [T10] Marcus Thorne successfully executes a hard port turn, forcing the ship
-    into a violent collision with a swell as the rival vessel closes in.'
   - '- [T11] Marcus Thorne is swept overboard by a massive swell and survives the
     shipwreck amidst floating debris.'
   - '- [T12] Marcus Thorne successfully climbs onto a piece of splintered mast wreckage
@@ -505,10 +480,9 @@ meta:
     snaps the rope and pulls the wreckage away from the merchant hull.'
   - '- [T29] Marcus Thorne successfully secures the iron-bound chest as the raft slams
     into a new cluster of wreckage.'
+  - '- [T31] Marcus Thorne struggles to maintain his footing on the brine-slicked
+    raft as a large presence thrashes near the Merchant Crate.'
   recent_beats:
-  - surface_as: player_discovery
-    turn: 26
-    type: revelation
   - surface_as: null
     turn: 27
     type: null
@@ -521,6 +495,9 @@ meta:
   - surface_as: null
     turn: 30
     type: null
+  - surface_as: player_discovery
+    turn: 31
+    type: revelation
   recent_rolls:
   - band: success
     turn: 30
@@ -533,13 +510,13 @@ meta:
   - band: success
     turn: 25
   setting_pack: golden-piracy
-  turn: 30
+  turn: 31
 pc:
   actions:
-  - Lunge toward the merchant crest crate drifting near the raft.
-  - Command Elias Vance to help secure the shifting debris pile.
-  - Draw the Notched Cutlass to defend against surface splashing.
-  - Check Silas Reed for signs of life amidst the chaos.
+  - Lash the Merchant Crate more securely to the raft beams
+  - Brandish the Notched Cutlass at the splashing in the water
+  - Grab Elias Vance before he slips into the churning foam
+  - Fire the Flintlock Pistol into the dark water near the crate
   bio: A man who traded a king's commission for a life of sanctioned theft. He keeps
     his blade sharp and his debts low because he knows exactly how much a human soul
     is worth in silver.
@@ -570,11 +547,11 @@ resolved_arcs:
     more survivors and resources in the surrounding swells.
 scene:
   breather_turn_count: 0
-  climax_turn_count: 3
-  curtain_call: forced
+  climax_turn_count: 0
+  curtain_call: ''
   location_entered_turn: 29
-  scene_phase: CLIMAX
-  tagline: Deep-water wreckage  tilting raft, something stirs below
+  scene_phase: RESOLUTION
+  tagline: Deep-water Wreckage Trough  shifting debris, unseen threat below
   tags:
   - storm
   - disaster

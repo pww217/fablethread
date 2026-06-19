@@ -211,7 +211,6 @@ class RulingBoundary(BaseModel):
     user_input: str
     meta: dict[str, int]
     npc_roster: list[NPCRosterEntryBlock]
-    last_outcome: str | None = None
     recent_turns: list[ChronicleEntryBlock] = Field(default_factory=list)
 
 
@@ -252,7 +251,6 @@ class SceneExtractBoundary(BaseModel):
     narration: str
     location: LocationBlock
     npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_presence_turn/last_seen_location/departed_reason
-    recent_turns: list[ChronicleEntryBlock]
     turn_no: int
 
 

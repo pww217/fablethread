@@ -52,12 +52,7 @@ Band: {{ band | upper }}. Apply thread advancement freely on success/crit_succes
 ## Recent Outcomes
 {% for b in prior_history %}{{ b }}
 {% endfor -%}
-{% endif %}{% if recent_turns %}
-## prior turn context
-{% for t in recent_turns %}
-**T{{ t.turn }}:** {{ t.narrative }}
-{% endfor %}
-{% endif %}{% if intent and intent.intent %}
+{% endif %}{% include "sections/_recent_turns.j2" %}{% if intent and intent.intent %}
 ## player_intent
 **{{ intent.intent_verb }}**: {{ intent.intent }}
 {% endif %}
