@@ -42,7 +42,7 @@ The narrator receives `current_arc` in both system and user prompts. Key fields:
 
 - **`goal_context`**: A seed-time field (2–3 sentences) explaining why `visible_goal` matters to the character specifically — inner cost or pressure that makes it emotionally loaded. UI-only (surfaced as tooltip on the arc goal in the sidebar). NOT rendered in prompt context — the narrator works from general early-turn behavioral guidance in the system prompt, not from the raw `goal_context` value.
 - **`visible_goal`**: The player-facing objective.
-- **`threads[]`**: Unified thread collection filtered by `active` flag. Scene-scope threads provide immediate pressure; arc-scope threads provide medium-term tension.
+- **`threads[]`**: Unified thread collection with `dormant` flag. Scene-scope threads provide immediate pressure; arc-scope threads provide medium-term tension.
 - **`resolved_arc`**: TTL-filtered list of previously resolved arcs, providing narrative continuity across arc transitions.
 
 ### Opening-turn narrative mode

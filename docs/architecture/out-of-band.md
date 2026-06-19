@@ -55,7 +55,7 @@ flowchart LR
 
     subgraph OUT["Outputs — SeedEnvelope"]
         O1["seed_state: GameState<br>  pc (name, tagline, bio, stats)<br>  location (id, name, description)<br>  scene (world_state: list[WorldStateFact])<br>  compendium.npcs: dict[id] CompendiumEntry<br>    (presence='present' for in-scene NPCs,<br>     presence='known' otherwise)<br>  meta (model, setting_pack, turn=0,<br>       recent_beats: list[dict])"]:::outNode
-        O2["arc: CampaignArc<br>  visible_goal, goal_context (personal stakes),<br>  threads[] (unified, with active flag),<br>  completed_threads[]"]:::outNode
+        O2["arc: CampaignArc<br>  visible_goal, goal_context (personal stakes),<br>  threads[] (unified, with dormant flag),<br>  completed_threads[]"]:::outNode
         O3["opening_narrative: str<br>(prose intro shown before turn 1)"]:::outNode
         O4["actions: list[str]<br>(4 distinct, character-shaped,<br>scene-grounded choices)"]:::outNode
     end
@@ -84,7 +84,7 @@ The seed prompt (`generate_seed_system.j2`) enforces these requirements:
 - **NPC `relation` field**: Each opening NPC has a defined narrative job. One NPC is personally tied to the PC's motive or vulnerability; the other carries immediate external pressure from the world or conflict. The `relation` field encodes PC-facing relevance (e.g. "owes them a favor", "is their only contact here", "represents the institution pressing on them").
 - **Compendium NPCs**: The seed also generates 2–3 NPCs in `compendium.npcs` (name, title, bio) who exist in the world but are not present in the opening scene. Their bios tie them to factions, locations, or world pressures, not to the immediate situation. These become discoverable characters during play.
 - **Action guidance**: Each of the 4 choices is written from the PC's point of view, grounded in a present NPC, immediate risk, active thread, or character motive. They differ in emotional posture (confront, deflect, investigate, protect, exploit, withdraw, etc.) and avoid generic verbs.
-- **`threads[]`**: Unified list (not split active/latent) where each thread has `{id, summary, urgency, scope}` and an `active` boolean flag managed by the storyteller via `thread_update`, not Python age rules. Threads have a `progress: list[str]` field — append-only log of progress updates set via `thread_update[].progress`, never replaced. Also includes `last_updated_turn: int | None` for urgency decay tracking.
+- **`threads[]`**: Unified list (not split active/latent) where each thread has `{id, summary, urgency, scope, type}` and a `dormant` boolean flag managed by the storyteller via `thread_update`, not Python age rules. Threads have a `progress: list[str]` field — append-only log of progress updates set via `thread_update[].progress`, never replaced. Also includes `last_updated_turn: int | None` for urgency decay tracking.
 - **Opening narrative**: The ~700-word opening prose weaves seed data naturally rather than listing it. World state facts are shown through effect (a checkpoint implying border closure, not stating it). NPC personal ties are revealed through action or dialogue, not exposition. Compendium NPCs not present in the scene are referenced naturally (a phone call, a rumor, a memory). Four distinct actions are grounded in present NPCs, immediate risks, active threads, or character motives.
 - **No seed inventory**: Inventory is removed from seed generation instructions. PCs acquire items through gameplay. The generation order is: PC → World state → Campaign arc → Opening scene + NPCs (5 steps collapsed to 4).
 

@@ -38,7 +38,7 @@ The engine uses `urgency` (background/normal/urgent) as the primary pacing drive
 | Storyteller assigns type | No engine derivation or validation. Storyteller sets type at creation, changes via `thread_update`. | Keeps narrative authority with the storyteller. Sanitizer may correct bad assignments in periodic pass. |
 | Type changes mid-life | `type` field added to `ThreadUpdate`. A revelation becoming a threat (PC learns more) is valid and expected. | Reflects how tensions evolve in narrative; revelation threads naturally become threats/opportunities once the PC understands implications. |
 | Seed generation enforces mixed types | `generate_seed_system.j2` instructs LLM to assign types and enforce at least one threat + at least one non-threat. Analogous to existing urgency cap at seed time. | Prevents homogenous starting states; ensures diverse tension landscape from turn 1. |
-| Convergence score augmented, not replaced | Remove `thread_urgency_count` and `urgency_depth` components. Replace with: (1) active threat threads count, (2) urgent/closing opportunity threads count. Keep `scene_age`, `beat_streak`, `dice_weight` unchanged. | Threats naturally drive convergence; urgent opportunities can also contribute. Independent signals (scene age, beat streak, dice) remain. |
+| Convergence score augmented, not replaced | Replace `urgency_depth` component with threat-type component. Keep urgency component simplified: (1) any urgent non-dormant thread, (2) active threat non-dormant thread. Keep `scene_age`, `beat_streak`, `dice_weight` unchanged. | Threats naturally drive convergence; urgency remains as a separate signal. No urgent-opportunity component — urgency already captured by component 1, and opportunities are positive signals that should not strongly drive toward CLIMAX. |
 | Abandoned threads excluded from convergence | Abandoned threads do not count toward convergence calculations, regardless of when they were abandoned. | Abandoned threads have faded; they should not influence pacing pressure. |
 | Thread type → beat type is prompt guidance | No engine enforcement. Parallel vocabulary documented in storyteller prompt: beats are what the narrator does with a tension; thread types describe the tension itself. | Keeps beat selection free-form; prevents mechanical coupling that reduces narrative flexibility. |
 | arc_categories remain separate | No semantic type labels on `arc_categories`. They are world-flavor; thread types are tension classification. Relationship is emergent, not enforced. | Prevents conflating pack-level thematic buckets with runtime tension states. |
@@ -138,7 +138,7 @@ Pack-level thematic buckets (e.g., `power_struggle`, `resource_scarcity`). No se
 
 New field: `type: Literal["threat", "opportunity", "complication", "revelation"] | None = None`
 
-- Optional field. Storyteller assigns at creation; threads without types still contribute to convergence via component 1.
+- Optional field. Storyteller assigns at creation; threads without types still contribute to convergence via component 1 (urgency).
 - Assigned by storyteller at creation, changeable via `thread_update`.
 - No engine derivation or validation.
 
@@ -147,7 +147,7 @@ New field: `type: Literal["threat", "opportunity", "complication", "revelation"]
 New field: `type: Literal["threat", "opportunity", "complication", "revelation"] | None = None`
 
 - Allows storyteller to change thread type mid-life via `thread_update`.
-- Engine applies type change alongside other `thread_update` fields (active, urgency, progress).
+- Engine applies type change alongside other `thread_update` fields (dormant, urgency, type, progress).
 
 **3. Add `type` field to `ArcThreadSummary` model**
 
@@ -172,16 +172,16 @@ Add to existing update loop (line ~372-380):
 
 `_validate_parsed()` in `thread_sanitizer.py` uses `ThreadUpdate.model_validate()` for validation. Since `dormant` is a separate boolean field (not an urgency value), Pydantic handles it automatically. No explicit validation changes needed.
 
-**7. Replace urgency-based convergence components with type-based equivalents**
+**7. Replace urgency-depth convergence component with threat-type component**
 
-In `compute_convergence_score()` (`_pacing.py:85-131`):
-- Remove component 1 (`thread_urgency_count >= 1`) and component 2 (`thread_urgency_count >= 2`).
-- Replace with:
-  - Component 1: `active_threat_threads >= 1` (counts threads with `type == "threat"` and `not dormant`).
-  - Component 2: `urgent_opportunity_threads >= 1` (counts threads with `type == "opportunity"` and `urgency == "urgent"`).
+In `compute_convergence_score()` (`_pacing.py:85-139`):
+- Remove urgency-depth component (`thread_urgency_count >= 2`).
+- Keep urgency component simplified: `any_urgent_non_dormant_thread >= 1` (was `thread_urgency_count >= 1`).
+- Replace removed urgency-depth slot with: `active_threat_non_dormant_thread >= 1` (counts threads with `type == "threat"` and `not dormant`).
 - Keep components 3, 4, 5 unchanged (`scene_age`, `beat_streak`, `dice_weight`).
 - Abandoned threads do not count toward convergence (they are moved to `completed_threads[]` and excluded from active thread lists).
 - Dormant threads do not count toward convergence (they are not active/pressing).
+- No urgent-opportunity component: urgency already captured by component 1; opportunities are positive signals that should not strongly drive toward CLIMAX.
 
 **8. Add engine auto-dormant mechanism to `turn.py`**
 
@@ -244,11 +244,11 @@ Update urgency tag rendering:
 
 ## Failure Modes and Risks
 
-- **Storyteller never assigns types**: If storyteller ignores the type field, the design degrades gracefully — convergence score falls back to treating all threads equally (no type-based components trigger), urgency-based pacing is lost but not broken.
+- **Storyteller never assigns types**: If storyteller ignores the type field, the design degrades gracefully — convergence score still triggers component 1 (any urgent thread), but the threat-type component (component 2) is lost. Scene can still reach CLIMAX through urgency + age + streak + dice.
 - **Sanitizer over-corrects types**: Sanitizer may change thread types without narrative justification. Mitigation: prompt guidance emphasizes narrative evidence, not mechanical thresholds.
 - **Seed generation ignores type constraints**: LLM may generate homogenous starting states (e.g., all threats). Mitigation: `_enforce_thread_limits()` can add type enforcement analogous to existing urgency cap enforcement.
 - **Abandoned threads re-emerge unexpectedly**: No suppression flag means abandoned threads can be re-created by storyteller. This is by design — narrative justification is the only gate.
-- **Convergence score degrades without types**: If no threads have types assigned, convergence score components 1 and 2 never trigger, making it harder to reach CLIMAX phase. Mitigation: prompt guidance in storyteller prompt emphasizes type assignment.
+- **Convergence score degrades without types**: If no threads have types assigned, convergence score component 2 (threat) never triggers, reducing convergence ceiling. Mitigation: prompt guidance in storyteller prompt emphasizes type assignment.
 - **Type changes mid-life create confusion**: A revelation becoming a threat may confuse the storyteller if they expect types to be stable. Mitigation: prompt guidance explicitly states type changes are expected and valid.
 - **Engine auto-dormant too aggressive**: 4 turns with no activity may be too short for some tensions (e.g., political situations that resolve slowly). Mitigation: storyteller can override via `thread_update` (set urgency back to background/normal/urgent).
 - **Culling removes threads too early**: >= 3 dormant may be too high a threshold, causing context bloat before culling kicks in. Mitigation: sanitizer can also cull proactively based on narrative evidence, providing a safety net below the engine's hard cap.
@@ -260,8 +260,7 @@ Update urgency tag rendering:
 
 | Removed | From | Notes |
 |---|---|---|
-| `thread_urgency_count` component | `compute_convergence_score()` | Replaced by `active_threat_threads` component |
-| `urgency_depth` component | `compute_convergence_score()` | Replaced by `urgent_opportunity_threads` component |
+| `urgency_depth` component | `compute_convergence_score()` | Replaced by `active_threat_threads` component; `thread_urgency_count` simplified to `any_urgent` |
 | No explicit abandonment criteria | `sanitize_thread.j2` | Added explicit criteria (5 turns no mention + 3 turns no activity) |
 | No type correction guidance | `sanitize_thread.j2` | Added type correction guidance |
 | No type enforcement | `generate_seed_system.j2` | Added mixed type requirements (at least one threat, at least one non-threat) |
@@ -343,21 +342,21 @@ class ArcThreadSummary(BaseModel):
 
 | File | What it contains | Why it matters |
 |------|------------------|----------------|
-| `ccya/models.py:35-48` | ArcThread model | Add `type` field, add "dormant" to urgency Literal |
-| `ccya/models.py:412-417` | ThreadUpdate model | Add `type` field, add "dormant" to urgency Literal |
+| `ccya/models.py:35-65` | ArcThread model | Add `type` field, add `dormant: bool` replacing `active: bool`, add `_coerce_active_to_dormant` and `_dormant_not_urgent` validators |
+| `ccya/models.py:418-424` | ThreadUpdate model | Add `type` field, add `dormant: bool` replacing `active: bool` |
 | `ccya/models.py:404-409` | ThreadResolution model | No changes, already supports abandoned |
 | `ccya/models.py:64-71` | CampaignArc model | No changes, threads already stored |
-| `ccya/engine/_pacing.py:85-131` | compute_convergence_score() | Replace urgency-based components with type-based equivalents |
+| `ccya/engine/_pacing.py:85-139` | compute_convergence_score() | Replace urgency-depth component with threat-type component; keep any-urgent component |
 | `ccya/engine/turn.py:112-211` | _apply_thread_updates() | Add type handling, add dormant handling, remove staleness threshold |
 | `ccya/engine/turn.py:334-` | _apply_thread_resolutions() | No changes, abandoned already handled |
 | `ccya/engine/turn.py:1192-1291` | Arc director (turn processing) | Add engine auto-dormant mechanism, add culling mechanism |
-| `ccya/engine/thread_sanitizer.py:205-290` | _validate_parsed() | Add type handling, add dormant to validator's valid urgency set |
+| `ccya/engine/thread_sanitizer.py:205-293` | _validate_parsed() | Add type handling, add dormant boolean field handling |
 | `ccya/engine/thread_sanitizer.py:356-400` | _apply_sanitization() | Add type handling, add dormant handling |
 | `ccya/engine/seed.py:359-396` | _enforce_thread_limits() | No changes, type enforcement goes in prompt |
 | `ccya/prompts/sections/_thread_list.j2` | Thread list rendering | Update urgency tag rendering (dormant = [Background]) |
 | `ccya/prompts/generate_seed_system.j2:137-155` | Seed thread rules | Add type assignment, mixed type requirements, allow dormant |
 | `ccya/prompts/sanitize_thread.j2:36-73` | Sanitizer instructions | Add explicit abandonment criteria, type correction, dormant, culling guidance |
-| `ccya/prompts/context.py:77-85` | ArcThreadSummary | Add type field, add "dormant" to urgency Literal |
+| `ccya/prompts/context.py:77-86` | ArcThreadSummary | Add type field, add `dormant: bool` replacing `active: bool` |
 | `ccya/prompts/context.py:114-150` | ArcThreadBlock.from_state() | No changes, type field optional |
 | `ccya/engine/config.py:160-178` | EngineConfig | No changes, config fields unchanged (thread_stale_threshold removed) |
 | `ccya/state/delta_builder.py:52-67` | _merge_arc_update() | No changes, merges arc state as-is |
