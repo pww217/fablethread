@@ -153,10 +153,12 @@ def _apply_thread_updates(
 
         updates: dict[str, Any] = {}
         thread = remaining_threads[found_idx]
-        if update.active is not None:
-            updates["active"] = update.active
+        if update.dormant is not None:
+            updates["dormant"] = update.dormant
         if update.urgency is not None:
             updates["urgency"] = update.urgency
+        if update.type is not None:
+            updates["type"] = update.type
         if update.progress is not None:
             current_progress = list(thread.progress)
             kind = update.progress_kind or "advancement"
@@ -196,21 +198,26 @@ def _apply_thread_updates(
                 "thread_updates.applied trace_id=%d thread %s changes=%s", turn_no, update.id, updates, extra={"turn": turn_no},
             )
 
-    # Auto-latent demotion — fire every turn (not gated on mutated).
-    # Threads updated this turn already have last_updated_turn set to turn_no at line ~212,
-    # so they won't trigger the stale threshold. Only untouched threads age and eventually get demoted.
+    # Auto-dormant — fire every turn.
+    # Threads updated this turn already have last_updated_turn set to turn_no,
+    # so they won't trigger the dormant threshold. Only untouched threads age.
     if config and remaining_threads:
-        stale_threshold = config.thread_stale_threshold
+        dormant_threshold = 4  # turns without activity before auto-dormant
         for i, t in enumerate(remaining_threads):
             if (
                 t.last_updated_turn is not None
-                and (turn_no - t.last_updated_turn) >= stale_threshold
-                and t.active
+                and (turn_no - t.last_updated_turn) >= dormant_threshold
+                and not t.dormant
+                and t.urgency != "urgent"
             ):
-                updated = t.model_copy(update={"active": False, "last_updated_turn": turn_no})
+                updated = t.model_copy(update={
+                    "dormant": True,
+                    "urgency": "background",
+                    "last_updated_turn": turn_no,
+                })
                 remaining_threads[i] = updated
                 _log.info(
-                    "thread_updates.auto_latent trace_id=%d thread %s — untouched for %d turns",
+                    "thread_updates.auto_dormant trace_id=%d thread %s — untouched for %d turns",
                     turn_no, t.id, turn_no - t.last_updated_turn, extra={"turn": turn_no},
                 )
 
@@ -220,7 +227,7 @@ def _apply_thread_updates(
         _decay_threshold = config.thread_urgency_max_age
         for i, t in enumerate(remaining_threads):
             _set_turn = getattr(t, "urgency_set_turn", None)
-            if _set_turn is None or not t.active:
+            if _set_turn is None or t.dormant:
                 continue  # skip threads without urgency tracking; decay only affects active threads
             _age = turn_no - _set_turn
             if _age >= _decay_threshold:
@@ -1268,16 +1275,16 @@ async def run_turn(
                                             "last_thread_created_turn": turn_no_for_add}
                                 )
                                 if config:
-                                    active = [t for t in arc_with_new_thread.threads if t.active]
-                                    if len(active) > config.thread_max_active:
-                                        evict = min(active, key=lambda t: t.last_updated_turn or 0)
-                                        evicted = evict.model_copy(update={"active": False, "last_updated_turn": turn_no_for_add})
+                                    non_dormant = [t for t in arc_with_new_thread.threads if not t.dormant]
+                                    if len(non_dormant) > config.thread_max_active:
+                                        evict = min(non_dormant, key=lambda t: t.last_updated_turn or 0)
+                                        evicted = evict.model_copy(update={"dormant": True, "last_updated_turn": turn_no_for_add})
                                         arc_with_new_thread = arc_with_new_thread.model_copy(
                                             update={"threads": [evicted if t.id == evict.id else t for t in arc_with_new_thread.threads]}
                                         )
                                         _log.info(
-                                            "thread_cap.evict trace_id=%s evicted=%s active_count=%d max=%d",
-                                            trace_id, evict.id, len(active), config.thread_max_active,
+                                            "thread_cap.evict trace_id=%s evicted=%s non_dormant_count=%d max=%d",
+                                            trace_id, evict.id, len(non_dormant), config.thread_max_active,
                                             extra={"trace_id": trace_id, "turn": turn_no},
                                         )
                                 _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
@@ -1288,6 +1295,34 @@ async def run_turn(
                                     "thread_add: failed to validate arc at T%d for thread %s: %s",
                                     turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},
                                 )
+
+                # Engine culling: when >= 3 dormant threads, move oldest to completed
+                if state.get("arc"):
+                    try:
+                        arc = CampaignArc.model_validate(state["arc"])
+                        dormant_threads = [t for t in arc.threads if t.dormant]
+                        if len(dormant_threads) >= 3:
+                            to_cull = min(dormant_threads, key=lambda t: t.last_updated_turn or 0)
+                            culled = to_cull.model_copy(update={
+                                "resolution_state": "abandoned",
+                                "outcome": f"Thread faded from relevance — no narrative activity in {turn_no - (to_cull.last_updated_turn or 0)} turns.",
+                                "resolved_turn": turn_no,
+                            })
+                            remaining = [t for t in arc.threads if t.id != to_cull.id]
+                            arc.threads = remaining
+                            arc.completed_threads.append(culled)
+                            _merge_arc_update(state.setdefault("arc", {}), arc)
+                            if delta is not None:
+                                delta = delta.model_copy(update={"arc_update": arc})
+                            _log.info(
+                                "thread_cull trace_id=%s culled=%s dormant_count=%d",
+                                trace_id, to_cull.id, len(dormant_threads), extra={"trace_id": trace_id, "turn": turn_no},
+                            )
+                    except Exception as exc:
+                        _log.warning(
+                            "thread_cull.failed trace_id=%s: %s",
+                            trace_id, exc, extra={"trace_id": trace_id},
+                        )
 
         # --- NPC lifecycle: nearby decay and departed archive ---
         nearby_ttl = config.nearby_decay_ttl if config else 2
