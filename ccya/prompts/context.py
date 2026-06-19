@@ -80,6 +80,7 @@ class ArcThreadSummary(BaseModel):
     id: str
     summary: str
     urgency: Literal["background", "normal", "urgent"]
+    type: Literal["threat", "opportunity", "complication", "revelation"] | None = None
     progress: list[str] = Field(default_factory=list)
     dormant: bool
     last_updated_turn: int | None = None
@@ -124,8 +125,9 @@ class ArcThreadBlock(BaseModel):
                         id=t.get("id", ""),
                         summary=t.get("summary", ""),
                         urgency=t.get("urgency", "normal"),
+                        type=t.get("type"),
                         progress=_fmt_progress(t.get("progress")),
-                        dormant=not t.get("dormant", False),
+                        dormant=bool(t.get("dormant", False)),
                         last_updated_turn=t.get("last_updated_turn"),
                     )
                 )
@@ -135,8 +137,9 @@ class ArcThreadBlock(BaseModel):
                         id=t.id,
                         summary=t.summary,
                         urgency=t.urgency,
+                        type=getattr(t, "type", None),
                         progress=_fmt_progress(t.progress),
-                        dormant=t.dormant,
+                        dormant=getattr(t, "dormant", False),
                         last_updated_turn=getattr(t, "last_updated_turn", None),
                     )
                 )
