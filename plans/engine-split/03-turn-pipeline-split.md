@@ -186,6 +186,14 @@ The blocks to include, in order:
 
 The function returns the mutated `state`, `delta`, `applied`, `rejected`, and `reconcile_warnings`.
 
+**DO NOT include** the following code in `_apply_state_updates` — it stays in `run_turn()`:
+- `errors.append(...)` calls (orchestrator error list, not in scope)
+- `narrative += "..."` fallback text mutation (orchestrator narrative string, not in scope)
+- `blocking = [r for r in rejected ...]` conditional check (orchestrator control flow, not in scope)
+- `state_pre_apply = copy.deepcopy(state)` — computed in `run_turn()` before the call, passed to `summarize_changes` after
+
+The extracted function should contain only: validation, reconciliation, delta application, beat history, inventory/condition reason persistence, NPC stamping, arc director operations, and NPC lifecycle decay. Error handling and narrative mutation remain in the orchestrator.
+
 Imports needed by the extracted code: `CampaignArc`, `ArcThread`, `StorytellerResult`, `StateDelta`, `ErrorKind`; `apply_delta`, `reconcile_delta`, `resolve_inventory_remove_target` from `ccya.state`; `_merge_arc_update` from `ccya.state.delta_builder`; `EngineConfig` from `ccya.engine.config`; `asyncio`, `copy`, `logging`, `Path`, `ceil`, `typing`.
 
 **Why:** Currently ~260 lines of inline code with no function boundary. Extracting it makes the orchestrator composition visible: the stage functions are called, then `_apply_state_updates` is called, then the result is persisted.
@@ -203,7 +211,7 @@ state_pre_apply = copy.deepcopy(state)
 state, delta, applied, rejected, reconcile_warnings = _apply_state_updates(
     state, delta, storyteller_result, config, trace_id, turn_no,
 )
-# Handle blocking rejections (error handling was inline, now after the call)
+# Error handling stays in run_turn() — _apply_state_updates returns rejected list
 blocking = [r for r in rejected if r.get("kind") != "warn_overdraw"]
 if blocking:
     errors.append({
@@ -214,7 +222,7 @@ if blocking:
     narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
 ```
 
-Remove the variables that are now handled inside `_apply_state_updates`: `thread_dedup_rejections`. Keep `state_pre_apply` — it is still needed for `summarize_changes(state_pre_apply, state, rejected)` which runs after this block.
+Remove `thread_dedup_rejections` variable (now handled inside `_apply_state_updates`). Keep `state_pre_apply` — it is still needed for `summarize_changes(state_pre_apply, state, rejected)` which runs after this block.
 
 **Why:** The orchestrator now reads as a sequence of stage calls → state application → persist.
 
@@ -277,22 +285,39 @@ Add imports to `narrate.py` that `_narrate_setup` needs:
 
 **File:** `ccya/engine/turn.py`
 
-**What:** Remove imports that are no longer needed because the corresponding functions have been moved:
+**What:** Remove imports from `turn.py` that are no longer needed because the corresponding functions have been moved. Add new imports for the functions that `run_turn()` now calls from the new files.
 
-- `from ccya.engine.narrate import _narrate_messages` — no, wait. `turn.py` still imports `_narrate_messages` for... actually let me check. In the current code, `_narrate_setup` (which called `_narrate_messages`) has moved to `narrate.py`. Does `run_turn()` call `_narrate_messages` directly? No — it calls `_narrate_setup`. So this import can be removed.
-- Similarly, `_ruling_messages` and `_call_ruling` — used by `_ruling_phase` which moved. Remove if `run_turn()` doesn't import them directly.
-- `generate_npc_names_split` from `ccya.engine.names` — only used by `_narrate_setup`. Remove.
-- `compute_convergence_score`, `derive_allowed_beat_types`, `detect_spiral` from `ccya.engine._pacing` — check if `run_turn()` calls any of these directly. Looking at the current code: `run_turn()` calls `derive_allowed_beat_types` at line ~1455 for the event's `allowed_beat_types` field. So `derive_allowed_beat_types` stays. `compute_convergence_score` and `detect_spiral` are called by `_narrate_setup` — remove those.
-- `build_npc_roster` from `ccya.engine.npc_roster` — called by `_ruling_phase`. Remove.
-- `ARCHETYPES` from `ccya.personality` — used by `_ruling_phase` and `_narrate_setup`. Remove.
-- `resolve_check`, `build_directive` from `ccya.rules` — used by `_ruling_phase`. Remove.
-- `_apply_thread_updates`, `_apply_arc_resolve`, `_apply_thread_resolutions`, `_validate` — all moved to `turn_state.py`.
-- `_context_meta`, `_avg_event_ms` from `ccya.engine.extraction` — still used by `run_turn()` for event metadata building. Keep.
-- `_compute_narration_directive`, `_compute_pacing_context`, `_compute_ages`, `_compute_scene_phase`, `_recent_turn_count` — all moved to `_pacing.py`. Remove.
-- Add `from ccya.engine.turn_state import _apply_state_updates, _apply_thread_updates, _apply_arc_resolve, _apply_thread_resolutions` (wait, `run_turn()` doesn't call individual thread functions anymore — it calls `_apply_state_updates` which calls them internally. So only `_apply_state_updates` needs to be imported by `run_turn()`.)
-- Add `from ccya.engine.turn_context import TurnContext` (wait — `TurnContext` is constructed in `run_turn()`. So yes, import it.)
+Imports to **remove** (no longer called by `run_turn()`):
+- `from ccya.engine.narrate import _narrate_messages` — called only by `_narrate_setup` (moved)
+- `from ccya.engine.ruling import _call_ruling, _log_ruling_outcome, _ruling_messages` — called only by `_ruling_phase` (moved)
+- `from ccya.engine.names import generate_npc_names_split` — called only by `_narrate_setup` (moved)
+- `from ccya.engine._pacing import compute_convergence_score, detect_spiral` — called only by `_narrate_setup` (moved)
+- `from ccya.engine.npc_roster import build_npc_roster` — called only by `_ruling_phase` (moved)
+- `from ccya.personality import ARCHETYPES` — called only by `_ruling_phase` and `_narrate_setup` (moved)
+- `from ccya.rules import resolve_check, build_directive` — called only by `_ruling_phase` (moved)
 
-The executor must carefully verify each import by reading `run_turn()`'s current source. The above is guidance, not a complete list.
+Imports to **keep** (still called by `run_turn()`):
+- `from ccya.engine._pacing import derive_allowed_beat_types` — called at line ~1455 for event metadata
+- `from ccya.engine.extraction import _avg_event_ms, _context_meta, _run_extraction_pipeline` — pipeline calls
+- `from ccya.engine.markers import strip_trace_markers_in_messages` — called before LLM calls
+- `from ccya.engine.thread_sanitizer import sanitize_threads` — called after state application
+- `from ccya.engine.changes import _summarize_applied, summarize_changes` — called after state application
+- `from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts, ...` — orchestrator utilities
+- `from ccya.state import apply_delta, append_chronicle, append_event, load_last_narration, ...` — state I/O
+- `from ccya.state.delta_builder import reconcile_delta` — called in state application block (wait, this moves to `_apply_state_updates` — remove)
+- `from ccya.errors import ErrorKind, LlmcTimeout, LlmcError` — error handling
+- `from ccya.llm_client import chat as llm_chat, strip_thinking` — LLM calls
+- `from ccya.models import TurnResult, ...` — result construction
+
+Imports to **add** (new call sites in `run_turn()`):
+- `from ccya.engine.turn_context import TurnContext` — `TurnContext(...)` constructed in `run_turn()`
+- `from ccya.engine.turn_state import _apply_state_updates` — replaces inline state application block
+
+Imports to **remove** (moved to `_apply_state_updates`):
+- `from ccya.state.delta_builder import reconcile_delta` — called only inside the extracted block
+- `from ccya.state import apply_delta` — called only inside the extracted block
+
+The executor must verify each import by reading `run_turn()`'s current source after phases 1–2 are complete. The lists above are authoritative but the executor should grep for each import's usage to confirm.
 
 **Why:** Dead imports cause lint warnings and confuse LLM agents reading import lists.
 
