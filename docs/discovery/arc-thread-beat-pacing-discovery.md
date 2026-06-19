@@ -397,55 +397,69 @@ recent_beats
 
 ## 6. Goals and Requirements for Next Design Phase
 
-### 6.1 Semantic Thread Types (Replacing Urgency)
+### 6.1 Semantic Thread Types (Settled Direction)
 
-**Goal:** Move away from urgency-based models (background/normal/urgent) toward semantic models like threat, opportunity, revelation, or similar categories.
+**Settled:** Threads will have a semantic type field. The four types are:
+
+- **threat** — a tension that worsens or resolves badly if ignored
+- **opportunity** — a tension that closes if not acted on
+- **complication** — a tension that constrains approach or raises the cost of failure without forcing escalation
+- **revelation** — a known-unknown that is now open and changes the calculus on the arc goal
+
+These are present-tense tension classifications, not beat types. There is a deliberate parallel to `gm_beat` types: beats are what the narrator does with a tension; thread types describe the tension itself. A threat thread might produce a pressure beat; a revelation thread might produce a revelation beat. The relationship between thread types and beat types should be documented and designed, but they are distinct concepts operating at different levels.
 
 **Considerations:**
-- Should semantic types go hand-in-hand with beat types and be tied to beats somehow?
-- Should they combine existing threats (urgency) with recent beats given by the storyteller?
 - How do semantic types differ from or relate to `arc_categories` (which are already thematic buckets)?
-- Should threads have a semantic type field, or should the type be derived from context (beats + recent activity)?
+- Should semantic types influence pacing differently (e.g., a threat naturally contributes more to convergence than an opportunity)?
+- Should the storyteller be guided to emit thread types based on narrative context, or should the engine derive them?
+- Should semantic types appear in prompt rendering (sidebar, turn review, narration)?
 
 ### 6.2 Pacing Signals from Semantic Types and Recent Beats
 
-**Goal:** Use thread semantic types and recent beat history as pacing signals.
+**Goal:** Use thread semantic types and recent beat history as pacing signals, replacing or augmenting the current urgency-based convergence score.
 
-**Examples stated:**
-- A "threat" is naturally considered urgent
-- An "opportunity" is not urgent
+**Settled framing:**
+- A threat thread naturally contributes more to pacing pressure than an opportunity thread
+- A complication thread sits somewhere in between — it raises stakes without necessarily escalating
+- A revelation thread changes the situation but doesn't inherently create urgency
 - Out of a five-turn window, three pressure or comp-action beats assigned to progress the phase could signal pacing
-- Still may have version CS9 (active vs background), but that's TBD
+- Active vs. background (CS9) distinction may still apply, but that's TBD
 
 **Considerations:**
-- How do semantic types map to urgency-like signals?
-- Should recent beat composition (pressure ratio, relief ratio, situation ratio) drive pacing differently than current convergence score?
+- Should recent beat composition (pressure ratio, relief ratio, situation ratio) drive pacing differently than the current convergence score?
 - Should the 5-component convergence score be replaced, augmented, or kept alongside new signals?
+- Should thread semantic types directly influence convergence components (e.g., threat threads count more than opportunity threads)?
 - Should pacing be computed from thread semantics + beat history rather than (or in addition to) urgency counts?
 
 ### 6.3 Clarify Purpose of Arcs, Arc Summaries, Threads, and Thread Progress Updates
 
-**Goal:** Define what arcs, arc summaries, threads, and thread progress updates actually are/represent.
+**Settled framing:**
 
-**Questions:**
-- Are they objectives? Notes? Facts?
-- Right now there's a lot of overlap — they're all of those things simultaneously
-- Should arcs be purely chapter-level objectives with clear resolution criteria?
-- Should threads be tracking specific tensions with independent lifecycle?
+- **Arcs are long-term chapter-level objectives.** `visible_goal` is where the story is going. `goal_context` is its supporting summary (character-specific stakes, never sent to the LLM). This framing is correct as-is — arcs are chapter goals, not notes, not facts, not tasks.
+
+- **Threads are live tensions.** They are present-tense conditions that currently exist in the story world and make the arc goal uncertain. They are not objectives, not tasks, not log entries. A thread exists as long as the condition is open and has stakes attached to it. It resolves when the tension collapses into a fact (resolved, failed, or abandoned).
+
+- **Thread updates (progress entries) are journal/log entries.** They are factual records of what has already happened to a tension. They describe state changes, not instructions or objectives. Each entry is a new fact confirmed by the narrative — a discovery, a setback, a shift in circumstances.
+
+**Still open:**
 - Should arc summaries be separate from arc goals (like `resolution` vs `visible_goal`)?
-- Should thread progress be factual records, narrative summaries, or both?
+- Should thread progress entries carry metadata beyond kind (advancement/setback/shift)?
+- Should the distinction between what an arc is (objective) and what a thread is (tension) be more explicit in prompt rendering and engine behavior?
 
 ### 6.4 Organic Thread Drop/Abandonment
 
-**Goal:** Allow threads to be dropped or abandoned over time in an organic way, without automatic removal.
+**Goal:** Allow threads to be dropped or abandoned over time in a narrative-grounded way, without automatic removal.
+
+**Settled framing:**
+- `thread_resolve` with `resolution_state: "abandoned"` should be a meaningful, honored state for organic fade. It is distinct from "resolved" (tension concluded) and "failed" (tension collapsed badly). "Abandoned" means the tension faded from relevance — the story moved on, the condition became moot, the stake dissolved without drama.
+- The sanitizer should have stronger drop authority — it should be able to resolve threads as abandoned based on narrative evidence, not just urgency decay or staleness.
+- Automatic removal is not the goal — narrative-grounded abandonment is. The engine should not silently delete threads; the storyteller or sanitizer should make explicit resolution decisions grounded in the narrative record.
 
 **Considerations:**
-- Current problem: no standalone way to drop threads except via `thread_resolve` or `arc_resolve` (which resets the entire arc)
-- Should there be a `thread_drop` or `thread_archive` operation separate from `thread_resolve`?
-- Should the sanitizer have more aggressive drop capabilities?
-- Should threads naturally "fade" based on recency, narrative relevance, or both?
-- How do we avoid automatic removal while still allowing organic decay?
-- Should there be a concept of "abandoned" threads that are distinct from "failed" or "resolved" threads?
+- Should the sanitizer's abandonment criteria be more explicit (e.g., "no narrative mention in N turns + no active thread activity")?
+- Should abandoned threads appear differently in prompt rendering and UI (e.g., grayed out, marked differently)?
+- Should abandoned threads carry any special metadata that affects future thread creation (e.g., "this tension was abandoned, don't re-open it")?
+- Should there be a separate `thread_drop` operation, or is `thread_resolve` with `resolution_state: "abandoned"` sufficient?
 
 ### 6.5 No Solutions Required
 
@@ -486,6 +500,5 @@ This discovery document is **not** asking for solutions. It is a fact-finding sp
 | `ccya/ev/checkers/sanitizer.py` | sanitizer_lifecycle checker |
 | `ccya/templates/_state_left.html:75-130` | Thread/arc display in sidebar |
 | `ccya/server/tv.py:235-265` | Thread display in turn review UI |
-| `docs/discovery/arc-thread-conflation.md` | Eval findings on arc-thread conflation |
-| `docs/discovery/arc-thread-system.md` | Arc and thread system documentation |
+| `docs/discovery/arc-thread-beat-pacing-discovery.md` | This document — consolidated arc/thread/beat/pacing discovery |
 | `docs/architecture/pacing-systems.md` | Pacing systems documentation |
