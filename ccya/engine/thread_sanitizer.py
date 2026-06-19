@@ -369,7 +369,7 @@ def _apply_sanitization(
         updates_dict: dict[str, Any] = {}
         delta: dict[str, Any] = {"fields": [], "progress": None}
 
-        for field in ("dormant", "urgency"):
+        for field in ("dormant", "urgency", "type"):
             val = _tu.get(field)
             if val is not None and val != getattr(arc.threads[found_idx], field):
                 updates_dict[field] = val
