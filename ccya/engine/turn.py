@@ -185,6 +185,12 @@ def _apply_thread_updates(
                 current_progress.append(entry)
                 updates["progress"] = current_progress
 
+        # Enforce invariant: dormant threads cannot be urgent
+        if updates.get("dormant") is True:
+            final_urgency = updates.get("urgency", getattr(thread, "urgency", "normal"))
+            if final_urgency == "urgent":
+                updates["urgency"] = "background"
+
         if updates:
             updates["last_updated_turn"] = turn_no
             mutated = True
@@ -247,9 +253,35 @@ def _apply_thread_updates(
                         turn_no, t.id, _current_urgency, new_urgency, _age, extra={"turn": turn_no},
                     )
 
-    return arc.model_copy(update={
-        "threads": remaining_threads,
-    }) if mutated else None
+    # Thread completion: auto-resolve threads whose progress entries >= threshold
+    completed: list[ArcThread] = []
+    if config and remaining_threads:
+        threshold = config.thread_completion_threshold
+        i = 0
+        while i < len(remaining_threads):
+            t = remaining_threads[i]
+            if not t.dormant and len(t.progress) >= threshold:
+                resolved = t.model_copy(update={
+                    "resolution_state": "resolved",
+                    "outcome": "Thread reached its natural conclusion.",
+                    "resolved_turn": turn_no,
+                })
+                completed.append(resolved)
+                remaining_threads.pop(i)
+                mutated = True
+                _log.info(
+                    "thread_updates.completed trace_id=%d thread %s progress=%d threshold=%d",
+                    turn_no, t.id, len(t.progress), threshold, extra={"turn": turn_no},
+                )
+            else:
+                i += 1
+
+    if mutated or completed:
+        return arc.model_copy(update={
+            "threads": remaining_threads,
+            "completed_threads": arc.completed_threads + completed,
+        })
+    return None
 
 
 def _apply_arc_resolve(
@@ -435,7 +467,7 @@ def _compute_narration_directive(
     thread_urgency_count: int,
     effective_scene_age: int,
     scene_pressure_threshold: int = 3,
-    scene_imperative_threshold: int = 4,
+    scene_imperative_threshold: int = 5,
 ) -> str:
     """Compute the narration directive string using a priority stack.
 
@@ -462,7 +494,7 @@ def _compute_pacing_context(
     effective_scene_age: int,
     scene_motion: str = "hold",
     scene_pressure_threshold: int = 3,
-    scene_imperative_threshold: int = 4,
+    scene_imperative_threshold: int = 5,
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
     """
@@ -1265,39 +1297,48 @@ async def run_turn(
                         )
 
                 if storyteller_result.thread_add:
-                    _new_thread = storyteller_result.thread_add
-                    turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
-                    arc_raw = state.get("arc")
-                    if arc_raw and delta is not None:
-                        try:
-                            _existing_arc = CampaignArc.model_validate(arc_raw)
-                            existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
-                            if _new_thread.id not in existing_ids:
-                                _updated_t = _new_thread.model_copy(update={
-                                    "added_turn": turn_no_for_add,
-                                    "urgency_set_turn": turn_no_for_add,
-                                })
-                                arc_with_new_thread = _existing_arc.model_copy(
-                                    update={"threads": list(_existing_arc.threads) + [_updated_t],
-                                            "last_thread_created_turn": turn_no_for_add}
-                                )
-                                if config:
-                                    non_dormant = [t for t in arc_with_new_thread.threads if not t.dormant]
-                                    if len(non_dormant) > config.thread_max_active:
-                                        evict = min(non_dormant, key=lambda t: t.last_updated_turn or 0)
-                                        evicted = evict.model_copy(update={"dormant": True, "last_updated_turn": turn_no_for_add})
-                                        arc_with_new_thread = arc_with_new_thread.model_copy(
-                                            update={"threads": [evicted if t.id == evict.id else t for t in arc_with_new_thread.threads]}
-                                        )
-                                        _log.info(
-                                            "thread_cap.evict trace_id=%s evicted=%s non_dormant_count=%d max=%d",
-                                            trace_id, evict.id, len(non_dormant), config.thread_max_active,
-                                            extra={"trace_id": trace_id, "turn": turn_no},
-                                        )
-                                _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
-                                state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
-                                delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
-                        except Exception as exc:
+                    # Cooldown gate: only allow thread_add if cooldown satisfied
+                    _last_add = state.get("meta", {}).get("last_thread_creation_turn")
+                    if _last_add is not None and config and (turn_no - _last_add < config.thread_creation_cooldown):
+                        _log.debug(
+                            "thread_add.cooldown trace_id=%s turn=%d last_add=%d cooldown=%d — skipping",
+                            trace_id, turn_no, _last_add, config.thread_creation_cooldown,
+                            extra={"trace_id": trace_id, "turn": turn_no},
+                        )
+                    else:
+                        _new_thread = storyteller_result.thread_add
+                        turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
+                        arc_raw = state.get("arc")
+                        if arc_raw and delta is not None:
+                            try:
+                                _existing_arc = CampaignArc.model_validate(arc_raw)
+                                existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
+                                if _new_thread.id not in existing_ids:
+                                    _updated_t = _new_thread.model_copy(update={
+                                        "added_turn": turn_no_for_add,
+                                        "urgency_set_turn": turn_no_for_add,
+                                    })
+                                    arc_with_new_thread = _existing_arc.model_copy(
+                                        update={"threads": list(_existing_arc.threads) + [_updated_t],
+                                                "last_thread_created_turn": turn_no_for_add}
+                                    )
+                                    if config:
+                                        non_dormant = [t for t in arc_with_new_thread.threads if not t.dormant]
+                                        if len(non_dormant) > config.thread_max_active:
+                                            evict = min(non_dormant, key=lambda t: t.last_updated_turn or 0)
+                                            evicted = evict.model_copy(update={"dormant": True, "last_updated_turn": turn_no_for_add})
+                                            arc_with_new_thread = arc_with_new_thread.model_copy(
+                                                update={"threads": [evicted if t.id == evict.id else t for t in arc_with_new_thread.threads]}
+                                            )
+                                            _log.info(
+                                                "thread_cap.evict trace_id=%s evicted=%s non_dormant_count=%d max=%d",
+                                                trace_id, evict.id, len(non_dormant), config.thread_max_active,
+                                                extra={"trace_id": trace_id, "turn": turn_no},
+                                            )
+                                    _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
+                                    state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
+                                    delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
+                            except Exception as exc:
                                 _log.warning(
                                     "thread_add: failed to validate arc at T%d for thread %s: %s",
                                     turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},

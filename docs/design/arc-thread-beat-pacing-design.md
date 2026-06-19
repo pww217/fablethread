@@ -45,13 +45,13 @@ The engine uses `urgency` (background/normal/urgent) as the primary pacing drive
 | abandoned is terminal state | `ThreadResolution.resolution_state` already includes `"abandoned"` (line 407). No schema change needed. Equal weight to `resolved` and `failed`. No suppression flag. | Abandoned means "tension faded given current circumstances" — not permanent suppression. Fair game for re-emergence. `completed_threads` TTL handles prompt visibility naturally. |
 | Abandonment criteria are sanitizer judgment | No engine-enforced thresholds. Sanitizer prompt guidance includes explicit criteria (e.g., "no narrative mention in 5 turns + no activity in 3 turns") but sanitizer can override with narrative justification. | Sanitizer reads recent narration as evidence and is better positioned to judge narrative relevance than mechanical thresholds. |
 | No UI changes for semantic types | No changes to `_state_left.html` or `tv.py`. Semantic types appear only in prompt rendering (storyteller/narrator prompts). | Keeps UI stable; semantic type is narrative metadata, not player-facing display. |
-| Urgency tags in prompt rendering | `[URGENT]` only when `urgency == "urgent"`. No tag when `urgency == "normal"` (baseline). `[Background]` when `urgency == "background"` or `urgency == "dormant"`. No semantic type tags in rendering. | Keeps rendering minimal; urgency is the only field displayed in prompt thread list. |
-| Dormant as fourth urgency value | `urgency: Literal["background", "normal", "urgent", "dormant"]` — dormant is lower than background, represents hidden tensions (secrets, foreshadowing). No separate field. | Simpler than separate field; fewer schema changes; dormant threads can represent hidden narrative elements the narrator can foreshadow. |
-| Engine auto-dormant | Engine auto-demotes threads to dormant after 4 turns with no activity (progress/urgency change). Storyteller can override via `thread_update`. Sanitizer can also set dormant. | Replaces the staleness threshold (`thread_stale_threshold`). Gives engine hygiene control while preserving storyteller agency. |
-| Culling mechanic | When >= 3 dormant threads, engine moves oldest (by `last_updated_turn`, not `added_turn`) to `completed_threads[]` with `resolution_state: "abandoned"`. Sanitizer can also cull proactively based on narrative evidence. | Hard cap prevents context bloat. Culling by `last_updated_turn` (not creation date) ensures the most neglected dormant thread is culled, not necessarily the oldest. |
-| Storyteller can set dormant | Storyteller can set `urgency: "dormant"` via `thread_update`, same as they can set background/normal/urgent. | Preserves storyteller agency on when tensions go dormant. |
-| Seed allows dormant | Seed generation can create dormant threads (hidden secrets, hidden opportunities, foreshadowing). No explicit prohibition. | Dormant threads represent hidden narrative elements the narrator can foreshadow or leave breadcrumbs for. |
-| Backwards compat coercion | Unknown/invalid urgency values coerce to "background" (safest default). Dormant added to validator's valid set. | Prevents crashes from old data or LLM errors; dormant is now a valid value. |
+| Urgency tags in prompt rendering | `[URGENT]` only when `urgency == "urgent"`. No tag when `urgency == "normal"` (baseline). `[Background]` when `urgency == "background"`. `[DORMANT]` when `dormant == True`. No semantic type tags in rendering. | Keeps rendering minimal; urgency + dormant status displayed in prompt thread list. |
+| dormant replaces active | `active: bool` removed from ArcThread. New field: `dormant: bool = False`. dormant: True means the tension has faded from active relevance. dormant: False is the default (tension is live). | active: bool was ambiguous — "inactive" conflated latent, dormant, and background states. dormant is semantically clear. |
+| Engine auto-dormant | Engine sets dormant: True and urgency: background after 4 turns with no activity (no progress, no urgency change, no type change). Storyteller can override via `thread_update`. Sanitizer can also set dormant. Urgent threads excluded. | Replaces `thread_stale_threshold`. Provides engine hygiene without silent deletion. |
+| Culling mechanic | When >= 3 dormant threads, engine moves oldest (by `last_updated_turn`, not `added_turn`) to `completed_threads[]` with `resolution_state: "abandoned"`. Sanitizer can also cull proactively based on narrative evidence. | Hard cap prevents context bloat. Culling by `last_updated_turn` ensures the most neglected dormant thread is culled, not necessarily the oldest. |
+| Storyteller can set dormant | Storyteller can set dormant: True or dormant: False via `thread_update`. Setting dormant: True also sets urgency to background if currently urgent. Setting dormant: False does not change urgency. | Preserves storyteller agency. Ensures dormant + urgent are never combined. |
+| Seed allows dormant | Seed generation can create dormant threads (hidden secrets, hidden opportunities, foreshadowing). At least one threat + at least one non-thread required. Urgency forced to background on dormant threads. | Dormant threads represent hidden narrative elements the narrator can foreshadow. |
+
 
 ## Open Questions
 
@@ -138,7 +138,7 @@ Pack-level thematic buckets (e.g., `power_struggle`, `resource_scarcity`). No se
 
 New field: `type: Literal["threat", "opportunity", "complication", "revelation"] | None = None`
 
-- Optional field (backwards compatible with existing threads that have no type).
+- Optional field. Storyteller assigns at creation; threads without types still contribute to convergence via component 1.
 - Assigned by storyteller at creation, changeable via `thread_update`.
 - No engine derivation or validation.
 
@@ -168,18 +168,16 @@ Add to existing update loop (line ~372-380):
 - If `tu.get("type") is not None`, apply type change to thread.
 - No validation; sanitizer can correct bad assignments.
 
-**6. Add dormant to validator's valid urgency set in `_validate_parsed()` in `thread_sanitizer.py`**
+**6. (No validator changes needed)**
 
-Add "dormant" to the validator's valid urgency set (line ~239):
-- If `urgency` is "dormant", accept it as valid (same as background/normal/urgent).
-- No coercion; dormant is now a legitimate urgency value.
+`_validate_parsed()` in `thread_sanitizer.py` uses `ThreadUpdate.model_validate()` for validation. Since `dormant` is a separate boolean field (not an urgency value), Pydantic handles it automatically. No explicit validation changes needed.
 
 **7. Replace urgency-based convergence components with type-based equivalents**
 
 In `compute_convergence_score()` (`_pacing.py:85-131`):
 - Remove component 1 (`thread_urgency_count >= 1`) and component 2 (`thread_urgency_count >= 2`).
 - Replace with:
-  - Component 1: `active_threat_threads >= 1` (counts threads with `type == "threat"` and `active == True`).
+  - Component 1: `active_threat_threads >= 1` (counts threads with `type == "threat"` and `not dormant`).
   - Component 2: `urgent_opportunity_threads >= 1` (counts threads with `type == "opportunity"` and `urgency == "urgent"`).
 - Keep components 3, 4, 5 unchanged (`scene_age`, `beat_streak`, `dice_weight`).
 - Abandoned threads do not count toward convergence (they are moved to `completed_threads[]` and excluded from active thread lists).
@@ -188,9 +186,9 @@ In `compute_convergence_score()` (`_pacing.py:85-131`):
 **8. Add engine auto-dormant mechanism to `turn.py`**
 
 Replace the staleness threshold (`thread_stale_threshold`) with engine auto-dormant:
-- After 4 turns with no activity (no progress, no urgency change, no type change), engine auto-demotes thread to `urgency: "dormant"`.
-- Only applies to threads with `active == True` (dormant threads are still "in the story world" but not currently active).
-- Storyteller can override via `thread_update` (set urgency back to background/normal/urgent).
+- After 4 turns with no activity (no progress, no urgency change, no type change), engine auto-demotes thread to `dormant: True, urgency: "background"`.
+- Only applies to threads with `dormant == False` (live threads; dormant threads are already marked).
+- Storyteller can override via `thread_update` (set `dormant: False` and adjust urgency).
 - Sanitizer can also set dormant via `thread_updates` in its periodic pass.
 
 **9. Add engine culling mechanism to `turn.py`**
@@ -222,7 +220,8 @@ Add explicit abandonment criteria (in "Instructions" section, line ~36):
 Update urgency tag rendering:
 - `[URGENT]` only when `urgency == "urgent"`.
 - No tag when `urgency == "normal"` (baseline).
-- `[Background]` when `urgency == "background"` or `urgency == "dormant"` (dormant renders the same as background).
+- `[Background]` when `urgency == "background"`.
+- `[DORMANT]` when `dormant == True` (independent of urgency; overrides other tags).
 - No semantic type tags in rendering (type is narrative metadata, not displayed).
 
 ### Alternatives Considered and Rejected
@@ -236,7 +235,7 @@ Update urgency tag rendering:
 | Semantic type tags in UI rendering | Adds UI complexity, type is narrative metadata not player-facing, breaks existing UI stability | Prompt rendering only; UI remains unchanged |
 | arc_categories get semantic type labels | Conflates pack-level themes with runtime tension states, creates redundant classification | Arc categories remain world-flavor; thread types remain tension classification |
 | Hard engine thresholds for abandonment | Sanitizer is better positioned to judge narrative relevance; mechanical thresholds are brittle | Explicit criteria in prompt guidance, but sanitizer can override with narrative justification |
-| Separate `status` field for dormant (vs. fourth urgency value) | More schema changes, more complexity, creates redundancy with `active` field | Fourth urgency value is simpler; dormant is "lower urgency" not a separate status |
+| Dormant as fourth urgency value (vs. separate boolean field) | Contradiction with design decision to remove `active`; conflates "how pressing" with "hidden/faded"; dormant threads can be any urgency | Separate `dormant: bool` is semantically clearer; dormant answers "is this hidden/faded?" independently of urgency |
 | Cull by `added_turn` (oldest creation date) | Punishes threads that were recently updated, not the most neglected | Cull by `last_updated_turn` (most neglected) is more fair and narrative-grounded |
 | No engine auto-dormant (sanitizer only) | Removes engine hygiene control, relies entirely on periodic sanitizer passes | Engine auto-dormant provides immediate hygiene; sanitizer can also cull proactively |
 | No engine culling (sanitizer only) | No hard cap, dormant threads accumulate indefinitely | Engine culling provides safety net; sanitizer can also cull proactively |
@@ -255,7 +254,7 @@ Update urgency tag rendering:
 - **Culling removes threads too early**: >= 3 dormant may be too high a threshold, causing context bloat before culling kicks in. Mitigation: sanitizer can also cull proactively based on narrative evidence, providing a safety net below the engine's hard cap.
 - **Dormant threads accumulate**: If storyteller never sets threads to dormant, they stay active with background urgency indefinitely, wasting context. Mitigation: engine auto-dormant after 4 turns with no activity provides hygiene control.
 - **Dormant threads re-emerge unexpectedly**: No suppression flag means dormant threads can be reactivated by storyteller at any time. This is by design — narrative justification is the only gate.
-- **Backwards compat crashes**: Old data with unknown urgency values (from LLM errors or legacy saves) may crash on load. Mitigation: unknown urgency values coerce to "background" (safest default). Dormant added to validator's valid set.
+
 
 ## What Is Removed
 
@@ -269,13 +268,13 @@ Update urgency tag rendering:
 | No type handling | `_apply_thread_updates()` | Added type field handling |
 | No type handling | `_apply_sanitization()` | Added type field handling |
 | No type field | `ArcThreadSummary` | Added type field (no rendering changes) |
-| No dormant urgency value | `ArcThread`, `ThreadUpdate`, `ArcThreadSummary` | Added "dormant" to urgency Literal |
+| No dormant boolean field | `ArcThread`, `ThreadUpdate`, `ArcThreadSummary` | Added `dormant: bool` replacing `active: bool` |
 | No auto-dormant mechanism | Engine (turn.py) | Added auto-dormant after 4 turns with no activity |
 | No culling mechanism | Engine (turn.py) | Added culling when >= 3 dormant, by last_updated_turn |
 | No staleness threshold | `config.thread_stale_threshold` | Replaced by engine auto-dormant (4 turns no activity) |
-| No dormant handling | `_apply_thread_updates()` | Added dormant urgency handling |
-| No dormant handling | `_apply_sanitization()` | Added dormant urgency handling |
-| No dormant handling | `_validate_parsed()` | Added dormant to validator's valid urgency set |
+| No dormant handling | `_apply_thread_updates()` | Added `dormant` field handling |
+| No dormant handling | `_apply_sanitization()` | Added `dormant` field handling |
+| No dormant handling | `_validate_parsed()` | No changes needed — Pydantic `ThreadUpdate.model_validate()` handles `dormant` automatically |
 
 ## What Is Unchanged
 
@@ -285,7 +284,7 @@ Update urgency tag rendering:
 - `scene_age`, `beat_streak`, `dice_weight` convergence components — unchanged, measure independent signals.
 - UI rendering (`_state_left.html`, `tv.py`) — no changes for semantic type display.
 - `completed_threads` TTL handling — abandoned threads handled naturally by existing TTL, no suppression flags.
-- Thread cap eviction (`thread_max_active`) — unchanged, operates on active count not type.
+- Thread cap eviction (`thread_max_active`) — unchanged, operates on non-dormant count not type.
 - Urgency decay (`thread_urgency_max_age`) — unchanged, urgent→normal→background after N turns.
 - `_merge_arc_update()` in `delta_builder.py` — no changes, merges arc state as-is.
 - `_apply_arc_resolve()` in `turn.py` — no changes, arc resolution logic unchanged.
@@ -303,8 +302,8 @@ Update urgency tag rendering:
 class ArcThread(BaseModel):
     id: str
     summary: str
-    active: bool = True
-    urgency: Literal["background", "normal", "urgent", "dormant"] = "normal"
+    dormant: bool = False
+    urgency: Literal["background", "normal", "urgent"] = "normal"
     type: Literal["threat", "opportunity", "complication", "revelation"] | None = None
     progress: list[ProgressEntry] = Field(default_factory=list)
     resolution_state: str | None = None
@@ -320,8 +319,8 @@ class ArcThread(BaseModel):
 ```python
 class ThreadUpdate(BaseModel):
     id: str
-    active: bool | None = None
-    urgency: Literal["background", "normal", "urgent", "dormant"] | None = None
+    dormant: bool | None = None
+    urgency: Literal["background", "normal", "urgent"] | None = None
     type: Literal["threat", "opportunity", "complication", "revelation"] | None = None
     progress: str | None = None
     progress_kind: Literal["advancement", "setback", "shift"] | None = None
@@ -333,10 +332,10 @@ class ThreadUpdate(BaseModel):
 class ArcThreadSummary(BaseModel):
     id: str
     summary: str
-    urgency: Literal["background", "normal", "urgent", "dormant"]
+    urgency: Literal["background", "normal", "urgent"]
     type: Literal["threat", "opportunity", "complication", "revelation"] | None = None
     progress: list[str] = Field(default_factory=list)
-    active: bool
+    dormant: bool
     last_updated_turn: int | None = None
 ```
 

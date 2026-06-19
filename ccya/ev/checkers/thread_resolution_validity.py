@@ -43,7 +43,7 @@ def _apply_sanitizer_changes_to_arc(
             "id": tid,
             "summary": added.get("summary", ""),
             "urgency": added.get("urgency", "normal"),
-            "active": True,
+            "dormant": False,
             "progress": [],
         })
 

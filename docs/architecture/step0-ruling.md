@@ -118,8 +118,8 @@ Priority order (highest to lowest): **Scene Imperative → Scene Pressure → (e
 #### Age computation
 
 `_compute_ages(state)` returns only `{"scene_age": scene_age}` — location_age and combat_age removed in Phase 03 pacing overhaul. The ruling phase pre-computes `effective_scene_age = scene_age + 2` when `"combat"` is in scene tags, stored in `ctx._ages["effective_scene_age"]`. This single-age signal drives all directive thresholds:
-- Scene Imperative (≥4 effective age, configurable via `scene_imperative_threshold`): high-priority directive forcing story advancement
-- Scene Pressure (3 ≤ effective_age < 4, configurable): secondary append to wind down or shift focus
+- Scene Imperative (≥5 effective age, configurable via `scene_imperative_threshold`): high-priority directive forcing story advancement
+- Scene Pressure (3 ≤ effective_age < 5, configurable): secondary append to wind down or shift focus
 
 ### Wiring
 

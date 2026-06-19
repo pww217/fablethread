@@ -45,13 +45,13 @@ Review each active thread and output a JSON object inside <sanitize> tags.
 5. **Progress noisy or redundant?** → consolidate to fewer entries (5–7 words, factual, net outcomes over step-by-step logs).
 
 ### Abandonment criteria
-If a thread has no narrative mention in 5+ turns AND no activity (progress/urgency change) in 3+ turns, consider resolving as abandoned with narrative justification. Do not abandon threads still relevant to the current situation.
+If a thread has no narrative mention in 5+ turns AND no activity (progress/urgency change) in 3+ turns, consider resolving as abandoned with narrative justification. Do not abandon threads still relevant to the current situation. Never abandon threads that have never been updated (no turns-ago suffix — these are freshly unearthed and need time to surface).
 
 ### Dormant guidance
-If a thread has no activity in 4+ turns, consider setting dormant: True. Dormant threads represent tensions faded from immediate relevance but can be reactivated.
+If a thread has no activity in 4+ turns, consider setting dormant: True. Dormant threads represent tensions faded from immediate relevance but can be reactivated. Never mark threads dormant that have never been updated (no turns-ago suffix).
 
 ### Culling guidance
-If there are >= 3 dormant threads, consider resolving the oldest (by last_updated_turn) as abandoned with a narrative outcome sentence.
+If there are >= 3 dormant threads, consider resolving the oldest (by last_updated_turn) as abandoned with a narrative outcome sentence. Never cull threads that have never been updated (no turns-ago suffix).
 
 ### Progress consolidation
 Threads should shrink over time, not accumulate. Consolidate when:

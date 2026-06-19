@@ -95,6 +95,7 @@ def compute_convergence_score(
     Each component is worth +1. Threshold is config.convergence_threshold (default 3).
     Score cannot reach threshold without at least one urgent thread.
     Dormant threads are excluded from all components.
+    Note: score CAN reach threshold without urgent threads via threat + scene_age + streak + dice.
     """
     score = 0
 

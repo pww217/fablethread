@@ -361,8 +361,8 @@ async def generate_seed(
             envelope.seed_state.arc = envelope.arc
             arc = envelope.seed_state.arc
             if arc and hasattr(arc, "threads"):
-                non_dormant_threads = [t for t in (arc.threads or []) if not getattr(t, "dormant", False)]
-                dormant_threads = [t for t in (arc.threads or []) if getattr(t, "dormant", False)]
+                non_dormant_threads = [t for t in (arc.threads or []) if not t.dormant]
+                dormant_threads = [t for t in (arc.threads or []) if t.dormant]
 
                 # Hard limit: at most 2 threads can be non-dormant at game start
                 max_non_dormant = min(2, len(non_dormant_threads)) if non_dormant_threads else 0

@@ -151,7 +151,7 @@ class EngineConfig:
     difficulty_curve: str = "balanced"
     # Scene pacing thresholds (turns before directive triggers)
     scene_pressure_threshold: int = 3
-    scene_imperative_threshold: int = 4
+    scene_imperative_threshold: int = 5
     # Scene phase thresholds
     climax_turn_limit: int = 4          # max turns in CLIMAX before forced RESOLUTION
     breather_max_turns: int = 3         # max turns in BREATHER before forced RISING transition
@@ -170,6 +170,10 @@ class EngineConfig:
 
     # Urgency decay: demote urgent→normal→background after N turns at same urgency level
     thread_urgency_max_age: int = 8
+    # Thread completion threshold (number of progress entries that completes a thread)
+    thread_completion_threshold: int = 3
+    # Thread creation cooldown (minimum turns between new thread additions)
+    thread_creation_cooldown: int = 3
 
     # Thread sanitizer: batch arc/thread cleanup every N turns
     sanitize_every: int = 5       # 0 = disabled
@@ -272,7 +276,7 @@ def build_engine_config(
 
         difficulty_curve=game.get("difficulty_curve", "balanced"),
         scene_pressure_threshold=int(game.get("scene_pressure_threshold", 3)),
-        scene_imperative_threshold=int(game.get("scene_imperative_threshold", 4)),
+        scene_imperative_threshold=int(game.get("scene_imperative_threshold", 5)),
         climax_turn_limit=int(game.get("climax_turn_limit", 4)),
         breather_max_turns=int(game.get("breather_max_turns", 3)),
         convergence_threshold=int(game.get("convergence_threshold", 3)),
@@ -283,6 +287,8 @@ def build_engine_config(
 
         # Thread lifecycle enforcement
         thread_urgency_max_age=int(game.get("thread_urgency_max_age", 8)),
+        thread_completion_threshold=int(game.get("thread_completion_threshold", 3)),
+        thread_creation_cooldown=int(game.get("thread_creation_cooldown", 3)),
 
         sanitize_every=int(game.get("sanitize_every", 5)),   # 0 = disabled
         sanitize_temperature=float(

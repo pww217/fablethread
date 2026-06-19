@@ -33,8 +33,6 @@ class ProgressEntry(BaseModel):
 
 
 class ArcThread(BaseModel):
-    model_config = {"extra": "ignore"}
-
     id: str
     summary: str
     dormant: bool = False
@@ -56,6 +54,12 @@ class ArcThread(BaseModel):
                 data["dormant"] = not data.pop("active")
         return data
 
+    @model_validator(mode="after")
+    def _dormant_not_urgent(self) -> "ArcThread":
+        if self.dormant and self.urgency == "urgent":
+            self.urgency = "background"
+        return self
+
     @field_validator("progress", mode="wrap")
     @classmethod
     def _coerce_progress(cls, v: Any, handler: Any) -> Any:
@@ -71,7 +75,6 @@ class ArcThread(BaseModel):
 
 
 class CampaignArc(BaseModel):
-    model_config = {"extra": "ignore"}
     visible_goal: str = ""
     goal_context: str = ""
     threads: list[ArcThread] = Field(default_factory=list)

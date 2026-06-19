@@ -166,7 +166,7 @@ ev.py deltas 7 saves/my-game/events.jsonl                   # find thread mutati
 - `outcome_hint` rendered in narrator prompt
 - Pacing directive rendered in storyteller prompt
 - Removed directives ("location pressure", "location imperative", "combat fatigue", "Overwhelm") not lingering
-- Scene Imperative fires at `scene_imperative_threshold` effective turns (default 4) or when CLIMAX hits turn limit
+- Scene Imperative fires at `scene_imperative_threshold` effective turns (default 5)
 - Scene Pressure fires at `scene_pressure_threshold` effective turns (default 3)
 - Breathe fires when no urgent threads exist AND `breather_turn_count < breather_max_turns`
 - Beat type variety: no single type exceeds 70% of all beats (requires 3+ beats)

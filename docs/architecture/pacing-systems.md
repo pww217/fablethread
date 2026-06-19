@@ -37,7 +37,7 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 
 | From | To | Condition |
 |------|-----|-----------|
-| SETUP | RISING | Urgent thread appears |
+| SETUP | RISING | Urgent thread appears OR turns_in_phase ≥ 3 (3-turn TTL prevents stagnation) |
 | RISING | CLIMAX | convergence_score ≥ threshold (default 3) |
 | CLIMAX | RESOLUTION | climax_turn_count ≥ limit |
 | RESOLUTION | BREATHER | Always (1-turn transition) |
@@ -45,7 +45,7 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 
 ### Convergence score
 
-`compute_convergence_score()` computes a 5-component score (0-5) each turn to drive RISING→CLIMAX transition. Components: (1) thread urgency ≥1 (+1), (2) urgency depth ≥2 (+1), (3) scene age ≥ threshold (+1), (4) beat streak: ≥60% pressure beats in recent window (+1), (5) dice weight: fail/crit_fail roll with urgent thread (+1). Threshold is `config.convergence_threshold` (default 3).
+`compute_convergence_score()` computes a 5-component score (0-5) each turn to drive RISING→CLIMAX transition. Components: (1) any urgent thread (dormant-aware, urgent threads with dormant=False) (+1), (2) any threat thread (dormant-aware, threads with type="threat" and dormant=False) (+1), (3) scene age ≥ threshold (+1), (4) beat streak: ≥60% pressure beats in recent window (+1), (5) dice weight: fail/crit_fail roll with urgent thread (+1). Threshold is `config.convergence_threshold` (default 3).
 
 ## 2.5. Curtain Call — CLIMAX phase soft close
 
@@ -233,9 +233,10 @@ flowchart LR
 
 | Constraint | Condition | Effect |
 |------------|-----------|--------|
-| Auto-latent demotion | Thread untouched for 3 turns | `active: false` |
+| Auto-dormant | Thread untouched for 4 turns (urgent threads excluded) | `dormant: True`, `urgency: background` |
 | Urgency decay | Thread at same urgency for 8 turns | `urgent→normal→background` |
 | Thread cap eviction | Active threads > 5 on `thread_add` | Evict oldest active |
+| Engine culling | ≥3 dormant threads | Oldest (by last_updated_turn) → completed_threads with resolution_state: "abandoned" |
 | Progress dedup | ≥50% overlap with last progress entry | Reject new entry |
 
 ### Code locations
@@ -345,11 +346,11 @@ T6:  normal climax rhythm continues
 | `climax_turn_limit` | 4 | Phase Engine | Max turns in CLIMAX before RESOLUTION |
 | `breather_max_turns` | 3 | Phase Engine | Max turns in BREATHER before forced RISING |
 | `scene_pressure_threshold` | 3 | Pacing Context | Scene Pressure secondary directive threshold |
-| `scene_imperative_threshold` | 4 | Pacing Context | Scene Imperative directive threshold |
+| `scene_imperative_threshold` | 5 | Pacing Context | Scene Imperative directive threshold |
 | `recent_beats_max` | 5 | GM Beats | Max entries in recent_beats history |
-| `thread_stale_threshold` | 3 | Thread Lifecycle | Auto-latent demotion after N turns |
 | `thread_max_active` | 5 | Thread Lifecycle | Thread cap, oldest evicted on overflow |
 | `thread_urgency_max_age` | 8 | Thread Lifecycle | Urgency decay after N turns at same level |
+| `sanitize_every` | 5 | Sanitizer | Run sanitizer every N turns (0=disabled) |
 
 ## 9. Code Locations Summary
 
@@ -361,7 +362,7 @@ T6:  normal climax rhythm continues
 | `_compute_narration_directive()` | `turn.py` | 403-433 | scene_age → directive (Scene Imperative purely age-based) |
 | `_compute_pacing_context()` | `turn.py` | 437-474 | scene_phase + urgency + age → PacingContext |
 | `_compute_ages()` | `turn.py` | 491-502 | Scene age computation |
-| `compute_convergence_score()` | `_pacing.py` | 83-126 | 5-component score (thread urgency, age, beat streak, dice) → int |
+| `compute_convergence_score()` | `_pacing.py` | 83-126 | 5-component score (any_urgent from dormant-aware urgent threads, any_threat from dormant-aware threat threads, age, beat streak, dice) → int |
 | `derive_allowed_beat_types()` | `_pacing.py` | 30-55 | Phase + directive + spiral → allowed beat types |
 | `detect_spiral()` | `_pacing.py` | 25-46 | Recent roll bands → spiral flag (consecutive/ratio thresholds) |
 | `sanitize_threads()` | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
