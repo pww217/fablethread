@@ -37,8 +37,9 @@ class ArcThread(BaseModel):
 
     id: str
     summary: str
-    active: bool = True
+    dormant: bool = False
     urgency: Literal["background", "normal", "urgent"] = "normal"
+    type: Literal["threat", "opportunity", "complication", "revelation"] | None = None
     progress: list[ProgressEntry] = Field(default_factory=list)
     resolution_state: str | None = None
     outcome: str | None = None
@@ -46,6 +47,14 @@ class ArcThread(BaseModel):
     last_updated_turn: int | None = None
     added_turn: int | None = None
     urgency_set_turn: int | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_active_to_dormant(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "active" in data and "dormant" not in data:
+                data["dormant"] = not data.pop("active")
+        return data
 
     @field_validator("progress", mode="wrap")
     @classmethod
@@ -411,7 +420,7 @@ class ThreadResolution(BaseModel):
 
 class ThreadUpdate(BaseModel):
     id: str
-    active: bool | None = None
+    dormant: bool | None = None
     urgency: Literal["background", "normal", "urgent"] | None = None
     progress: str | None = None
     progress_kind: Literal["advancement", "setback", "shift"] | None = None
