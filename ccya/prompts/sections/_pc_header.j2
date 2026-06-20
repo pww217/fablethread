@@ -1,0 +1,4 @@
+## Player Character
+**{{ pc.name or "Unnamed" }}** — {{ pc.tagline or pc.concept or "" }}
+
+**Stats:** {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}

@@ -247,6 +247,8 @@ def _extract_scene_messages(
     npc_roster = build_npc_roster(comp, personality_registry=ARCHETYPES)
 
     system_text = _render(env, "extract_scene_system.j2", {})
+    pc = state.get("pc") or {}
+    pc_name = pc.get("name", "Unnamed")
     user_text = _render(
         env,
         "extract_scene_user.j2",
@@ -254,6 +256,7 @@ def _extract_scene_messages(
             "narration": narration,
             "location": location,
             "npc_roster": npc_roster,
+            "pc_name": pc_name,
             "turn_no": turn_no,
         },
     )

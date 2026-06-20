@@ -1,9 +1,4 @@
-## Player Character
-**{{ pc.name or "Unnamed" }}** — {{ pc.tagline or pc.concept or "" }}
-
-**Stats:** {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
-
-**Conditions:** {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
+{% include "sections/_pc_header.j2" %}{% include "sections/_conditions.j2" %}
 
 ## scene
 Location: {{ location.name or location.id or "Unknown" }}
@@ -21,12 +16,7 @@ Location: {{ location.name or location.id or "Unknown" }}
 {% endfor %}
 {% endfor %}
 {% endif -%}
-{%- if inventory %}
-## Inventory
-{% for item in inventory -%}
-- {{ item.name }} ({{ item.amount }}){% if item.notes %}: {{ item.notes }}{% endif %}
-{% endfor -%}
-{% endif -%}
+{% include "sections/_inventory.j2" %}
 {% include "sections/_recent_turns.j2" %}
 
 ## Current Turn: {{ meta.turn | default('?') }}

@@ -11,11 +11,10 @@ flowchart LR
     classDef outNode fill:#451a03,color:#fde68a,stroke:#f59e0b
 
     subgraph IN["Inputs"]
-        S1["narrative (from Step 1)"]:::xstream
-        S2["state.pc (name, bio, stats, conditions)"]
-        S3["state.location"]
-        S4["state.inventory"]
-        S5["intent: str<br>(from Step 0)"]
+        S1["narration (from Step 1)"]:::xstream
+        S2["pc.conditions"]
+        S3["state.inventory"]
+        S4["intent<br>(from Step 0)"]
     end
 
     subgraph LLM2B["LLM — extract_state_system.j2 + extract_state_user.j2"]

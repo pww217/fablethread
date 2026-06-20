@@ -1,2 +1,3 @@
-{{ state.location.name or "Unknown" }} ({{ state.location.id or "no-id" }})
-{{ state.location.description or "No description." }}
+{% set loc = location | default(state.location, true) -%}
+{{ loc.name or "Unknown" }} ({{ loc.id or "no-id" }})
+{{ loc.description or "No description." }}

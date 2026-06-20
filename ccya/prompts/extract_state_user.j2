@@ -1,13 +1,5 @@
-{% if conditions -%}
-## active_conditions
-{% for c in conditions %}- {{ c.id if c is mapping else c }} (age: {{ turn_no - (c.added_turn if c is mapping else 0) }} turns){% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}
-{% endfor %}
-{% endif -%}
-{% if inventory -%}
-## inventory (current stacks — read amount before emitting `inventory_remove`)
-{% for item in inventory %}- `{{ item.id }}` | {{ item.name }} ×{{ item.amount or 1 }}{% if item.notes %} — {{ item.notes }}{% endif %}
-{% endfor %}
-{% endif -%}
+{% include "sections/_conditions.j2" show_age=true %}
+{% include "sections/_inventory.j2" %}
 {% if intent and intent.intent -%}
 ## player_intent
 {{ intent.intent_verb }}: {{ intent.intent }}

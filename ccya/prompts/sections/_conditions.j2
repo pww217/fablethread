@@ -1,0 +1,5 @@
+{% if conditions -%}
+{% for c in conditions -%}
+- {{ c.id if c is mapping else c }}{% if show_age %} (age: {{ turn_no - (c.added_turn if c is mapping else 0) }} turns){% endif %}{% if c is mapping and c.get('label') %}: {{ c.label }}{% endif %}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}
+{% endfor -%}
+{%- endif -%}

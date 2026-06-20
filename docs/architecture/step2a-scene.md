@@ -11,13 +11,10 @@ flowchart LR
     classDef outNode fill:#064e3b,color:#a7f3d0,stroke:#10b981
 
     subgraph IN["Inputs"]
-        S1["narrative (from Step 1)"]:::xstream
-        S2["state.pc (name, tagline, bio, stats)"]
+        S1["narration (from Step 1)"]:::xstream
+        S2["pc.name<br>(player character name)"]
         S3["state.location"]
-        S4["compendium.npcs[presence='present']"]
-        S5["state.pc.conditions"]
-        S6["npc_roster<br>(from build_npc_roster(), filtered by presence field)"]
-        S7["recent_turns[-1:]<br>(T-1 prior narration)"]
+        S4["npc_roster<br>(from build_npc_roster())"]
     end
 
     subgraph LLM2A["LLM — extract_scene_system.j2 + extract_scene_user.j2"]
