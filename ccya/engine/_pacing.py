@@ -11,7 +11,8 @@ from math import ceil
 from typing import Any
 
 from ccya.engine.config import EngineConfig
-from ccya.models import RulesOutcome
+from ccya.engine.turn_context import PacingContext
+from ccya.models import ArcThread, RulesOutcome
 
 
 BEAT_BUCKETS: dict[str, list[str]] = {
@@ -139,3 +140,160 @@ def compute_convergence_score(
         score += 1
 
     return score
+
+
+def _compute_narration_directive(
+    scene_phase: str,
+    thread_urgency_count: int,
+    effective_scene_age: int,
+    scene_pressure_threshold: int = 3,
+    scene_imperative_threshold: int = 5,
+) -> str:
+    """Compute the narration directive string using a priority stack.
+
+    Priority order (highest to lowest):
+      1. Scene Imperative — effective_scene_age >= scene_imperative_threshold
+      2. Scene Pressure   — effective_scene_age >= scene_pressure_threshold
+      3. (empty)        — default
+    """
+    # Priority 1: Scene Imperative — stale scene
+    if effective_scene_age >= scene_imperative_threshold:
+        return "Scene Imperative"
+
+    # Priority 2: Scene Pressure — approaching staleness
+    if effective_scene_age >= scene_pressure_threshold:
+        return "Scene Pressure"
+
+    # Priority 3: empty (default)
+    return ""
+
+
+def _compute_pacing_context(
+    scene_phase: str,
+    thread_urgency_count: int,
+    effective_scene_age: int,
+    scene_motion: str = "hold",
+    scene_pressure_threshold: int = 3,
+    scene_imperative_threshold: int = 5,
+) -> PacingContext:
+    """Compute unified pacing context for Narrate and Progress steps.
+    """
+    # Compute directive using new signal set
+    directive = _compute_narration_directive(
+        scene_phase=scene_phase,
+        thread_urgency_count=thread_urgency_count,
+        effective_scene_age=effective_scene_age,
+        scene_pressure_threshold=scene_pressure_threshold,
+        scene_imperative_threshold=scene_imperative_threshold,
+    )
+
+    # outcome_hint: primarily driven by scene_motion from ruling engine.
+    # When Scene Imperative fires (scene stale or crisis expired), override to "transition".
+    outcome_hint: str | None = scene_motion
+
+    if effective_scene_age >= scene_imperative_threshold:
+        outcome_hint = "transition"
+
+    # Build summary for logging
+    parts = [directive] if directive else []
+    summary = ", ".join(parts) or "neutral"
+
+    return PacingContext(
+        directive=directive or "",
+        outcome_hint=outcome_hint,
+        summary=summary,
+    )
+
+
+def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
+    """Compute age/staleness counters for narration directives."""
+    meta = state.get("meta") or {}
+    scene = state.get("scene") or {}
+    current_turn = meta.get("turn", 0)
+
+    scene_entered = scene.get("turn_entered", 0)
+    scene_age = current_turn - scene_entered
+
+    return {
+        "scene_age": scene_age,
+    }
+
+
+def _compute_scene_phase(
+    state: dict[str, Any],
+    ages: dict[str, int],
+    config: EngineConfig,
+    convergence_score: int = 0,
+) -> dict[str, Any]:
+    """Compute the scene phase using the 5-state machine.
+
+    Transitions: SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION,
+    RESOLUTION→BREATHER, BREATHER→RISING.
+
+    Mutates state["scene"] in place. Returns the updated scene dict.
+    """
+    scene = state.setdefault("scene", {})
+
+    # Initialize new fields if missing
+    scene.setdefault("scene_phase", "SETUP")
+    scene.setdefault("climax_turn_count", 0)
+    scene.setdefault("breather_turn_count", 0)
+    scene.setdefault("turns_in_phase", 0)
+
+    phase = scene.get("scene_phase", "SETUP")
+    climax_turn_count = scene.get("climax_turn_count", 0)
+    breather_turn_count = scene.get("breather_turn_count", 0)
+    turns_in_phase = scene.get("turns_in_phase", 0) + 1
+
+    # Count urgent threads
+    _raw_threads = (state.get("arc") or {}).get("threads") or []
+    thread_urgency_count = 0
+    for t in _raw_threads:
+        if isinstance(t, dict) and getattr(ArcThread.model_validate(t) if not isinstance(t, ArcThread) else t, "urgency", "normal") == "urgent":
+            thread_urgency_count += 1
+
+    # Phase transition logic
+    if phase == "SETUP":
+        if thread_urgency_count > 0 or turns_in_phase >= 3:
+            phase = "RISING"
+            turns_in_phase = 0
+
+    elif phase == "RISING":
+        if convergence_score >= config.convergence_threshold:
+            phase = "CLIMAX"
+            climax_turn_count = 1
+            turns_in_phase = 0
+
+    elif phase == "CLIMAX":
+        climax_turn_count += 1
+        if climax_turn_count >= config.climax_turn_limit:
+            phase = "RESOLUTION"
+            climax_turn_count = 0
+            turns_in_phase = 0
+
+    elif phase == "RESOLUTION":
+        phase = "BREATHER"
+        breather_turn_count = 1
+        turns_in_phase = 0
+
+    elif phase == "BREATHER":
+        breather_turn_count += 1
+        if thread_urgency_count > 0 or breather_turn_count >= config.breather_max_turns:
+            phase = "RISING"
+            breather_turn_count = 0
+            turns_in_phase = 0
+
+    # Compute curtain_call after phase may have changed
+    _curtain_call = ""
+    if phase == "CLIMAX":
+        if climax_turn_count >= config.climax_turn_limit - 1:
+            _curtain_call = "forced"
+        elif climax_turn_count == 1:
+            _curtain_call = "active"
+
+    return {**scene, "scene_phase": phase, "climax_turn_count": climax_turn_count, "breather_turn_count": breather_turn_count, "turns_in_phase": turns_in_phase, "curtain_call": _curtain_call}
+
+
+def _recent_turn_count(state: dict[str, Any]) -> int:
+    """Return max turns needed — now each consumer only needs 1 ([-1:] slice)."""
+    return 1

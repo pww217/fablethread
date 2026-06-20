@@ -7,5 +7,5 @@
 {% endif %}
 {% if threads | selectattr('dormant') | list %}
 ### Dormant Threads (faded but recoverable)
-{% for t in threads %}{% if t.dormant %}- `{{ t.id }}` [DORMANT] {{ t.summary }} ({{ turn_no - t.last_updated_turn }} turns ago)
+{% for t in threads %}{% if t.dormant %}- `{{ t.id }}` [DORMANT] {{ t.summary }}{% if t.last_updated_turn is not none %} ({{ turn_no - t.last_updated_turn }} turns ago){% endif %}
 {% endif %}{% endfor %}{% endif %}
