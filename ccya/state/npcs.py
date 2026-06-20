@@ -169,19 +169,6 @@ def _find_npc_by_name(name: str, comp: dict[str, Any]) -> str | None:
     return None
 
 
-def strip_npcs_notes(state: dict[str, Any]) -> None:
-    """Clear notes from all NPCs in the compendium.
-
-    Notes are present-tense/this-turn-only — scene_extractor creates fresh ones each turn.
-    Mutates state in-place so ruling/narration/extraction all see a clean slate.
-    """
-    npcs = (state.get("compendium") or {}).get("npcs", {})
-    _log.debug("strip_npcs_notes count=%d", len(npcs))
-    for npc_id, entry in npcs.items():
-        if isinstance(entry, dict) and entry.get("presence") not in ("departed", "archived"):
-            entry.pop("notes", None)
-
-
 def apply_npc_scene_management(
     state: dict[str, Any],
     scene_result: SceneExtractResult,
@@ -316,18 +303,16 @@ def apply_npc_scene_management(
                 if comp_upd.presence == "present":
                     touch_compendium_order(state, resolved_id)
                 elif comp_upd.presence == "known":
-                    entry.pop("notes", None)
+                    entry.pop("position", None)
             if comp_upd.presence == "departed":
                 if comp_upd.departed_reason is not None:
                     entry["departed_reason"] = comp_upd.departed_reason
                 if current_turn_no is not None:
                     entry["departed_turn"] = entry.get("departed_turn", current_turn_no)
-                entry.pop("notes", None)
+                entry.pop("position", None)
             if comp_upd.presence == "nearby":
                 if current_turn_no is not None:
                     entry["last_presence_turn"] = current_turn_no
-            if comp_upd.notes is not None:
-                entry["notes"] = comp_upd.notes
             if comp_upd.position is not None:
                 entry["position"] = comp_upd.position
 

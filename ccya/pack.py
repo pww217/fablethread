@@ -52,7 +52,6 @@ class SeedCompendium(BaseModel):
 
 
 class SeedScene(BaseModel):
-    tagline: str = ""
     tags: list[str] = Field(default_factory=list)
     world_state: list[WorldStateFact | str] = Field(default_factory=list)
 

@@ -1,6 +1,6 @@
 ## Scene Extractor
 
-Read the turn narration and extract the scene-level state: which NPCs are present and how they stand toward the player, whether the player moved to a new location, what the scene feels like, and any new spatial details about the current space. Also produce durable identity updates for the NPC compendium when the narration reveals new facts about a known character.
+Read the turn narration and extract the scene-level state: which NPCs are present and how they stand toward the player. Also produce durable identity updates for the NPC compendium when the narration reveals new facts about a known character.
 
 Refer to all characters by their actual names. Never use "PC" or "NPC" as labels in extracted values — use the character's real name.
 
@@ -8,20 +8,11 @@ Refer to all characters by their actual names. Never use "PC" or "NPC" as labels
 
 ```json
 {
-  "scene_tagline": "...",
-  "location_change": {"id": "...", "name": "...", "description": "..."},
-  "location_description": "...",
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "notes": "...", "position": "..."}]
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "position": "..."}]
 }
 ```
 
 ## Field rules
-
-`scene_tagline`: 3–6 words describing the current location and situation. Grounded in physical reality — where the PC is, what the environment is like, what the immediate stakes are. NOT a dramatic summary of events. Examples: `"Crossed Keys Inn — hearth low, toughs at door"`, `"Marrow's Crossing square — dusk, shops closing"`, `"Behind the inn — narrow alley, locked door"`.
-
-`location_change`: emitted ONLY when the location ID changes. Same location + new description → use `location_description` instead. **Common mistake:** if the narration describes a different atmosphere or environment but the PC is still in the same place, do NOT emit `location_change` — use `location_description` instead. The location ID is stable; only change it when the PC actually moves to a different named location.
-
-`location_description`: What the space IS — physical layout, visual details, atmosphere. Include tangible details (materials, lighting, sounds, smells) and spatial relationships. Infer from narration but don't repeat it. Narration tells what happened; this field tells what exists. Rewrite the full description each turn, using the current description as reference — keep stable details implicit, focus on what changed this turn. 2-4 sentences.
 
 `compendium_npc_update`: **UNIVERSAL NPC CHANNEL** — use for ALL NPC changes. Each update carries the full set of fields that have new information:
 
@@ -38,8 +29,7 @@ Refer to all characters by their actual names. Never use "PC" or "NPC" as labels
   "bond": "durable personal history — to the PC, or between two NPCs (name both parties)",
   "personality": "archetype_id — see archetype reference below; required for named NPCs, omit for unnamed",
   "presence": "present|nearby|known|departed",
-  "notes": "5–8 words max describing the NPC's current stance or action in this scene. No clauses, no conjunctions. Not plot-critical — quick situational cue only.",
-  "position": "Where the NPC is in the scene. One short phrase. Only update when narration moves the NPC or implies movement.",
+  "position": "Where the NPC is in the scene and what they are doing. One short phrase. Include spatial barriers and visibility constraints (e.g., 'behind a door, not visible', 'across the bar, watching', 'standing in the doorway blocking exit', 'at the player's elbow, whispering'). Update when narration changes the NPC's position or stance.",
   "departed_reason": "short label followed by 1-2 sentence prose describing the departure — e.g. 'killed in battle — Caught in the crossfire defending the village gates.'",
 }
 
@@ -47,8 +37,8 @@ Refer to all characters by their actual names. Never use "PC" or "NPC" as labels
 
 ### How to use compendium_npc_update
 
-- **NPC enters scene:** Set `presence: "present"` and provide context in `notes`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`notes`.
-- **NPC behavior changes:** Update `notes` with a brief situational cue reflecting their current stance toward the player.
+- **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`position`.
+- **NPC behavior changes:** Update `position` with a brief situational cue reflecting their current stance toward the player.
 - **Durable identity updates:** Update `name`, `title`, `bio`, `aliases`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes.
 - **Re-promotion:** If an NPC was demoted to `nearby` by a location change but narration shows they followed, set `presence: "present"` — do NOT create a new compendium entry.
@@ -91,7 +81,7 @@ Valid personality archetype IDs: cold_pragmatist, desperate_idealist, wary_oppor
 
 If a named character enters the scene as the **recipient** of a major action (rescue, capture, healing, transport, medical aid), create a compendium entry for them even if they don't perform visible actions. Use whatever information is available from context — including details from recent narration history if needed for the bio. This is belt-and-suspenders: the primary mechanism is alias-first naming (above), but this ensures central plot characters are never missed.
 
-### Bio and notes examples (READ CAREFULLY)
+### Bio examples (READ CAREFULLY)
 
 **Correct bio extraction:**
 - Narration: "A scarred woman in a grease-stained apron wipes her hands on a rag, eyes narrowing at you as she approaches the counter." → `bio: "Tall with a jagged burn scar running from jaw to collarbone; carries herself like someone used to being obeyed. Served five years in the militia before going civilian — knows how to handle weapons and doesn't flinch under pressure."`
@@ -99,18 +89,6 @@ If a named character enters the scene as the **recipient** of a major action (re
 
 **Incorrect bio extraction (too generic / missing one dimension):**
 - Narration: "A merchant approaches your table with a smile." → `bio: "Is a traveling trader who sells various goods."` ❌ Missing appearance entirely; second sentence is just restating their role, not giving personality or tangible facts.
-
-**Correct notes extraction:**
-- Narration: Caron slides into the seat across from you and taps his fingers on the table. → `notes: "tapping table — restless, waiting for move."`
-- Narration: The guard steps between you and the door, hand resting on his baton. → `notes: "blocking exit with body angled toward handle."`
-
-**Incorrect notes extraction (too long):**
-- ❌ `"He noticed that you were looking at him suspiciously so he crossed his arms defensively and looked away for a moment before turning back to watch you closely as you talked to Caron about what was going on."` — multi-clause narration transcript, not a quick situational cue.
-
-**Incorrect notes extraction (generic):**
-- ❌ `"is suspicious of the player"` — vague attitude without any scene context or action reference. Does not tell the player anything useful about what is happening right now.
-
-**Maximum 8 words for notes. Count them.**
 
 **NPC presence is SPATIAL — choose the most accurate:**
 - `"present"` — in the immediate scene with the player
@@ -130,7 +108,7 @@ If a named character enters the scene as the **recipient** of a major action (re
 EXAMPLE — NPC enters (correct):
 Narration: "A red-haired man in boiled leather steps through the door and locks eyes with you."
 Known NPCs in scene: [caron (present)]
-→ Emit: `compendium_npc_update: { id: "red_haired_man", name: "Red-Haired Man", presence: "present", notes: "locks eyes aggressively", position: "standing in doorway", bio: "..." }`
+→ Emit: `compendium_npc_update: { id: "red_haired_man", name: "Red-Haired Man", presence: "present", position: "standing in doorway, locking eyes", bio: "..." }`
 
 EXAMPLE — NPC exits (correct):
 Narration: "Caron spits on the floor and shoves through the crowd, disappearing into the street."
@@ -153,13 +131,12 @@ Sections not shown in the user prompt still exist in the live game state — abs
 Before you emit `compendium_npc_update` for ANY NPC:
 
 1. Check the `<<<TRACE_IMMUTABLE>>> known_characters` compendium section. If the NPC's name or title matches an existing compendium entry, use that entry's ID.
-2. If the NPC was previously known but had `presence: "known"` and is now present, set `presence: "present"` and add `notes`.
+2. If the NPC was previously known but had `presence: "known"` and is now present, set `presence: "present"` and update `position`.
 3. If the NPC is already in the compendium, do NOT re-emit `name`, `title`, or `bio` unless the narration reveals new information.
 
 ## Constraints
 
 - **NPC presence:** There MUST always be at least 1 NPC with `presence: "present"`. If no named NPCs are present, emit ambient presence (e.g., "crowd", "bystanders", "inn_patrons") with a generic ID. **HARD RULE: Do NOT emit ambient presence when any named NPC is already marked present.** Named NPCs are sufficient — this prevents hallucinated background characters.
-- **Location IDs:** For `location_change`, derive a stable snake_case ID from narration context (e.g., "perimeter_ruins", "trench_area"). Do NOT invent new IDs for other purposes — only use existing location IDs from the current section or well-known locations.
 - **Limit new NPCs to at most 3 per turn.** Background extras go in ambient presence.
 
 ## Output discipline

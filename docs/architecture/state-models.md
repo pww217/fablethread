@@ -4,7 +4,7 @@
 
 ```yaml
 meta:
-  game_name: str
+  session_name: str            # short evocative title for this game session (3-6 words)
   turn: int                    # source of truth — incremented only in engine/turn.py
   setting_pack: str
   model: str
@@ -42,12 +42,11 @@ inventory: list[InventoryItem] — credits pinned to top
 resolved_arcs: list[dict]     # stored at state level, TTL-pruned in prompts; each entry has visible_goal, resolution, goal_context, resolved_turn
 
 scene:
-  tagline: str
   world_state: list[WorldStateFact]   # permanent tier = seed-authored; persistent tier = LLM-added at runtime
   turn_entered: int            # when the current scene was entered (set on location change, used by _compute_ages())
   location_entered_turn: int   # when location was last changed
 
-compendium.npcs: dict[id] → {name, title, bio, aliases: [str], presence: str | "present"|"nearby"|"known"|"departed"|"archived", notes: str | None, position: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), personality: str | None (archetype id; write-once, immutable), first_seen_turn: int | None, last_presence_turn: int | None, last_seen_location: str | None, departed_reason: str | None, departed_turn: int | None}
+compendium.npcs: dict[id] → {name, title, bio, aliases: [str], presence: str | "present"|"nearby"|"known"|"departed"|"archived", position: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), personality: str | None (archetype id; write-once, immutable), first_seen_turn: int | None, last_presence_turn: int | None, last_seen_location: str | None, departed_reason: str | None, departed_turn: int | None}
 
 world.factions: [str], world.locations: [str]
 ```
@@ -58,8 +57,8 @@ world.factions: [str], world.locations: [str]
 
 - **IntentEnvelope**: `intent`, `intent_verb`, `target`, `check.required`, `check.skill`, `check.difficulty`, `impossible`, `reason`
 - **RulesOutcome**: `rolled`, `skill`, `difficulty`, `stat_value`, `stat_mod`, `diff_mod`, `dice`, `raw_total`, `final_total`, `band`, `directive`, `intent`, `intent_verb`, `impossible`, `reason`
-- **SceneExtractResult**: `scene_tagline`, `location_change`, `compendium_npc_update`
-- **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`
+- **SceneExtractResult**: `compendium_npc_update`
+- **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`, `location_change`, `location_description`
 - **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (str | None, applied directly to arc dict), `arc_resolve` (ArcResolution | None), `thread_resolve` (with outcome sentence + promote_to_world_state flag), `thread_add`, `gm_beat`, `actions`, `outcome_summary`
 - **SeedEnvelope**: `seed_state: GameState`, `opening_narrative`, `actions`, `arc: CampaignArc` (includes `goal_context` — UI-only, not rendered in prompts; unified `threads[]` with `progress: list[ProgressEntry]`, `completed_threads[]`)
 
@@ -69,13 +68,13 @@ world.factions: [str], world.locations: [str]
 - **CampaignArc**: `visible_goal`, `goal_context`, `threads: list[ArcThread]`, `completed_threads: list[ArcThread]`, `resolution`, `last_thread_created_turn`
 - **Condition**: `id`, `label`, `description`, `added_turn`
 - **InventoryItem**: `id`, `name`, `notes`, `amount`, `aliases: [str]`
-- **NpcPresence**: `name`, `title`, `bio`, `aliases: [str]`, `presence`, `notes`, `position`, `motivation`, `fear`, `leverage`, `personality`, `first_seen_turn`, `last_presence_turn`, `last_seen_location`, `departed_reason`, `departed_turn`
+- **NpcPresence**: `name`, `title`, `bio`, `aliases: [str]`, `presence`, `position`, `motivation`, `fear`, `leverage`, `personality`, `first_seen_turn`, `last_presence_turn`, `last_seen_location`, `departed_reason`, `departed_turn`
 - **ProgressEntry**: `kind: Literal["advancement", "setback", "shift"]`, `text`
 - **ThreadResolution**: `id`, `resolution_state: Literal["resolved", "failed", "abandoned"]`, `outcome: str`
 - **ThreadUpdate**: `id`, `dormant`, `urgency`, `type`, `summary`, `progress`, `progress_kind`
 - **ArcResolution**: `resolution`, `visible_goal`, `goal_context`, `drop_threads: list[str]`, `new_threads: list[ArcThread]`
 - **CompendiumNpcUpdate**: NPC upsert data with `position` field for spatial positioning
-- **StateDelta**: Merges all three extraction results; contains `scene_tagline`, `location_change`, `compendium_npc_update`, `thread_update/arc_resolve/thread_resolve/thread_add`, `inventory_add/remove/update`, `pc_condition_add/remove`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`.
+- **StateDelta**: Merges all three extraction results; contains `location_change`, `location_description`, `compendium_npc_update`, `thread_update/arc_resolve/thread_resolve/thread_add`, `inventory_add/remove/update`, `pc_condition_add/remove`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`.
 - **GMBeat**: `type`, `surface_as`, `beat_expires_turn`
 - **WorldStateFact**: `id: str`, `text: str`, `tier: Literal["permanent", "persistent"] = "persistent"`
 
@@ -133,6 +132,6 @@ world.factions: [str], world.locations: [str]
 - Reason persisted to `state.meta.last_condition_change_reason` for debugging
 
 ### CompendiumEntry
-- Has explicit `motivation`/`fear`/`leverage`/`bond`/`personality` optional string fields alongside existing `name`/`title`/`bio`/`aliases`/`presence`/`notes`
+- Has explicit `motivation`/`fear`/`leverage`/`bond`/`personality` optional string fields alongside existing `name`/`title`/`bio`/`aliases`/`presence`/`position`
 - Seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings
 - Seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only)

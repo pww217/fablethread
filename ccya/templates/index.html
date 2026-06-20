@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if state.scene.tagline %}CCYA: {{ state.scene.tagline }}{% elif state.location.id %}{{ state.pc.get('name') or 'Player' }} @ {{ state.location.get('name') or state.location.get('id', '') }}{% else %}Choose Your Own Adventure{% endif %}</title>
+    <title>{% if state.meta.session_name %}CCYA: {{ state.meta.session_name }}{% elif state.location.id %}{{ state.pc.get('name') or 'Player' }} @ {{ state.location.get('name') or state.location.get('id', '') }}{% else %}Choose Your Own Adventure{% endif %}</title>
     <script src="/static/vendor/htmx.min.js" defer></script>
     <script src="/static/vendor/alpine.min.js" defer></script>
     <script src="/static/vendor/marked.min.js"></script>
@@ -16,7 +16,7 @@
 
     <!-- Header -->
     <header class="header-bar">
-        <span class="header-logo" id="header-logo">{{ state.scene.get('tagline') or ((state.pc.get('name') or 'Player') + ' @ ' + (state.location.get('name') or state.location.get('id', '')) if state.location.id else '') or 'Choose Your Own Adventure' }}</span>
+        <span class="header-logo" id="header-logo">{{ state.meta.get('session_name') or ((state.pc.get('name') or 'Player') + ' @ ' + (state.location.get('name') or state.location.get('id', '')) if state.location.id else '') or 'Choose Your Own Adventure' }}</span>
         <button class="sidebar-toggle sidebar-toggle--right"
                 @click="toggleDrawer('right')"
                 :aria-expanded="rightDrawerOpen"
@@ -512,9 +512,9 @@ function _configureMarked() {
 
 function _headerTaglineFromState(st) {
     if (!st || typeof st !== 'object') return 'Choose Your Own Adventure';
-    const scene = st.scene || {};
-    const tag = (scene.tagline && String(scene.tagline).trim()) || '';
-    if (tag) return tag;
+    const meta = st.meta || {};
+    const name = (meta.session_name && String(meta.session_name).trim()) || '';
+    if (name) return name;
     const pc = st.pc || {};
     const loc = st.location || {};
     if (loc.id && (pc.name || loc.name)) {

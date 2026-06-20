@@ -66,10 +66,10 @@ def _default_state() -> dict[str, Any]:
     return {
         "schema_version": CURRENT_SCHEMA_VERSION,
         "meta": {
-            "game_name": "default",
             "turn": 0,
             "setting_pack": "",
             "model": "",
+            "session_name": "",
             "compendium_touch_order": [],
             "prior_history": [],
         },
@@ -100,7 +100,6 @@ def _default_state() -> dict[str, Any]:
         "scene": {
             "tags": [],
             "world_state": [],
-            "tagline": "",
             "turn_entered": 0,
         },
         "compendium": {"npcs": {}},

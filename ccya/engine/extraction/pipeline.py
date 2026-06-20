@@ -285,12 +285,11 @@ async def _run_extraction_pipeline(
     )
     # --- Merge into single StateDelta ---
     merged = StateDelta(
+        compendium_npc_update=scene_result.compendium_npc_update,
+        location_change=state_result.location_change,
+        location_description=state_result.location_description,
         inventory_change_reason=state_result.inventory_change_reason,
         condition_change_reason=state_result.condition_change_reason,
-        scene_tagline=scene_result.scene_tagline,
-        location_change=scene_result.location_change,
-        location_description=scene_result.location_description,
-        compendium_npc_update=scene_result.compendium_npc_update,
         inventory_add=state_result.inventory_add,
         inventory_remove=state_result.inventory_remove,
         inventory_update=state_result.inventory_update,

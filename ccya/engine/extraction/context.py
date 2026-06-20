@@ -47,7 +47,7 @@ def _build_extraction_context(
 
     combined_delta = StateDelta(
         compendium_npc_update=list(scene_result.compendium_npc_update or []),
-        location_change=scene_result.location_change,
+        location_change=state_result.location_change,
         inventory_add=list(state_result.inventory_add or []),
         inventory_remove=list(state_result.inventory_remove or []),
         inventory_update=list(state_result.inventory_update or []),
@@ -61,8 +61,8 @@ def _build_extraction_context(
     post_pc = post_state.get("pc") or {}
 
     location_this_turn = dict(post_state.get("location") or {})
-    if scene_result.location_description:
-        location_this_turn["description"] = scene_result.location_description
+    if state_result.location_description:
+        location_this_turn["description"] = state_result.location_description
 
     return _ExtractionContext(
         comp_this_turn=post_state.setdefault("compendium", {}).setdefault("npcs", {}),

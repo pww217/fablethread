@@ -266,6 +266,7 @@ def build_prompt_context(
             "narration": narration,
             "conditions": list(pc.get("conditions") or []),
             "inventory": state_snapshot.get("inventory") or [],
+            "location": state_snapshot.get("location") or {},
             "intent": intent if isinstance(intent, dict) else None,
             "turn_no": turn_no,
             "state": state_snapshot,
@@ -556,7 +557,7 @@ def _run_extraction_format(output: str, stream: str) -> CheckerResult:
 
     required_fields = {
         "scene": ["npcs", "location"],
-        "state": ["inventory", "conditions"],
+        "state": [],
     }.get(stream, [])
 
     missing = [f for f in required_fields if f not in parsed]

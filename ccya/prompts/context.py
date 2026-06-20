@@ -250,13 +250,12 @@ class NarratorBoundary(BaseModel):
 class SceneExtractBoundary(BaseModel):
     """Context for extract_scene_user.j2.
 
-    Source: _extract_scene_messages() passes pc, location, conditions directly (lines 274-282).
-    npc_roster comes from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_presence_turn/last_seen_location/departed_reason.
+    Source: _extract_scene_messages() passes pc, conditions directly.
+    npc_roster comes from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/position/last_presence_turn/last_seen_location/departed_reason.
     """
 
     narration: str
-    location: LocationBlock
-    npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_presence_turn/last_seen_location/departed_reason
+    npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/position/last_presence_turn/last_seen_location/departed_reason
     pc_name: str = "Unnamed"
     turn_no: int
 
@@ -264,12 +263,13 @@ class SceneExtractBoundary(BaseModel):
 class StateExtractBoundary(BaseModel):
     """Context for extract_state_user.j2.
 
-    Source: _extract_state_messages() passes pc, conditions, inventory, intent, turn_no (lines 308-315).
-    Template only uses narration/conditions/inventory/intent/turn_no — pc is passed but never rendered.
+    Source: _extract_state_messages() passes pc, conditions, inventory, location, intent, turn_no.
+    Template uses narration/conditions/inventory/location/intent/turn_no.
     """
 
     conditions: list[Condition]
     inventory: list[InventoryItem]
+    location: LocationBlock
     intent: IntentEnvelope | None = None
     turn_no: int
     narration: str

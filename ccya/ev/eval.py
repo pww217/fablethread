@@ -52,7 +52,7 @@ def _create_eval_session(scenario: Scenario) -> Path:
     session_dir.mkdir(parents=True, exist_ok=True)
 
     state = _default_state()
-    state["meta"]["game_name"] = scenario.id
+    state["meta"]["session_name"] = scenario.id
     if scenario.seed_overrides:
         _apply_seed_overrides(state, scenario.seed_overrides)
 
@@ -281,7 +281,7 @@ def cmd_eval_compare(
 
     if baseline_packs or current_packs:
         print()
-        print(f"=== Packs ===")
+        print("=== Packs ===")
         print(f"  Baseline: {', '.join(sorted(baseline_packs)) if baseline_packs else '(none)'}")
         print(f"  Current:  {', '.join(sorted(current_packs)) if current_packs else '(none)'}")
 

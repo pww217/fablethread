@@ -25,7 +25,6 @@ class CompendiumNpcUpdate(BaseModel):
     fear: str | None = None
     leverage: str | None = None
     presence: str | None = None  # "present" | "nearby" | "known" | "departed" — scene extractor sets this
-    notes: str | None = None      # scene-specific attitude, cleared on departure
     position: str | None = None   # spatial position in current scene
     first_seen_turn: int | None = None  # set by engine on initial entry creation
     personality: str | None = None  # archetype id; immutable once set
@@ -99,9 +98,6 @@ class StateDelta(BaseModel):
     location_description: str | None = None
     pc_condition_add: list[ConditionAdd] = Field(default_factory=list, max_length=6)
     pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
-    scene_tagline: str | None = (
-        None  # 3–6 words for UI header; persisted to state.scene.tagline
-    )
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
@@ -120,23 +116,9 @@ class StateDelta(BaseModel):
 
 
 class SceneExtractResult(BaseModel):
-    scene_tagline: str | None = None
-    location_change: LocationRef | None = None
-    location_description: str | None = None
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
-
-    @field_validator("location_description", mode="before")
-    @classmethod
-    def _coerce_location_description(cls, v: Any) -> Any:
-        if not v:
-            return v
-        if isinstance(v, str):
-            return v
-        if isinstance(v, dict):
-            return v.get("description", str(v))
-        return str(v)
 
 
 class StateExtractResult(BaseModel):
@@ -147,6 +129,8 @@ class StateExtractResult(BaseModel):
     inventory_update: list[InventoryUpdate] = Field(default_factory=list, max_length=6)
     pc_condition_add: list[ConditionAdd] = Field(default_factory=list, max_length=2)
     pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
+    location_change: LocationRef | None = None
+    location_description: str | None = None
 
     model_config = {"extra": "ignore"}
 
@@ -176,6 +160,17 @@ class StateExtractResult(BaseModel):
     @classmethod
     def _coerce_condition_remove(cls, v: Any) -> Any:
         return _coerce_condition_remove_item(v)
+
+    @field_validator("location_description", mode="before")
+    @classmethod
+    def _coerce_location_description(cls, v: Any) -> Any:
+        if not v:
+            return v
+        if isinstance(v, str):
+            return v
+        if isinstance(v, dict):
+            return v.get("description", str(v))
+        return str(v)
 
 
 class GMBeat(BaseModel):

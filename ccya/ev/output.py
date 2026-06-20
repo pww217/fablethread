@@ -201,8 +201,8 @@ def _trace_display_name(field: str) -> str:
         return "Location"
     elif field == "scene.tags":
         return "Scene Tags"
-    elif field == "scene.tagline":
-        return "Tagline"
+    elif field == "meta.session_name":
+        return "Session Name"
     else:
         return field
 

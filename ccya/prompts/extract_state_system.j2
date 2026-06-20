@@ -65,7 +65,9 @@ Ammo is individual rounds. "Shot"→-1, "burst"→2-4. Reloading→no change.
   "inventory_remove": [{"id": "..."}],
   "inventory_add": [{"id": "...", "name": "...", "notes": "...", "amount": 1}],
   "pc_condition_remove": [{"id": "..."}],
-  "pc_condition_add": [{"id": "...", "label": "...", "description": "..."}]
+  "pc_condition_add": [{"id": "...", "label": "...", "description": "..."}],
+  "location_change": {"id": "...", "name": "...", "description": "..."},
+  "location_description": "..."
 }
 ```
 
@@ -123,3 +125,7 @@ When in doubt, prefer removal over accumulation. If a condition hasn't been ment
 ## State-presence rule
 
 Sections not shown in the user prompt still exist in live game state. Absence is not removal. Only emit removals you can justify from the narration.
+
+`location_change`: emitted ONLY when the location ID changes. Schema: `{"id": "snake_case", "name": "Display Name", "description": "Stable short description (1 sentence)"}`. Same behavior as the current scene extractor rules for this field.
+
+`location_description`: emitted ONLY when the physical environment has materially changed — structural damage, new obstacles, light/shift changes, new interactable features. 1-2 sentences. Must describe new tangible details or potential opportunities NOT present in the narration. Do NOT repeat narration. Emit nothing if the environment is unchanged from its current description. The current location description is shown in the user prompt for reference.
