@@ -215,6 +215,9 @@ class RulingBoundary(BaseModel):
     meta: dict[str, int]
     npc_roster: list[NPCRosterEntryBlock]
     recent_turns: list[ChronicleEntryBlock] = Field(default_factory=list)
+    inventory: list[dict[str, Any]] = Field(default_factory=list)
+    scene_phase: str = "SETUP"
+    urgent_threads: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class NarratorBoundary(BaseModel):
@@ -254,6 +257,7 @@ class SceneExtractBoundary(BaseModel):
     narration: str
     location: LocationBlock
     npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_presence_turn/last_seen_location/departed_reason
+    pc_name: str = "Unnamed"
     turn_no: int
 
 
@@ -294,6 +298,12 @@ class StorytellerBoundary(BaseModel):
     prior_history: list[str]
     turn_no: int
     band: str
+    scene_phase: str = "SETUP"
+    curtain_call: str = ""
+    allowed_beat_types: list[str] = Field(default_factory=list)
+    pending_beat: dict[str, Any] | None = None
+    recent_beats: list[dict[str, Any]] = Field(default_factory=list)
+    resolved_arcs: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class NarratorSystemBoundary(BaseModel):

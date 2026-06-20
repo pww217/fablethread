@@ -1,16 +1,4 @@
-## Current inventory (this turn){% if inventory %}
-{% for item in inventory -%}
-- {{ item.name }} x{{ item.amount }}{% if item.notes %} — {{ item.notes }}{% endif %}
-{% endfor -%}
-{% endif %}{% if conditions %}
-## PC conditions (this turn)
-{% for c in conditions -%}
-- {{ c.id }}: {{ c.label }}{% if c.description %} — {{ c.description }}{% endif %}
-{% endfor -%}
-{% endif %}{% include "sections/_npc_roster.j2" %}{% if location %}
-## location
-**{{ location.name or location.id }}**{% if location.description %} — {{ location.description }}{% endif %}
-{% endif %}{% include "sections/_arc.j2" %}{% if all_threads %}
+{% include "sections/_inventory.j2" %}{% include "sections/_conditions.j2" %}{% include "sections/_npc_roster.j2" %}{% include "sections/_location.j2" %}{% include "sections/_arc.j2" %}{% if all_threads %}
 ## threads ({{ all_threads|length }} total)
 {% set threads = all_threads %}
 {% include "sections/_thread_list.j2" %}{% else %}
