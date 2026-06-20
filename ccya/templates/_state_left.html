@@ -71,8 +71,7 @@
         </div>
         {% endif %}
 
-        {# Fix: use unified threads[] with active filter instead of non-existent active_threads #}
-        {% set _active = (_arc.get('threads') | selectattr('active', 'equalto', true) | list | reverse | list) if _arc.get('threads') else [] %}
+        {% set _active = (_arc.get('threads') | selectattr('dormant', 'equalto', false) | list | reverse | list) if _arc.get('threads') else [] %}
         {% set _completed = (_arc.get('completed_threads', [])[:20] | reverse | list) if _arc else [] %}
         {% set _resolved_arcs = (state.get('resolved_arcs', [])[:5]) if state.get('resolved_arcs') else [] %}
         {% if _active %}
