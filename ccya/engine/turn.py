@@ -470,7 +470,7 @@ async def run_turn(
             outcome_summary=outcome_summary,
             gm_beat={
                 "type": storyteller_result.gm_beat.type,
-                "surface_as": storyteller_result.gm_beat.surface_as,
+                "effect": storyteller_result.gm_beat.effect,
             } if (storyteller_result and storyteller_result.gm_beat) else None,
             outcome_hint=_pc.outcome_hint if _pc else None,
             scene_phase=state.get("scene", {}).get("scene_phase", "SETUP"),

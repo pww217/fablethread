@@ -309,7 +309,7 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_com
 
 
 def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) -> None:
-    """Show turn-by-turn beat type + surface_as status + scene_phase."""
+    """Show turn-by-turn beat type + effect status + scene_phase."""
     if not include_compaction:
         events = [ev for ev in events if not is_compaction_event(ev)]
     # Gather beat data from storytell extraction and pacing_context
@@ -337,7 +337,7 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
             gm_beat = st_output.get("gm_beat") or {}
             if gm_beat and isinstance(gm_beat, dict) and gm_beat.get("type"):
                 beat_entry["type"] = gm_beat.get("type", "")
-                beat_entry["surface"] = gm_beat.get("surface_as", "")
+                beat_entry["effect"] = gm_beat.get("effect", "")
 
         # From pacing_context in event
         pacing = ev.get("pacing_context") or {}
@@ -427,7 +427,7 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
         for t in sorted(recent_beats_history.keys()):
             beats = recent_beats_history[t]
             entries = ", ".join(
-                f"T{b.get('turn', '?')}:{b.get('type') or '-'}/{b.get('surface_as') or '-'}"
+                f"T{b.get('turn', '?')}:{b.get('type') or '-'}/{b.get('effect') or '-'}"
                 for b in beats
             )
             print(f"  Turn {t}: [{entries}]")
@@ -625,7 +625,7 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
 
             recent_beats = pc.get("recent_beats", [])
             pressure_types = {"pressure", "complication", "escalation", "setback"}
-            pressure_count = sum(1 for b in recent_beats if (b.get("type") or b.get("surface_as")) in pressure_types)
+            pressure_count = sum(1 for b in recent_beats if b.get("type") in pressure_types)
             beat_streak = 1 if pressure_count >= 3 else 0
 
             ruling = ev.get("ruling") or {}
