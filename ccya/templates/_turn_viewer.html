@@ -280,7 +280,7 @@
                             </div>
                         </template>
 
-                        <template x-if="t.gm_beat_type || t.gm_beat_surface_as || t.gm_beat_allowed_beat_types">
+                        <template x-if="t.gm_beat_type || t.gm_beat_effect || t.gm_beat_allowed_beat_types">
                             <div class="tv-diff-section">
                                 <div class="tv-diff-section-label">GM Beat</div>
                                 <template x-if="t.gm_beat_type">
@@ -290,11 +290,11 @@
                                         <span class="tv-diff-value" x-text="t.gm_beat_type"></span>
                                     </div>
                                 </template>
-                                <template x-if="t.gm_beat_surface_as">
+                                <template x-if="t.gm_beat_effect">
                                     <div class="tv-diff-row">
                                         <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">surface_as</span>
-                                        <span class="tv-diff-value" x-text="t.gm_beat_surface_as"></span>
+                                        <span class="tv-diff-field">effect</span>
+                                        <span class="tv-diff-value" x-text="t.gm_beat_effect"></span>
                                     </div>
                                 </template>
                                 <template x-if="t.gm_beat_allowed_beat_types && t.gm_beat_allowed_beat_types.length">
@@ -380,8 +380,6 @@ function tvRoot() {
         onlyErrors: false,
         onlySkipped: false,
         expanded: {},
-        stageTabs: {},
-        systemOpenMap: {},
         turnCollapsed: {},
         inputPillOpen: {},
         activeView: 'delta',
@@ -418,10 +416,6 @@ function tvRoot() {
             var b = (t.streams[stage] && t.streams[stage].stage_class) || '';
             return (a + ' ' + b).trim();
         },
-        approxTokens(s) {
-            if (!s) return 0;
-            return Math.max(1, Math.round(String(s).length / 4));
-        },
         expandedKey(turn, stage) {
             return !!this.expanded['t' + turn + '-' + stage];
         },
@@ -440,20 +434,6 @@ function tvRoot() {
         allExpandedForTurn(turn) {
             var self = this;
             return this.stages.every(function(st) { return self.expanded['t' + turn + '-' + st]; });
-        },
-        tabKey(turn, stage) {
-            var k = turn + '-' + stage;
-            return this.stageTabs[k] === 'output' ? 'output' : 'prompt';
-        },
-        setTab(turn, stage, which) {
-            this.stageTabs[turn + '-' + stage] = which === 'output' ? 'output' : 'prompt';
-        },
-        systemOpen(turn, stage) {
-            return !!this.systemOpenMap[turn + '-' + stage];
-        },
-        toggleSystem(turn, stage) {
-            var k = turn + '-' + stage;
-            this.systemOpenMap[k] = !this.systemOpenMap[k];
         },
         isTurnCollapsed(turn) {
             return !!this.turnCollapsed[turn];

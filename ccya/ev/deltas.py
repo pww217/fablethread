@@ -173,7 +173,7 @@ def _cmd_deltas_compact(ev: dict[str, Any], events: list[dict[str, Any]] | None 
     if isinstance(st_output, dict):
         gm_beat_data = st_output.get("gm_beat") or {}
         if gm_beat_data and isinstance(gm_beat_data, dict) and gm_beat_data.get("type"):
-            gm_beat = f"beat:{gm_beat_data.get('type', '')}/{gm_beat_data.get('surface_as', '')}"
+            gm_beat = f"beat:{gm_beat_data.get('type', '')}/{gm_beat_data.get('effect', '')}"
 
     # Print compact table
     has_data = threads or inventory or conditions or gm_beat or ev.get("rejected")

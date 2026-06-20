@@ -1874,7 +1874,7 @@ function game() {
                     const debugDiv = document.createElement('div');
                     debugDiv.className = 'debug-metadata-row';
 
-                    const gmBeatText = result.gm_beat ? `${result.gm_beat.type} (${result.gm_beat.surface_as})` : '\u2014';
+                    const gmBeatText = result.gm_beat ? `${result.gm_beat.type} — ${result.gm_beat.effect || '—'}` : '\u2014';
 
                     debugDiv.innerHTML = `<span class="debug-label">Phase:</span> ${_capitalizeFirst(result.scene_phase || '')}&ensp;|&ensp;<span class="debug-label">GM Beat:</span> ${gmBeatText}&ensp;|&ensp;<span class="debug-label">Hint:</span> ${_capitalizeFirst(result.outcome_hint || '')}&ensp;|&ensp;<span class="debug-label">Summary:</span> ${_capitalizeFirst(result.summary || '')}`;
                     lastInserted.after(debugDiv);

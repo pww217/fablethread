@@ -566,7 +566,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         pacing_ctx = ev.get("pacing_context") or {}
         band_label = (ev.get("ruling") or {}).get("band", "")
 
-        # GM beat type/surface_as from storytell extraction output.
+        # GM beat type/effect from storytell extraction output.
         gm_beat_dict: dict[str, Any] | None = None
         storytell_blob = _get_nested(ev, "extraction.storytell") or {}
         if isinstance(storytell_blob, dict):
@@ -614,7 +614,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 },
                 "band_label": band_label,
                 "gm_beat_type": gm_beat_dict.get("type") if isinstance(gm_beat_dict, dict) else None,
-                "gm_beat_surface_as": gm_beat_dict.get("surface_as") if isinstance(gm_beat_dict, dict) else None,
+                "gm_beat_effect": gm_beat_dict.get("effect") if isinstance(gm_beat_dict, dict) else None,
                 "gm_beat_allowed_beat_types": allowed_beat_types,
                 "inputs_snapshot": inputs_snapshot,
                 "state_diff": state_diff,
