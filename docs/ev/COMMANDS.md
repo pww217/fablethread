@@ -111,7 +111,10 @@ ev.py check 5 phase_transition --save-dir evals/runs/latest
 ev.py check 5 --all --llm --save-dir evals/runs/latest
 ev.py eval run scenarios/my-scenario.yaml --report results.md
 ev.py eval list
+ev.py eval compare evals/runs/baseline evals/runs/current
 ```
+
+`eval compare` runs deterministic checkers on both runs and produces a side-by-side table showing IMPROVED, REGRESSION, unchanged, added, or removed checkers. Handles both single-pack and multi-pack run directories.
 
 ## Warnings
 
