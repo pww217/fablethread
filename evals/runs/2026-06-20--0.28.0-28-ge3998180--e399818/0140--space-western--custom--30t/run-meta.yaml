@@ -1,0 +1,11 @@
+created_at: '2026-06-20T01:40:16'
+git_sha: e399818
+git_branch: main
+git_tag: 0.28.0-28-ge3998180
+git_dirty: false
+pack: space-western
+personality: custom
+max_turns: 30
+actual_turns: null
+duration_ms: null
+pass_rate: null

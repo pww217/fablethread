@@ -35,6 +35,12 @@ def cmd_warnings(events: list[dict[str, Any]]) -> None:
         reconcile = ev.get("reconcile_warnings") or []
         rec_str = "; ".join(reconcile) if reconcile else ""
 
+        thread_dedup = ev.get("thread_dedup_rejections") or []
+        dedup_str = "; ".join(f"T{d.get('turn','?')} {d.get('thread_id','?')} ({d.get('similarity','?')}x)" for d in thread_dedup) if thread_dedup else ""
+
+        compendium_dedup = ev.get("compendium_dedup_redirects") or []
+        comp_dedup_str = "; ".join(f"{d.get('original_id','?')} → {d.get('redirected_to','?')}" for d in compendium_dedup) if compendium_dedup else ""
+
         retry_str = ", ".join(f"{k}: {v}" for k, v in retry_errors.items()) if retry_errors else ""
 
         rows.append({
@@ -43,20 +49,20 @@ def cmd_warnings(events: list[dict[str, Any]]) -> None:
             "retry_errors": retry_str,
             "rejected": rejected_str or "\u2014",
             "reconcile": rec_str or "\u2014",
+            "thread_dedup": dedup_str or "\u2014",
+            "compendium_dedup": comp_dedup_str or "\u2014",
         })
 
     if not rows:
         print("(no events)")
         return
 
-    print(f"{'Turn':>5} | {'Extract.Retries':>15} | {'Retry Errors':<40} | {'Rejected':<30} | {'Reconcile Warnings':<30}")
-    print(f"{'─' * 5}┼{'─' * 17}┼{'─' * 42}┼{'─' * 32}┼{'─' * 32}")
+    print(f"{'Turn':>5} | {'Extract.Retries':>15} | {'Retry Errors':<40} | {'Rejected':<30} | {'Reconcile':<30} | {'Thread Dedup':<30} | {'Comp. NPC Dedup':<30}")
+    print(f"{'─' * 5}┼{'─' * 17}┼{'─' * 42}┼{'─' * 32}┼{'─' * 32}┼{'─' * 32}┼{'─' * 32}")
     for r in rows:
-        print(f"{r['turn']:>5} | {r['retries']:>15} | {r['retry_errors']:<40} | {r['rejected']:<30} | {r['reconcile']:<30}")
+        print(f"{r['turn']:>5} | {r['retries']:>15} | {r['retry_errors']:<40} | {r['rejected']:<30} | {r['reconcile']:<30} | {r['thread_dedup']:<30} | {r['compendium_dedup']:<30}")
 
     print()
     print("=== Warnings Gaps ===")
     print("The following warning types are produced but not stored in events:")
     print("  - generate_seed soft-check  → seed.py:421-424 (logged only)")
-    print("  - Thread update dedup       → turn.py:161-168 (logged only)")
-    print("  - Compendium NPC dedup      → extraction.py:720-743 (modified silently)")

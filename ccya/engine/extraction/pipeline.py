@@ -257,13 +257,23 @@ async def _run_extraction_pipeline(
         })
     deduped_compendium: list[CompendiumNpcUpdate] = []
     existing_ids: set[str] = set(_comp.keys())
+    compendium_dedup_redirects: list[dict[str, Any]] = []
     for cu in (scene_result.compendium_npc_update or []):
-        deduped_compendium.append(_dedup_compendium_update(cu, existing_npcs, existing_ids))
-    if deduped_compendium != (scene_result.compendium_npc_update or []):
+        original_id = cu.id
+        deduped = _dedup_compendium_update(cu, existing_npcs, existing_ids)
+        if deduped.id != original_id:
+            compendium_dedup_redirects.append({
+                "original_id": original_id,
+                "redirected_to": deduped.id,
+                "name": deduped.name,
+            })
+        deduped_compendium.append(deduped)
+    if compendium_dedup_redirects:
         _log.debug(
-            "extraction.dedup: compendium dedup redirected %d entries", len(scene_result.compendium_npc_update or []),
+            "extraction.dedup: compendium dedup redirected %d entries", len(compendium_dedup_redirects),
             extra={"turn": turn_no, "trace_id": trace_id},
         )
+        extraction_event["compendium_dedup_redirects"] = compendium_dedup_redirects
     scene_result = scene_result.model_copy(update={"compendium_npc_update": deduped_compendium})
 
     # --- Capitalize inventory item names ---
