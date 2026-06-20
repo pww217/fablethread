@@ -1,4 +1,7 @@
-{% include "sections/_conditions.j2" show_age=true %}
+## Player Character: {{ pc_name }}
+
+{% set show_age = true %}
+{% include "sections/_conditions.j2" %}
 {% include "sections/_inventory.j2" %}
 {% if intent and intent.intent -%}
 ## player_intent

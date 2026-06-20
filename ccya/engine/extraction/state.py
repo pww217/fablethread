@@ -30,6 +30,7 @@ def _extract_state_messages(
             "inventory": state.get("inventory") or [],
             "intent": intent,
             "turn_no": turn_no,
+            "pc_name": pc.get("name", "Unnamed"),
         },
     )
     msgs = [

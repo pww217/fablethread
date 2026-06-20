@@ -63,6 +63,8 @@ def _ruling_messages(
             "recent_turns": recent_turns or [],
             "scene_phase": scene_phase,
             "urgent_threads": urgent_threads,
+            "conditions": list(pc.get("conditions") or []),
+            "state": state,
         },
     )
     return [

@@ -1,9 +1,7 @@
 {% include "sections/_pc_header.j2" %}{% include "sections/_conditions.j2" %}
 
-## Inventory
 {% include "sections/_inventory.j2" %}
 
-## Location
 {% include "sections/_location.j2" %}
 
 {% include "sections/_npc_roster.j2" %}
@@ -13,6 +11,7 @@
 {% include "sections/_world_state.j2" %}
 {% endif -%}
 
+{% if world_factions or npc_name_pool %}
 <<<TRACE_IMMUTABLE_START>>>
 ## Immutable Reference
 {% if world_factions -%}
@@ -29,14 +28,13 @@
 {% endif %}
 {% endif -%}
 <<<TRACE_IMMUTABLE_END>>>
+{% endif %}
 
 ## Scene Context
 {% if current_arc and current_arc.threads %}
-### Current Threads
 {% set threads = current_arc.threads %}
 {% include "sections/_thread_list.j2" %}
 {% elif state.arc and state.arc.threads %}
-### Current Threads
 {% set threads = state.arc.threads %}
 {% include "sections/_thread_list.j2" %}
 {% endif %}

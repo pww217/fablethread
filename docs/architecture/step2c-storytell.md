@@ -17,12 +17,13 @@ flowchart LR
         S4["pacing_context<br>(directive · outcome_hint)"]:::xstream
         S4b["scene_phase<br>(SETUP/RISING/CLIMAX/RESOLUTION/BREATHER)"]:::xstream
         S4c["allowed_beat_types<br>(phase-derived list of permitted beat types)"]:::xstream
-        S5["arc.threads[]<br>(unified scope=scene + scope=arc)"]:::xstream
-        S6["rules_outcome"]:::xstream
-        S7["intent (from Step 0)"]:::xstream
-        S8["recent_turns[-10:]<br>(prior narration, last 10 turns)"]:::xstream
-        S9["prior_history[:-1]<br>(all history bullets except last,<br>already shown as full text)"]:::xstream
-        S10["recent_beats<br>(beat history for diversity)"]:::xstream
+        S5["pc_name<br>(player character name)"]:::xstream
+        S6["arc.threads[]<br>(unified scope=scene + scope=arc)"]:::xstream
+        S7["rules_outcome"]:::xstream
+        S8["intent (from Step 0)"]:::xstream
+        S9["recent_turns[-10:]<br>(prior narration, last 10 turns)"]:::xstream
+        S10["prior_history[:-1]<br>(all history bullets except last,<br>already shown as full text)"]:::xstream
+        S11["recent_beats<br>(beat history for diversity)"]:::xstream
     end
 
     subgraph LLM2C["LLM — storytell_system.j2 + storytell_user.j2"]
