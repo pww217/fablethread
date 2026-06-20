@@ -67,9 +67,11 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 **CRITICAL: Do NOT use `arc_resolve` to drop threads.** `thread_resolve` is the only way to drop threads from the active list. Using `arc_resolve` with `drop_threads` resets the entire arc state (visible_goal, threads, completed_threads) — this is destructive and should only happen when the chapter genuinely ends. If you need to drop a thread, use `thread_resolve` instead.
 
+**CRITICAL: Do NOT emit `arc_resolve` as an empty object `{}`.** If you are not actually resolving the arc, omit the field entirely. An empty `arc_resolve` object will cause a validation error.
+
 `chapter_end: true` — signal that the chapter is ending without resetting arc state. Use this when the chapter's tension has resolved but the core goal remains. The arc continues with its current threads.
 
-`goal_update` — the arc's direction shifted but the arc isn't over. **Use sparingly; arcs are meant to last 7+ turns.** Only update when: the main objective is impossible (target dead, location destroyed, ally betrayed); a revelation invalidates the current goal; the player's situation changed so drastically a different objective is now primary; the arc has coasted 8+ turns without meaningful progress. **Do NOT update when:** a thread resolved/failed/changed urgency; progress was made; the goal is still viable; a parallel thread became dominant. **Do NOT emit a no-op** — if the goal hasn't genuinely shifted, omit this field entirely.
+`goal_update` — the arc's direction shifted but the arc isn't over. **Use sparingly; arcs are meant to last 7+ turns.** Only update when: the main objective is impossible (target dead, location destroyed, ally betrayed); a revelation invalidates the current goal; the player's situation changed so drastically a different objective is now primary; the arc has coasted 8+ turns without meaningful progress. **Do NOT update when:** a thread resolved/failed/changed urgency; progress was made; the goal is still viable; a parallel thread became dominant. **Do NOT emit a no-op** — if the goal hasn't genuinely shifted, omit this field entirely. **CRITICAL: Compare your proposed `goal_update` against the current `visible_goal`. If they are identical or nearly identical (same meaning, different wording), do NOT emit `goal_update`. Omit the field entirely instead.**
 
 ## GM Beat
 
@@ -77,6 +79,7 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 **Types:** See `allowed_beat_types` in the user prompt. Only those types are valid this turn.
 **Surfaces:** `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
+**CRITICAL: `surface_as` is NOT a beat type.** Do NOT use `pressure`, `escalation`, `complication`, or any other beat type as a `surface_as` value. `surface_as` describes HOW the beat manifests in the scene (ambient atmosphere, an event, NPC behavior, environmental change, player discovery, or an item). Beat types and surfaces are completely different fields with different valid values.
 
 ## Beat types
 

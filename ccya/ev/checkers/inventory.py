@@ -5,6 +5,7 @@ from typing import Any
 
 from ccya.ev.checkers import CheckerResult, register_checker
 from ccya.ev.events import extract_field
+from ccya.state.inventory import resolve_inventory_remove_target
 
 _log = logging.getLogger(__name__)
 
@@ -92,7 +93,14 @@ def inventory_integrity(events: list[dict[str, Any]]) -> CheckerResult:
             prev_inv = (extract_field(prev_ev, "state_snapshot") or {}).get("inventory") or []
             zero_items = _zero_items_from_inv(prev_inv)
             removes = (extract_field(ev, "applied") or {}).get("inventory_remove") or []
-            bad_overdraw = [r for r in removes if isinstance(r, dict) and r.get("id") in zero_items]
+            bad_overdraw = []
+            for r in removes:
+                if not isinstance(r, dict) or not r.get("id"):
+                    continue
+                raw_id = r["id"]
+                resolved = resolve_inventory_remove_target(prev_inv, raw_id)
+                if resolved in zero_items:
+                    bad_overdraw.append(r)
             if bad_overdraw:
                 findings.append({
                     "turn": ev.get("turn"),
@@ -102,7 +110,14 @@ def inventory_integrity(events: list[dict[str, Any]]) -> CheckerResult:
                 all_passed = False
 
             prev_inv_ids = _existing_inv_ids(prev_inv)
-            bad_exist = [r for r in removes if isinstance(r, dict) and r.get("id") and r["id"] not in prev_inv_ids]
+            bad_exist = []
+            for r in removes:
+                if not isinstance(r, dict) or not r.get("id"):
+                    continue
+                raw_id = r["id"]
+                resolved = resolve_inventory_remove_target(prev_inv, raw_id)
+                if resolved is None or resolved not in prev_inv_ids:
+                    bad_exist.append(r)
             if bad_exist:
                 findings.append({
                     "turn": ev.get("turn"),

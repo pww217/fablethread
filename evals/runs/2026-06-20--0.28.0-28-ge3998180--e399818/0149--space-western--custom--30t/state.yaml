@@ -1,0 +1,642 @@
+__seed_meta__:
+  actions:
+  - Confront Flores about his presence in this sector
+  - Attempt to slip out through the propped open back door
+  - Keep your hands visible and cooperate with the guard sweep
+  - Check your gear quietly while pretending to drink
+  opening_narrative: 'The bitter scent of recycled oxygen and stale tobacco hangs
+    heavy in the air. You sit at a corner table, listening to the rhythmic jangle
+    of an out-of-tune piano from the far end of the room while a synthesizer beside
+    you hums as it dispenses a lukewarm, brown liquid into a chipped ceramic cup.
+
+
+    The Rusty Valve is unusually quiet tonight, save for the low drone of the cooling
+    unit cycling in the corner. A back door stands propped open by a heavy metal crate,
+    allowing a draft of thin, metallic-tasting air to swirl through the smoke-filled
+    room. You watch a marked deck of cards sit abandoned on a nearby table, left mid-game
+    by someone who clearly left in a hurry.
+
+
+    The peace is shattered when the front doors hiss open with sudden, violent force.
+    Two patrol guards march in, their heavy boots thudding against the metal floorboards.
+    They do not look like they are here for a drink. Following them, Steven Flores
+    enters with a measured, predatory stride that you recognize instantly from your
+    days navigating the contested zones of the rim.
+
+
+    Flores does not even look at the bar; his eyes go straight to the crowd, scanning
+    faces with a cold, analytical precision. He signals to the guards, who immediately
+    begin fanning out to block the exits. The room goes silent. You feel the weight
+    of your service pistol against your hip and realize that your presence here, in
+    a hub so close to the Schmidtshire gates, is far from accidental.
+
+
+    Flores stops at a table just three meters from yours, tapping a digital tablet
+    against his palm. He looks up, his gaze locking onto yours with an unsettling
+    familiarity. He knows you, and more importantly, he knows exactly what kind of
+    pilot you are. The guards move toward your section, their hands resting on their
+    shock batons as they prepare to begin the mandatory biometric sweeps.'
+  outcome_summary: A sudden customs inspection by Inspector Flores puts Jonathan Griffith
+    under immediate scrutiny.
+__seed_pools__:
+  arc:
+    description: ''
+    id: independent_trade_routes
+    incompatible_with: []
+    tags:
+    - trade
+    - independence
+    - economics
+  character_dynamic:
+    description: ''
+    id: independent_pilot
+    incompatible_with: []
+    tags:
+    - space
+    - independence
+    - trade
+  moral_pressure:
+    description: ''
+    id: terraform_failure
+    incompatible_with: []
+    tags:
+    - environment
+    - survival
+    - hubris
+  npc_bond:
+    description: The NPC was on the opposite side of the war. The PC knows them as
+      an adversary who earned respect through competence.
+    id: coalition_adversary
+    incompatible_with: []
+    tags:
+    - coalition
+    - war
+    - enemy_lines
+  scene_bundle:
+    conditions:
+    - smoke from a hookah hanging in the air
+    - a back door propped open
+    id: saloon_interior
+    items:
+    - a card table with a marked deck in the discard
+    - a synthesizer dispensing something brown into a chipped cup
+    sensory:
+    - the jangle of an out-of-tune piano
+    - the hum of a cooler unit cycling
+  situation:
+    description: ''
+    id: customs_inspection
+    incompatible_with: []
+    tags:
+    - coalition
+    - authority
+    - tension
+arc:
+  completed_threads:
+  - dormant: false
+    id: security_flag_escalation
+    last_updated_turn: 16
+    outcome: Thread reached its natural conclusion.
+    progress:
+    - kind: advancement
+      text: Biometric scan confirms Protocol 7-Alpha detention
+    - kind: shift
+      text: Elena Vance demands vessel decryption keys
+    - kind: advancement
+      text: Decryption sequence first layer verified by Vance
+    resolution_state: resolved
+    resolved_turn: 16
+    summary: Security flag triggered by biometric scan at Schmidtshire
+    urgency: urgent
+  - added_turn: 16
+    dormant: false
+    id: unauthorized_signal_interference
+    outcome: Griffith intercepted the ghost signal before being electrocuted and fleeing.
+    progress: []
+    resolution_state: resolved
+    resolved_turn: 17
+    summary: Hidden data burst detected from maintenance panel wiring
+    urgency: urgent
+    urgency_set_turn: 16
+  - added_turn: 17
+    dormant: false
+    id: pursuit_in_industrial_bowels
+    last_updated_turn: 18
+    outcome: Griffith successfully evaded the guards by ascending into the ventilation
+      system.
+    progress:
+    - kind: shift
+      text: Guards lose footing in coolant mist
+    resolution_state: resolved
+    resolved_turn: 19
+    summary: Coalition guards pursuing Griffith through the Schmidtshire industrial
+      bowels
+    urgency: urgent
+    urgency_set_turn: 17
+  - dormant: true
+    id: hidden_manifest
+    outcome: Thread faded from relevance — no narrative activity in 21 turns.
+    progress: []
+    resolution_state: abandoned
+    resolved_turn: 21
+    summary: Rumors circulate about a lost shipment of terraforming catalysts.
+    type: revelation
+    urgency: background
+  - dormant: true
+    id: resource_scarcity
+    last_updated_turn: 4
+    outcome: Thread faded from relevance — no narrative activity in 18 turns.
+    progress:
+    - kind: shift
+      text: Oxygen shortages continue to fuel regional instability
+    resolution_state: abandoned
+    resolved_turn: 22
+    summary: Oxygen shortages are causing civil unrest in the neighboring mining colonies.
+    type: threat
+    urgency: background
+  - added_turn: 21
+    dormant: false
+    id: aegis_project_logs
+    last_updated_turn: 22
+    outcome: Griffith successfully extracted 142 files proving orchestrated oxygen
+      rationing.
+    progress:
+    - kind: advancement
+      text: Discovered logs reveal intentional oxygen rationing
+    resolution_state: resolved
+    resolved_turn: 23
+    summary: 'Investigate encrypted Project: Aegis logs etched in ventilation walls'
+    urgency: normal
+    urgency_set_turn: 21
+  - added_turn: 14
+    dormant: true
+    id: administrative_review_window
+    last_updated_turn: 21
+    outcome: Thread faded from relevance — no narrative activity in 2 turns.
+    progress: []
+    resolution_state: abandoned
+    resolved_turn: 23
+    summary: Expedited review window via providing flight recorder keys
+    urgency: normal
+    urgency_set_turn: 14
+  - added_turn: 19
+    dormant: true
+    id: life_support_infrastructure
+    last_updated_turn: 22
+    outcome: Thread faded from relevance — no narrative activity in 2 turns.
+    progress: []
+    resolution_state: abandoned
+    resolved_turn: 24
+    summary: Navigate the station's ventilation and life-support systems to find an
+      exit
+    urgency: normal
+    urgency_set_turn: 19
+  - added_turn: 22
+    dormant: false
+    id: station_overseer_detection
+    last_updated_turn: 25
+    outcome: Thread reached its natural conclusion.
+    progress:
+    - kind: advancement
+      text: Sector 4-G lockdown initiated by Overseer
+    - kind: advancement
+      text: Sector 4-G lockdown fully implemented
+    - kind: advancement
+      text: Guards begin sweeping Junction Alpha perimeter
+    resolution_state: resolved
+    resolved_turn: 25
+    summary: Station Overseer detects unauthorized terminal access in ventilation
+      junction
+    urgency: urgent
+    urgency_set_turn: 22
+  - added_turn: 18
+    dormant: true
+    id: ventilation_shaft_climb
+    last_updated_turn: 23
+    outcome: Thread faded from relevance — no narrative activity in 2 turns.
+    progress:
+    - kind: advancement
+      text: Reached a circular junction chamber within the shaft
+    resolution_state: abandoned
+    resolved_turn: 25
+    summary: Ascend the maintenance catwalk toward the ventilation shaft
+    urgency: background
+    urgency_set_turn: 18
+  - added_turn: 23
+    dormant: false
+    id: imminent_guard_confrontation
+    last_updated_turn: 28
+    outcome: Thread reached its natural conclusion.
+    progress:
+    - kind: advancement
+      text: Guards enter junction and begin searching
+    - kind: shift
+      text: Guards move away from Griffith's position
+    - kind: advancement
+      text: Armored guards have entered the sub-chamber and are fanning out
+    resolution_state: resolved
+    resolved_turn: 28
+    summary: Two armored guards ascending maintenance ladder in Ventilation Junction
+    urgency: urgent
+    urgency_set_turn: 23
+  - added_turn: 27
+    dormant: false
+    id: imminent_guard_arrival
+    outcome: Guards have entered the maintenance sub-chamber and are actively clearing
+      the room.
+    progress: []
+    resolution_state: resolved
+    resolved_turn: 28
+    summary: Guards approaching maintenance sub-chamber entrance following terminal
+      alert
+    urgency: urgent
+    urgency_set_turn: 27
+  - added_turn: 28
+    dormant: false
+    id: combat_engagement_imminent
+    outcome: The firefight has broken out in the maintenance sub-chamber.
+    progress: []
+    resolution_state: resolved
+    resolved_turn: 29
+    summary: Direct firefight with armored guards in the maintenance sub-chamber
+    urgency: urgent
+    urgency_set_turn: 28
+  - added_turn: 29
+    dormant: false
+    id: active_firefight_subchamber
+    outcome: Jonathan Griffith successfully escaped the firefight by retreating into
+      a ventilation shaft.
+    progress: []
+    resolution_state: resolved
+    resolved_turn: 30
+    summary: Direct firefight with armored guards in the maintenance sub-chamber
+    urgency: urgent
+    urgency_set_turn: 29
+  goal_context: Griffith is now under high-level security scrutiny following a biometric
+    match.
+  last_thread_created_turn: 30
+  resolution: null
+  threads:
+  - added_turn: 15
+    dormant: true
+    id: maintenance_panel_access
+    last_updated_turn: 24
+    progress:
+    - kind: setback
+      text: Electrical arc triggered during wiring harness interception
+    - kind: setback
+      text: Electrical surge caused tremors and disorientation
+    summary: Exploit the loose wiring harness in the maintenance panel
+    urgency: background
+    urgency_set_turn: 23
+  - added_turn: 20
+    dormant: true
+    id: discarded_data_shard
+    last_updated_turn: 25
+    progress:
+    - kind: advancement
+      text: Griffith recovers scuffed data-shard from junction
+    summary: Investigate the scuffed data-shard found in ventilation junction
+    urgency: background
+    urgency_set_turn: 20
+  - added_turn: 25
+    dormant: false
+    id: maintenance_subchamber_discovery
+    last_updated_turn: 30
+    progress:
+    - kind: shift
+      text: Guards have pinpointed Griffith's position behind terminal
+    - kind: advancement
+      text: Griffith successfully reached and entered the ventilation shaft
+    summary: Explore the unlit maintenance sub-chamber for cover or tools
+    urgency: normal
+    urgency_set_turn: 25
+  - added_turn: 26
+    dormant: false
+    id: unauthorized_interface_access
+    last_updated_turn: 27
+    progress:
+    - kind: advancement
+      text: Accesses Aegis sub-routine oxygen redirection data
+    summary: Investigate the non-standard interface panel in the maintenance sub-chamber
+    urgency: normal
+    urgency_set_turn: 26
+  - added_turn: 30
+    dormant: false
+    id: ventilation_shaft_pursuit
+    progress: []
+    summary: Guards attempting to track Griffith through the narrow ventilation network
+    urgency: urgent
+    urgency_set_turn: 30
+  visible_goal: The goal has shifted from compliance/audit to escaping Coalition custody
+    following a failed interception attempt.
+compendium:
+  npcs:
+    coalition_officer:
+      bio: A stern man with a clipped military posture and eyes that never stop scanning
+        the room.
+      bond: The PC knows him as an adversary who earned respect through competence
+        during the border skirmishes.
+      fear: Losing his commission due to procedural errors.
+      last_presence_turn: 5
+      last_seen_location: Exterior Docks
+      leverage: Holds the authority to impound any unregistered cargo.
+      motivation: Maintaining order through strict adherence to new trade protocols.
+      name: Steven Flores
+      personality: cold_pragmatist
+      position: seated at saloon table
+      presence: known
+      title: Customs Inspector
+    elena_vance:
+      bio: A woman with a shaved head and a piercing, unwavering gaze. Maintains a
+        professional, emotionless demeanor while performing security protocols.
+      fear: security breaches under her watch
+      first_seen_turn: 10
+      last_presence_turn: 17
+      last_seen_location: Schmidtshire Industrial Bowels
+      leverage: authority to grant or deny passage
+      motivation: maintaining order through strict biometric processing
+      name: Elena Vance
+      personality: resigned_functionary
+      position: at the processing terminal
+      presence: known
+      title: Coalition Guard
+    four_guards:
+      aliases:
+      - guards in grey coalition fatigues
+      bio: Four personnel wearing standard-issue grey Coalition fatigues, standing
+        guard at a heavy security bulkhead.
+      first_seen_turn: 10
+      last_presence_turn: 17
+      last_seen_location: Schmidtshire Industrial Bowels
+      name: Four guards
+      personality: wary_opportunist
+      position: tightening circle around Griffith
+      presence: known
+    scarred_guard:
+      aliases:
+      - scarred guard
+      bio: A man with a jagged scar cutting through his left eyebrow; maintains a
+        hard, authoritative expression. Part of the dock security detail tasked with
+        monitoring vessel boarding.
+      first_seen_turn: 5
+      last_presence_turn: 14
+      last_seen_location: Schmidtshire Processing Center
+      name: Scarred Guard
+      position: looming over Jonathan Griffith
+      presence: known
+    station_overseer:
+      aliases:
+      - station overseer
+      bio: An unseen presence monitoring station systems via remote security protocols.
+        Operates through automated alerts and high-level surveillance networks.
+      first_seen_turn: 21
+      last_presence_turn: 22
+      last_seen_location: Ventilation Junction
+      name: Station Overseer
+      presence: known
+    two_new_guards:
+      aliases:
+      - two new guards
+      - two armored guards
+      bio: Two personnel in heavy armor moving with professional aggression. They
+        carry rifles and move in rhythmic unison to clear spaces.
+      first_seen_turn: 7
+      last_presence_turn: 30
+      last_seen_location: Maintenance Sub-chamber
+      name: Two armored guards
+      notes: firing rifles at Jonathan Griffith
+      position: advancing from terminal edge
+      presence: present
+    two_patrol_guards:
+      aliases:
+      - dock guards
+      bio: Two guards standing at the landing pad edge, rifles held across their chests
+        in a ready position. They maintain a professional, watchful stance near the
+        Schmidtshire gates.
+      bond: null
+      fear: null
+      last_presence_turn: 11
+      last_seen_location: Schmidtshire Processing Center
+      leverage: null
+      motivation: null
+      name: Two patrol guards
+      personality: resigned_functionary
+      position: flanking player near ramp
+      presence: known
+      title: ''
+inventory:
+- aliases: []
+  amount: 90
+  id: credits
+  name: Credits
+  notes: ''
+- aliases: []
+  amount: 1
+  id: sturdy_wrench
+  name: Heavy Wrench
+  notes: Used for quick engine bypasses
+- aliases: []
+  amount: 1
+  id: service_pistol
+  name: Compact Service Pistol
+  notes: ''
+- aliases: []
+  amount: 23
+  id: pistol_rounds
+  name: Pistol Rounds
+  notes: ''
+- aliases: []
+  amount: 3
+  id: ration_pack
+  name: Nutrient Paste
+  notes: ''
+- amount: 1
+  id: data_shard
+  name: Data-shard
+  notes: contains Aegis logs, in pocket
+location:
+  description: A cramped industrial space choked with debris and metal shards. Flickering
+    amber light strobes against metal walls, punctuated by sudden bursts of sparks
+    from shredded machinery and heavy rifle fire.
+  id: maintenance_subchamber
+  name: Maintenance Sub-chamber
+meta:
+  _pack_source: space-western
+  _seed_type: dynamic
+  compendium_touch_order:
+  - coalition_officer
+  - two_patrol_guards
+  - scarred_guard
+  - elena_vance
+  - four_guards
+  - two_new_guards
+  last_arc_resolve_turn: 12
+  last_thread_created_turn: 30
+  model: gpt-4o
+  pending_gm_beat:
+    beat_expires_turn: 32
+    surface_as: environmental
+    type: complication
+  prior_history:
+  - '- [T11] Jonathan Griffith is escorted from the docks into the Schmidtshire processing
+    center to undergo biometric screening under guard.'
+  - '- [T12] Jonathan Griffith''s biometric scan triggered a security flag, causing
+    Elena Vance to halt processing and the guards to surround him.'
+  - '- [T13] Jonathan Griffith is officially detained under Protocol 7-Alpha after
+    a biometric flag match confirms his identity.'
+  - '- [T14] Jonathan Griffith attempts to de-escalate the situation, but Elena Vance
+    demands his vessel''s decryption keys to avoid a full tribunal.'
+  - '- [T15] Jonathan Griffith retrieves his handheld terminal to begin the decryption
+    process under Elena Vance''s watchful eye while noticing a loose wiring harness
+    in a nearby maintenance panel.'
+  - '- [T16] Jonathan Griffith successfully verifies the first layer of decryption
+    but discovers an unauthorized data burst emanating from the maintenance panel.'
+  - '- [T17] Jonathan Griffith intercepted the unauthorized signal but was electrocuted
+    and forced to flee into the industrial bowels to evade Elena Vance and her guards.'
+  - '- [T18] Jonathan Griffith uses a coolant leak to incapacitate pursuing guards
+    and climbs toward a ventilation shaft.'
+  - '- [T19] Jonathan Griffith successfully climbed into the ventilation system and
+    reached a junction chamber, leaving his pursuers behind in the coolant mist.'
+  - '- [T20] Jonathan Griffith discovers a scuffed, inactive data-shard while scouting
+    the ventilation junction.'
+  - '- [T21] Jonathan Griffith retrieves the scuffed data-shard and discovers encrypted
+    markings for Project: Aegis etched into the ventilation walls.'
+  - '- [T22] Jonathan Griffith uses the scuffed data-shard to uncover evidence that
+    Coalition oxygen rationing is a controlled diversion of resources.'
+  - '- [T23] Jonathan Griffith successfully downloads the Aegis logs but triggers
+    a sector-wide lockdown and attracts approaching guards.'
+  - '- [T24] Jonathan Griffith hides behind a machinery crate to evade two ascending
+    guards during the Sector 4-G lockdown.'
+  - '- [T25] Jonathan Griffith successfully evades the guards by crawling into a narrow
+    maintenance conduit and finding refuge in an unlit sub-chamber.'
+  - '- [T26] Jonathan Griffith discovers a battered, non-standard interface panel
+    drawing auxiliary power in the maintenance sub-chamber.'
+  - '- [T27] Jonathan Griffith successfully accesses Project Aegis data on the battered
+    terminal but triggers a security notification just as guards approach.'
+  - '- [T28] Jonathan Griffith draws his pistol and takes cover behind the terminal
+    as two armored guards burst into the sub-chamber.'
+  - '- [T29] Jonathan Griffith misses his shot at the first guard, causing a firefight
+    that leaves him wounded by flying debris.'
+  - '- [T30] Jonathan Griffith successfully escaped the armored guards by scrambling
+    into a ventilation shaft amidst heavy gunfire.'
+  recent_beats:
+  - surface_as: player_discovery
+    turn: 26
+    type: revelation
+  - surface_as: event
+    turn: 27
+    type: pressure
+  - surface_as: event
+    turn: 28
+    type: escalation
+  - surface_as: event
+    turn: 29
+    type: escalation
+  - surface_as: environmental
+    turn: 30
+    type: complication
+  recent_rolls:
+  - band: success
+    turn: 30
+  - band: fail
+    turn: 29
+  - band: success
+    turn: 27
+  - band: crit_success
+    turn: 25
+  - band: success
+    turn: 24
+  setting_pack: space-western
+  turn: 30
+pc:
+  actions:
+  - Crawl deeper into the dark conduit to find an exit
+  - Use the Heavy Wrench to jam the vent's internal grating
+  - Check the Data-shard for navigation markers within the shaft
+  - Listen for the rhythmic boots of guards entering the shaft
+  bio: After the collapse of the regional trade accords, Jonathan turned to private
+    hauling to pay off mounting hangar fees. He maintains a neutral reputation by
+    staying away from faction politics, though his past involvement in contested routes
+    haunts his credit rating.
+  conditions:
+  - added_turn: 16
+    description: Suffered a sudden electrical surge; may cause tremors or disorientation.
+    id: electrocuted
+    label: Electrocuted
+  - added_turn: 28
+    description: Shrapnel and debris have caused facial lacerations.
+    id: bloodied
+    label: Bloodied
+  drive: ''
+  name: Jonathan Griffith
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 2
+    wits: 3
+  tagline: Independent freighter pilot, former blockade runner
+resolved_arcs:
+- closed_threads: []
+  goal_context: Direct Coalition audits and blockades are making smuggling and independent
+    trade increasingly difficult.
+  resolution: The attempt to bypass Coalition scrutiny via bribery failed, resulting
+    in a forced vessel audit and direct confrontation at the docks.
+  resolved_turn: 6
+  visible_goal: The goal of establishing an independent supply chain is now complicated
+    by direct Coalition interference and mandatory audits.
+- closed_threads: []
+  goal_context: Griffith is now in custody at the Schmidtshire processing center following
+    a failed audit/bribery attempt.
+  resolution: The attempt to bypass customs via bribery failed, resulting in Griffith's
+    arrest and seizure of his vessel.
+  resolved_turn: 10
+  visible_goal: Establish an independent supply chain despite Coalition interference.
+- closed_threads: []
+  goal_context: Griffith is now under high-level security scrutiny following a biometric
+    match.
+  resolution: The attempt to bypass customs via bribery failed, resulting in Griffith's
+    arrest and seizure of his vessel.
+  resolved_turn: 12
+  visible_goal: Establish an independent supply chain despite Coalition interference.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 2
+  curtain_call: ''
+  location_entered_turn: 25
+  scene_phase: CLIMAX
+  tagline: Maintenance Sub-chamber  firefight in narrow corridor
+  tags:
+  - tension
+  - authority
+  - interruption
+  turn_entered: 25
+  turns_in_phase: 1
+  world_state:
+  - All private vessels must undergo mandatory biometric screening at Schmidtshire
+    gates.
+  - Atmospheric processors in the outer rim are failing, causing oxygen rationing.
+  - Coalition patrol ships have established a blockade around the Lake Karenmouth
+    corridor.
+  - id: smuggling_networks
+    text: Attempted bribery failed and triggered immediate Coalition scrutiny.
+    tier: persistent
+  - id: coalition_scrutiny
+    text: The attempt to bypass scrutiny via bribery failed, leading to a forced mandatory
+      audit at the Schmidtshire gates.
+    tier: persistent
+  - id: boarding_party_confrontation
+    text: The boarding party successfully seized control of the vessel and placed
+      Griffith under arrest.
+    tier: persistent
+  - id: schmidtshire_detention
+    text: Jonathan Griffith was successfully escorted into the processing center for
+      biometric screening and custody.
+    tier: persistent
+  - id: unauthorized_signal_interference
+    text: Griffith intercepted the ghost signal before being electrocuted and fleeing.
+    tier: persistent
+  - id: aegis_project_logs
+    text: Griffith successfully extracted 142 files proving orchestrated oxygen rationing.
+    tier: persistent
+schema_version: 1
