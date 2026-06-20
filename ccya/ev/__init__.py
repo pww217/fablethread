@@ -331,11 +331,12 @@ def main() -> None:
             from ccya.ev.status import cmd_status
             cmd_status(flags)
         case "eval":
-            from ccya.ev.eval import cmd_eval_run, cmd_eval_list
+            from ccya.ev.eval import cmd_eval_run, cmd_eval_list, cmd_eval_compare
 
             if len(args) < 2:
                 print("Usage: ev.py eval run <scenario.yaml> [--model] [--temp] [--checkers] [--report]", file=sys.stderr)
                 print("       ev.py eval list", file=sys.stderr)
+                print("       ev.py eval compare <baseline> <current> [--checkers]", file=sys.stderr)
                 sys.exit(1)
 
             subcmd = args[1]
@@ -353,6 +354,16 @@ def main() -> None:
                 cmd_eval_run(scenario_path, model=model, temp=temp, checkers=checker_list, report=report_path)
             elif subcmd == "list":
                 cmd_eval_list()
+            elif subcmd == "compare":
+                if len(args) < 4:
+                    print("Usage: ev.py eval compare <baseline_dir> <current_dir> [--checkers]", file=sys.stderr)
+                    sys.exit(1)
+                baseline_path = Path(args[2])
+                current_path = Path(args[3])
+                checker_list = flags.get("checkers", "").split(",") if flags.get("checkers") else None
+                if checker_list is not None:
+                    checker_list = [c.strip() for c in checker_list if c.strip()]
+                cmd_eval_compare(baseline_path, current_path, checkers=checker_list)
             else:
                 print(f"Unknown eval subcommand: {subcmd}", file=sys.stderr)
                 sys.exit(1)
