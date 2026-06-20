@@ -78,6 +78,9 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 | **Prompt Eval** | [`../ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) | Fast prompt testing CLI (`ev.py prompt-eval`): renders prompts with live data, calls LLM, runs checkers. Two subcommands: `dump` (render only), `call` (render + LLM + check). Uses `state_snapshot` (post-turn) as context. Known limitation: inventory/conditions reflect end of turn. |
 | **Narration UI** | [narration-ui](./narration-ui.md) | Main game interface: SSE streaming, HTMX sidebar refresh, Alpine.js state machine |
 | **Turn Viewer UI** | [turn-viewer-ui](./turn-viewer-ui.md) | Pipeline debug UI: turn cards, stage inspector, diff panel, live updates |
+| **State models** | [state-models](./state-models.md) | state.yaml shape, all Pydantic models, field types, lifecycle notes |
+| **Cross-module contracts** | [cross-module-contracts](./cross-module-contracts.md) | Thread lifecycle, state machine, extraction routing, error propagation, token budget |
+| **Prompts architecture** | [prompts-architecture](./prompts-architecture.md) | Prompt template structure, rendering flow, shared includes |
 
 ## State Lifecycle
 
@@ -108,7 +111,7 @@ See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for full details on
 
 ### PacingContext (see [step0-ruling](./step0-ruling.md#pacing-context))
 
-Computed by `_compute_pacing_context()` in `turn.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when Scene Imperative fires), `summary` (human-readable log string), `spiral_detected` (bool, set by `detect_spiral()` from recent roll history before narrate setup), `convergence_score` (int 0-5, computed by `compute_convergence_score()` for RISING→CLIMAX transition).
+Computed by `_compute_pacing_context()` in `_pacing.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when Scene Imperative fires), `summary` (human-readable log string), `spiral_detected` (bool, set by `detect_spiral()` from recent roll history before narrate setup), `convergence_score` (int 0-5, computed by `compute_convergence_score()` for RISING→CLIMAX transition).
 
 ### GMBeat (see [step2c-storytell](./step2c-storytell.md#gm-beat))
 

@@ -2,13 +2,23 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from jinja2 import Environment
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _PROMPTS_LOG_PATH, _render
-from ccya.llm_client import chat as llm_chat, strip_thinking
-from ccya.models import IntentEnvelope, RulesCheck, RulesOutcome
+from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _PROMPTS_LOG_PATH, _render
+from ccya.engine.extraction import _avg_event_ms
+from ccya.engine.markers import strip_trace_markers_in_messages
+from ccya.engine.npc_roster import build_npc_roster
+from ccya.engine._pacing import _compute_ages
+from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
+from ccya.models import Band, IntentEnvelope, RulesCheck, RulesOutcome
+from ccya.personality import ARCHETYPES
+from ccya.rules import resolve_check, build_directive
+
+if TYPE_CHECKING:
+    from ccya.engine.turn_context import TurnContext
 
 _log = logging.getLogger(__name__)
 
@@ -182,3 +192,149 @@ def _log_ruling_outcome(
             f.write("\n".join(lines))
     except OSError:
         _log.warning("failed to write prompts.log (ruling outcome)", exc_info=True)
+
+
+async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], float, list[tuple[str, Any]]]:
+    """Execute ruling phase. Returns (intent, outcome, metrics, deescalate, phase_events)."""
+    config = ctx.config
+    state = ctx.state
+    trace_id = ctx.trace_id
+    turn_no = state.get("meta", {}).get("turn", 0) + 1
+
+    exp_ruling_ms = _avg_event_ms(ctx.save_dir, "ruling.total_ms")
+    phase_events: list[tuple[str, Any]] = [("phase", {"phase": "ruling_start", "expected_ms": exp_ruling_ms})]
+    t_rules = asyncio.get_event_loop().time()
+
+    # Build ruling messages
+    _comp = state.get("compendium", {}).get("npcs", {})
+    scene_phase = (state.get("scene") or {}).get("scene_phase", "SETUP")
+    ruling_messages = _ruling_messages(
+        ctx._env, state, ctx.user_input,
+        turn_no=turn_no,
+        npc_roster=build_npc_roster(_comp, personality_registry=ARCHETYPES),
+        inventory=state.get("inventory") or None,
+        recent_turns=ctx.recent_turns[-1:],
+        scene_phase=scene_phase,
+    )
+    rendered_ruling_system = ruling_messages[0]["content"] if ruling_messages else ""
+    rendered_ruling_user = ruling_messages[-1]["content"] if ruling_messages else ""
+    ctx._rendered_ruling_system = rendered_ruling_system
+    ctx._rendered_ruling_user = rendered_ruling_user
+
+    strip_trace_markers_in_messages(ruling_messages)
+    ruling_messages, ruling_trimmed, ruling_trimmed_chars = trim_messages(
+        ruling_messages, config.context_window,
+    )
+    if config.log_prompts:
+        _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "ruling", ruling_messages)
+
+    intent, ruling_usage, ruling_raw_response, ruling_parse_error = await _call_ruling(
+        ruling_messages, config, trace_id,
+    )
+    ctx.intent = intent
+    ctx._ruling_raw_response = ruling_raw_response
+    ctx._ruling_parse_error = ruling_parse_error
+    ctx._ruling_trimmed = ruling_trimmed
+    ctx._ruling_trimmed_chars = ruling_trimmed_chars
+
+    # Handle impossible actions: no dice roll, synthesize failure outcome
+    if intent.impossible:
+        intent.check.required = False
+        band: Band = "fail"
+        directive = build_directive(band, intent.intent_verb, intent.check.skill or "")
+        outcome = RulesOutcome(
+            rolled=False,
+            band=band,
+            directive=directive,
+            intent_verb=intent.intent_verb,
+            intent=intent.intent,
+            impossible=True,
+            reason=intent.reason,
+        )
+        _log.info(
+            "impossible action: %s — %s",
+            intent.intent_verb, intent.reason,
+            extra={"trace_id": trace_id, "turn": turn_no, "pack": "", "kind": "ruling"},
+        )
+    elif intent.check.required and intent.check.skill:
+        # Resolve dice in Python (deterministic)
+        try:
+            outcome = resolve_check(
+                skill=intent.check.skill,
+                difficulty=intent.check.difficulty,
+                pc_stats=(state.get("pc") or {}).get("stats") or {},
+                intent_verb=intent.intent_verb,
+                intent=intent.intent,
+                difficulty_mods=config._resolve_difficulty_modifiers(),
+                near_miss_softening=config.near_miss_softening,
+            )
+            outcome.reason = intent.reason
+        except Exception as exc:
+            _log.warning(
+                "rules.resolve_check failed: %s", exc, extra={"trace_id": trace_id}
+            )
+            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent, reason=intent.reason)
+    elif intent.check.required and not intent.check.skill:
+        _log.warning(
+            "rules: check required on T%d but skill=%s — no roll will occur",
+            state.get("meta", {}).get("turn", 0) + 1,
+            intent.check.skill,
+            extra={"trace_id": trace_id, "turn": turn_no},
+        )
+        outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+        outcome.reason = intent.reason
+    else:
+        outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+        outcome.reason = intent.reason
+
+    ctx.outcome = outcome
+
+    # De-escalation magnitude
+    deescalate: float = 0.0
+    if config.thread_deescalate_on_success and outcome.rolled and outcome.band in ("success", "crit_success"):
+        if any(
+            isinstance(t, dict) and t.get("urgency") == "urgent"
+            for t in ((state.get("arc") or {}).get("threads") or [])
+        ):
+            deescalate = 1.0 if outcome.band == "crit_success" else 0.6
+
+    # Age counters for narration directives
+    ctx._ages = _compute_ages(state)
+
+    # Pre-compute effective scene age with combat boost for directive thresholds.
+    _scene_age = ctx._ages.get("scene_age", 0)
+    _tags: list[str] = (state.get("scene") or {}).get("tags") or []
+    if "combat" in _tags:
+        _scene_age += 2
+    ctx._ages["effective_scene_age"] = _scene_age
+
+    if config.log_prompts:
+        _log_ruling_outcome(
+            state.get("meta", {}).get("turn", 0) + 1, intent, outcome
+        )
+
+    ruling_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
+    ruling_metrics = {
+        "total_ms": round(ruling_ms, 1),
+        "rolled": outcome.rolled,
+        "tokens_in": ruling_usage.get("prompt_tokens", 0),
+        "tokens_out": ruling_usage.get("completion_tokens", 0),
+    }
+
+    phase_events.append(("phase", {
+            "phase": "ruling_done",
+            "rolled": outcome.rolled,
+            "band": outcome.band if outcome.rolled else None,
+            "skill": outcome.skill if outcome.rolled else None,
+            "dice": outcome.dice if outcome.rolled else [],
+            "final_total": outcome.final_total if outcome.rolled else 0,
+            "difficulty": outcome.difficulty if outcome.rolled else None,
+            "stat_value": outcome.stat_value if outcome.rolled else 0,
+            "stat_mod": outcome.stat_mod if outcome.rolled else 0,
+            "diff_mod": outcome.diff_mod if outcome.rolled else 0,
+            "directive": outcome.directive if outcome.rolled else "",
+            "intent_verb": intent.intent_verb,
+        },
+    ))
+
+    return intent, outcome, ruling_metrics, deescalate, phase_events
