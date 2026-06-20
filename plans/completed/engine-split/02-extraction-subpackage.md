@@ -40,7 +40,7 @@ Create `ccya/engine/extraction/` subpackage with 7 files. The `__init__.py` re-e
 - **Python subpackage detection:** The `extraction/` directory needs an `__init__.py` to be treated as a package. If the directory exists but `__init__.py` is missing, imports will silently fail.
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 

@@ -3,18 +3,26 @@
 from __future__ import annotations
 
 import logging
+from math import ceil
 from typing import TYPE_CHECKING, Any
 
 from ccya.engine.config import _render
+from ccya.engine.names import generate_npc_names_split
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.models import RulesOutcome
+from ccya.engine._pacing import (
+    _compute_pacing_context,
+    _compute_scene_phase,
+    compute_convergence_score,
+    detect_spiral,
+)
+from ccya.models import ArcThread, RulesOutcome
 from ccya.prompts.context import _fmt_progress
+
+if TYPE_CHECKING:
+    from ccya.engine.turn_context import PacingContext, TurnContext
 
 
 _log = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    from ccya.engine.turn import PacingContext
 
 
 def _narrate_messages(
@@ -132,3 +140,136 @@ def _get_resolved_arcs(state: dict[str, Any], turn_no: int, *, ttl: int = 3) -> 
         if (turn_no - resolved_turn) <= ttl and resolved_turn is not None:
             result.append(dict(ra))
     return result
+
+
+async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
+    """Build narration context and messages. Returns (pacing_ctx, narr_messages)."""
+    state = ctx.state
+    config = ctx.config
+    turn_no = state.get("meta", {}).get("turn", 0) + 1
+
+    # Rolling NPC name pool for mid-game cultural anchoring (split by gender)
+    _npc_name_pool: dict[str, list[str]] = {}
+    if ctx.packing.get("name_locales"):
+        _npc_name_pool = generate_npc_names_split(
+            ctx.packing["name_locales"],
+            male_count=5, female_count=5, seed=state.get("meta", {}).get("turn", 0),
+        )
+
+    # pending_gm_beat from the previous turn's storyteller is read here to set
+    # the atmosphere/scene context for this turn's narration. Beats are consumed
+    # on the turn AFTER generation — this is intentional: beats shape ongoing scene
+    # atmosphere rather than providing immediate mechanical feedback.
+    # Immediate feedback for roll outcomes is handled by the roll-band narration
+    # directive (rules.py build_directive()), not by the beat system.
+    _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
+    if _pending_gm_beat:
+        _expires = _pending_gm_beat.get("beat_expires_turn")
+        if _expires is not None and turn_no > _expires:
+            _pending_gm_beat = None
+            state.setdefault("meta", {})["pending_gm_beat"] = None
+
+    # PC allegiance and world context
+    _pc_allegiance = (state.get("pc") or {}).get("allegiance")
+    _pack_narrator_rules = ctx.packing.get("narrator_rules", [])
+    _pack_world_rules = ctx.packing.get("world_rules", [])
+    _world_factions = ctx.packing.get("factions", [])
+
+    # Phase engine: compute scene_phase before directive computation
+    scene = state.setdefault("scene", {})
+    scene.setdefault("scene_phase", "SETUP")
+    scene.setdefault("climax_turn_count", 0)
+    scene.setdefault("breather_turn_count", 0)
+    scene_phase = scene.get("scene_phase", "SETUP")
+
+    # Count urgent threads for phase engine
+    _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict)]
+    thread_urgency_count = 0
+    for td in _raw_thread_dicts:
+        try:
+            t = ArcThread.model_validate(td)
+            if t.urgency == "urgent":
+                thread_urgency_count += 1
+        except Exception:
+            _log.warning(
+                "Malformed ArcThread entry: %s", td,
+                extra={"turn": turn_no, "trace_id": ctx.trace_id},
+            )
+
+    # Compute convergence score before phase machine — passes raw thread list
+    convergence_score = compute_convergence_score(
+        scene_phase=scene_phase,
+        active_threads=_raw_thread_dicts,      # was: thread_urgency_count
+        scene_age=ctx._ages.get("scene_age", 0),
+        recent_beats=state.get("meta", {}).get("recent_beats", []),
+        current_outcome=ctx.outcome,
+        config=config,
+    )
+
+    # Compute phase (mutates state["scene"] in place)
+    state["scene"] = _compute_scene_phase(state, ctx._ages, config, convergence_score)
+    scene_phase = scene.get("scene_phase", "SETUP")
+
+    # Compute unified pacing context with new signal set
+    _scene_motion = ctx.intent.scene_motion if ctx.intent else "hold"
+    _pc = _compute_pacing_context(
+        scene_phase=scene_phase,
+        thread_urgency_count=thread_urgency_count,
+        effective_scene_age=ctx._ages.get("effective_scene_age", 0),
+        scene_motion=_scene_motion,
+        scene_pressure_threshold=config.scene_pressure_threshold,
+        scene_imperative_threshold=config.scene_imperative_threshold,
+    )
+
+    # Compute death spiral flag from recent roll history
+    recent_rolls = state.get("meta", {}).get("recent_rolls", [])
+    ctx._spiral_detected = detect_spiral(
+        recent_rolls,
+        consecutive_hard_threshold=config.spiral_consecutive_hard,
+        hard_ratio_threshold=config.spiral_hard_ratio,
+    )
+    _pc.spiral_detected = ctx._spiral_detected
+    _pc.convergence_score = convergence_score
+
+    # 5 convergence component booleans
+    components: dict[str, int] = {}
+    components["thread_weight"] = 1 if thread_urgency_count >= 1 else 0
+    components["urgency_depth"] = 1 if thread_urgency_count >= 2 else 0
+    scene_age = ctx._ages.get("scene_age", 0)
+    components["scene_age"] = 1 if scene_age >= config.scene_pressure_threshold else 0
+    recent_beats = state.get("meta", {}).get("recent_beats", [])
+    if recent_beats:
+        pressure_types = {"pressure", "complication", "escalation", "setback"}
+        n = len(recent_beats)
+        window = recent_beats[: min(n, 5)]
+        pressure_count = sum(1 for b in window if b.get("type") in pressure_types)
+        threshold = ceil(n * 0.6) if n < 5 else 3
+        components["beat_streak"] = 1 if pressure_count >= threshold else 0
+    else:
+        components["beat_streak"] = 0
+    components["dice_weight"] = 1 if (
+        ctx.outcome is not None
+        and ctx.outcome.rolled
+        and ctx.outcome.band in ("crit_fail", "fail")
+        and thread_urgency_count >= 1
+    ) else 0
+    _pc.convergence_components = components
+
+    # Curtain Call signal for CLIMAX phase
+    _curtain_call = scene.get("curtain_call", "")
+
+    _comp = (state.get("compendium") or {}).get("npcs") or {}
+    narr_messages = _narrate_messages(
+        ctx._env, state, ctx.user_input,
+        recent_turns=ctx.recent_turns[-1:],
+        narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
+        rules_outcome=ctx.outcome, npc_name_pool=_npc_name_pool,
+        pending_beat=_pending_gm_beat,
+        pacing_context=_pc, ages=ctx._ages, pc_allegiance=_pc_allegiance, turn_no=turn_no,
+        world_factions=_world_factions,
+        npc_roster=build_npc_roster(_comp, personality_registry=None),
+        arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
+        curtain_call=_curtain_call,
+    )
+
+    return _pc, narr_messages
