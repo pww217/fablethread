@@ -1,3 +1,8 @@
+{# _location.j2
+   Required: none (always renders — shows "Unknown" if empty)
+   Optional: location (dict) — falls back to state.location
+   Emits: ## Location header
+#}
 {% set loc = location | default(state.location, true) -%}
 ## Location
 {{ loc.name or "Unknown" }} ({{ loc.id or "no-id" }})

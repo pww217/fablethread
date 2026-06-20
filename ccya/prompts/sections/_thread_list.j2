@@ -1,3 +1,8 @@
+{# _thread_list.j2
+   Required: threads (list[dict])
+   Optional: turn_no (int) — for "X turns ago" display
+   Emits: ### Active Threads / ### Dormant Threads headers
+#}
 {% if threads %}
 ### Active Threads ({{ threads | length }} active — target: 3-4, ~5 total)
 {% for t in threads %}{% if not t.dormant %}- `{{ t.id }}` [{{ t.type | default(t.urgency) | upper }}] {{ t.summary }}

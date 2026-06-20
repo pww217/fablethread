@@ -1,3 +1,8 @@
+{# _recent_turns.j2
+   Required: none (renders nothing if empty)
+   Optional: recent_turns (list[dict] with turn, narrative)
+   Emits: ## Prior Turn header
+#}
 {% if recent_turns %}
 ## Prior Turn
 **T{{ recent_turns[-1].turn }}:** {{ recent_turns[-1].narrative }}

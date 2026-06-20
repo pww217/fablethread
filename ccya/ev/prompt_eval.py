@@ -121,6 +121,7 @@ def build_prompt_context(
         for t in (arc.get("threads") or []):
             if isinstance(t, dict):
                 entry = dict(t)
+                entry.setdefault("last_updated_turn", None)
                 from ccya.prompts.context import _fmt_progress
                 entry["progress"] = _fmt_progress(entry.get("progress"))
                 all_threads.append(entry)
@@ -193,6 +194,7 @@ def build_prompt_context(
             "recent_turns": [],
             "scene_phase": state_snapshot.get("scene", {}).get("scene_phase", "SETUP"),
             "urgent_threads": urgent_threads,
+            "state": state_snapshot,
         }
 
     if stream == "narrate":
@@ -253,6 +255,7 @@ def build_prompt_context(
         }
 
     if stream == "state":
+        pc = state_snapshot.get("pc") or {}
         return {
             "narration": narration,
             "conditions": list(pc.get("conditions") or []),
@@ -295,39 +298,53 @@ def cmd_prompt_eval_dump(
     turn: int,
     stream: str,
     from_events: bool = False,
+    user_only: bool = False,
+    all_streams: bool = False,
 ) -> None:
-    """Dump rendered prompts for a single turn/stream."""
+    """Dump rendered prompts for a single turn/stream.
+
+    If all_streams is True, dump all 5 streams sequentially.
+    If user_only is True, skip the system prompt.
+    """
     turn_ev = find_turn(events, turn)
     if turn_ev is None:
         print(f"Error: turn {turn} not found", file=sys.stderr)
         sys.exit(1)
 
-    if from_events:
-        # Forensics path: use stored rendered prompts
-        p = _extract_prompt_from_event(turn_ev, stream)
-        print(f"=== Turn {turn} — {stream} (from events) ===\n")
-        print("--- SYSTEM ---")
-        print(p["system"])
+    streams = ["ruling", "narrate", "scene", "state", "storytell"] if all_streams else [stream]
+
+    for s in streams:
+        if all_streams:
+            print(f"===== Turn {turn} — {s} =====")
+        else:
+            print(f"=== Turn {turn} — {s} (re-rendered) ===\n")
+
+        if from_events:
+            p = _extract_prompt_from_event(turn_ev, s)
+            if not user_only:
+                print("--- SYSTEM ---")
+                print(p["system"])
+                print()
+            print("--- USER ---")
+            print(p["user"])
+            print()
+            if not user_only:
+                print("--- OUTPUT ---")
+                print(p["output"])
+        else:
+            env = _build_jinja_env(PROMPTS_DIR)
+            ctx = build_prompt_context(events, turn, s)
+            system_template = _get_system_template_name(s)
+            user_template = _get_template_name(s)
+            rendered_system = _render(env, system_template, ctx)
+            rendered_user = _render(env, user_template, ctx)
+            if not user_only:
+                print("--- SYSTEM ---")
+                print(rendered_system)
+                print()
+            print("--- USER ---")
+            print(rendered_user)
         print()
-        print("--- USER ---")
-        print(p["user"])
-        print()
-        print("--- OUTPUT ---")
-        print(p["output"])
-    else:
-        # Re-render path: use current templates
-        env = _build_jinja_env(PROMPTS_DIR)
-        ctx = build_prompt_context(events, turn, stream)
-        system_template = _get_system_template_name(stream)
-        user_template = _get_template_name(stream)
-        rendered_system = _render(env, system_template, ctx)
-        rendered_user = _render(env, user_template, ctx)
-        print(f"=== Turn {turn} — {stream} (re-rendered) ===\n")
-        print("--- SYSTEM ---")
-        print(rendered_system)
-        print()
-        print("--- USER ---")
-        print(rendered_user)
 
 
 def _extract_prompt_from_event(ev: dict[str, Any], stream: str) -> dict[str, str]:
@@ -561,18 +578,20 @@ def cmd_prompt_eval(flags: dict[str, str], args: list[str]) -> None:
 
     if subcmd == "dump":
         if len(args) < 2:
-            print("Usage: ev.py prompt-eval dump <save-dir> --turn N --stream STREAM", file=sys.stderr)
+            print("Usage: ev.py prompt-eval dump <save-dir> --turn N [--stream STREAM] [--all] [--user-only] [--from-events]", file=sys.stderr)
             sys.exit(1)
         save_dir = args[1]
         turn = int(flags["turn"]) if "turn" in flags else None
         stream = flags.get("stream", "scene")
+        user_only = "user-only" in flags
+        all_streams = "all" in flags
 
         if turn is None:
             print("Error: --turn is required for dump", file=sys.stderr)
             sys.exit(1)
 
         events = load_events(Path(save_dir) / "events.jsonl")
-        cmd_prompt_eval_dump(events, turn, stream, from_events=from_events)
+        cmd_prompt_eval_dump(events, turn, stream, from_events=from_events, user_only=user_only, all_streams=all_streams)
 
     elif subcmd == "call":
         if len(args) < 2:
