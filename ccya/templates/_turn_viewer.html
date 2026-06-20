@@ -51,7 +51,7 @@
         <template x-for="(t, idx) in visibleTurns()" :key="t.trace_id_full || (String(t.turn) + '-' + idx)">
             <div>
                 <template x-if="t.row_kind === 'seed'">
-                    <div class="tv-turn-card">
+                    <div class="tv-turn-card" x-show="window.innerWidth > 768 || idx === mobileFocusedIdx">
                         <div class="tv-compaction-header" @click="toggleTurnCollapsed('seed')">
                             <span class="tv-compaction-icon">✦</span>
                             <span class="tv-compaction-title">Seed</span>
@@ -75,7 +75,7 @@
                 </template>
 
                 <template x-if="t.row_kind === 'sanitizer'">
-                    <div class="tv-compaction-card">
+                    <div class="tv-compaction-card" x-show="window.innerWidth > 768 || idx === mobileFocusedIdx">
                         <div class="tv-compaction-header" @click="toggleTurnCollapsed('s-' + t.turn)">
                             <span class="tv-compaction-icon">⟳</span>
                             <span class="tv-compaction-title">Thread Sanitizer</span>
@@ -103,29 +103,35 @@
                 </template>
 
                 <template x-if="t.row_kind !== 'seed' && t.row_kind !== 'sanitizer'">
-                    <div class="tv-turn-card" :id="'tv-turn-' + t.turn">
+                    <div class="tv-turn-card" :id="'tv-turn-' + t.turn" x-show="window.innerWidth > 768 || idx === mobileFocusedIdx">
                 <div class="tv-turn-header" @click="toggleTurnCollapsed(t.turn)">
-                    <div class="tv-turn-number">Turn <span x-text="t.turn"></span></div>
-                    <div class="tv-turn-input" x-text="t.user_input"></div>
-                    <div class="tv-turn-meta">
-                        <span x-text="t.trace_id"></span>
-                        <div class="tv-turn-timing">
-                            <span class="tv-turn-total-tt" x-text="t.total_tt"></span>
-                            <span class="tv-turn-tokens" x-text="t.total_tokens_in_display + ' in / ' + t.total_tokens_out_display + ' out'"></span>
-                            <div class="tv-latency-waterfall">
-                                <template x-for="stage in stages" :key="'wf-' + t.turn + '-' + stage">
-                                    <div
-                                        class="tv-wf-segment"
-                                        :class="t.streams[stage].stage_class"
-                                        :style="'width:' + (t.total_tt_ms_raw > 0 ? Math.round(100 * (t.streams[stage].ms_raw || 0) / t.total_tt_ms_raw) : 0) + '%'"
-                                        :title="stage + ': ' + t.streams[stage].tt"
-                                    ></div>
-                                </template>
+                    <div class="tv-turn-header-desktop">
+                        <div class="tv-turn-number">Turn <span x-text="t.turn"></span></div>
+                        <div class="tv-turn-input" x-text="t.user_input"></div>
+                        <div class="tv-turn-meta">
+                            <span x-text="t.trace_id"></span>
+                            <div class="tv-turn-timing">
+                                <span class="tv-turn-total-tt" x-text="t.total_tt"></span>
+                                <span class="tv-turn-tokens" x-text="t.total_tokens_in_display + ' in / ' + t.total_tokens_out_display + ' out'"></span>
+                                <div class="tv-latency-waterfall">
+                                    <template x-for="stage in stages" :key="'wf-' + t.turn + '-' + stage">
+                                        <div
+                                            class="tv-wf-segment"
+                                            :class="t.streams[stage].stage_class"
+                                            :style="'width:' + (t.total_tt_ms_raw > 0 ? Math.round(100 * (t.streams[stage].ms_raw || 0) / t.total_tt_ms_raw) : 0) + '%'"
+                                            :title="stage + ': ' + t.streams[stage].tt"
+                                        ></div>
+                                    </template>
+                                </div>
                             </div>
+                            <span x-show="t.has_rejections" class="tv-meta-rejected">rejected</span>
+                            <span x-show="t.has_retries" class="tv-meta-retried">retries</span>
+                            <span x-show="t.has_errors" class="tv-meta-error">errors</span>
                         </div>
-                        <span x-show="t.has_rejections" class="tv-meta-rejected">rejected</span>
-                        <span x-show="t.has_retries" class="tv-meta-retried">retries</span>
-                        <span x-show="t.has_errors" class="tv-meta-error">errors</span>
+                    </div>
+                    <div class="tv-turn-header-mobile">
+                        <span class="tv-mobile-turn-num" x-text="'Turn ' + t.turn"></span>
+                        <span class="tv-mobile-turn-count" x-text="(idx + 1) + ' / ' + visibleTurns().length"></span>
                     </div>
                     <span class="tv-turn-chevron" :class="{ 'open': !isTurnCollapsed(t.turn) }">▶</span>
                 </div>
@@ -140,28 +146,7 @@
                     </div>
 
                     <template x-for="stage in stages" :key="t.turn + '-' + stage">
-                        <div class="tv-stage-wrap" :class="{'tv-stage-wrap--no-inputs': !t.inputs_snapshot || !t.inputs_snapshot[stage] || !Object.keys(t.inputs_snapshot[stage]).length}">
-                            <template x-if="t.inputs_snapshot && t.inputs_snapshot[stage] && Object.keys(t.inputs_snapshot[stage]).length">
-                                <div class="tv-inputs-row">
-                                    <template x-for="([srcKey, lines], idx) in Object.entries(t.inputs_snapshot[stage])" :key="srcKey">
-                                        <div class="tv-input-pill" :class="'tv-stage-' + srcKey">
-                                            <div class="tv-input-pill-header" @click="toggleInputPill(t.turn, stage, srcKey)">
-                                                <span class="tv-input-pill-arrow">↓</span>
-                                                <span class="tv-input-pill-label" x-text="srcKey"></span>
-                                                <span class="tv-input-pill-count" x-text="'(' + lines.length + ')'"></span>
-                                            </div>
-                                            <div class="tv-input-pill-body" x-show="isInputPillOpen(t.turn, stage, srcKey)">
-                                                <template x-for="ln in lines" :key="ln.k">
-                                                    <div class="tv-input-kv-item" :class="{ dim: ln.dim }">
-                                                        <span class="k" x-text="ln.k"></span>
-                                                        <span class="v" x-text="ln.v"></span>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
+                        <div class="tv-stage-wrap">
                             <div
                                 class="tv-pipeline-stage"
                                 :id="'tv-s-' + t.turn + '-' + stage"
@@ -182,6 +167,7 @@
                                 </div>
 
                                 <div class="tv-stage-body" x-show="expandedKey(t.turn, stage)">
+                                    <div class="tv-output-summary-label">Output Summary</div>
                                     <div x-show="t.streams[stage].skipped" class="tv-skipped">Skipped</div>
                                     <div x-show="!t.streams[stage].skipped">
                                         <template x-if="stage === 'ruling' && t.ruling_intent">
@@ -381,8 +367,8 @@ function tvRoot() {
         onlySkipped: false,
         expanded: {},
         turnCollapsed: {},
-        inputPillOpen: {},
         activeView: 'delta',
+        mobileFocusedIdx: 0,
         _swipeStartX: 0,
         _swipeStartY: 0,
         focusedTurnIdx: 0,
@@ -409,6 +395,7 @@ function tvRoot() {
                 var key = t.row_kind === 'seed' ? 'seed' : t.row_kind === 'sanitizer' ? 's-' + t.turn : t.turn;
                 self.turnCollapsed[key] = i > 0;
             });
+            this.mobileFocusedIdx = Math.max(0, this.turns.length - 1);
             this.$nextTick(function() { self.hlAllVisibleJson(); });
         },
         stageClasses(t, stage) {
@@ -441,13 +428,6 @@ function tvRoot() {
         toggleTurnCollapsed(turn) {
             this.turnCollapsed[turn] = !this.turnCollapsed[turn];
         },
-        isInputPillOpen(turn, stage, src) {
-            return !!this.inputPillOpen['t' + turn + '-' + stage + '-' + src];
-        },
-        toggleInputPill(turn, stage, src) {
-            var k = 't' + turn + '-' + stage + '-' + src;
-            this.inputPillOpen[k] = !this.inputPillOpen[k];
-        },
         setView(which) {
             this.activeView = which;
             try { sessionStorage.setItem('tv_active_view', which); } catch(e) {}
@@ -472,14 +452,33 @@ function tvRoot() {
                 if (window.innerWidth > 768) return;
                 var dx = e.changedTouches[0].clientX - self._swipeStartX;
                 var dy = e.changedTouches[0].clientY - self._swipeStartY;
-                if (Math.abs(dx) < Math.abs(dy) * 1.5) return;
-                if (Math.abs(dx) < 40) return;
-                if (dx > 0) {
-                    self.setView('pipeline');
-                } else {
-                    self.setView('delta');
+                var absDx = Math.abs(dx);
+                var absDy = Math.abs(dy);
+
+                if (absDy > absDx && absDy > 40) {
+                    if (dy < 0) {
+                        self.navMobileTurn(1);
+                    } else {
+                        self.navMobileTurn(-1);
+                    }
+                    return;
+                }
+
+                if (absDx > absDy && absDx > 40) {
+                    if (dx > 0) {
+                        self.setView('pipeline');
+                    } else {
+                        self.setView('delta');
+                    }
                 }
             }, { passive: true });
+        },
+        navMobileTurn(delta) {
+            var vt = this.visibleTurns();
+            if (!vt.length) return;
+            var newIdx = this.mobileFocusedIdx + delta;
+            newIdx = Math.max(0, Math.min(newIdx, vt.length - 1));
+            this.mobileFocusedIdx = newIdx;
         },
         navToIdx(idx) {
             var vt = this.visibleTurns();

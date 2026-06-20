@@ -2049,6 +2049,62 @@ body {
   .tv-swipe-dot.active {
     background: var(--text-muted);
   }
+
+  /* ── Turn viewer mobile header (hide desktop, show thin bar) ── */
+  .tv-turn-header-desktop { display: none !important; }
+  .tv-turn-chevron { display: none !important; }
+  .tv-turn-header-mobile {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 12px;
+    font-size: 0.71rem;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  /* ── Hide main turn-viewer header bar meta/actions on mobile ── */
+  .turn-viewer-header .turn-viewer-meta,
+  .turn-viewer-header .turn-viewer-actions,
+  .turn-viewer-header .turn-viewer-title {
+    display: none;
+  }
+  .turn-viewer-header .tv-view-toggle {
+    display: none !important;
+  }
+
+  /* ── Mobile compact stage headers ── */
+  .tv-stage-header .tv-stage-status,
+  .tv-stage-header .tv-stage-badge,
+  .tv-stage-header .tv-stage-chevron {
+    display: none !important;
+  }
+  .tv-stage-header {
+    padding: 6px 12px !important;
+    font-size: 0.79rem;
+  }
+  .tv-stage-name {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Mobile full-screen turn cards ── */
+  #tv-root {
+    touch-action: none;
+  }
+  .tv-turn-card {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
+  .turn-viewer-body {
+    position: relative;
+    overflow: hidden;
+    height: calc(100vh - 80px);
+  }
 }
 
 /* When pills are moved inside narrative panel on desktop, break out of panel padding */
@@ -2851,9 +2907,6 @@ body {
   background: var(--bg-base);
 }
 
-.tv-turn-columns {
-  /* no flex — single column block layout */
-}
 .tv-pipeline {
   width: 100%;
 }
@@ -3039,6 +3092,15 @@ body {
   letter-spacing: 0.06em;
   color: var(--text-muted);
   margin-bottom: 4px;
+}
+
+.tv-output-summary-label {
+  font-size: 0.71rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
 }
 
 .tv-prompt-text {
@@ -3256,10 +3318,6 @@ body {
 }
 
 .tv-stage-wrap:last-child {
-  border-bottom: none;
-}
-
-.tv-stage-wrap.tv-stage-wrap--no-inputs {
   border-bottom: none;
 }
 
