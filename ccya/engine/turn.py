@@ -211,6 +211,7 @@ async def run_turn(
         outcome_summary: str = ""
         extraction_event: dict[str, Any] = {}
         _extraction_ctx = None
+        storyteller_result = None
 
         # Save narrate extraction to events for verification
         extraction_event["narrate"] = {

@@ -3,7 +3,7 @@
    Optional: inventory (list[dict]) — falls back to state.inventory
    Emits: ## Inventory header
 #}
-{% set inv = inventory | default(state.inventory, true) -%}
+{% set inv = inventory -%}
 {% if inv -%}
 ## Inventory
 {% for item in inv -%}

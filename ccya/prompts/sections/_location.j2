@@ -3,7 +3,7 @@
    Optional: location (dict) — falls back to state.location
    Emits: ## Location header
 #}
-{% set loc = location | default(state.location, true) -%}
+{% set loc = location -%}
 ## Location
 {{ loc.name or "Unknown" }} ({{ loc.id or "no-id" }})
 {{ loc.description or "No description." }}
