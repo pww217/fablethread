@@ -1,5 +1,6 @@
 {% set inv = inventory | default(state.inventory, true) -%}
 {% if inv -%}
+## Inventory
 {% for item in inv -%}
 {% set amt = item.get("amount") or 1 -%}
 - **{{ item.get("name", item.get("id", "?")) }}**{% if amt > 1 or item.get("id") == "credits" %} ×{{ amt }}{% endif %}{% if item.get("notes") %}: {{ item.notes }}{% endif %}

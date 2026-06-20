@@ -100,6 +100,9 @@ def _narrate_messages(
         "current_arc": current_arc_ctx,
         "curtain_call": curtain_call,
         "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
+        "inventory": state.get("inventory") or [],
+        "location": state.get("location") or {},
+        "conditions": list((state.get("pc") or {}).get("conditions") or []),
     }
 
     system_text = _render(env, "narrate_system.j2", {

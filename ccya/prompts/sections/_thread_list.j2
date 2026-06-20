@@ -1,8 +1,10 @@
 {% if threads %}
 ### Active Threads ({{ threads | length }} active — target: 3-4, ~5 total)
-{% for t in threads %}{% if not t.dormant %}- `{{ t.id }}` [{{ t.urgency | upper }}] {{ t.summary }}
+{% for t in threads %}{% if not t.dormant %}- `{{ t.id }}` [{{ t.type | default(t.urgency) | upper }}] {{ t.summary }}
 {%- if t.last_updated_turn is not none %} ({{ turn_no - t.last_updated_turn }} turns ago){% endif %}
-{%- for entry in t.progress %}   - {{ entry }}{% endfor %}
+{%- for entry in t.progress %}
+  - {{ entry }}
+{%- endfor %}
 {% endif %}{% endfor %}{% else %}No active threads.
 {% endif %}
 {% if threads | selectattr('dormant') | list %}

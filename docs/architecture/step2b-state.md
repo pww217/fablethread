@@ -12,9 +12,10 @@ flowchart LR
 
     subgraph IN["Inputs"]
         S1["narration (from Step 1)"]:::xstream
-        S2["pc.conditions"]
-        S3["state.inventory"]
-        S4["intent<br>(from Step 0)"]
+        S2["pc_name<br>(player character name)"]
+        S3["pc.conditions"]
+        S4["state.inventory"]
+        S5["intent<br>(from Step 0)"]
     end
 
     subgraph LLM2B["LLM — extract_state_system.j2 + extract_state_user.j2"]

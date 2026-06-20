@@ -31,6 +31,7 @@ def _extract_scene_messages(
             "location": location,
             "npc_roster": npc_roster,
             "turn_no": turn_no,
+            "pc_name": (state.get("pc") or {}).get("name", "Unnamed"),
         },
     )
     msgs = [

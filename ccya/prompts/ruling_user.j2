@@ -7,6 +7,7 @@ Location: {{ location.name or location.id or "Unknown" }}
 {% for n in npc_roster %}{% if n.presence == "present" %}- {% if n.name %}{{ n.name }}{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.bond %} | bond: {{ n.bond }}{% endif %}{% endif %}
 {% endfor -%}
 {% endif -%}
+
 {%- if urgent_threads %}
 ## Urgent Threads
 {% for t in urgent_threads %}
@@ -20,7 +21,7 @@ Location: {{ location.name or location.id or "Unknown" }}
 {% include "sections/_recent_turns.j2" %}
 
 ## Current Turn: {{ meta.turn | default('?') }}
-## Scene Phase: {{ scene_phase | default('SETUP') }}
+
 
 === PLAYER INPUT ===
 {{ user_input }}

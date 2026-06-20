@@ -15,9 +15,10 @@ flowchart LR
     subgraph IN["Inputs"]
         I1["state.pc<br>(name, stats, conditions)"]
         I2["state.location"]
-        I3["recent_turns[-1:]<br>(last turn's full narrative from chronicle.md<br>via load_last_narration();<br>ruling user prompt)"]
-        I4["user_input"]
-        I5["arc.threads<br>(urgent threads only)"]
+        I3["conditions<br>(top-level list from pc.conditions)"]
+        I4["recent_turns[-1:]<br>(last turn's full narrative from chronicle.md<br>via load_last_narration();<br>ruling user prompt)"]
+        I5["user_input"]
+        I6["arc.threads<br>(urgent threads only)"]
     end
 
     subgraph LLM0["LLM — ruling_system.j2 + ruling_user.j2"]

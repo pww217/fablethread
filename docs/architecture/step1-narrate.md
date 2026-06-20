@@ -15,6 +15,7 @@ flowchart LR
         N2["prior_history<br>(last 20 incremental history bullets, all but last rendered as bullets)"]
         N3["recent_turns[-1:]<br>(single most recent turn as full text)"]
         N4["rules_outcome<br>(band, directive, impossible, dice summary)"]:::xstream
+        N5["conditions<br>(top-level list from pc.conditions)"]
         N6["npc_name_pool (cultural name list)"]
         N7["npc_roster<br>(from build_npc_roster(comp),<br>  presence field: present/nearby/known)"]
         N9["world_factions<br>(immutable trace)"]:::xstream

@@ -95,6 +95,7 @@ def _storytell_messages(
                 directive=pacing_context.directive if pacing_context else "",
                 spiral_detected=pacing_context.spiral_detected if pacing_context else False,
             ),
+            "pc_name": (state.get("pc") or {}).get("name", "Unnamed"),
         },
     )
     msgs = [
