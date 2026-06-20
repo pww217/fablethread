@@ -49,7 +49,7 @@
 | `ccya/ev/check.py` | Run checkers against events by turn |
 | `ccya/ev/audit.py` | Audit commands: state history, conditions, NPC ghosting, storyteller, threads |
 | `ccya/ev/compat.py` | Detects changes vs extraction_context format mismatches |
-| `ccya/ev/eval.py` | Batch scenario runner: YAML scenarios → checkers → Markdown report |
+| `ccya/ev/eval.py` | Batch scenario runner: YAML scenarios → checkers → Markdown report; `eval compare` for cross-run checker comparison |
 | `ccya/ev/prompt_eval.py` | Fast prompt testing: dump (render only), call (render + LLM + check) |
 | `ccya/ev/scenario.py` | YAML scenario loader: Scenario, TurnAssert dataclasses |
 | `ccya/ev/__init__.py` | CLI dispatch: lazy import of subcommands |
