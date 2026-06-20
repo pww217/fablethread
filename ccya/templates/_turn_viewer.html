@@ -167,7 +167,6 @@
                                 </div>
 
                                 <div class="tv-stage-body" x-show="expandedKey(t.turn, stage)">
-                                    <div class="tv-output-summary-label">Output Summary</div>
                                     <div x-show="t.streams[stage].skipped" class="tv-skipped">Skipped</div>
                                     <div x-show="!t.streams[stage].skipped">
                                         <template x-if="stage === 'ruling' && t.ruling_intent">
@@ -182,13 +181,41 @@
                                             </dl>
                                         </template>
 
-                                        <template x-if="stage === 'narrate' && t.prompts.narrate && t.prompts.narrate.output">
-                                            <div class="tv-output-text markdown" x-html="mdNarrative(t)"></div>
-                                        </template>
-                                        <template x-if="stage !== 'narrate' && t.prompts[stage] && t.prompts[stage].output">
-                                            <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.prompts[stage].output)"></code></pre>
-                                        </template>
-                                        <div class="tv-no-prompt" x-show="!t.prompts[stage] || !t.prompts[stage].output">No output data available</div>
+                                        <div x-show="t.prompts[stage] && (t.prompts[stage].system || t.prompts[stage].user || t.prompts[stage].output)">
+                                            <div class="tv-prompt-output-tabs">
+                                                <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) !== 'output' }" @click="setTab(t.turn, stage, 'prompt')">Prompt</button>
+                                                <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) === 'output' }" @click="setTab(t.turn, stage, 'output')">Output</button>
+                                            </div>
+
+                                            <div class="tv-content-panel" x-show="tabKey(t.turn, stage) !== 'output'">
+                                                <div class="tv-prompt-block" x-show="t.prompts[stage].system">
+                                                    <div class="tv-prompt-label-row">
+                                                        <span class="tv-prompt-label">System</span>
+                                                        <button type="button" class="tv-sys-toggle" @click.stop="toggleSystem(t.turn, stage)" x-text="systemOpen(t.turn, stage) ? 'Collapse' : ('Expand (~' + approxTokens(t.prompts[stage].system) + ' tok)')"></button>
+                                                    </div>
+                                                    <div class="tv-prompt-text markdown" x-show="systemOpen(t.turn, stage)" x-html="mdText(t.prompts[stage].system)"></div>
+                                                </div>
+                                                <div class="tv-prompt-block" x-show="t.prompts[stage].user">
+                                                    <div class="tv-prompt-label">User</div>
+                                                    <div class="tv-prompt-text markdown" x-html="mdText(t.prompts[stage].user)"></div>
+                                                </div>
+                                                <div class="tv-no-prompt" x-show="!t.prompts[stage].system && !t.prompts[stage].user">No prompt data available</div>
+                                            </div>
+
+                                            <div class="tv-content-panel" x-show="tabKey(t.turn, stage) === 'output'">
+                                                <template x-if="stage === 'narrate'">
+                                                    <div class="tv-output-text markdown" x-html="mdNarrative(t)"></div>
+                                                </template>
+                                                <template x-if="stage !== 'narrate'">
+                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.prompts[stage] ? (t.prompts[stage].output || '') : '')"></code></pre>
+                                                </template>
+                                                <div class="tv-no-prompt" x-show="!t.prompts[stage].output">No output data available</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="tv-no-prompt" x-show="!t.prompts[stage] || (!t.prompts[stage].system && !t.prompts[stage].user && !t.prompts[stage].output)">
+                                            No data for this stage
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -366,6 +393,8 @@ function tvRoot() {
         onlyErrors: false,
         onlySkipped: false,
         expanded: {},
+        stageTabs: {},
+        systemOpenMap: {},
         turnCollapsed: {},
         activeView: 'delta',
         mobileFocusedIdx: 0,
@@ -395,7 +424,8 @@ function tvRoot() {
                 var key = t.row_kind === 'seed' ? 'seed' : t.row_kind === 'sanitizer' ? 's-' + t.turn : t.turn;
                 self.turnCollapsed[key] = i > 0;
             });
-            this.mobileFocusedIdx = Math.max(0, this.turns.length - 1);
+            var vt = this.visibleTurns();
+            this.mobileFocusedIdx = Math.max(0, vt.length - 1);
             this.$nextTick(function() { self.hlAllVisibleJson(); });
         },
         stageClasses(t, stage) {
@@ -421,6 +451,24 @@ function tvRoot() {
         allExpandedForTurn(turn) {
             var self = this;
             return this.stages.every(function(st) { return self.expanded['t' + turn + '-' + st]; });
+        },
+        approxTokens(s) {
+            if (!s) return 0;
+            return Math.max(1, Math.round(String(s).length / 4));
+        },
+        tabKey(turn, stage) {
+            var k = turn + '-' + stage;
+            return this.stageTabs[k] === 'output' ? 'output' : 'prompt';
+        },
+        setTab(turn, stage, which) {
+            this.stageTabs[turn + '-' + stage] = which === 'output' ? 'output' : 'prompt';
+        },
+        systemOpen(turn, stage) {
+            return !!this.systemOpenMap[turn + '-' + stage];
+        },
+        toggleSystem(turn, stage) {
+            var k = turn + '-' + stage;
+            this.systemOpenMap[k] = !this.systemOpenMap[k];
         },
         isTurnCollapsed(turn) {
             return !!this.turnCollapsed[turn];
