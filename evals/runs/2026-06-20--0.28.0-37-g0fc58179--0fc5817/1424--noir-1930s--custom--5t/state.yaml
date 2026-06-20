@@ -1,0 +1,349 @@
+__seed_meta__:
+  actions:
+  - Demand that Miller shows me the official report immediately
+  - Pressure Sterling to reveal exactly who he thinks took the editor
+  - Inspect the telegram for any physical clues or hidden markings
+  - Search my desk for any recent correspondence regarding the dockyard scandal
+  opening_narrative: 'The rhythmic clatter of a typewriter with a stuck ''e'' key
+    punctuates the heavy silence of the bullpen. You sit at your desk, the floor beneath
+    your feet still slick from the rain that lashed against the windows an hour ago.
+    Smoke hangs in thick, gray ribbons under the flickering ceiling lights, catching
+    the pale glow of the streetlamps outside. The smell of stale coffee and cheap
+    tobacco clings to your coat like a second skin.
+
+
+    You are staring at a ledger when the heavy oak door slams open. Donald Miller
+    stumbles in, his face ashen, clutching a crumpled telegram. He doesn''t head for
+    the Sergeant''s office; he heads straight for you, ignoring the startled glances
+    of the other officers. Behind him, Roger Sterling follows, looking less like a
+    reporter and more like a man who has seen a ghost. Sterling’s usual cocky stride
+    is gone, replaced by a frantic, twitching energy.
+
+
+    ''Jerome, you need to see this,'' Miller says, his voice cracking as he drops
+    the telegram onto your desk, right over your neatly organized notes. The paper
+    is damp. ''They took him. Right from the newsroom.''
+
+
+    Sterling leans over your desk, his shadow falling across your ledger. He doesn''t
+    wait for an invitation. ''The editor of the Gazette,'' Sterling whispers, his
+    eyes darting toward the door to ensure no other officers are listening too closely.
+    ''They didn''t just grab him, Vance. They left a note. A demand for the city council
+    to lift the printing embargo or they release the ledger from the dockyard scandal.''
+
+
+    You look down at the telegram. The ink is smudged, but the words are clear: *The
+    truth has been silenced; now we silence the voice of the truth.*
+
+
+    Miller leans closer, his voice dropping to a low growl. ''If this gets out to
+    the public before we find him, the Commissioner will have my badge for breakfast,
+    and you''ll be looking for work in a gutter. The council is already breathing
+    down our necks about the dockyard strikes. We can''t afford a kidnapping scandal
+    on top of everything else.''
+
+
+    Sterling taps his finger nervously against the wood of your desk. ''I can help
+    you find him, Vance. I have contacts near the waterfront that the precinct doesn''t
+    know about. But you owe me for that business down at the pier last winter. It''s
+    time to settle up.''
+
+
+    You realize the gravity of the situation immediately. This isn''t just a kidnapping;
+    it is a direct strike against the city''s fragile information control. If the
+    editor dies or the ledger is leaked, the entire power structure of East Jonathanton
+    will crumble, and you will be caught in the middle of the wreckage.'
+  outcome_summary: An editor has been kidnapped by unknown assailants to force a change
+    in media censorship laws.
+__seed_pools__:
+  arc:
+    description: ''
+    id: media_shakedown
+    incompatible_with: []
+    tags:
+    - media
+    - shakedown
+    - press_leverage
+  character_dynamic:
+    description: ''
+    id: established_authority
+    incompatible_with:
+    - outsider_with_access
+    - free_agent
+    tags:
+    - police_rank
+    - political_power
+    - institutional_control
+  moral_pressure:
+    description: ''
+    id: collateral_damage
+    incompatible_with: []
+    tags:
+    - collateral
+    - damage
+    - innocent_suffering
+  npc_bond:
+    description: The NPC is a former informant who saved the PC's skin on a dockyard
+      case. The PC owes a favor that keeps getting called.
+    id: debt_to_informant
+    incompatible_with: []
+    tags:
+    - underground
+    - information
+    - leverage
+  scene_bundle:
+    conditions:
+    - the floor slick from tracked-in rain
+    - smoke hanging under the ceiling lights
+    id: police_precinct
+    items:
+    - a typewriter with a stuck 'e' key
+    - a filing cabinet with the bottom drawer padlocked
+    sensory:
+    - the clatter of a teletype machine
+    - the smell of stale coffee and cheap tobacco
+  situation:
+    description: ''
+    id: kidnapping
+    incompatible_with: []
+    tags:
+    - kidnapping
+    - abduction
+    - time_pressure
+arc:
+  completed_threads:
+  - added_turn: 2
+    dormant: false
+    id: warehouse_clue
+    last_updated_turn: 5
+    outcome: Thread reached its natural conclusion.
+    progress:
+    - kind: advancement
+      text: Found Gazette scrap with handwritten ransom notes.
+    - kind: advancement
+      text: Found specific identifier for Warehouse 4-B.
+    - kind: advancement
+      text: Found heavy boot print near service door.
+    resolution_state: resolved
+    resolved_turn: 5
+    summary: Investigate blood-stained crate and Gazette scrap at waterfront warehouse
+    type: null
+    urgency: urgent
+    urgency_set_turn: 2
+  goal_context: The kidnapping targets the only man capable of exposing the council's
+    media embargo. Jerome must navigate the thin line between police duty and the
+    blackmail threats being leveled against the precinct.
+  last_thread_created_turn: 2
+  resolution: null
+  threads:
+  - added_turn: null
+    dormant: false
+    id: press_blackmail
+    last_updated_turn: 1
+    outcome: null
+    progress:
+    - kind: shift
+      text: Kidnappers demand embargo lift via ledger.
+    resolution_state: null
+    resolved_turn: null
+    summary: A series of anonymous letters are threatening to expose precinct corruption.
+    type: threat
+    urgency: urgent
+    urgency_set_turn: null
+  - added_turn: null
+    dormant: true
+    id: union_influence
+    last_updated_turn: null
+    outcome: null
+    progress: []
+    resolution_state: null
+    resolved_turn: null
+    summary: The dockyard unions are leveraging their control over city supplies to
+      gain political concessions.
+    type: complication
+    urgency: background
+    urgency_set_turn: null
+  - added_turn: 1
+    dormant: false
+    id: editor_kidnapping
+    last_updated_turn: 4
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Found ransom note at Warehouse 4-B.
+    - kind: advancement
+      text: Evidence suggests link to dock strike.
+    resolution_state: null
+    resolved_turn: null
+    summary: The Gazette editor has been kidnapped to force the lifting of the printing
+      embargo.
+    type: revelation
+    urgency: urgent
+    urgency_set_turn: 1
+  visible_goal: Identify the location of the kidnapped editor before the press release
+    goes public.
+compendium:
+  npcs:
+    detective_miller:
+      bio: A weary man with heavy bags under his eyes and a permanent scowl.
+      bond: null
+      fear: Losing his pension due to administrative errors
+      last_presence_turn: 2
+      last_seen_location: Waterfront Docks
+      leverage: null
+      motivation: To finish his shift without any paperwork headaches
+      name: Donald Miller
+      personality: resigned_functionary
+      position: behind his desk in the bullpen, watching Vance depart
+      presence: known
+      title: Desk Sergeant
+    dock_boss_thompson:
+      bio: A broad-shouldered man with calloused hands and an intimidating stare.
+      bond: null
+      fear: The total collapse of dockyard labor power
+      leverage: null
+      motivation: Protecting the union's interests against city crackdowns
+      name: Timothy Thompson
+      notes: null
+      personality: volatile_loyalist
+      presence: nearby
+      title: Union Representative
+    patrol_officers:
+      aliases:
+      - patrol officers
+      bio: Uniformed officers standing guard near a barricade. They appear focused
+        on managing strike-related congestion in the narrow corridors.
+      first_seen_turn: 1
+      last_presence_turn: 5
+      last_seen_location: Waterfront Docks
+      name: Two patrol officers
+      personality: wary_opportunist
+      position: standing rigid behind a barricade, directing striking workers
+      presence: present
+    reporter_rogers:
+      bio: A fast-talking man with ink-stained fingers and a sharp gaze.
+      bond: The NPC is a former informant who saved the PC's skin on a dockyard case.
+        The PC owes a favor that keeps getting called.
+      fear: Being blacklisted by the city council
+      last_presence_turn: 2
+      last_seen_location: Waterfront Docks
+      leverage: He knows which precinct officers are taking payoffs
+      motivation: To secure an exclusive scoop to save his failing column
+      name: Roger Sterling
+      personality: wary_opportunist
+      position: leaning forward from his seat in the bullpen, calling after Vance
+      presence: known
+      title: Press Agent
+inventory:
+- aliases: []
+  amount: 1
+  id: service_revolver
+  name: Service Revolver
+  notes: ''
+- aliases: []
+  amount: 6
+  id: pistol_rounds
+  name: Revolver Rounds
+  notes: ''
+- aliases: []
+  amount: 1
+  id: detective_notebook
+  name: Leather Notebook
+  notes: ''
+- aliases: []
+  amount: 50
+  id: dollars
+  name: Dollars
+  notes: ''
+- amount: 1
+  id: gazette_scrap
+  name: Gazette Newsprint Scrap
+  notes: fragmentary text regarding warehouse breach and editor kidnapping, in hand
+location:
+  description: A misty, salt-scented pier dominated by large warehouses and heavy
+    shipping crates.
+  id: waterfront_docks
+  name: Waterfront Docks
+meta:
+  _pack_source: noir-1930s
+  _seed_soft_warnings:
+  - Opening narrative 447 words (expected 530-930)
+  _seed_type: dynamic
+  compendium_touch_order:
+  - patrol_officers
+  last_thread_created_turn: 2
+  model: gpt-4o
+  pending_gm_beat:
+    beat_expires_turn: 7
+    surface_as: environmental
+    type: complication
+  prior_history:
+  - '- [T1] Jerome identifies a specific three-tiered warehouse in his photograph
+    that matches the waterfront scenery.'
+  - '- [T2] Jerome Vance arrived at the waterfront warehouse and discovered a blood-stained
+    crate containing a scrap of Gazette newsprint.'
+  - '- [T3] Jerome Vance discovers handwritten notes on the Gazette scrap linking
+    the editor''s kidnapping to the dock strike.'
+  - '- [T4] Jerome Vance discovered the specific location of Warehouse 4-B and a stevedore
+    mark on the ransom note.'
+  - '- [T5] Jerome Vance discovers a heavy boot print and signs of a struggle near
+    the service door of Warehouse 4-B.'
+  recent_beats:
+  - surface_as: player_discovery
+    turn: 1
+    type: revelation
+  - surface_as: player_discovery
+    turn: 2
+    type: revelation
+  - surface_as: player_discovery
+    turn: 3
+    type: revelation
+  - surface_as: player_discovery
+    turn: 4
+    type: revelation
+  - surface_as: environmental
+    turn: 5
+    type: complication
+  recent_rolls:
+  - band: crit_success
+    turn: 4
+  session_name: The Paper Trail Ransom
+  setting_pack: noir-1930s
+  turn: 5
+pc:
+  actions:
+  - Follow the deep boot print through the side service door.
+  - Search the splintered crate for more discarded items.
+  - Confront the patrol officers about suspicious activity near 4-B.
+  - Draw the Service Revolver and approach the ajar door cautiously.
+  bio: A former patrolman promoted to the detective desk after uncovering a payroll
+    scandal. He relies on his ability to spot patterns in messy paperwork to solve
+    cases. He is currently struggling to balance official duty with a mounting gambling
+    debt to the local dock unions.
+  conditions: []
+  drive: ''
+  name: Jerome Vance
+  stats:
+    charisma: 3
+    dexterity: 3
+    strength: 2
+    wits: 4
+  tagline: Precinct investigator, expert at reading ledger discrepancies
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  curtain_call: ''
+  location_entered_turn: 2
+  scene_phase: RISING
+  tags:
+  - kidnapping
+  - police_precinct
+  - time_pressure
+  turn_entered: 2
+  turns_in_phase: 3
+  world_state:
+  - The city council has placed an embargo on all independent printing presses to
+    control the flow of news.
+  - Dockyard strikes have led to a heavy police presence and restricted movement near
+    the waterfront.
+schema_version: 1

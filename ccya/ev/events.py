@@ -230,7 +230,7 @@ def _build_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
         parsed = _try_parse_json(raw_out) if isinstance(raw_out, str) else (raw_out if isinstance(raw_out, dict) else None)
         if not parsed:
             continue
-        skip = {"actions", "location_description", "scene_tagline"}
+        skip = {"actions", "location_description"}
         for fk, val in parsed.items():
             if fk in skip or val is None:
                 continue
@@ -310,12 +310,6 @@ def extract_field_from_event(ev: dict[str, Any], field: str) -> Any | None:
             return name
         elif loc_id:
             return loc_id
-        return None
-
-    elif field == "scene.tagline":
-        tagline = applied.get("scene_tagline")
-        if isinstance(tagline, str):
-            return tagline
         return None
 
     # Generic fallback: dot-notation traversal on event dict

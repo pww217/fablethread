@@ -16,7 +16,6 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     lines: list[str] = []
     if not applied:
         return lines
-    # scene_tagline is shown in the header, no need to repeat in diff toast
     for it in applied.get("inventory_add") or []:
         if isinstance(it, dict):
             nm = it.get("name") or it.get("id") or "?"

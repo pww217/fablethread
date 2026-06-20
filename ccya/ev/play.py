@@ -115,7 +115,7 @@ async def _run_turn_async(
 
     scene = {
         "tags": state_after.get("scene", {}).get("tags", []),
-        "tagline": state_after.get("scene", {}).get("tagline", ""),
+        "session_name": state_after.get("meta", {}).get("session_name", ""),
         "id": state_after.get("location", {}).get("id", ""),
     }
 
@@ -152,7 +152,7 @@ def _build_error_output(state: dict[str, Any], errors: list[dict[str, Any]], t0:
         "actions": [],
         "scene": {
             "tags": state.get("scene", {}).get("tags", []),
-            "tagline": state.get("scene", {}).get("tagline", ""),
+            "session_name": state.get("meta", {}).get("session_name", ""),
             "id": state.get("location", {}).get("id", ""),
         },
         "applied": {},
@@ -186,9 +186,9 @@ def format_play_output(result: dict[str, Any]) -> str:
     lines.append(f"Actions:   {', '.join(actions) if actions else 'none'}")
 
     scene = result.get("scene", {})
-    scene_tagline = scene.get("tagline", "")
+    scene_session_name = scene.get("session_name", "")
     scene_id = scene.get("id", "")
-    scene_parts = [s for s in [scene_id, scene_tagline] if s]
+    scene_parts = [s for s in [scene_id, scene_session_name] if s]
     lines.append(f"Scene:     {', '.join(scene_parts) if scene_parts else 'unknown'}")
 
     applied = result.get("applied", {})

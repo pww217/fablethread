@@ -1021,7 +1021,8 @@ def format_state(state: dict[str, Any], fmt: str = "full") -> None:
     if loc:
         _render_location_section(state)
     scene = state.get("scene") or {}
-    if any(scene.get(k) for k in ("tags", "tagline")):
+    session_name = state.get("meta", {}).get("session_name", "")
+    if any(scene.get(k) for k in ("tags",)) or session_name:
         _render_scene_section(state)
     arc = state.get("arc") or {}
     if any(arc.get(k) for k in ("visible_goal", "threads", "completed_threads", "hidden_truths", "discovered_truths")):
@@ -1090,9 +1091,9 @@ def _render_scene_section(state: dict[str, Any]) -> None:
     tags = scene.get("tags", []) or []
     if tags:
         print(f"  Tags: {', '.join(str(t) for t in tags)}")
-    tagline = scene.get("tagline") or ""
-    if tagline:
-        print(f"  Tagline: {tagline}")
+    session_name = state.get("meta", {}).get("session_name", "")
+    if session_name:
+        print(f"  Session: {session_name}")
     compendium = state.get("compendium", {}) or {}
     npcs_comp = compendium.get("npcs", {}) or {}
     present_npcs = {k: v for k, v in npcs_comp.items() if isinstance(v, dict) and v.get("presence") == "present"}

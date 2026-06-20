@@ -35,7 +35,9 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
     envelope.seed_state.location.name = _strip_non_ascii(envelope.seed_state.location.name)
     for item in envelope.seed_state.inventory:
         item.name = _strip_non_ascii(item.name)
-    envelope.seed_state.scene.tagline = _strip_non_ascii(envelope.seed_state.scene.tagline)
+    envelope.seed_state.meta["session_name"] = _strip_non_ascii(
+        envelope.seed_state.meta.get("session_name", "")
+    )
     for evt in envelope.seed_state.scene.world_state:
         if isinstance(evt, str):
             envelope.seed_state.scene.world_state[envelope.seed_state.scene.world_state.index(evt)] = _strip_non_ascii(evt)

@@ -49,7 +49,6 @@ from ccya.state import (
     load_last_narration,
     load_state,
     save_state,
-    strip_npcs_notes,
 )
 
 _log = logging.getLogger(__name__)
@@ -78,7 +77,6 @@ async def run_turn(
     errors: list[dict[str, Any]] = []
     metrics: dict[str, Any] = {}
     state = load_state(save_dir)
-    strip_npcs_notes(state)
     narrative_chunks: list[str] = []
     delta: StateDelta | None = None
     actions: list[str] = []

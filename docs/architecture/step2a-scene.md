@@ -1,6 +1,6 @@
 # Step 2a — Scene Extract
 
-Extracts location changes, NPC presence, scene tags, and suggested actions from the narrative.
+Extracts NPC presence and durable identity changes from the narrative.
 
 ## Flowchart
 
@@ -13,8 +13,7 @@ flowchart LR
     subgraph IN["Inputs"]
         S1["narration (from Step 1)"]:::xstream
         S2["pc.name<br>(player character name)"]
-        S3["state.location"]
-        S4["npc_roster<br>(from build_npc_roster())"]
+        S3["npc_roster<br>(from build_npc_roster())"]
     end
 
     subgraph LLM2A["LLM — extract_scene_system.j2 + extract_scene_user.j2"]
@@ -22,10 +21,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs — SceneExtractResult"]
-        O1["scene_tagline: str (3–6 words describing location/situation, NOT event summary)"]:::outNode
-        O2["location_change: LocationRef | None<br>  id, name, description"]:::outNode
-        O3["location_description: str | None"]:::outNode
-        O4["compendium_npc_update<br>  durable identity changes (presence, notes, bio upserts, personality on creation, position)"]:::outNode
+        O1["compendium_npc_update<br>  durable identity changes (presence, bio upserts, personality on creation, position)"]:::outNode
     end
 
     IN --> LLM2A
@@ -38,7 +34,7 @@ Four additions prevent common NPC compendium quality issues:
 
 1. **Alias-first naming**: Descriptive labels ("Scarred Soldier", "Unknown Visitor") go in `aliases`, not `name`. Proper names ("Leo Vance") go in `name`. When narration later reveals a proper name for an alias NPC, the LLM updates `name` and preserves the descriptive label in `aliases` — preventing duplicate entries. The existing `_dedup_compendium_update()` in Python handles name-matching dedup.
 
-2. **NPC field requirements by tier**: Named NPCs (proper name in `name`) must have `bio` + `personality` + at least 2 of `motivation`/`fear`/`leverage`/`bond` (= 4 fields minimum). Unnamed NPCs (descriptive label) need only `bio` — no personality fields. Promotion to named adds `personality` + 2 extra fields. Group NPCs must state exact count in `name`/`notes`. This ensures named NPCs get personality depth while reducing output bloat for transient characters.
+2. **NPC field requirements by tier**: Named NPCs (proper name in `name`) must have `bio` + `personality` + at least 2 of `motivation`/`fear`/`leverage`/`bond` (= 4 fields minimum). Unnamed NPCs (descriptive label) need only `bio` — no personality fields. Promotion to named adds `personality` + 2 extra fields. Group NPCs must state exact count in `name`. This ensures named NPCs get personality depth while reducing output bloat for transient characters.
 
 3. **Group NPC identity**: Group NPCs (e.g., "Two sailors") have short names with quantity + type only. Distinguishing features for each individual in the group go in the `bio` field (appearance, demeanor, visible trait). The scene extractor pulls these from narration into the bio. The narrator references bio details when reintroducing groups rather than collapsing to the generic type. This makes reuse feel like the same people, not any two sailors.
 
@@ -46,4 +42,4 @@ Four additions prevent common NPC compendium quality issues:
 
 ## Key forward dependency
 
-`location_change` flows into `extraction_ctx` (built by `_build_extraction_context`). Step 2c also receives `npc_roster` (from build_npc_roster()) built from comp_this_turn. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Storytell (Step 2c).
+Step 2c also receives `npc_roster` (from build_npc_roster()) built from comp_this_turn. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Storytell (Step 2c).

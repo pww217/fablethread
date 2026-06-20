@@ -3,6 +3,10 @@
 {% set show_age = true %}
 {% include "sections/_conditions.j2" %}
 {% include "sections/_inventory.j2" %}
+## Location
+{{ location.id }} | {{ location.name }}
+{{ location.description }}
+
 {% if intent and intent.intent -%}
 ## player_intent
 {{ intent.intent_verb }}: {{ intent.intent }}

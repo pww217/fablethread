@@ -269,16 +269,10 @@ def apply_delta(
                   len(delta.pc_condition_add), len(delta.pc_condition_remove),
                   extra={"trace_id": trace_id, "turn": current_turn})
 
-    if delta.scene_tagline is not None:
-        state.setdefault("scene", {})["tagline"] = _strip_non_ascii(delta.scene_tagline)
-
     # --- NPC scene management (extracted to state/npcs.py) ---
     from ccya.state.npcs import apply_npc_scene_management
     state = apply_npc_scene_management(state, SceneExtractResult(
         compendium_npc_update=delta.compendium_npc_update or [],
-        scene_tagline=delta.scene_tagline,
-        location_change=delta.location_change,
-        location_description=delta.location_description,
     ), current_turn_no=current_turn, trace_id=trace_id)
 
     # --- Arc update: merge arc_update into state arc ---

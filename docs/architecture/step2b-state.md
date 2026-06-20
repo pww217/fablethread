@@ -1,6 +1,6 @@
 # Step 2b — State Extract
 
-Extracts inventory changes and player condition mutations from the narrative.
+Extracts inventory changes, player condition mutations, and location deltas from the narrative.
 
 ## Flowchart
 
@@ -15,7 +15,8 @@ flowchart LR
         S2["pc_name<br>(player character name)"]
         S3["pc.conditions"]
         S4["state.inventory"]
-        S5["intent<br>(from Step 0)"]
+        S5["state.location"]
+        S6["intent<br>(from Step 0)"]
     end
 
     subgraph LLM2B["LLM — extract_state_system.j2 + extract_state_user.j2"]
@@ -28,6 +29,8 @@ flowchart LR
         O3["inventory_update: list[InventoryUpdate]<br>  id, name?, notes?"]:::outNode
         O4["pc_condition_add: list[ConditionAdd]<br>  id, label, description"]:::outNode
         O5["pc_condition_remove: list[ConditionRemove]<br>  id"]:::outNode
+        O6["location_change: LocationRef | None<br>  id, name, description"]:::outNode
+        O7["location_description: str | None"]:::outNode
     end
 
     IN --> LLM2B
@@ -36,4 +39,4 @@ flowchart LR
 
 ## Key forward dependency
 
-Step 2c receives `npc_roster` (from build_npc_roster()) and `location_change` from Step 2a. Cross-stream items_gained/lost were removed — extraction_ctx now covers all this-turn derived data.
+Step 2c receives `npc_roster` (from build_npc_roster()) and `location_change` from the merged StateDelta. Cross-stream items_gained/lost were removed — extraction_ctx now covers all this-turn derived data.
