@@ -1,0 +1,473 @@
+__seed_meta__:
+  actions:
+  - Confront Ricardo about the specific details of the seized skiffs.
+  - Deflect attention by loudly questioning the quality of the synthesizer's output.
+  - Investigate the militia guards' reaction to see if they recognize you.
+  - Withdraw toward the propped-open back door to find a quick exit.
+  opening_narrative: 'The bitter taste of cheap synthetic stimulant lingers on your
+    tongue. A synthesizer in the corner hums with a low, rhythmic vibration, dispensing
+    a thick brown liquid into a chipped ceramic cup with a wet, mechanical thud. The
+    air in The Rusty Spigot is heavy, thick with the swirling blue smoke from a nearby
+    hookah that hangs motionless in the stagnant heat. An out-of-tune piano jangles
+    somewhere in the dimness, its melody struggling against the constant, irritating
+    cycle of a cooling unit overhead.
+
+
+    You sit at a scarred card table, watching a marked deck lie discarded near a half-empty
+    glass. The back door of the saloon stands propped open by a heavy boot, allowing
+    a sliver of the harsh Port Nicholas sunlight to cut through the gloom, illuminating
+    dust motes dancing in the air. You try to keep your head low, blending into the
+    shadows of the booth, but the atmosphere in the room has shifted from its usual
+    lethargy to something sharp and jagged.
+
+
+    Ricardo Johnston approaches your table, his heavy footsteps echoing against the
+    floorboards. He doesn''t sit; he simply stands over you, his face a mask of weary
+    tension. He leans in close, the smell of engine grease and stale sweat clinging
+    to him. ''They are checking manifests at the north gate, Anthony,'' he whispers,
+    his voice barely audible over the piano''s discordant notes. ''The Corporation
+    isn''t just looking for contraband anymore; they are looking for people like us.
+    They''ve seized three of the local supply skiffs this morning.''
+
+
+    Before you can respond, the heavy thud of boots hits the floor near the entrance.
+    Two militia guards enter, their eyes scanning the room with a predatory precision
+    that has nothing to do with maintaining order and everything to do with hunting.
+    One of them, a man with a twitchy eye, stops near your table, his hand resting
+    heavily on the grip of his baton. He glances at the back door, then back at you,
+    his gaze lingering a second too long on your face. Ricardo''s hand tightens on
+    the edge of the table, his knuckles turning white. The room goes silent, the only
+    sound being the mechanical groan of the cooling unit and the frantic, uneven pulse
+    in your own ears. You realize with a sinking feeling that the border clash isn''t
+    something happening out there on the frontier anymore; it has just walked through
+    the front door.'
+  outcome_summary: Ricardo warns of increased Coalition scrutiny while militia guards
+    begin a suspicious sweep of the saloon.
+__seed_pools__:
+  arc:
+    description: ''
+    id: supply_line_warfare
+    incompatible_with: []
+    tags:
+    - logistics
+    - trade
+    - blockade_breaking
+  character_dynamic:
+    description: ''
+    id: coalition_deserter
+    incompatible_with: []
+    tags:
+    - coalition
+    - desertion
+    - fugitive_status
+  moral_pressure:
+    description: ''
+    id: corporate_encroachment
+    incompatible_with: []
+    tags:
+    - corporations
+    - colonization
+    - exploitation
+  npc_bond:
+    description: The NPC served on the same ship as the PC — not friends, but the
+      kind of bond formed by shared cargo holds and close calls.
+    id: old_crewmate
+    incompatible_with: []
+    tags:
+    - crew
+    - ship
+    - shared_mileage
+  scene_bundle:
+    conditions:
+    - smoke from a hookah hanging in the air
+    - a back door propped open
+    id: saloon_interior
+    items:
+    - a card table with a marked deck in the discard
+    - a synthesizer dispensing something brown into a chipped cup
+    sensory:
+    - the jangle of an out-of-tune piano
+    - the hum of a cooler unit cycling
+  situation:
+    description: ''
+    id: border_clash
+    incompatible_with: []
+    tags:
+    - frontier
+    - violence
+    - territorial_dispute
+arc:
+  completed_threads: []
+  goal_context: The sabotage of the turbine assembly has caused systemic chaos within
+    the utility junction.
+  last_thread_created_turn: 29
+  resolution: null
+  threads:
+  - dormant: true
+    id: coalition_search
+    last_updated_turn: 24
+    progress:
+    - kind: advancement
+      text: militia reinforcements arrive at catwalk intersection
+    summary: Former colleagues are actively hunting deserters within the Port Nicholas
+      district.
+    type: threat
+    urgency: background
+  - dormant: true
+    id: corporate_espionage
+    progress: []
+    summary: Rumors suggest a corporate spy has infiltrated the local trade union.
+    type: revelation
+    urgency: background
+  - dormant: false
+    id: turbine_sabotage_consequences
+    last_updated_turn: 28
+    progress:
+    - kind: shift
+      text: Steam venting creates blinding, scalding haze
+    summary: The turbine's reversal and steam venting creates a chaotic environment
+      in the utility junction
+    urgency: urgent
+  - added_turn: 28
+    dormant: false
+    id: militia_pursuit_escalation
+    last_updated_turn: 30
+    progress:
+    - kind: advancement
+      text: Guards lunge with shock-batons in steam
+    - kind: shift
+      text: Scarred guard misses strike due to Anthony's lunge
+    summary: Two militia guards are sprinting toward Anthony in the steam
+    urgency: urgent
+    urgency_set_turn: 28
+  - added_turn: 29
+    dormant: false
+    id: corporate_module_discovery
+    last_updated_turn: 30
+    progress:
+    - kind: advancement
+      text: Module reveals inbound blockade runner extraction details
+    summary: A violet pulsing data-module with corporate insignia near turbine runoff
+    urgency: normal
+    urgency_set_turn: 29
+  visible_goal: Intercept the corporate blockade runners to secure local supply lines.
+compendium:
+  npcs:
+    bored_guard:
+      aliases:
+      - bored guard
+      bio: A militia officer with heavy-lidded, weary eyes who maintains a stoic,
+        unbothered posture until provoked.
+      first_seen_turn: 3
+      last_presence_turn: 4
+      last_seen_location: Rear Alleyway
+      name: Bored Guard
+      position: at the saloon counter
+      presence: known
+    militia_guard_third:
+      bio: A militia officer who dropped from a ventilation shaft with a heavy thud.
+        Moves with sudden, disruptive force.
+      first_seen_turn: 16
+      last_presence_turn: 25
+      last_seen_location: Ventilation Shaft
+      name: Militia Guard
+      personality: blunt_survivor
+      position: catwalk intersection
+      presence: known
+      title: Third guard
+    militia_guards:
+      bio: One tall man with a scarred brow and one shorter man with nervous hands.
+        They are stationed at the intersection scanning the ceiling.
+      bond: null
+      fear: null
+      last_presence_turn: 30
+      last_seen_location: Ventilation Shaft
+      leverage: null
+      motivation: null
+      name: Two militia guards
+      notes: stumbling and shouting commands
+      personality: wary_opportunist
+      position: moving past Anthony near turbine housing
+      presence: present
+      title: Junction sentries
+    ricardo_johnston:
+      bio: A rugged man with calloused hands and a permanent squint from years of
+        staring into engine glare.
+      bond: He served on the same ship as you, sharing tight quarters and near-death
+        experiences in the cargo holds.
+      fear: Being caught by Coalition patrols and returned to service.
+      last_presence_turn: 7
+      last_seen_location: Rear Alleyway
+      leverage: He knows exactly which routes you used to use for smuggling.
+      motivation: Securing enough credits to buy passage out of the border zone.
+      name: Ricardo Johnston
+      personality: blunt_survivor
+      position: beside Anthony behind crates
+      presence: known
+      title: Former Deckhand
+    scarred_militia_man:
+      aliases:
+      - scarred militia man
+      bio: A broad-shouldered guard with a jagged scar across his nose. He moves with
+        heavy, purposeful footfalls.
+      departed_reason: killed in combat — Shot square in the sternum by Anthony Stewart's
+        service pistol.
+      departed_turn: 5
+      first_seen_turn: 3
+      last_presence_turn: 6
+      last_seen_location: Rear Alleyway
+      name: Scarred Militia Man
+      position: advancing toward Anthony and Ricardo
+      presence: archived
+    silver_insignia_officer:
+      aliases:
+      - silver insignia officer
+      bio: Man with a heavy brow and a silver insignia on his collar. Maintains a
+        detached, clinical gaze that feels out of place for a militia officer.
+      first_seen_turn: 6
+      last_presence_turn: 15
+      last_seen_location: Service Corridors
+      name: Silver Insignia Officer
+      position: deeper in the labyrinth
+      presence: known
+    twitchy_eyed_guard:
+      aliases:
+      - twitchy-eyed guard
+      bio: A militia officer with a nervous, twitching eye and a tight grip on his
+        baton. He reacts quickly to sudden movements and noise.
+      first_seen_turn: 3
+      last_presence_turn: 17
+      last_seen_location: Service Corridors
+      name: Twitchy-eyed Guard
+      position: corridor below the hatch
+      presence: known
+    wiry_militia_woman:
+      aliases:
+      - wiry militia woman
+      bio: A smaller, wiry guard who grips a shock-baton tightly. She moves with agile,
+        predatory intent.
+      first_seen_turn: 3
+      last_presence_turn: 6
+      last_seen_location: Rear Alleyway
+      name: Wiry Militia Woman
+      position: charging toward Anthony's cover
+      presence: known
+inventory:
+- aliases: []
+  amount: 100
+  id: credits
+  name: Credits
+  notes: ''
+- aliases: []
+  amount: 1
+  id: multi_tool
+  name: Precision Multi-tool
+  notes: ''
+- aliases: []
+  amount: 2
+  id: ration_pack
+  name: Dried Protein Bar
+  notes: ''
+- amount: 1
+  id: high_frequency_data_spike
+  name: High-Frequency Data Spike
+  notes: vibrating, emitting blue holographic text, in hand
+- amount: 1
+  id: militia_baton
+  name: Militia baton
+  notes: scuffed and dented, in hand
+- amount: 1
+  id: glass_shard
+  name: Glass shard
+  notes: translucent fragment, on floor
+- amount: 1
+  id: data_slate
+  name: Handheld data-slate
+  notes: cracked screen, pulsing amber light, in hand
+- amount: 1
+  id: violet_data_module
+  name: Violet data-module
+  notes: pulsing, emitting flickering projection, held against chest
+location:
+  description: The metal catwalk vibrates violently above churning turbine machinery,
+    obscured by thick plumes of scalding white steam. Flickering blue light and violet
+    pulses from the data-module cut through the haze, illuminating runoff pools near
+    the heavy casing.
+  id: ventilation_shaft
+  name: Ventilation Shaft
+meta:
+  _pack_source: space-western
+  _seed_soft_warnings:
+  - Opening narrative 401 words (expected 530-930)
+  _seed_type: dynamic
+  compendium_touch_order:
+  - scarred_militia_man
+  - wiry_militia_woman
+  - ricardo_johnston
+  - silver_insignia_officer
+  - twitchy_eyed_guard
+  - militia_guard_third
+  - militia_guards
+  last_arc_resolve_turn: 27
+  last_inventory_change_reason: Player seized pulsing violet data-module
+  last_thread_created_turn: 29
+  model: gpt-4o
+  pending_gm_beat:
+    beat_expires_turn: 32
+    surface_as: player_discovery
+    type: revelation
+  prior_history:
+  - '- [T11] Anthony Stewart fires a diversionary shot and escapes the alleyway into
+    the pitch-black service corridors, pursued by militia guards.'
+  - '- [T12] Anthony Stewart successfully hides in a service corridor alcove as the
+    militia guards sprint past him.'
+  - '- [T13] Anthony Stewart discovers a discarded militia baton, a glass shard, and
+    a blood trail leading into a side passage.'
+  - '- [T14] Anthony Stewart recovers a dented militia baton and discovers a crushed
+    helmet and a pulsing data-slate near a blood trail.'
+  - '- [T15] Anthony Stewart''s attempt to recover data from the discarded slate fails
+    as the device''s hardware malfunctions and dies.'
+  - '- [T16] Anthony Stewart hides in the shadows as two militia guards enter the
+    service corridor, their batons sweeping the floor.'
+  - '- [T17] Anthony Stewart narrowly escapes a three-man militia ambush by crawling
+    through a maintenance hatch, only to emerge into a junction patrolled by two more
+    guards.'
+  - '- [T18] Anthony Stewart''s pistol jams during a confrontation with the scarred-brow
+    guard, forcing him to flee into a lower maintenance catwalk.'
+  - '- [T19] Anthony Stewart attempts to use his damaged data-slate to find an escape
+    route, but the device''s glitching screen and the heavy machinery noise hinder
+    his progress.'
+  - '- [T20] Anthony Stewart''s attempt to repair the data-slate with the High-Frequency
+    Data Spike causes a power surge that destroys the device and alerts nearby militia
+    guards.'
+  - '- [T21] Anthony Stewart hides behind ventilation housing and draws his pistol
+    as militia guards approach the intersection.'
+  - '- [T22] Anthony Stewart narrowly avoids detection as a militia guard''s flashlight
+    beam sweeps inches from his hiding spot.'
+  - '- [T23] Anthony Stewart''s attempt to shoot the scarred guard fails when a steam
+    vent bursts, obscuring his vision and masking his location.'
+  - '- [T24] Anthony Stewart successfully hides in a service alcove as a third militia
+    guard enters the catwalk intersection.'
+  - '- [T25] Anthony Stewart successfully sabotaged the militia''s communications
+    and escaped into a ventilation shaft, though he remains injured and winded.'
+  - '- [T26] Anthony Stewart discovers the Project: Silent Run core stabilization
+    unit while navigating the ventilation shaft.'
+  - '- [T27] Anthony Stewart successfully hacked the Project: Silent Run turbine assembly,
+    triggering an emergency venting sequence and system instability.'
+  - '- [T28] Anthony Stewart was thrown from the ventilation shaft by a steam blast
+    and is now cornered by two approaching militia guards.'
+  - '- [T29] Anthony Stewart loses his pistol into a catwalk crevice as militia guards
+    lunge at him, but he discovers a corporate data-module near the turbine.'
+  - '- [T30] Anthony Stewart successfully seized the violet data-module and discovered
+    encrypted details regarding an inbound blockade runner extraction.'
+  recent_beats:
+  - surface_as: environmental
+    turn: 26
+    type: escalation
+  - surface_as: environmental
+    turn: 27
+    type: escalation
+  - surface_as: player_discovery
+    turn: 28
+    type: revelation
+  - surface_as: player_discovery
+    turn: 29
+    type: revelation
+  - surface_as: player_discovery
+    turn: 30
+    type: revelation
+  recent_rolls:
+  - band: crit_success
+    turn: 30
+  - band: fail
+    turn: 29
+  - band: fail
+    turn: 28
+  - band: crit_success
+    turn: 27
+  - band: success
+    turn: 26
+  setting_pack: space-western
+  turn: 30
+pc:
+  actions:
+  - Dive into runoff pools to evade the approaching guard
+  - Use Precision Multi-tool to interface with the violet module
+  - Brandish Militia baton at the scarred guard's advancing silhouette
+  - Attempt to sprint toward the ventilation shaft exit
+  bio: Once a trusted supply coordinator for the Coalition's border fleets, Anthony
+    walked away when the corporate contracts turned predatory. He now lives on the
+    fringe, moving small goods under the radar to avoid detection by his former employers.
+  conditions:
+  - added_turn: 7
+    description: The air was knocked out of you, making it difficult to breathe or
+      exert yourself.
+    id: winded
+    label: Winded
+  - added_turn: 7
+    description: A heavy blow to the ribs causes sharp pain during physical exertion.
+    id: rib_injury
+    label: Rib Injury
+  - added_turn: 19
+    description: A sudden electrical discharge has left your nerves stinging and your
+      muscles twitching.
+    id: shocked
+    label: Shocked
+  - added_turn: 27
+    description: Severe thermal burns from superheated steam cause intense pain and
+      skin damage.
+    id: scalded
+    label: Scalded
+  drive: ''
+  name: Anthony Stewart
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 2
+    wits: 3
+  tagline: Former logistics officer, seeking a quiet life
+resolved_arcs:
+- closed_threads: []
+  goal_context: The pursuit by militia guards has escalated from suspicion to active
+    physical engagement in the rear alleyway.
+  resolution: The immediate confrontation with the militia in the alleyway has reached
+    a climax, forcing a decisive outcome for Anthony Stewart's current flight.
+  resolved_turn: 5
+  visible_goal: Intercept the corporate blockade runners to secure local supply lines.
+- closed_threads: []
+  goal_context: The immediate threat of being surrounded on the catwalk has passed,
+    but Anthony is now trapped in a confined space with pursuit likely following.
+  resolution: Anthony Stewart successfully broke contact with the militia on the maintenance
+    catwalk by sabotaging their comms and retreating into the ventilation shafts.
+  resolved_turn: 25
+  visible_goal: Intercept the corporate blockade runners to secure local supply lines.
+- closed_threads: []
+  goal_context: The sabotage of the turbine assembly has caused systemic chaos within
+    the utility junction.
+  resolution: 'Anthony Stewart successfully compromised the Project: Silent Run turbine
+    assembly, triggering a massive steam vent and system instability.'
+  resolved_turn: 27
+  visible_goal: Intercept the corporate blockade runners to secure local supply lines.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  curtain_call: ''
+  location_entered_turn: 25
+  scene_phase: RISING
+  tagline: Ventilation Shaft  steam-choked catwalk, turbine housing
+  tags:
+  - frontier
+  - violence
+  - territorial_dispute
+  - logistics
+  turn_entered: 25
+  turns_in_phase: 0
+  world_state:
+  - All heavy freight transport requires a Coalition-stamped clearance permit.
+  - Corporate security details are authorized to use lethal force near border checkpoints.
+  - Private ownership of long-range scanning tech is strictly prohibited.
+  - id: ventilation_escape_pursuit
+    text: Anthony Stewart successfully evaded the immediate militia pursuit by entering
+      the turbine chamber.
+    tier: persistent
+schema_version: 1

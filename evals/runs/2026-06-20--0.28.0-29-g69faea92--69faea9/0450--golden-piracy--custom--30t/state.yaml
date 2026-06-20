@@ -1,0 +1,481 @@
+__seed_meta__:
+  actions:
+  - Draw my cutlass and stand between Luis and the approaching sailors.
+  - Demand that Luis helps me secure the smashed sea chest immediately.
+  - Signal Joseph to hide before the navy patrol spots him.
+  - Attempt to retreat toward the higher ground of the cliffs.
+  opening_narrative: "The hiss of waves on shingle is the only sound breaking the\
+    \ heavy silence of the cove. You stand on the damp sand, the salt spray stinging\
+    \ your eyes as the tide begins its relentless climb toward your boots. A longboat\
+    \ sits lopsided on the shoreline, its hull scraping against the stones with every\
+    \ surge of the sea. Nearby, a sea chest lies partially buried in the wet sand,\
+    \ its heavy iron lock smashed clean off, spilling a few glinting coins into the\
+    \ rising surf. The cry of gulls overhead sounds more like mocking laughter than\
+    \ nature's song.\n\nLuis Rivera stands five paces from you, his hand resting heavily\
+    \ on the hilt of his cutlass. His face is a mask of stone, though the tension\
+    \ in his jaw betrays him. He isn't looking at the smashed chest; he is looking\
+    \ at you, his eyes tracking the movement of your hands with a practiced, lethal\
+    \ suspicion. Behind him, Alan Vance is kneeling by the longboat, his fingers stained\
+    \ dark with antiseptic as he tries to patch a tear in the canvas, his movements\
+    \ hurried and devoid of his usual methodical calm. The surgeon's breath comes\
+    \ in short, ragged bursts.\n\n\"The Articles are clear, Marcus,\" Luis says, his\
+    \ voice low and dangerous, barely rising above the roar of the surf. \"We don't\
+    \ leave anything behind. Not the silver, and certainly not the men who were supposed\
+    \ to guard it.\" He steps closer, the shadow of his frame falling over you. The\
+    \ air between you is thick with more than just salt; it is heavy with the memory\
+    \ of the man you killed—the man Luis once called brother. The debt hasn't been\
+    \ paid, and the crew knows it.\n\nFrom the edge of the treeline, a shadow moves.\
+    \ Joseph, the powder monkey, darts between the rocks, his small frame barely visible\
+    \ in the dimming light. He isn't running toward the ship; he is watching the mouth\
+    \ of the cove with wide, terrified eyes. He looks at you, then back toward the\
+    \ sea, his face pale. \n\n\"They're coming, aren't they?\" Luis asks, though it\
+    \ isn't a question. He doesn't wait for an answer. He turns his gaze toward the\
+    \ dark water of the channel. \"The men are talking, Marcus. They say the Captain\
+    \ has lost his nerve, and they say you've lost yours along with him. If we don't\
+    \ secure this haul and get back to the ship before the tide covers the path, there\
+    \ won't be a crew left to command—only a mob.\" \n\nA sudden commotion breaks\
+    \ from the direction of the longboat. Alan stands up abruptly, his medical kit\
+    \ clattering against the stones. \"Quiet, both of you!\" the surgeon snaps, his\
+    \ voice cracking with uncharacteristic heat. \"We have enough trouble with the\
+    \ rising water without you two starting a bloodbath on the sand.\" He points toward\
+    \ the mouth of the cove where the silhouettes of three men emerge from the mist—not\
+    \ your crew, but men wearing the distinct, dark coats of the Royal Navy patrol,\
+    \ their lanterns flickering like predatory eyes in the gloom. They have found\
+    \ the cove, and they have found the wreckage of your failed raid."
+  outcome_summary: The crew is divided by suspicion while a Royal Navy patrol approaches
+    the cove.
+__seed_pools__:
+  arc:
+    description: ''
+    id: mutiny_escalation
+    incompatible_with: []
+    tags:
+    - mutiny
+    - escalation
+    - rebellion_growth
+  character_dynamic:
+    description: ''
+    id: seasoned_veteran
+    incompatible_with: []
+    tags:
+    - experienced
+    - hardened
+    - respected_by_crew
+  moral_pressure:
+    description: ''
+    id: mutiny_consequences
+    incompatible_with: []
+    tags:
+    - mutiny
+    - consequences
+    - rebellion_risk
+  npc_bond:
+    description: The PC killed someone this NPC loved — a shipmate, a brother. The
+      NPC accepted it as the Articles demanded, but the weight is still there.
+    id: debt_of_blood
+    incompatible_with: []
+    tags:
+    - violence
+    - revenge_bond
+  scene_bundle:
+    conditions:
+    - the tide coming in fast
+    - the cove sheltered from the wind
+    id: beach_cove
+    items:
+    - a longboat pulled up on the sand
+    - a sea chest with the lock smashed
+    sensory:
+    - the hiss of waves on shingle
+    - the cry of gulls overhead
+  situation:
+    description: ''
+    id: crew_conflict
+    incompatible_with: []
+    tags:
+    - crew
+    - conflict
+    - internal_tension
+arc:
+  completed_threads:
+  - dormant: false
+    id: hostile_ship_captivity
+    last_updated_turn: 29
+    outcome: The skiff was boarded and the crew hauled onto the black-timbered ship's
+      deck.
+    progress:
+    - kind: shift
+      text: The skiff is hauled onto the high deck.
+    resolution_state: failed
+    resolved_turn: 29
+    summary: Survive capture and find an escape from the unknown black-timbered ship.
+    urgency: urgent
+  - added_turn: 29
+    dormant: false
+    id: deck_confrontation_escape
+    last_updated_turn: 30
+    outcome: Marcus Gabriel is cornered at the railing by the Scarred Brute and descending
+      silhouettes.
+    progress:
+    - kind: advancement
+      text: Marcus Gabriel wounded an attacker while fleeing toward the railing.
+    resolution_state: failed
+    resolved_turn: 30
+    summary: Navigate the hostile boarding party on the black-timbered ship's deck.
+    urgency: urgent
+    urgency_set_turn: 29
+  goal_context: The pursuit has shifted from the Navy to an unknown hostile boarding
+    party on a massive black-timbered ship.
+  last_thread_created_turn: 30
+  resolution: null
+  threads:
+  - dormant: true
+    id: crew_unrest
+    last_updated_turn: 10
+    progress:
+    - kind: shift
+      text: Tension rises as patrolmen threaten violence at the cove.
+    - kind: shift
+      text: Patrol presence heightens fear of discovery.
+    summary: Discontented sailors are whispering about a change in command.
+    type: threat
+    urgency: background
+  - dormant: true
+    id: hidden_stash
+    progress: []
+    summary: Rumors circulate about a hidden cache of supplies on the coast.
+    type: opportunity
+    urgency: background
+  - added_turn: 30
+    dormant: false
+    id: descent_of_silhouettes
+    progress: []
+    summary: Unknown silhouettes are descending from the rigging to intercept Marcus
+      Gabriel at the railing.
+    urgency: urgent
+    urgency_set_turn: 30
+  visible_goal: Flee from the Royal Navy patrolmen at Sheltered Cove.
+compendium:
+  npcs:
+    boarding_party_men:
+      aliases:
+      - boarding party men
+      bio: Broad-shouldered men clad in dark, salt-stained canvas. They move with
+        heavy, aggressive movements as they swing down from the ship's railing.
+      departed_reason: killed in battle — Struck through the ribs during the initial
+        boarding skirmish.
+      departed_turn: 29
+      first_seen_turn: 26
+      last_presence_turn: 30
+      last_seen_location: High Deck
+      name: One man in canvas
+      notes: gutted by cutlass, falling backward
+      personality: wary_opportunist
+      position: circling the vessel on deck
+      presence: departed
+    navy_patrolmen:
+      aliases:
+      - navy patrolmen
+      bio: Three men in dark coats carrying lanterns, moving through the mist toward
+        the cove.
+      first_seen_turn: 0
+      last_presence_turn: 17
+      last_seen_location: Open Sea
+      name: Three patrolmen
+      personality: wary_opportunist
+      position: emerging from fog on the dunes
+      presence: known
+    powder_monkey_joseph:
+      bio: A twelve year old boy with soot-stained cheeks and lightning fast movements.
+      bond: null
+      fear: null
+      last_presence_turn: 29
+      last_seen_location: High Deck
+      leverage: null
+      motivation: null
+      name: Joseph Hawk
+      personality: desperate_idealist
+      position: against the mast
+      presence: present
+      title: Powder Monkey
+    quartermaster_luis:
+      bio: A stern man with salt-crusted hair and eyes that never stop scanning the
+        crew for dissent.
+      bond: The PC killed someone this NPC loved — a shipmate, a brother. The NPC
+        accepted it as the Articles demanded, but the weight is still there.
+      fear: The ship falling into chaos during a naval pursuit.
+      last_presence_turn: 29
+      last_seen_location: High Deck
+      leverage: He holds the ledger of everyone's shares.
+      motivation: To maintain the Articles at any cost to prevent total anarchy.
+      name: Luis Rivera
+      personality: cold_pragmatist
+      position: being forced toward deck center
+      presence: present
+      title: Ship Quartermaster
+    scarred_brute:
+      aliases:
+      - thick-necked brute
+      bio: A thick-necked man with a jagged scar running through his left eyebrow.
+        He possesses an aggressive bearing and eyes fixed intently on the player's
+        weapon.
+      first_seen_turn: 26
+      last_presence_turn: 30
+      last_seen_location: High Deck
+      name: Scarred Brute
+      notes: lunging with a heavy club
+      personality: wary_opportunist
+      position: looming over Marcus Gabriel near the railing
+      presence: present
+    ship_silhouettes:
+      aliases:
+      - ship silhouettes
+      bio: Dark, indistinct shapes moving against lantern light on a high deck. They
+        peer down from above into the fog toward the skiff.
+      first_seen_turn: 24
+      last_presence_turn: 30
+      last_seen_location: High Deck
+      name: Unknown silhouettes
+      notes: descending rapidly toward the player
+      personality: wary_opportunist
+      position: descending from above toward the railing
+      presence: present
+    surgeon_alan:
+      bio: A man with steady hands and a weary face, smelling constantly of vinegar
+        and old blood.
+      bond: null
+      fear: Running out of clean bandages and strong spirits during a battle.
+      last_presence_turn: 5
+      last_seen_location: Sheltered Cove
+      leverage: He knows which crew members are hiding infections or injuries.
+      motivation: To keep the men functional enough to work or fight.
+      name: Alan Vance
+      personality: blunt_survivor
+      position: near Marcus Gabriel
+      presence: known
+      title: Ship Surgeon
+    unnamed_voice:
+      aliases:
+      - unnamed voice
+      bio: A booming, cold voice emanating from the dark deck above. Commands with
+        authority and lacks any warmth.
+      first_seen_turn: 25
+      last_presence_turn: 28
+      last_seen_location: Open Sea
+      name: Unnamed Voice
+      position: on the dark deck above
+      presence: known
+inventory:
+- aliases: []
+  amount: 1
+  id: notched_cutlass
+  name: Notched Cutlass
+  notes: Heavy blade with several nicks from bone and wood.
+- aliases: []
+  amount: 1
+  id: worn_knife
+  name: Worn Knife
+  notes: A small utility blade with a smooth wooden grip.
+- aliases: []
+  amount: 1
+  id: hemp_rope
+  name: Hemp Rope
+  notes: ''
+- aliases: []
+  amount: 25
+  id: doubloons
+  name: Doubloons
+  notes: ''
+- amount: 1
+  id: parchment_scrap
+  name: Parchment scrap
+  notes: damp and illegible, in pouch
+location:
+  description: The timbered expanse is slick with salt and fresh blood, illuminated
+    by the erratic flicker of lanterns. Heavy shadows dance across the deck as men
+    tangle amidst the smell of gunpowder and brine.
+  id: ship_deck_black_hull
+  name: High Deck
+meta:
+  _pack_source: golden-piracy
+  _seed_soft_warnings:
+  - Opening narrative 526 words (expected 530-930)
+  _seed_type: dynamic
+  compendium_touch_order:
+  - surgeon_alan
+  - navy_patrolmen
+  - unnamed_voice
+  - scarred_brute
+  - boarding_party_men
+  - powder_monkey_joseph
+  - quartermaster_luis
+  - ship_silhouettes
+  last_arc_resolve_turn: 28
+  last_chapter_end_turn: 17
+  last_thread_created_turn: 30
+  model: gpt-4o
+  pending_gm_beat:
+    beat_expires_turn: 32
+    surface_as: event
+    type: escalation
+  prior_history:
+  - '- [T11] Marcus Gabriel and Luis Rivera remain hidden in the brush as patrolmen
+    advance on the ridge trail.'
+  - '- [T12] Marcus Gabriel draws his cutlass while hiding in the brush as a patrolman
+    pivots toward their position.'
+  - '- [T13] Marcus Gabriel prepares his flintlock pistol as the patrolmen sprint
+    away toward the dunes, leaving the ridge trail empty.'
+  - '- [T14] Marcus Gabriel discovers an iron-bound chest buried in the sand near
+    his skiff while leading Luis Rivera to safety.'
+  - '- [T15] Marcus Gabriel abandons the iron-bound chest to secure the skiff as the
+    patrolmen circle back toward the shoreline.'
+  - '- [T16] Marcus Gabriel fails to retrieve the brass-bound cylinder before the
+    skiff is swept into the churning surf by the rising tide.'
+  - '- [T17] Marcus Gabriel successfully rows the skiff into the open sea, escaping
+    the pursuit of the three patrolmen.'
+  - '- [T18] Marcus Gabriel successfully rows the skiff into the open sea, leaving
+    the patrolmen and the cove behind in the fog.'
+  - '- [T19] Marcus Gabriel scans the mist for threats while Luis Rivera recovers
+    from the pursuit.'
+  - '- [T20] Marcus Gabriel calls for Joseph Hawk, but receives no response from the
+    mist.'
+  - '- [T21] Marcus Gabriel discovers Joseph Hawk clinging to the stern of the skiff
+    amidst the mist.'
+  - '- [T22] Marcus Gabriel successfully pulls Joseph Hawk from the water into the
+    skiff, where the boy discovers a hidden leather pouch.'
+  - '- [T23] Marcus Gabriel retrieves twenty-two Spanish Silver Coins and a damp,
+    illegible parchment scrap from the pouch found by Joseph Hawk.'
+  - '- [T24] Marcus Gabriel fails to decipher the damp parchment as a rhythmic metallic
+    clanking echoes through the fog.'
+  - '- [T25] Marcus Gabriel draws his cutlass and orders silence as a massive black-timbered
+    ship emerges from the fog.'
+  - '- [T26] Marcus Gabriel aims his pistol at the silhouettes as a grappling hook
+    slams into the skiff, jerking it toward the massive black hull.'
+  - '- [T27] Marcus Gabriel stabilizes the skiff against the ship''s hull as boarding
+    party men land on the vessel.'
+  - '- [T28] Marcus Gabriel is pinned against the skiff''s gunwale and captured as
+    the boarding party hauls him, Joseph Hawk, and Luis Rivera onto the massive black
+    vessel.'
+  - '- [T29] Marcus Gabriel wounds the Scarred Brute with his cutlass but is overwhelmed
+    as the skiff is hauled onto the enemy ship''s deck.'
+  - '- [T30] Marcus Gabriel wounded a boarding party man and scrambled toward the
+    railing, only to be intercepted by the Scarred Brute''s club.'
+  recent_beats:
+  - surface_as: null
+    turn: 26
+    type: null
+  - surface_as: null
+    turn: 27
+    type: null
+  - surface_as: null
+    turn: 28
+    type: null
+  - surface_as: null
+    turn: 29
+    type: null
+  - surface_as: event
+    turn: 30
+    type: escalation
+  recent_rolls:
+  - band: crit_success
+    turn: 30
+  - band: success
+    turn: 29
+  - band: fail
+    turn: 28
+  - band: success
+    turn: 27
+  - band: crit_success
+    turn: 26
+  setting_pack: golden-piracy
+  turn: 30
+pc:
+  actions:
+  - Leap from the railing into the churning black sea below.
+  - Swing the Notched Cutlass at the Scarred Brute's legs.
+  - Grab the Hemp Rope to swing toward the lower rigging.
+  - Call out to Luis Rivera for a momentary distraction.
+  bio: A man who survived the brutal skirmishes of the North Johnton blockade through
+    sheer violence. He carries the heavy reputation of a man who does what is necessary
+    for the crew's survival. Now, he seeks only enough coin to vanish from the sea
+    forever.
+  conditions:
+  - added_turn: 7
+    description: The breath has been knocked out of you; physical exertion is difficult.
+    id: winded
+    label: Winded
+  drive: ''
+  name: Marcus Gabriel
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 4
+    wits: 2
+  tagline: Veteran boarding specialist, too many scars to return home
+resolved_arcs:
+- closed_threads: []
+  goal_context: The patrolmen have been distracted by a whistle near the dunes, creating
+    a window for movement.
+  resolution: The immediate confrontation at the cove was interrupted by an external
+    distraction, allowing for a momentary escape from direct arrest.
+  resolved_turn: 6
+  visible_goal: Navigate the immediate threat of Royal Navy arrest at Sheltered Cove.
+- closed_threads: []
+  goal_context: The immediate pursuit has ended as the skiff reaches deeper waters.
+  resolution: Marcus Gabriel and Luis Rivera successfully escaped the Royal Navy patrolmen
+    at Sheltered Cove, reaching the safety of the open sea.
+  resolved_turn: 17
+  visible_goal: Flee from the Royal Navy patrolmen at Sheltered Cove.
+- closed_threads: []
+  goal_context: The immediate pursuit has ended as the skiff entered the deep swells
+    and the fog swallowed the shoreline.
+  resolution: Marcus Gabriel and Luis Rivera have successfully escaped the Royal Navy
+    patrolmen at Sheltered Cove, reaching the safety of the open sea.
+  resolved_turn: 18
+  visible_goal: Flee from the Royal Navy patrolmen at Sheltered Cove.
+- closed_threads: []
+  goal_context: The pursuit has shifted from the Navy to an unknown hostile boarding
+    party on a massive black-timbered ship.
+  resolution: The skiff has been boarded and the survivors captured by the unknown
+    vessel's crew.
+  resolved_turn: 28
+  visible_goal: Flee from the Royal Navy patrolmen at Sheltered Cove.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 3
+  curtain_call: forced
+  location_entered_turn: 29
+  scene_phase: CLIMAX
+  tagline: Ship's High Deck  chaotic boarding action
+  tags:
+  - crew
+  - conflict
+  - internal_tension
+  turn_entered: 29
+  turns_in_phase: 2
+  world_state:
+  - Royal Navy blockades all major ports in the Russellshire territory.
+  - Carrying unlicensed black powder is a capital offense.
+  - Privateer commissions are strictly revoked in Allisontown waters.
+  - id: navy_patrol
+    text: The patrolmen have directly confronted Marcus at the cove.
+    tier: persistent
+  - id: patrolman_confrontation
+    text: Marcus Gabriel de-escalated the immediate physical threat by sheathing his
+      cutlass, though the patrolmen remain hostile.
+    tier: persistent
+  - id: navy_patrol_return
+    text: The patrolmen reach the shoreline but lose sight of the skiff in the surf.
+    tier: persistent
+  - id: naval_pursuit_sea
+    text: The skiff successfully drifted into the open sea, leaving the patrolmen
+      behind in the cove.
+    tier: persistent
+  - id: rescue_joseph_hawk
+    text: Joseph Hawk was successfully hauled from the sea into the skiff.
+    tier: persistent
+  - id: hostile_ship_captivity
+    text: The skiff was boarded and the crew hauled onto the black-timbered ship's
+      deck.
+    tier: persistent
+schema_version: 1

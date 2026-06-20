@@ -433,7 +433,7 @@ async def generate_seed(
             _log.warning(
                 "generate_seed soft-check: %s", w, extra={"trace_id": trace_id}
             )
-        envelope.seed_state.setdefault("meta", {})["_seed_soft_warnings"] = soft_warnings
+        envelope.seed_state.meta["_seed_soft_warnings"] = soft_warnings
 
         # Hard validation: at least 1 NPC must have presence="present"
         present_count = sum(

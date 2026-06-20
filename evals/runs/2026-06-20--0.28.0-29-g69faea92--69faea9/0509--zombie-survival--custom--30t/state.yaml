@@ -1,0 +1,558 @@
+__seed_meta__:
+  actions:
+  - Examine the jagged edges of the pipe breach for tool marks.
+  - Demand that Nathan explain why the militia is guarding the hole instead of helping.
+  - Attempt to divert the flow using your surveying equipment and nearby debris.
+  - Scan the surrounding boarded-up buildings for any sign of fleeing saboteurs.
+  opening_narrative: 'The rhythmic, hollow thud of your boots against cracked asphalt
+    is the only sound in the street, save for the persistent buzz of flies circling
+    a discarded, half-empty crate of bottled water. You step over a mattress that
+    has been dragged halfway across the intersection, its fabric stained by years
+    of rain and grit. To your left, a burned-out car sits like a skeletal monument
+    to the old world, with thick green saplings erupting through the rusted chassis
+    where an engine once hummed. The grocery store windows ahead are boarded up with
+    heavy timber, but the front door swings rhythmically in the wind, creaking against
+    its frame like a wounded animal.
+
+
+    You reach the junction where the main water line runs beneath the road, and your
+    heart sinks. The ground is saturated, a dark, muddy slurry oozing from a jagged
+    fissure in the pavement. It isn''t just a leak; it is a violent eruption of pressurized
+    water and silt, tearing through the very foundation of the street. The smell of
+    wet earth and ancient, stagnant sediment fills your lungs.
+
+
+    "Brent! Get back from that edge!" Nathan Goodwin''s voice cuts through the sound
+    of rushing water. He is standing ten feet away, his face etched with a mixture
+    of exhaustion and fury. He gestures wildly toward the breach, his heavy work boots
+    splashing in the growing puddle. Behind him, two militia guards move into position,
+    their hands resting on their belts, eyes scanning the surrounding boarded-up buildings
+    rather than the hole itself. Nathan looks at you, his eyes searching yours for
+    a solution that your maps might provide, but his jaw is set tight. He isn''t just
+    looking for a repairman; he is looking for someone to blame for the chaos this
+    breach will cause.
+
+
+    "The pressure is dropping in the north sector," Nathan shouts over the spray of
+    water, stepping closer to you. "If we don''t plug this within the hour, the whole
+    reservoir is going to drain into the sub-levels. We won''t have enough for the
+    nursery by morning." He looks at the guards, then back to you, his voice dropping
+    to a desperate whisper. "Tell me you can find where they cut it. Tell me someone
+    didn''t do this on purpose."
+
+
+    The militia guards shift their weight, their eyes darting toward the shadows of
+    the swinging grocery store door. One of them grips a heavy iron baton, their posture
+    defensive and suspicious. The tension in the air is thicker than the humidity;
+    everyone knows that water is more valuable than gold in Adamsville, and someone
+    has just stolen the town''s future.'
+  outcome_summary: A major water main breach threatens the settlement's supply, leaving
+    Brent to investigate potential sabotage.
+__seed_pools__:
+  arc:
+    description: ''
+    id: power_struggle
+    incompatible_with: []
+    tags:
+    - power
+    - struggle
+    - leadership_conflict
+  character_dynamic:
+    description: ''
+    id: displaced_elite
+    incompatible_with: []
+    tags:
+    - former_status
+    - loss_of_power
+    - adaptation_needed
+  moral_pressure:
+    description: ''
+    id: leadership_burden
+    incompatible_with: []
+    tags:
+    - leadership
+    - burden
+    - responsibility_weight
+  npc_bond:
+    description: The NPC helped build the settlement the PC lives in. They dug the
+      first well, stood the first wall, buried the first dead together.
+    id: settlement_founder
+    incompatible_with: []
+    tags:
+    - community
+    - founding
+    - shared_labor
+  scene_bundle:
+    conditions:
+    - a mattress dragged halfway across the intersection
+    - the grocery store windows boarded but the door swinging
+    id: overgrown_street
+    items:
+    - a burned-out car with saplings growing through the chassis
+    - a crate of bottled water
+    sensory:
+    - the buzz of flies over something unseen
+    - glass crunching underfoot with every step
+  situation:
+    description: ''
+    id: infrastructure_sabotage
+    incompatible_with: []
+    tags:
+    - infrastructure
+    - sabotage
+    - deliberate_damage
+arc:
+  completed_threads:
+  - added_turn: 16
+    dormant: false
+    id: iridescent_trail_clue
+    last_updated_turn: 19
+    outcome: Thread reached its natural conclusion.
+    progress:
+    - kind: advancement
+      text: Entering residential district via shimmering powder trail
+    - kind: advancement
+      text: Identified powder as dry, vibrating mineral flakes
+    - kind: advancement
+      text: Collected vibrating powder sample in steel canteen
+    resolution_state: resolved
+    resolved_turn: 19
+    summary: Follow the shimmering powder trail toward residential district
+    urgency: normal
+    urgency_set_turn: 16
+  - dormant: false
+    id: saboteur_pursuit
+    last_updated_turn: 20
+    outcome: Thread reached its natural conclusion.
+    progress:
+    - kind: advancement
+      text: Found data drive and iridescent powder trail
+    - kind: advancement
+      text: Retrieved high-capacity data drive from courtyard rubble
+    - kind: shift
+      text: Nathan warns of militia scrutiny regarding powder
+    resolution_state: resolved
+    resolved_turn: 20
+    summary: Track the Technician in Coat through the settlement after their escape
+      during the collapse
+    urgency: normal
+  - added_turn: 21
+    dormant: false
+    id: industrial_tool_access
+    last_updated_turn: 24
+    outcome: Thread reached its natural conclusion.
+    progress:
+    - kind: advancement
+      text: Names Elara Vance, Mara Kovic, and Larry Taylor
+    - kind: advancement
+      text: Elara Vance is actively checking tool kit seals
+    - kind: shift
+      text: Elara Vance guards tool kit inventory closely
+    resolution_state: resolved
+    resolved_turn: 24
+    summary: Identify individuals with access to heavy industrial tool kits
+    urgency: normal
+    urgency_set_turn: 21
+  goal_context: The immediate physical danger of the library collapse has subsided,
+    but the saboteur remains at large within the settlement.
+  last_thread_created_turn: 30
+  resolution: null
+  threads:
+  - dormant: true
+    id: lost_blueprints_cache
+    progress: []
+    summary: Rumors persist of a pre-collapse municipal archive hidden beneath the
+      old library.
+    type: opportunity
+    urgency: background
+  - dormant: true
+    id: hidden_faction_infiltration
+    last_updated_turn: 25
+    progress:
+    - kind: shift
+      text: Nathan Goodwin demands a significant favor for info
+    - kind: shift
+      text: Elara Vance proposes a clandestine deal for surveying
+    summary: Unknown outsiders may be embedding themselves within the settlement leadership.
+    type: threat
+    urgency: normal
+  - added_turn: 25
+    dormant: false
+    id: militia_inventory_clue
+    last_updated_turn: 27
+    progress:
+    - kind: advancement
+      text: Elara Vance offers tool kit logs for mapping service tunnels
+    summary: Investigate tool kit tampering within the Tool Storage Depot
+    urgency: normal
+    urgency_set_turn: 25
+  - added_turn: 26
+    dormant: false
+    id: reservoir_tunnel_breaches
+    progress: []
+    summary: Investigate unauthorized movement through restricted reservoir service
+      tunnels
+    urgency: normal
+    urgency_set_turn: 26
+  - added_turn: 27
+    dormant: false
+    id: tungsten_cylinder_discovery
+    last_updated_turn: 29
+    progress:
+    - kind: advancement
+      text: Etched grooves follow mathematical logic
+    - kind: setback
+      text: Cylinder lacks interface for data drive
+    summary: Investigate the origin of the vibrating tungsten cylinder
+    urgency: normal
+    urgency_set_turn: 27
+  - added_turn: 29
+    dormant: false
+    id: militia_street_pursuit
+    last_updated_turn: 30
+    progress:
+    - kind: advancement
+      text: Militia apprehend Soot-Stained Man in residential district
+    summary: Militia guards pursue the Soot-Stained Man through residential streets
+    urgency: urgent
+    urgency_set_turn: 29
+  - added_turn: 30
+    dormant: false
+    id: iridescent_powder_connection
+    progress: []
+    summary: Investigate tool kit log stained with iridescent powder
+    urgency: normal
+    urgency_set_turn: 30
+  visible_goal: Identify the saboteur responsible for the main water line breach and
+    prevent further infrastructure damage.
+compendium:
+  npcs:
+    elara_vance:
+      bio: Tall woman with a nervous twitch in her left eye and a grim, hardened expression.
+        A veteran of the settlement's defense who reacts to stress with defensive
+        aggression.
+      first_seen_turn: 3
+      last_presence_turn: 30
+      last_seen_location: Residential District
+      name: Elara Vance
+      notes: kicking man's hands behind his back
+      personality: wary_opportunist
+      position: flanking the runner against the wall
+      presence: present
+      title: Militia Guard
+    larry_taylor:
+      bio: A restless man who spends more time in the ruins than in a bed. He knows
+        every shortcut through the overgrown streets of Adamsville.
+      bond: null
+      fear: Being trapped inside a collapsed structure during a storm.
+      last_presence_turn: 15
+      last_seen_location: Library Outer Courtyard
+      leverage: null
+      motivation: To find enough scrap to trade for extra rations.
+      name: Larry Taylor
+      personality: wary_opportunist
+      position: near courtyard exit
+      presence: known
+      title: Scavenger Scout
+    mara_kovic:
+      bio: A shorter woman with a heavy iron baton strapped to her hip. She maintains
+        a watchful, scanning gaze, prioritizing environmental awareness over social
+        interaction.
+      first_seen_turn: 3
+      last_presence_turn: 30
+      last_seen_location: Residential District
+      name: Mara Kovic
+      notes: slamming man against brick wall
+      personality: wary_opportunist
+      position: flanking the runner against the wall
+      presence: present
+      title: Militia Guard
+    nathan_goodwin:
+      bio: A man who remembers the smell of fresh concrete and now spends his days
+        patching leaks in rusted pipes. He is weathered, pragmatic, and carries the
+        weight of every person he couldn't save during the initial collapse.
+      bond: He helped build the settlement in Adamsville; he dug the first well and
+        stood the first wall alongside Brent.
+      fear: Total systemic collapse leading to mass starvation.
+      last_presence_turn: 23
+      last_seen_location: Tool Storage Depot
+      leverage: He controls the distribution of all clean water supplies.
+      motivation: To maintain settlement stability at any social cost.
+      name: Nathan Goodwin
+      personality: cold_pragmatist
+      position: standing in the passageway shadows
+      presence: known
+      title: Settlement Foreman
+    soot_stained_man:
+      aliases:
+      - soot-stained man
+      bio: A man with a face heavily marked by soot and grime. He appears startled
+        and alarm-stricken by the sudden chaos in the street.
+      first_seen_turn: 6
+      last_presence_turn: 30
+      last_seen_location: Residential District
+      name: Soot-Stained Man
+      notes: pinned against wall, hands behind back
+      position: kneeling against a brick wall
+      presence: present
+    tall_guard_with_twitch:
+      aliases:
+      - tall guard with twitch
+      bio: A tall man characterized by a nervous twitch in his left eye. He maintains
+        a vigilant watch over the depot entrance, hand resting on his sidearm.
+      first_seen_turn: 22
+      last_presence_turn: 30
+      last_seen_location: Residential District
+      name: Tall Guard with Twitch
+      notes: standing over pinned man, weapon ready
+      position: standing over the Soot-Stained Man
+      presence: present
+    technician_in_coat:
+      bio: A silent figure wearing a heavy, grease-stained technician's coat with
+        a high collar obscuring their face. They watch the Brass Surveyor Compass
+        with intense, fixated eyes.
+      first_seen_turn: 4
+      last_presence_turn: 16
+      last_seen_location: Library Outer Courtyard
+      name: Technician in Coat
+      personality: cold_pragmatist
+      position: lost in the sinkhole fog
+      presence: known
+      title: Unknown Technician
+    two_militia_guards:
+      bio: One guard is a tall man with a nervous twitch in his left eye, while the
+        second is a shorter woman with a heavy iron baton strapped to her hip.
+      bond: null
+      fear: null
+      last_presence_turn: 29
+      last_seen_location: Residential District
+      leverage: null
+      motivation: null
+      name: Two militia guards
+      personality: wary_opportunist
+      position: center of the thoroughfare
+      presence: present
+      title: ''
+    woman_with_shawl:
+      aliases:
+      - woman with tattered shawl
+      bio: A woman clutching a worn, tattered shawl tightly to her chest. Her eyes
+        are wide with alarm as she reacts to the frantic chase.
+      first_seen_turn: 6
+      last_presence_turn: 29
+      last_seen_location: Residential District
+      name: Woman with Tattered Shawl
+      position: stumbling through residential streets
+      presence: present
+inventory:
+- aliases: []
+  amount: 1
+  id: brass_compass
+  name: Brass Surveyor Compass
+  notes: A heavy relic from the before-world, polished smooth by years of use.
+- aliases: []
+  amount: 3
+  id: antibiotics
+  name: Amoxicillin Capsules
+  notes: ''
+- aliases: []
+  amount: 1
+  id: water_canteen
+  name: Steel Canteen
+  notes: ''
+- amount: 1
+  id: data_drive
+  name: High-capacity data drive
+  notes: scratched casing, in hand
+- amount: 1
+  id: wrapped_object
+  name: Wrapped Object
+  notes: empty cloth, on workbench
+- amount: 1
+  id: tungsten_cylinder
+  name: Tungsten Cylinder
+  notes: etched with fine grooves, vibrating slightly, in hand
+- amount: 1
+  id: tool_kit_log
+  name: Tool kit log
+  notes: stained with iridescent powder, on ground
+location:
+  description: A grit-choked thoroughfare choked with dust and panicked settlers.
+    The air rings with the echo of a warning gunshot against crumbling brick walls
+    and discarded crates.
+  id: residential_district
+  name: Residential District
+meta:
+  _pack_source: zombie-survival
+  _seed_soft_warnings:
+  - Opening narrative 433 words (expected 530-930)
+  _seed_type: dynamic
+  compendium_touch_order:
+  - technician_in_coat
+  - larry_taylor
+  - nathan_goodwin
+  - woman_with_shawl
+  - two_militia_guards
+  - soot_stained_man
+  - elara_vance
+  - mara_kovic
+  - tall_guard_with_twitch
+  last_arc_resolve_turn: 15
+  last_inventory_change_reason: Player picked up tool kit log from ground
+  last_thread_created_turn: 30
+  model: claudia-v1
+  pending_gm_beat:
+    beat_expires_turn: 32
+    surface_as: player_discovery
+    type: revelation
+  prior_history:
+  - '- [T11] Brent Mahoney identifies the structural instability of the floor grate,
+    prompting Nathan Goodwin to warn of a potential collapse.'
+  - '- [T12] Brent Mahoney''s attempt to use the Brass Surveyor Compass reveals erratic
+    magnetic interference just as the floorboards violently buckle.'
+  - '- [T13] Brent Mahoney fails to brace the floor with his crowbar, causing a structural
+    collapse that swallows his tool and exposes the mechanical device below.'
+  - '- [T14] Brent Mahoney anchored himself to Elara Vance as a massive floor collapse
+    plunged the library into a blinding, dust-filled sinkhole.'
+  - '- [T15] Brent Mahoney successfully pulls Elara Vance to safety as the library
+    floor collapses, leaving the Technician in Coat missing amidst the dust.'
+  - '- [T16] Brent Mahoney discovers a high-capacity data drive and a trail of iridescent
+    powder in the courtyard.'
+  - '- [T17] Brent Mahoney recovered the high-capacity data drive and began tracking
+    the iridescent powder trail into the residential district despite Elara Vance''s
+    warnings.'
+  - '- [T18] Brent Mahoney discovers the iridescent powder is a dry, vibrating mineral
+    substance rather than industrial lubricant.'
+  - '- [T19] Brent Mahoney collects a sample of the vibrating powder in his steel
+    canteen as Nathan Goodwin warns him about militia scrutiny.'
+  - '- [T20] Brent Mahoney observes Nathan Goodwin''s guarded behavior and receives
+    a direct warning about militia hostility.'
+  - '- [T21] Brent Mahoney''s attempt to extract information from Nathan Goodwin resulted
+    in a demand for a significant future favor.'
+  - '- [T22] Brent Mahoney accepts Nathan Goodwin''s demand for clandestine surveying
+    services in exchange for a list of tool kit holders.'
+  - '- [T23] Brent Mahoney accepts Nathan Goodwin''s clandestine deal and arrives
+    at the tool storage depot to confront Elara Vance.'
+  - '- [T24] Brent Mahoney confronts Elara Vance at the tool storage depot, facing
+    defensive hostility from both her and the Tall Guard with Twitch.'
+  - '- [T25] Brent Mahoney attempts to de-escalate his confrontation with Elara Vance,
+    resulting in her offering a clandestine deal for surveying restricted sectors.'
+  - '- [T26] Brent Mahoney accepts Elara Vance''s deal to map restricted reservoir
+    service tunnels in exchange for tool kit access logs.'
+  - '- [T27] Brent Mahoney unwraps a mysterious, vibrating tungsten cylinder offered
+    by Elara Vance.'
+  - '- [T28] Brent Mahoney discovers that the Tungsten Cylinder''s etchings follow
+    a mathematical pattern rather than industrial markings.'
+  - '- [T29] Brent Mahoney fails to find a physical connection between the data drive
+    and the tungsten cylinder before being shoved into a chaotic street pursuit.'
+  - '- [T30] Brent Mahoney discovers a tool kit log stained with iridescent powder
+    after the militia apprehends the Soot-Stained Man.'
+  recent_beats:
+  - surface_as: item
+    turn: 26
+    type: revelation
+  - surface_as: null
+    turn: 27
+    type: null
+  - surface_as: item
+    turn: 28
+    type: revelation
+  - surface_as: null
+    turn: 29
+    type: null
+  - surface_as: player_discovery
+    turn: 30
+    type: revelation
+  recent_rolls:
+  - band: crit_success
+    turn: 30
+  - band: fail
+    turn: 29
+  - band: success
+    turn: 26
+  - band: partial
+    turn: 25
+  - band: setback
+    turn: 22
+  setting_pack: zombie-survival
+  turn: 30
+pc:
+  actions:
+  - Retrieve the iridescent tool kit log from the dust
+  - Question Elara Vance about the Soot-Stained Man's identity
+  - Examine Mara Kovic for any reaction to the powder
+  - Hide the tool kit log before the militia notices
+  bio: Born into the era of paved roads and digital grids, Brent once managed infrastructure
+    for a thriving municipality. Now, he uses his knowledge of forgotten subterranean
+    conduits to keep the Adamsville settlement hydrated. He carries the heavy guilt
+    of being unable to fix what was truly broken.
+  conditions: []
+  drive: ''
+  name: Brent Mahoney
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 2
+    wits: 4
+  tagline: Former city surveyor, keeper of the old maps
+resolved_arcs:
+- closed_threads: []
+  goal_context: The investigation has shifted from forensic analysis of the pipe to
+    a high-stakes pursuit through the residential strip.
+  resolution: The immediate evidence of sabotage is confirmed, but the culprits have
+    escaped into the settlement's residential labyrinth.
+  resolved_turn: 6
+  visible_goal: Identify the saboteur responsible for the main water line breach and
+    prevent further infrastructure damage.
+- closed_threads: []
+  goal_context: The investigation has escalated from tracking suspects to witnessing
+    active industrial sabotage causing structural collapse.
+  resolution: The structural failure in the library ruins has exposed the source of
+    the sabotage, forcing a direct confrontation with the Technician in Coat.
+  resolved_turn: 13
+  visible_goal: Identify the saboteur responsible for the main water line breach and
+    prevent further infrastructure damage.
+- closed_threads: []
+  goal_context: The confrontation has shifted from investigation to survival amidst
+    a collapsing structure.
+  resolution: The immediate structural crisis at the library ruins has peaked, exposing
+    the Technician in Coat's equipment during a catastrophic floor collapse.
+  resolved_turn: 14
+  visible_goal: Identify the saboteur responsible for the main water line breach and
+    prevent further infrastructure damage.
+- closed_threads: []
+  goal_context: The immediate physical danger of the library collapse has subsided,
+    but the saboteur remains at large within the settlement.
+  resolution: The structural collapse at the library has concluded its primary phase,
+    forcing all parties into the courtyard and leaving the Technician in Coat's whereabouts
+    unknown.
+  resolved_turn: 15
+  visible_goal: Identify the saboteur responsible for the main water line breach and
+    prevent further infrastructure damage.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  curtain_call: ''
+  location_entered_turn: 29
+  scene_phase: RISING
+  tagline: Residential District  militia apprehend fleeing man
+  tags:
+  - infrastructure
+  - sabotage
+  - tension
+  turn_entered: 29
+  turns_in_phase: 12
+  world_state:
+  - All motorized vehicles are prohibited within settlement limits to prevent fuel
+    theft.
+  - Access to the central well requires a verified community ration card.
+  - The local militia maintains a strict curfew from sunset to sunrise.
+  - id: industrial_tool_presence
+    text: The tool marks confirm the use of high-grade industrial equipment, linking
+      the sabotage to organized outsiders.
+    tier: persistent
+  - id: library_ruins_clue
+    text: The mechanical clattering is revealed to be an active scanning device used
+      by the Technician in Coat.
+    tier: persistent
+schema_version: 1
