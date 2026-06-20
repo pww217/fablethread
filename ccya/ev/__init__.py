@@ -42,7 +42,7 @@ def _resolve_stream(name: str) -> str:
 
 def _strip_flags(args: list[str]) -> tuple[dict[str, str], list[str]]:
     # Boolean flags that don't take values
-    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact", "list", "verbose", "summary", "estimate", "include-compaction"}
+    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact", "list", "verbose", "summary", "estimate", "include-compaction", "user-only"}
     flags: dict[str, str] = {}
     positional: list[str] = []
     i = 0

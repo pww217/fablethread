@@ -1,3 +1,8 @@
+{# _arc.j2
+   Required: none (renders "No active campaign arc." if empty)
+   Optional: current_arc (dict with visible_goal, resolution, completed_threads), resolved_arcs (list[dict])
+   Emits: ### Campaign Arc, ### Previously Resolved Arcs, ### Completed Threads headers
+#}
 {% if current_arc and current_arc.visible_goal -%}
 ### Campaign Arc
 

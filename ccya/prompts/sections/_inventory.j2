@@ -1,3 +1,8 @@
+{# _inventory.j2
+   Required: none (renders "Nothing of note." if empty)
+   Optional: inventory (list[dict]) — falls back to state.inventory
+   Emits: ## Inventory header
+#}
 {% set inv = inventory | default(state.inventory, true) -%}
 {% if inv -%}
 ## Inventory
