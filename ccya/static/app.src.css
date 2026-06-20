@@ -2063,15 +2063,9 @@ body {
     border-bottom: 1px solid var(--border-subtle);
   }
 
-  /* ── Hide main turn-viewer header bar meta/actions on mobile ── */
-  .turn-viewer-header .turn-viewer-meta,
-  .turn-viewer-header .turn-viewer-actions,
-  .turn-viewer-header .turn-viewer-title {
-    display: none;
-  }
-  .turn-viewer-header .tv-view-toggle {
-    display: none !important;
-  }
+  /* ── Hide turn-viewer header + filter bar entirely on mobile ── */
+  .turn-viewer-header { display: none !important; }
+  .turn-viewer-filter-bar { display: none !important; }
 
   /* ── Mobile compact stage headers ── */
   .tv-stage-header .tv-stage-status,
@@ -2089,9 +2083,6 @@ body {
   }
 
   /* ── Mobile full-screen turn cards ── */
-  #tv-root {
-    touch-action: none;
-  }
   .tv-turn-card {
     position: absolute;
     inset: 0;
@@ -2099,11 +2090,14 @@ body {
     margin: 0;
     border: none;
     border-radius: 0;
+    -webkit-overflow-scrolling: touch;
   }
   .turn-viewer-body {
-    position: relative;
+    position: fixed;
+    inset: 0;
     overflow: hidden;
-    height: calc(100vh - 80px);
+    padding: 0;
+    margin: 0;
   }
 }
 
@@ -3092,15 +3086,6 @@ body {
   letter-spacing: 0.06em;
   color: var(--text-muted);
   margin-bottom: 4px;
-}
-
-.tv-output-summary-label {
-  font-size: 0.71rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  margin-bottom: 8px;
 }
 
 .tv-prompt-text {
