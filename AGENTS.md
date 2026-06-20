@@ -14,7 +14,7 @@
 
 Treat **8k tokens as your effective working context per session.** Do not load more than you need.
 
-Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, public APIs, cross-module contracts) + `docs/architecture/OVERVIEW.md` (pipeline mechanics, data models, flowcharts) → 3) the relevant plan doc in `plans/review/` or `plans/` → 4) source files only for the specific functions you are changing.
+Navigation path: 1) This file → 2) `docs/repomap.md` (module index, entry points) → 3) `docs/architecture/OVERVIEW.md` (pipeline overview) → 4) relevant arch subdoc (step2c-storytell.md, pacing-systems.md, state-models.md, etc.) → 5) source files only for the specific functions you are changing.
 
 **Context budget per session:** Load AGENTS.md + the relevant `docs/repomap.md` section(s) + one plan doc. Do not read entire source files unless a step requires it. Use `grep` or `curl` against the running server to confirm specific lines rather than reading whole files.
 
@@ -40,7 +40,7 @@ Two entirely separate template systems exist — do not conflate them:
 | **Prompt templates** | `ccya/prompts/` (`.j2`) | Render LLM messages (system/user prompts) | Jinja2 via `_render()` in `narrate.py` / `extraction.py` |
 | **UI templates** | `ccya/templates/` (`.html`) | Render browser HTML (sidebars, modals, character sheets) | Jinja2 via FastAPI `_render()` in `server/routes.py` |
 
-NPC routing: see `docs/repomap.md`.
+NPC routing: see `docs/architecture/cross-module-contracts.md`.
 
 ---
 
@@ -135,12 +135,13 @@ Tickets live under bucket parent issues. Use title prefixes to disambiguate subs
 
 ## Repo map
 
-Read `docs/repomap.md` for module boundaries, public APIs, and cross-module contracts.
+Read `docs/repomap.md` for module index and entry points.
+Read `docs/architecture/` for how things work (pipeline, state models, contracts, prompts).
 
 Cross-cutting tasks:
 
 - Modify turn pipeline → read `docs/architecture/OVERVIEW.md` (pipeline overview) + subdocs (`step0-ruling.md`, `step1-narrate.md`, etc.) for design details; `docs/repomap.md` (5-call pipeline section) for code-level mapping
-- Add new config option → read `docs/repomap.md` (EngineConfig + constants section)
+- Add new config option → read `docs/architecture/OVERVIEW.md` (config section)
 - Debug extraction → read `docs/architecture/OVERVIEW.md` (quick reference table) + relevant step subdoc (`step2a-scene.md`, etc.); `docs/repomap.md` (extraction field routing section) for code-level mapping
 - Debug/inspect events → read `docs/ev/COMMANDS.md` for ev.py commands; `docs/ev/EVAL-RUNS.md` for eval run storage; `docs/ev/CHECKERS.md` for checker docs
 - Fast prompt testing → `ev.py prompt-eval dump <save-dir> --turn N --stream STREAM [--from-events]` (render only), `ev.py prompt-eval call <scenario.yaml> [--from-events]` (render + LLM + check; `--from-events` uses stored output, no LLM call)
