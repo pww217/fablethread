@@ -12,7 +12,7 @@ from jinja2 import Environment
 
 from ccya.engine.config import EngineConfig
 from ccya.engine.extraction.context import _build_extraction_context
-from ccya.engine.extraction.scene import _extract_scene_messages
+from ccya.engine.extraction.scene import _extract_scene_messages, build_npc_context
 from ccya.engine.extraction.state import _extract_state_messages
 from ccya.engine.extraction.storytell import _storytell_messages
 from ccya.engine.extraction.utils import _call_stream, _capitalize_inventory_names, _context_meta, _dedup_compendium_update
@@ -106,6 +106,11 @@ async def _run_extraction_pipeline(
         extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
 
     _log.debug("extraction.scene.done trace_id=%s result_type=%s tokens_in=%d tokens_out=%d", trace_id, type(scene_result).__name__, scene_usage.get("prompt_tokens", 0), scene_usage.get("completion_tokens", 0))
+
+    # Build npc_context from compendium for storytell
+    comp = (state.get("compendium") or {}).get("npcs") or {}
+    scene_result.npc_context = build_npc_context(comp, narration)
+
     yield ("phase", {"phase": "extract_stream_done", "stream": "scene"})
 
     # --- Stream 2: State ---
@@ -183,6 +188,44 @@ async def _run_extraction_pipeline(
             storytell_msgs, config, trace_id, "storytell",
             StorytellerResult, strip_keys=("_reasoning",),
         )
+
+        # Post-parse validation: null effect with non-null npc_id is incoherent
+        if storytell_result.gm_beat and storytell_result.gm_beat.npc_id and not storytell_result.gm_beat.effect:
+            _log.warning(
+                "storytell beat: npc_id '%s' set but effect is empty, retrying",
+                storytell_result.gm_beat.npc_id,
+                extra={"trace_id": trace_id},
+            )
+            retry_msgs = list(storytell_msgs)
+            retry_msgs.append({
+                "role": "user",
+                "content": (
+                    f"IMPORTANT: Your previous attempt set npc_id '{storytell_result.gm_beat.npc_id}' "
+                    f"without effect. Please provide a short, concrete sentence describing what this NPC is doing. "
+                    f"Re-emit JSON."
+                ),
+            })
+            try:
+                storytell_result, storytell_usage, storytell_attempts, storytell_retry_errors = await _call_stream(
+                    retry_msgs, config, trace_id, "storytell",
+                    StorytellerResult, strip_keys=("_reasoning",),
+                )
+                extraction_event["storytell"]["attempts"] = storytell_attempts
+                extraction_event["storytell"]["retry_errors"].extend(storytell_retry_errors)
+                # Exhausted retry — coerce to null
+                if storytell_result.gm_beat and storytell_result.gm_beat.npc_id and not storytell_result.gm_beat.effect:
+                    _log.warning(
+                        "storytell beat: retry also failed — coercing beat to null",
+                        extra={"trace_id": trace_id},
+                    )
+                    storytell_result = storytell_result.model_copy(
+                        update={"gm_beat": None}
+                    )
+            except Exception as exc:
+                _log.warning(
+                    "storytell retry failed: %s", exc, extra={"trace_id": trace_id},
+                )
+                extraction_event["storytell"]["retry_errors"].append(str(exc))
 
         # Generate fallback actions when LLM omits them (prompt requires exactly 4)
         if not storytell_result.actions:

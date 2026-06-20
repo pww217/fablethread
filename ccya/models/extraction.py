@@ -119,6 +119,7 @@ class SceneExtractResult(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
+    npc_context: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class StateExtractResult(BaseModel):
@@ -203,14 +204,10 @@ class GMBeat(BaseModel):
         if isinstance(v, str) and v not in valid_types:
             return None
         return v
-    surface_as: Literal[
-        "ambient",
-        "event",
-        "npc_behavior",
-        "environmental",
-        "player_discovery",
-        "item",
-    ] = "ambient"
+
+    effect: str = ""
+    npc_id: str | None = None
+    driver: Literal["motivation", "fear", "leverage"] | None = None
     beat_expires_turn: int | None = None
 
 

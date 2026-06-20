@@ -472,7 +472,7 @@ def _apply_state_updates(
         meta.setdefault("recent_beats", []).append({
             "turn": turn_no,
             "type": _history_beat.get("type") if _history_beat else None,
-            "surface_as": _history_beat.get("surface_as") if _history_beat else None,
+            "effect": _history_beat.get("effect") if _history_beat else None,
         })
         # Cap at N entries, oldest first
         max_beats = config.recent_beats_max if config else 5

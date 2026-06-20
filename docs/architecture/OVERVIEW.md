@@ -55,7 +55,7 @@ flowchart TD
 | **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `prior_history` (last 20 bullets, all but last rendered), `recent_turns[-1:]`, `pacing_context`, `pending_gm_beat`, `npc_roster` (from build_npc_roster()), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption. Scene motion shaped by `PacingContext.outcome_hint`; impossible actions narrated as natural failures. |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc`, `npc_roster` (from build_npc_roster()), conditions, compendium entries | `SceneExtractResult`: compendium_npc_update | NPC presence, durable NPC compendium identity. |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, conditions | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove, location_change, location_description | Inventory delta accuracy, condition lifecycle, location deltas. |
-| **Step 2c — Storytell** | [step2c-storytell](./step2c-storytell.md) | Every turn (always) | `narrative`, `_ExtractionContext` (comp_this_turn, location, inventory, conditions), pacing_context, arc.threads[], recent_turns[-10:], band, npc_roster (from build_npc_roster()), recent_beats | `StorytellerResult`: thread_update/goal_update/arc_resolve/resolve/add, gm_beat, actions, outcome_summary | Storyteller-managed thread lifecycle, arc resolution, beat disposition inference, durable history events. |
+| **Step 2c — Storytell** | [step2c-storytell](./step2c-storytell.md) | Every turn (always) | `narrative`, `_ExtractionContext` (comp_this_turn, location, npc_context, inventory, conditions), pacing_context, arc.threads[], recent_turns[-10:], band, npc_roster (slimmed), recent_beats | `StorytellerResult`: thread_update/goal_update/arc_resolve/resolve/add, gm_beat, actions, outcome_summary | Storyteller-managed thread lifecycle, arc resolution, beat disposition inference, durable history events. |
 
 After Step 2c: results merge into a `StateDelta`, the validator checks constraints
 (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the
@@ -89,7 +89,7 @@ The pipeline produces several state objects at different points. Understanding w
 | State | When captured | Stored in events? | Purpose |
 |---|---|---|---|
 | `PacingContext` (dataclass) | Step 0, after phase engine | No (serialized as `pacing_context` dict) | Internal pacing signal for Steps 1–2c |
-| `_ExtractionContext` (dataclass) | Step 2c, before storytell LLM call | No | Carries post-delta NPCs/inventory/conditions into storytell prompt |
+| `_ExtractionContext` (dataclass) | Step 2c, before storytell LLM call | No | Carries post-delta NPCs/location/npc_context/inventory/conditions into storytell prompt |
 | `state_snapshot` | End of turn (after all processing) | Yes (`event["state_snapshot"]`) | Full persisted state at turn end; used by checkers |
 | `changes` | After sanitizer | Yes (`event["changes"]`) | What the sanitizer actually changed |
 | `extraction.*.output` | After each extraction stream | Yes (`event["extraction"]`) | LLM extraction results |

@@ -75,7 +75,7 @@ world.factions: [str], world.locations: [str]
 - **ArcResolution**: `resolution`, `visible_goal`, `goal_context`, `drop_threads: list[str]`, `new_threads: list[ArcThread]`
 - **CompendiumNpcUpdate**: NPC upsert data with `position` field for spatial positioning
 - **StateDelta**: Merges all three extraction results; contains `location_change`, `location_description`, `compendium_npc_update`, `thread_update/arc_resolve/thread_resolve/thread_add`, `inventory_add/remove/update`, `pc_condition_add/remove`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`.
-- **GMBeat**: `type`, `surface_as`, `beat_expires_turn`
+- **GMBeat**: `type`, `effect`, `npc_id`, `driver`, `beat_expires_turn`
 - **WorldStateFact**: `id: str`, `text: str`, `tier: Literal["permanent", "persistent"] = "persistent"`
 
 ### Extraction models (ccya/models/extraction.py)

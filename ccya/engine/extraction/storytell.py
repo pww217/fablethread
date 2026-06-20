@@ -60,7 +60,7 @@ def _storytell_messages(
             "recent_beats": list((state.get("meta") or {}).get("recent_beats", [])),
         }
     )
-    npc_roster = build_npc_roster(extraction_ctx.comp_this_turn, personality_registry=ARCHETYPES)
+    npc_roster = build_npc_roster(extraction_ctx.comp_this_turn, personality_registry=ARCHETYPES, slim=True)
 
     # Curtain Call signal for CLIMAX phase
     curtain_call = scene.get("curtain_call", "")
@@ -72,6 +72,7 @@ def _storytell_messages(
             "narration": narration,
             # This-turn derived values (from extraction_ctx) — NOT state
             "npc_roster": npc_roster,
+            "npc_context": extraction_ctx.npc_context,
             "location": extraction_ctx.location_this_turn,
             "inventory": extraction_ctx.inventory_this_turn,
             "conditions": extraction_ctx.conditions_this_turn,

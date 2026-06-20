@@ -12,7 +12,7 @@ flowchart LR
 
     subgraph IN["Inputs"]
         S1["narrative (from Step 1)"]:::xstream
-        S2["_ExtractionContext<br>(comp_this_turn, location,<br>inventory, conditions)<br>built by _build_extraction_context()"]:::xstream
+        S2["_ExtractionContext<br>(comp_this_turn, location,<br>npc_context, inventory,<br>conditions)<br>built by _build_extraction_context()"]:::xstream
         S3["npc_roster<br>(from build_npc_roster())"]:::xstream
         S4["pacing_context<br>(directive · outcome_hint)"]:::xstream
         S4b["scene_phase<br>(SETUP/RISING/CLIMAX/RESOLUTION/BREATHER)"]:::xstream
@@ -58,11 +58,13 @@ Forward-facing storytelling beats that shape scene progression across turns. Bea
 ```
 GMBeat
   type: complication | revelation | opportunity | breathing_room | pressure | twist | setback | escalation | callback
-  surface_as: ambient | event | npc_behavior | environmental | player_discovery | item (default: ambient)
+  effect: str (required — short concrete sentence)
+  npc_id: str | None
+  driver: Literal["motivation", "fear", "leverage"] | None
   beat_expires_turn: int | None — turn number at which the beat expires; set to turn_no + 2 when stored
 ```
 
-**Validation:** Only `type` is validated by `StorytellerResult._nullify_invalid_gm_beat` — nullified if type is falsy or not in the valid set. No validation on `surface_as`. Python accepts whatever gm_beat the LLM emits with no correction or override.
+**Validation:** Only `type` is validated by `StorytellerResult._nullify_invalid_gm_beat` — nullified if type is falsy or not in the valid set. `effect` is required (empty string default). Python accepts whatever gm_beat the LLM emits with no correction or override.
 
 ### PacingContext Fields
 
@@ -111,7 +113,7 @@ flowchart TD
 
 Note: This expiry runs early enough that the beat is gone before the extraction phase begins. This creates clean state for the storyteller to emit a new beat.
 
-**Step 2 — Narration consumption.** The beat is passed to the narrator via `_narrate_messages(pending_gm_beat=...)`. The narrator uses the beat's `type` and `surface_as` metadata as creative guidance alongside the pacing directive. The beat is NOT cleared after narration — it persists through the extraction phase.
+**Step 2 — Narration consumption.** The beat is passed to the narrator via `_narrate_messages(pending_gm_beat=...)`. The narrator uses the beat's `type` and `effect` as creative guidance alongside the pacing directive. The beat is NOT cleared after narration — it persists through the extraction phase.
 
 **Step 3 — Storytell writes or clears the beat.** After extraction completes:
 - If Storytell emits a valid `gm_beat` (non-null `type`): replaces `pending_gm_beat` with `beat_expires_turn = turn_no + 2`.
@@ -127,7 +129,7 @@ The storyteller prompt (`storytell_system.j2`) uses a phase→beat constraints t
 
 ### Beat History
 
-`state.meta.recent_beats` stores the last 5 beats (including null entries) with `turn`, `type`, and `surface_as`. This history is rendered in both the storyteller system prompt (behavioral guidance) and the user prompt (current-turn context, more salient). Each entry shows `T{N}: {BEAT TYPE} (surface)` or `T{N}: No beat emitted this turn`.
+`state.meta.recent_beats` stores the last 5 beats (including null entries) with `turn`, `type`, and `effect`. This history is rendered in both the storyteller system prompt (behavioral guidance) and the user prompt (current-turn context, more salient). Each entry shows `T{N}: {BEAT TYPE} — {effect}` or `T{N}: No beat emitted this turn`.
 
 The LLM uses this history to follow beat diversity guidance: avoid repeating the same type more than twice in a sequence; at least one in three beats should be a non-pressure type.
 
@@ -147,7 +149,7 @@ The storyteller user prompt always renders the GM Beat section — on null-follo
 ### GM Beat Section in UI
 
 The storyteller user prompt renders the `## GM Beat` section unconditionally:
-- **Beat present:** Shows type, surface_as, expiration turn.
+- **Beat present:** Shows type, effect, expiration turn.
 - **No beat:** Shows fallback text — "No beat currently carried over from the previous turn. Choose freely."
 
 This was changed from the previous conditional rendering (where the section vanished on ~38% of turns), ensuring full beat awareness coverage.

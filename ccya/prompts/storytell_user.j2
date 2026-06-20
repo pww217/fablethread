@@ -7,6 +7,8 @@
 
 {% include "sections/_npc_roster.j2" %}
 
+{% include "sections/_npc_context.j2" %}
+
 {% include "sections/_location.j2" %}
 
 {% include "sections/_arc.j2" %}
@@ -42,7 +44,7 @@ Outcome: {{ pacing_context.outcome_hint or "hold" }}
 {% if pending_beat and pending_beat.type %}
 ## GM Beat
 Type: **{{ pending_beat.type | replace('_', ' ') | upper }}**
-Surface: `{{ pending_beat.surface_as | default('ambient') }}`
+Effect: {{ pending_beat.effect }}
 Expires: Turn {{ pending_beat.beat_expires_turn }}
 
 This beat is active in the scene. The narrator integrated it into this turn's narration. Consider it when selecting this turn's beat — avoid repeating the same type unless the narrative momentum demands it.
@@ -52,7 +54,7 @@ No beat currently carried over from the previous turn. Choose freely.
 {% endif %}
 {% if recent_beats %}
 ## Recent Beats
-{% for b in recent_beats %}T{{ b.turn }}: {% if b.type %}{{ b.type | replace('_', ' ') | upper }}{% if b.surface_as %} ({{ b.surface_as }}){% endif %}{% else %}No beat emitted this turn{% endif %}
+{% for b in recent_beats %}T{{ b.turn }}: {% if b.type %}{{ b.type | replace('_', ' ') | upper }} — {{ b.effect }}{% else %}No beat emitted this turn{% endif %}
 
 {% endfor %}
 {% endif %}

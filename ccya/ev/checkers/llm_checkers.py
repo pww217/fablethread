@@ -90,20 +90,19 @@ register_prompt_template(
     """You are evaluating whether a GM beat's narrative consequence matches its
 declared type. Given:
 1. The GM beat type (pressure, escalation, complication, etc.)
-2. The beat's surface_as (ambient, environmental, etc.)
+2. The beat's effect (concrete sentence describing what's happening)
 3. The narration text where the beat was generated
 4. The narration text of the following turn
 
 Determine if the narrative consequence plausibly follows from the beat type.
 A "pressure" beat should create urgency. A "complication" should introduce
-an obstacle. An "escalation" should raise existing stakes. An "ambient"
-beat need not produce specific consequences.
+an obstacle. An "escalation" should raise existing stakes.
 
 Return JSON:
 {"passed": bool, "score": 0.0-1.0, "reasoning": str, "finding": str}""",
     """GM Beat:
   Type: {beat_type}
-  Surface: {surface_as}
+  Effect: {effect}
 
 Narration where beat was generated:
 {beat_narrate}
@@ -130,7 +129,7 @@ def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
     meta = state_snapshot.get("meta", {})
     pending_beat = meta.get("pending_gm_beat") or {}
     beat_type = pending_beat.get("type", "")
-    surface_as = pending_beat.get("surface_as", "ambient")
+    effect = pending_beat.get("effect", "")
     narrate = extract_field(ev, "narrate.prose") or ""
 
     # Look for next turn's narration if available
@@ -140,7 +139,7 @@ def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
 
     user_prompt = f"""GM Beat:
   Type: {beat_type}
-  Surface: {surface_as}
+  Effect: {effect}
 
 Narration where beat was generated:
 {narrate}"""

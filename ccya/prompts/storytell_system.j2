@@ -14,7 +14,7 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
    "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["..."], "new_threads": [{"id": "...", "summary": "...", "urgency": "normal"}]},
    "goal_update": "...",
    "chapter_end": true,
-   "gm_beat": {"type": "...", "surface_as": "..."},
+    "gm_beat": {"type": "...", "effect": "...", "npc_id": "...", "driver": "..."}
   "outcome_summary": "...",
   "actions": ["...", "...", "...", "..."]
 }
@@ -75,15 +75,16 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 ## GM Beat
 
-`gm_beat`: one beat to shape the next turn, or `null`. Emit as `{"type": "...", "surface_as": "..."}` — must be narratively specific, name NPCs, reference locations, tie to active threads.
+`gm_beat`: one beat to shape the next turn, or `null`. When present, must include `type`, `effect`, and optionally `npc_id` + `driver`.
 
-**Types:** See `allowed_beat_types` in the user prompt. Only those types are valid this turn.
-**Surfaces:** `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
-**CRITICAL: `surface_as` is NOT a beat type.** Do NOT use `pressure`, `escalation`, `complication`, or any other beat type as a `surface_as` value. `surface_as` describes HOW the beat manifests in the scene (ambient atmosphere, an event, NPC behavior, environmental change, player discovery, or an item). Beat types and surfaces are completely different fields with different valid values.
+**`effect` (required):** A short, concrete sentence describing what is happening. This is the ONLY beat content the narrator sees — it must be self-contained and narrative. Examples:
+- "A wounded scout stumbles into camp, warning of an approaching force"
+- "The merchant's assistant slips a coded note into your pocket"
+- "Distant thunder masks the sound of boots approaching from the east"
 
-## Beat types
+**`type`:** See `allowed_beat_types` in the user prompt. Only those types are valid this turn.
 
-**For this turn, only the types in the `allowed_beat_types` list in the user prompt are valid. `gm_beat.type` MUST be one of those types.**
+**`npc_id` + `driver` (optional):** When the beat is driven by an NPC's psychology, set `npc_id` to that NPC's ID and `driver` to the psychological field (`motivation`, `fear`, or `leverage`). The storyteller should prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats.
 
 **Roll band** (when directive is Tension or absent):
 - **crit_success / success** → prefer a beat that rewards the player or reveals info
@@ -91,7 +92,7 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 - **setback / fail** → prefer a beat that gives room to recover
 - **No roll** → prefer a neutral or discovery-oriented beat
 
-**Diversity:** Don't repeat the same beat `type` more than twice consecutively. Vary `surface_as` turn to turn.
+**Diversity:** Don't repeat the same beat `type` more than twice consecutively.
 
 ## Curtain Call — CLIMAX phase
 

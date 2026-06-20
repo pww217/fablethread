@@ -81,6 +81,7 @@ for ev in events:
 class _ExtractionContext:
     comp_this_turn: dict[str, Any]       # Post-delta compendium.npcs
     location_this_turn: dict[str, Any]   # Location after location_change
+    npc_context: list[dict[str, Any]]    # NPC psychological context for storytell
     inventory_this_turn: list[dict]      # Inventory after inventory deltas
     conditions_this_turn: list[dict]     # PC conditions after condition deltas
 ```
@@ -208,7 +209,7 @@ flowchart LR
     subgraph STEP2["Step 2 — Extraction"]
         SCENE["Scene Extract Result"]:::internal
         STATE_EXT["State Extract Result"]:::internal
-        EXT_CTX["_ExtractionContext<br>(comp, location,<br>inventory, conditions)<br>NOT stored in events"]:::internal
+        EXT_CTX["_ExtractionContext<br>(comp, location,<br>npc_context, inventory,<br>conditions)<br>NOT stored in events"]:::internal
         STORY["Storytell Result"]:::internal
     end
 
