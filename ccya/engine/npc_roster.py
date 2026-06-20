@@ -83,10 +83,10 @@ def build_npc_roster(
         lru_idx = {nid: i for i, nid in enumerate(reversed(lru_order))}
         result = sorted(
             seen.values(),
-            key=lambda e: (order.get(e.get("presence"), 3), lru_idx.get(e["id"], 9999)),
+            key=lambda e: (order.get(str(e.get("presence") or ""), 3), lru_idx.get(e["id"], 9999)),
         )
     else:
-        result = sorted(seen.values(), key=lambda e: (order.get(e.get("presence"), 3), e["name"]))
+        result = sorted(seen.values(), key=lambda e: (order.get(str(e.get("presence") or ""), 3), e["name"]))
 
     result = result[:max_entries]
     _log.debug("build_npc_roster roster=%d", len(result))
