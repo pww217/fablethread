@@ -19,7 +19,7 @@ flowchart LR
         N6["npc_name_pool (cultural name list)"]
         N7["npc_roster<br>(from build_npc_roster(comp),<br>  presence field: present/nearby/known)"]
         N9["world_factions<br>(immutable trace)"]:::xstream
-        N10["pending_gm_beat<br>(type · surface_as metadata)"]
+        N10["pending_gm_beat<br>(type · effect metadata)"]
         N11["pacing_context<br>(outcome_hint)<br>from _compute_pacing_context()"]:::xstream
         N15["user_input"]
     end
@@ -56,4 +56,4 @@ The seed embeds emotional stakes in the initial state — NPC `relation` fields,
 
 ### GM Beat consumption
 
-The narrator receives a pending GM beat from `state.meta.pending_gm_beat` (set by Storytell in the previous turn). The beat's `type` and `surface_as` metadata are passed alongside the outcome hint as creative guidance for the narrative. The beat is NOT cleared after narration — it persists through the extraction phase. After extraction completes, Storytell replaces it with a new beat or pops it on null output. Full beat lifecycle is documented in [step2c-storytell](./step2c-storytell.md#gm-beat).
+The narrator receives a pending GM beat from `state.meta.pending_gm_beat` (set by Storytell in the previous turn). The beat's `type` and `effect` metadata are passed alongside the outcome hint as creative guidance for the narrative. The beat is NOT cleared after narration — it persists through the extraction phase. After extraction completes, Storytell replaces it with a new beat or pops it on null output. Full beat lifecycle is documented in [step2c-storytell](./step2c-storytell.md#gm-beat).

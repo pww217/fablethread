@@ -74,11 +74,11 @@ def recent_beats(events: list[dict[str, Any]]) -> CheckerResult:
                 })
                 all_passed = False
 
-            if "type" not in entry or "surface_as" not in entry:
+            if "type" not in entry or "effect" not in entry:
                 findings.append({
                     "turn": ev.get("turn"),
                     "check": "recent_beats_entry_fields",
-                    "detail": f"entry[{j}] missing 'type' or 'surface_as' field",
+                    "detail": f"entry[{j}] missing 'type' or 'effect' field",
                 })
                 all_passed = False
 

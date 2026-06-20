@@ -125,41 +125,6 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
             })
             all_passed = False
 
-    # surface_as consistency (consecutive same-type beats)
-    for i in range(len(events) - 1):
-        cur = events[i]
-        nxt = events[i + 1]
-
-        cur_output = ((extract_field(cur, "extraction") or {}).get("storytell") or {}).get("output") or {}
-        nxt_output = ((extract_field(nxt, "extraction") or {}).get("storytell") or {}).get("output") or {}
-
-        cur_beat = cur_output.get("gm_beat")
-        nxt_beat = nxt_output.get("gm_beat")
-
-        if not isinstance(cur_beat, dict) or not isinstance(nxt_beat, dict):
-            continue
-
-        cur_type = cur_beat.get("type")
-        nxt_type = nxt_beat.get("type")
-        if cur_type is None or nxt_type is None or cur_type != nxt_type:
-            continue
-
-        cur_surface = cur_beat.get("surface_as")
-        nxt_surface = nxt_beat.get("surface_as")
-        if cur_surface is None or nxt_surface is None:
-            continue
-
-        if {cur_surface, nxt_surface} == {"ambient", "environmental"}:
-            cur_pacing = extract_field(cur, "pacing_context") or {}
-            nxt_pacing = extract_field(nxt, "pacing_context") or {}
-            if cur_pacing.get("directive") == nxt_pacing.get("directive"):
-                findings.append({
-                    "turn": nxt.get("turn"),
-                    "check": "surface_as_consistency",
-                    "detail": f"same beat type '{cur_type}' but surface_as flipped from '{cur_surface}' to '{nxt_surface}' without directive change",
-                })
-                all_passed = False
-
     if not all_passed:
         return CheckerResult(
             checker_id="pacing_directives", passed=False, score=0.0,

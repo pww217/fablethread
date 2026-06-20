@@ -1,0 +1,12 @@
+{# sections/_npc_context.j2 #}
+{# npc_context: list[dict] — [{"npc_id": "x", "fear": "string"}, ...] #}
+{% if npc_context -%}
+## NPC Context
+
+{% for entry in npc_context -%}
+{% set _npc_id = entry.npc_id %}
+{% set _npc = comp_this_turn.get(_npc_id, {}) %}
+- **{{ _npc.get("name", _npc_id) }}** (`{{ _npc_id }}`){% if entry.fear %} — fear: {{ entry.fear }}{% endif %}{% if entry.motivation %} — motivation: {{ entry.motivation }}{% endif %}{% if entry.leverage %} — leverage: {{ entry.leverage }}{% endif %}
+
+{% endfor -%}
+{% endif %}

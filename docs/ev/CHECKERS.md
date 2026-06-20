@@ -85,7 +85,7 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `ruling`, `narrate_prompt`, `extraction.storytell.rendered_user`
-- **What it checks:** outcome_hint rendered in narrator prompt, directive rendered in storyteller prompt, removed directives not present, beat type variety maintained, surface_as consistency across consecutive same-type beats
+- **What it checks:** outcome_hint rendered in narrator prompt, directive rendered in storyteller prompt, removed directives not present, beat type variety maintained
 - **CLI:** `ev.py check TURN pacing_directives`
 - **Caveats:** Removed directives: "Overwhelm", "Pressure", "location pressure", "location imperative", "combat fatigue". Beat type variety warns if a single type exceeds 60% of all beats (requires 3+ beats). Surface_as consistency checks that consecutive same-type beats don't flip between "ambient" and "environmental" without a directive change. Phase constraint check verifies beat types are allowed for the current scene_phase per BEAT_PHASE_MAP. Uses regex word boundaries to avoid false positives from word variants (e.g., "overwhelmed" matching "Overwhelm").
 
@@ -101,9 +101,9 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `state_snapshot`
-- **What it checks:** recent_beats exists in state, capped at 5 entries, entry structure (turn/type/surface_as), monotonic turn numbers
+- **What it checks:** recent_beats exists in state, capped at 5 entries, entry structure (turn/type/effect), monotonic turn numbers
 - **CLI:** `ev.py check TURN recent_beats`
-- **Caveats:** Default cap is 5 entries per config.recent_beats_max. Each entry must have turn, type, and surface_as fields.
+- **Caveats:** Default cap is 5 entries per config.recent_beats_max. Each entry must have turn, type, and effect fields.
 
 ### phase_persistence
 

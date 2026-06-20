@@ -170,7 +170,7 @@ ev.py deltas 7 saves/my-game/events.jsonl                   # find thread mutati
 - Scene Pressure fires at `scene_pressure_threshold` effective turns (default 3)
 - Breathe fires when no urgent threads exist AND `breather_turn_count < breather_max_turns`
 - Beat type variety: no single type exceeds 70% of all beats (requires 3+ beats)
-- `surface_as` consistency: consecutive same-type beats don't flip without directive change
+
 - Beat types respect phase constraints (allowed_beat_types per phase)
 
 **Commands:**
@@ -198,7 +198,7 @@ ev.py convergence saves/my-game/events.jsonl                # convergence score 
 **What to look for:**
 - `recent_beats` exists in `state_snapshot.meta`
 - List capped at 5 entries (configurable via `recent_beats_max`)
-- Each entry has `turn`, `type`, and `surface_as` fields
+- Each entry has `turn`, `type`, and `effect` fields
 - Turn numbers are monotonically increasing
 
 **Commands:**
@@ -210,7 +210,7 @@ ev.py trace meta.recent_beats saves/my-game/events.jsonl    # recent beats over 
 **Red flags:**
 - recent_beats missing from state
 - More than 5 entries in recent_beats
-- Missing type or surface_as fields in entries
+- Missing type or effect fields in entries
 - Turn numbers not monotonically increasing
 
 ---

@@ -19,10 +19,12 @@ def build_npc_roster(
     sort_by_lru: bool = False,
     lru_order: list[str] | None = None,
     personality_registry: dict[str, Any] | None = None,
+    slim: bool = False,
 ) -> list[dict[str, Any]]:
     """Build sorted NPC roster from compendium, filtering by presence.
 
-    Returns list of dicts with keys: id, name, title, bio, presence, motivation,
+    When slim=True, only includes id, name, title, bio.
+    Otherwise returns list of dicts with keys: id, name, title, bio, presence, motivation,
     fear, leverage, bond, notes, last_presence_turn, last_seen_location,
     departed_reason.
     """
@@ -39,29 +41,37 @@ def build_npc_roster(
         name = entry.get("name") or ""
         if not name:
             continue
-        seen[nid] = {
-            "id": nid,
-            "name": name,
-            "title": _strip_non_ascii(entry.get("title") or ""),
-            "bio": (entry.get("bio") or "").strip() or None,
-            "presence": presence,
-            "motivation": entry.get("motivation") or None,
-            "fear": entry.get("fear") or None,
-            "leverage": entry.get("leverage") or None,
-            "bond": entry.get("bond") or None,
-            "notes": entry.get("notes") or None,
-            "last_presence_turn": entry.get("last_presence_turn"),
-            "last_seen_location": entry.get("last_seen_location") or None,
-            "departed_reason": entry.get("departed_reason") or None,
-        }
+        if slim:
+            seen[nid] = {
+                "id": nid,
+                "name": name,
+                "title": _strip_non_ascii(entry.get("title") or ""),
+                "bio": (entry.get("bio") or "").strip() or None,
+            }
+        else:
+            seen[nid] = {
+                "id": nid,
+                "name": name,
+                "title": _strip_non_ascii(entry.get("title") or ""),
+                "bio": (entry.get("bio") or "").strip() or None,
+                "presence": presence,
+                "motivation": entry.get("motivation") or None,
+                "fear": entry.get("fear") or None,
+                "leverage": entry.get("leverage") or None,
+                "bond": entry.get("bond") or None,
+                "notes": entry.get("notes") or None,
+                "last_presence_turn": entry.get("last_presence_turn"),
+                "last_seen_location": entry.get("last_seen_location") or None,
+                "departed_reason": entry.get("departed_reason") or None,
+            }
 
-        if personality_registry:
-            arch_id = entry.get("personality")
-            if arch_id and arch_id in personality_registry:
-                arch = personality_registry[arch_id]
-                seen[nid]["personality_label"] = getattr(arch, "label", arch_id)
-                seen[nid]["personality_traits"] = ", ".join(arch.traits)
-                seen[nid]["personality_speech_hint"] = getattr(arch, "speech_hint", "")
+            if personality_registry:
+                arch_id = entry.get("personality")
+                if arch_id and arch_id in personality_registry:
+                    arch = personality_registry[arch_id]
+                    seen[nid]["personality_label"] = getattr(arch, "label", arch_id)
+                    seen[nid]["personality_traits"] = ", ".join(arch.traits)
+                    seen[nid]["personality_speech_hint"] = getattr(arch, "speech_hint", "")
 
     order = {
         NpcPresence.PRESENT.value: 0,
