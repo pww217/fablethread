@@ -5,7 +5,7 @@
 #}
 {% if threads %}
 ### Active Threads ({{ threads | length }} active — target: 3-4, ~5 total)
-{% for t in threads %}{% if not t.dormant %}- `{{ t.id }}` [{{ t.type | default(t.urgency) | upper }}] {{ t.summary }}
+{% for t in threads %}{% if not t.dormant %}{% set type_label = (t.type | default('unknown') | upper) ~ ' - ' ~ (t.urgency | default('normal') | upper) %}- `{{ t.id }}` [{{ type_label }}] {{ t.summary }}
 {%- if t.last_updated_turn is not none %} ({{ turn_no - t.last_updated_turn }} turns ago){% endif %}
 {%- for entry in t.progress %}
   - {{ entry }}
@@ -14,5 +14,5 @@
 {% endif %}
 {% if threads | selectattr('dormant') | list %}
 ### Dormant Threads (faded but recoverable)
-{% for t in threads %}{% if t.dormant %}- `{{ t.id }}` [DORMANT] {{ t.summary }}{% if t.last_updated_turn is not none %} ({{ turn_no - t.last_updated_turn }} turns ago){% endif %}
+{% for t in threads %}{% if t.dormant %}{% set type_label = (t.type | default('unknown') | upper) ~ ' - ' ~ (t.urgency | default('background') | upper) %}- `{{ t.id }}` [{{ type_label }}] {{ t.summary }}{% if t.last_updated_turn is not none %} ({{ turn_no - t.last_updated_turn }} turns ago){% endif %}
 {% endif %}{% endfor %}{% endif %}
