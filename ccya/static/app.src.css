@@ -2027,6 +2027,28 @@ body {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* ── Turn viewer mobile ── */
+  .tv-view-toggle { display: none; }
+
+  .tv-swipe-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 0 2px;
+  }
+  .tv-swipe-dot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    transition: background 150ms;
+  }
+  .tv-swipe-dot.active {
+    background: var(--text-muted);
+  }
 }
 
 /* When pills are moved inside narrative panel on desktop, break out of panel padding */
@@ -2830,18 +2852,17 @@ body {
 }
 
 .tv-turn-columns {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
+  /* no flex — single column block layout */
 }
-.tv-pipeline { flex: 0 0 56%; min-width: 0; }
+.tv-pipeline {
+  width: 100%;
+}
+.tv-pipeline-stage {
+  width: 100%;
+}
 .tv-diff-panel {
-  flex: 0 0 44%;
+  width: 100%;
   min-width: 0;
-  position: sticky;
-  top: 16px;
-  max-height: 80vh;
-  overflow-y: auto;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
