@@ -173,6 +173,8 @@ def build_prompt_context(
             "scene_phase": scene.get("scene_phase", "SETUP"),
             "curtain_call": curtain_call,
             "allowed_beat_types": turn_ev.get("allowed_beat_types") or [],
+            "state": state_snapshot,
+            "pc_name": pc.get("name", "Unnamed"),
         }
 
     if stream == "ruling":
@@ -262,6 +264,8 @@ def build_prompt_context(
             "inventory": state_snapshot.get("inventory") or [],
             "intent": intent if isinstance(intent, dict) else None,
             "turn_no": turn_no,
+            "state": state_snapshot,
+            "pc_name": pc.get("name", "Unnamed"),
         }
 
     # Placeholder for future streams — fail loudly if used
