@@ -217,6 +217,7 @@ def build_prompt_context(
                     {
                         "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
                         "urgency": t.get("urgency", "normal") if isinstance(t, dict) else getattr(t, "urgency", "normal"),
+                        "type": t.get("type") if isinstance(t, dict) else getattr(t, "type", None),
                         "id": t.get("id", "") if isinstance(t, dict) else getattr(t, "id", ""),
                         "dormant": t.get("dormant", False) if isinstance(t, dict) else getattr(t, "dormant", False),
                         "progress": [],
@@ -254,6 +255,9 @@ def build_prompt_context(
             "current_arc": current_arc_ctx,
             "curtain_call": curtain_call,
             "resolved_arcs": [],
+            "location": state_snapshot.get("location") or {},
+            "inventory": state_snapshot.get("inventory") or [],
+            "conditions": list(pc.get("conditions") or []),
         }
 
     if stream == "state":
