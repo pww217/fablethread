@@ -73,6 +73,7 @@ def _storytell_messages(
             # This-turn derived values (from extraction_ctx) — NOT state
             "npc_roster": npc_roster,
             "npc_context": extraction_ctx.npc_context,
+            "comp_this_turn": extraction_ctx.comp_this_turn,
             "location": extraction_ctx.location_this_turn,
             "inventory": extraction_ctx.inventory_this_turn,
             "conditions": extraction_ctx.conditions_this_turn,
