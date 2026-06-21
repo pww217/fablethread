@@ -71,7 +71,37 @@ def _build_extraction_context(
     return _ExtractionContext(
         comp_this_turn=post_state.setdefault("compendium", {}).setdefault("npcs", {}),
         location_this_turn=location_this_turn,
-        candidate_npcs=list(scene_result.candidate_npcs or []),
+        candidate_npcs=_filter_unnamed_personality(scene_result.candidate_npcs or [], post_state),
         inventory_this_turn=list(post_state.get("inventory") or []),
         conditions_this_turn=list(post_pc.get("conditions") or []),
     )
+
+
+def _filter_unnamed_personality(
+    candidates: list[dict[str, Any]],
+    state: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Strip personality type from candidate_npcs entries for unnamed NPCs.
+
+    Unnamed NPCs (where name matches an alias) should only have bio — they
+    cannot have personality, motivation, fear, leverage, or bond. If the
+    extractor incorrectly assigns personality to an unnamed NPC, remove it.
+    """
+    comp_npcs = (state.get("compendium") or {}).get("npcs", {})
+    result = []
+    for c in candidates:
+        npc_id = c.get("id", "")
+        npc_entry = comp_npcs.get(npc_id, {})
+        # Check if this NPC is unnamed: name matches an alias
+        name = (npc_entry.get("name") or "").strip()
+        aliases = [a for a in (npc_entry.get("aliases") or []) if a]
+        is_unnamed = name and aliases and name.lower().strip() in {a.lower().strip() for a in aliases}
+        if is_unnamed and c.get("type") == "personality":
+            # Skip personality candidates for unnamed NPCs
+            _log.debug(
+                "candidate_npcs: stripping personality for unnamed NPC %s",
+                npc_id,
+            )
+            continue
+        result.append(c)
+    return result

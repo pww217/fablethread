@@ -9,12 +9,12 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 ```json
 {
   "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "...", "promote_to_world_state": true}],
-  "thread_update": [{"id": "...", "progress": "...", "progress_kind": "advancement|setback|shift", "urgency": "background|normal|urgent", "dormant": true}],
-  "thread_add": {"id": "...", "summary": "...", "urgency": "normal"},
+  "thread_update": [{"id": "...", "type": "threat", "progress": "...", "progress_kind": "advancement|setback|shift", "urgency": "background|normal|urgent", "dormant": true}],
+  "thread_add": {"id": "...", "type": "threat", "summary": "...", "urgency": "normal"},
    "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["..."], "new_threads": [{"id": "...", "summary": "...", "urgency": "normal"}]},
    "goal_update": "...",
    "chapter_end": true,
-    "gm_beat": {"type": "...", "effect": "...", "npc_id": "...", "driver": "..."}
+   "gm_beat": {"type": "...", "effect": "...", "npc_id": "...", "driver": "..."}
   "outcome_summary": "...",
   "actions": ["...", "...", "...", "..."]
 }
@@ -36,7 +36,7 @@ Threads in the user prompt are shown with two labels: `[TYPE - URGENCY]`.
 - `COMPLICATION` — A complicating factor that adds difficulty or conflict. Not inherently good or bad — it makes things harder.
 - `REVELATION` — New information or a discovered truth. A piece of the puzzle that changes understanding.
 
-When emitting `thread_add` or `thread_update`, set `type` to match the thread's semantic role. When the user prompt shows only a type without urgency (e.g. `[THREAT]`), the urgency is `normal` — the thread is active but not pressing. When both are shown (e.g. `[OPPORTUNITY - BACKGROUND]`), the thread is faded but recoverable.
+REQUIRED — every `thread_add` and `thread_update` must include exactly one type from the list above. When emitting `thread_add` or `thread_update`, set `type` to match the thread's semantic role. When the user prompt shows only a type without urgency (e.g. `[THREAT]`), the urgency is `normal` — the thread is active but not pressing. When both are shown (e.g. `[OPPORTUNITY - BACKGROUND]`), the thread is faded but recoverable.
 
 **Urgency** (how soon it needs attention — used in `thread_update`):
 - `normal` — Active and relevant but not pressing right now.
@@ -63,11 +63,13 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 ## Arc resolution
 
-`arc_resolve` ends the current narrative chapter. Emit when: all arc threads are resolved/moot; the story's center of gravity has fundamentally shifted; the core conflict was decisively won or lost; the arc has coasted 8+ turns on the same goal. Target cadence: 8–15 turns per arc.
+Emit **only** when the narrative chapter genuinely ends — a decisive win, a fundamental shift, or 8+ turns on the same goal. Target cadence: 8–15 turns.
 
 **CRITICAL: Do NOT use `arc_resolve` to drop threads.** `thread_resolve` is the only way to drop threads from the active list. Using `arc_resolve` with `drop_threads` resets the entire arc state (visible_goal, threads, completed_threads) — this is destructive and should only happen when the chapter genuinely ends. If you need to drop a thread, use `thread_resolve` instead.
 
 **CRITICAL: Do NOT emit `arc_resolve` as an empty object `{}`.** If you are not actually resolving the arc, omit the field entirely. An empty `arc_resolve` object will cause a validation error.
+
+WRONG: `arc_resolve` with unchanged `visible_goal` (no-op). RIGHT: `arc_resolve` introduces a new goal or `chapter_end: true` keeps the current one.
 
 `chapter_end: true` — signal that the chapter is ending without resetting arc state. Use this when the chapter's tension has resolved but the core goal remains. The arc continues with its current threads.
 
@@ -90,7 +92,18 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 **`effect` (required):** A short, concrete sentence describing what is about to happen. Must be narratively specific — name NPCs, reference locations, tie to active threads. NOT a category label. NOT "ambient tension." If you cannot write a concrete sentence, emit `null` for the entire `gm_beat`.
 
-**`npc_id` + `driver` (optional):** When the beat is driven by an NPC's psychology, set `npc_id` to that NPC's ID and `driver` to the psychological field (`motivation`, `fear`, `leverage`, `bond`, or `personality`). Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats.
+**`npc_id` + `driver` (optional):** When the beat is driven by an NPC's psychology, set `npc_id` to that NPC's ID and `driver` to the psychological field. **Use the `type` from the candidate_npcs entry for the chosen NPC as the driver value.** If the candidate says `(fear)`, set `driver: "fear"`. If the candidate says `(motivation)`, set `driver: "motivation"`. Do not pick a different driver — the scene extractor already identified the relevant psychological field. If you pick a candidate without a matching entry in candidate_npcs, use `motivation` as the driver. Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats.
+
+**Beat flavor by type**
+
+The scene extractor has identified which psychological field is active. Use this mapping:
+
+- **motivation** → NPC pursues their goal. Show them acting — enforcing a rule, pushing an agenda, creating friction with the player.
+- **fear** → NPC avoids something. Show the consequence — pulling back, overcompensating, making a mistake.
+- **leverage** → NPC holds something valuable. Show them exercising it — using it, threatening it, negotiating.
+- **bond** → NPC has shared history. Show it impacting the present — favoritism, resentment, hesitation, unexpected loyalty.
+
+**Action rule:** Every beat must show an NPC or the world taking action. Never start with "nothing happens" or "the atmosphere is tense." If no NPC is acting, show the environment reacting — a door slams, a light flickers, a sound carries. If no psychological pressure is relevant, emit `null`.
 
 **`type`:** See `allowed_beat_types` in the user prompt. Only those types are valid this turn.
 

@@ -60,7 +60,7 @@ GMBeat
   type: complication | revelation | opportunity | breathing_room | pressure | twist | setback | escalation | callback
   effect: str (required — terse signpost ~5-7 words, not a full sentence)
   npc_id: str | None
-  driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None
+   driver: Literal["motivation", "fear", "leverage", "bond"] | None
   beat_expires_turn: int | None — turn number at which the beat expires; set to turn_no + 2 when stored
 ```
 
@@ -179,7 +179,7 @@ ArcThread
    id: str                    — Unique identifier
    summary: str               — What this thread is about
    dormant: bool = False      — Engine-set after 4 turns with no activity (urgent threads excluded); also settable via thread_update by storyteller/sanitizer
-   type: Literal["threat", "opportunity", "complication", "revelation"] | None = None  — Semantic type assigned by storyteller at creation or via thread_update
+   type: Literal["threat", "opportunity", "complication", "revelation"] | None = None  — Semantic type; required in prompt guidance (Schema examples + "REQUIRED" directive) even though model field is optional
    urgency: Literal["background", "normal", "urgent"] = "normal"  # Storyteller-controlled; Python enforces stepwise decay (urgent→normal→background) after N turns at same level
    progress: list[ProgressEntry] = []   — Append-only log of structured progress updates
    resolution_state: str | None # Set when thread_resolve processes resolved/failed/abandoned

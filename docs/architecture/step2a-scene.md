@@ -31,7 +31,7 @@ flowchart LR
 
 ## Beat candidate selection
 
-Scene extracts per-NPC beat candidates as `candidate_npcs: [{id, type, effect}]` where `type` is one of `motivation | fear | leverage | bond | personality`. Each entry pairs an NPC with a specific driver type and a vague psychological pressure effect (~5 words). This is NOT a full beat — it's a signal to storytell about who matters narratively and how. Storytell maps these to specific NPCs and threads using three patterns: deliver as-is, combine multiple drivers, or apply effect to a thread.
+Scene extracts per-NPC beat candidates as `candidate_npcs: [{id, type, effect}]` where `type` is one of `motivation | fear | leverage | bond`. Each entry pairs an NPC with a specific driver type and an observable behavioral pressure effect (~1 sentence). This is NOT a full beat — it's a signal to storytell about who matters narratively and how. Storytell maps these to specific NPCs and threads using three patterns: deliver as-is, combine multiple drivers, or apply effect to a thread.
 
 ## Extraction prompt (`extract_scene_system.j2`) — NPC quality rules
 
@@ -39,7 +39,7 @@ Four additions prevent common NPC compendium quality issues:
 
 1. **Alias-first naming**: Descriptive labels ("Scarred Soldier", "Unknown Visitor") go in `aliases`, not `name`. Proper names ("Leo Vance") go in `name`. When narration later reveals a proper name for an alias NPC, the LLM updates `name` and preserves the descriptive label in `aliases` — preventing duplicate entries. The existing `_dedup_compendium_update()` in Python handles name-matching dedup.
 
-2. **NPC field requirements by tier**: Named NPCs (proper name in `name`) must have `bio` + `personality` + at least 2 of `motivation`/`fear`/`leverage`/`bond` (= 4 fields minimum). Unnamed NPCs (descriptive label) need only `bio` — no personality fields. Promotion to named adds `personality` + 2 extra fields. Group NPCs must state exact count in `name`. This ensures named NPCs get personality depth while reducing output bloat for transient characters.
+2. **NPC field requirements by tier**: Named NPCs (proper name in `name`) must have `bio` + `personality` + at least 2 of `motivation`/`fear`/`leverage`/`bond` (= 4 fields minimum). Unnamed NPCs (descriptive label) need only `bio` — no personality fields. The engine blocks motivation/fear/leverage/bond/personality assignment on unnamed NPCs via a guard in `apply_npc_scene_management()` (npcs.py) — if the LLM emits these fields for an unnamed NPC, they are nullified before storage. Promotion to named adds `personality` + 2 extra fields. Group NPCs must state exact count in `name`. This ensures named NPCs get personality depth while reducing output bloat for transient characters.
 
 3. **Group NPC identity**: Group NPCs (e.g., "Two sailors") have short names with quantity + type only. Distinguishing features for each individual in the group go in the `bio` field (appearance, demeanor, visible trait). The scene extractor pulls these from narration into the bio. The narrator references bio details when reintroducing groups rather than collapsing to the generic type. This makes reuse feel like the same people, not any two sailors.
 
@@ -47,4 +47,4 @@ Four additions prevent common NPC compendium quality issues:
 
 ## Key forward dependency
 
-Step 2c receives `candidate_npcs: [{id, type, effect}]` from scene, plus `npc_roster` (from build_npc_roster()) built from comp_this_turn. Each candidate has a specific driver type (motivation/fear/leverage/bond/personality) and per-NPC effect string. Storytell maps these to beats using three patterns: deliver as-is, combine multiple drivers, or apply effect to a thread. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Storytell (Step 2c).
+Step 2c receives `candidate_npcs: [{id, type, effect}]` from scene, plus `npc_roster` (from build_npc_roster()) built from comp_this_turn. Each candidate has a specific driver type (motivation/fear/leverage/bond) and per-NPC effect string. Storytell maps these to beats using three patterns: deliver as-is, combine multiple drivers, or apply effect to a thread. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Storytell (Step 2c).
