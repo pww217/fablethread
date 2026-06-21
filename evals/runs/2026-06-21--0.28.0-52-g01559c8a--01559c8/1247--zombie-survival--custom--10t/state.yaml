@@ -1,0 +1,433 @@
+__seed_meta__:
+  actions:
+  - Demand that Raymond explain the new patrol restrictions.
+  - Approach Jimmy Snyder to investigate his influence over the crowd.
+  - Inspect the nearby water crates for signs of tampering.
+  - Withdraw quietly from the intersection to avoid a confrontation.
+  opening_narrative: 'The rhythmic crunch of broken glass under your boots is the
+    only sound in the intersection. A heavy, stagnant heat hangs over the street,
+    carrying the cloying buzz of flies circling a discarded heap near the boarded
+    grocery store. You step around a mattress that has been dragged halfway across
+    the road, its fabric stained and damp from the last rain. To your left, a burned-out
+    car sits like a rusted skeleton, with small, pale saplings pushing through the
+    gaps in its chassis. The swinging door of the grocery store groans on a single
+    hinge, a rhythmic creak that feels like a warning.
+
+
+    You were checking the perimeter near the water crates when you saw him. Raymond
+    Love is standing by the edge of the intersection, his silhouette sharp against
+    the midday sun. He isn''t alone. Two residents stand behind him, their eyes fixed
+    on the ground, refusing to meet your gaze. Raymond looks older than he did a month
+    ago; the lines around his mouth have deepened into permanent trenches. He watches
+    you with a clinical detachment that feels more like a judgment than a greeting.
+
+
+    "You shouldn''t be out here without a permit, Edwin," Raymond says, his voice
+    devoid of the warmth it once held when you two stood shoulder-to-shoulder in the
+    breach. "The council has issued new directives regarding unauthorized patrols.
+    We cannot have former officers wandering the streets and causing confusion."
+
+
+    Behind him, a small crowd begins to gather near the corner. They aren''t looking
+    at the water crates or the broken storefronts; they are looking at Jimmy Snyder,
+    who is standing atop a rusted crate. Jimmy is gesturing wildly toward the sky,
+    his voice carrying a frantic, melodic quality that cuts through the heavy air.
+    The residents aren''t listening to Raymond''s warnings; they are leaning in toward
+    Jimmy, their faces illuminated by a terrifying sort of hope. You realize then
+    that the authority you once commanded hasn''t just slipped away—it has been replaced.
+    The tension in the street is no longer about the scarcity of water or the broken
+    roads; it is the electric, vibrating energy of a community deciding to follow
+    a different master. Raymond steps closer to you, his eyes narrowing. "The people
+    need stability, Edwin. Not ghosts from a dead world. If you continue this, we
+    will have no choice but to treat you as a trespasser."'
+  outcome_summary: Edwin Ritter confronts Raymond Love amidst a growing religious
+    fervor in the Saundersburgh intersection.
+__seed_pools__:
+  arc:
+    description: ''
+    id: cult_emergence
+    incompatible_with: []
+    tags:
+    - cult
+    - emergence
+    - radical_belief
+  character_dynamic:
+    description: ''
+    id: disgraced_leader
+    incompatible_with:
+    - trusted_insider
+    - free_agent
+    tags:
+    - fallen_status
+    - redemption_needed
+    - community_ties
+  moral_pressure:
+    description: ''
+    id: last_stand_decision
+    incompatible_with: []
+    tags:
+    - sacrifice
+    - defense
+    - survival_of_group
+  npc_bond:
+    description: The NPC and PC once held a breach together while others fled. The
+      memory is one of mutual reliance.
+    id: held_a_gate_together
+    incompatible_with: []
+    tags:
+    - shared_defense
+    - trust
+    - combat_bond
+  scene_bundle:
+    conditions:
+    - a mattress dragged halfway across the intersection
+    - the grocery store windows boarded but the door swinging
+    id: overgrown_street
+    items:
+    - a burned-out car with saplings growing through the chassis
+    - a crate of bottled water
+    sensory:
+    - the buzz of flies over something unseen
+    - glass crunching underfoot with every step
+  situation:
+    description: ''
+    id: social_betrayal
+    incompatible_with: []
+    tags:
+    - community
+    - betrayal
+    - trust_breakdown
+arc:
+  completed_threads:
+  - added_turn: null
+    dormant: false
+    id: council_collapse
+    last_updated_turn: null
+    outcome: The council's internal unity has broken as members flee in panic.
+    progress: []
+    resolution_state: resolved
+    resolved_turn: 7
+    summary: The sudden desertion of council members creates a leadership vacuum in
+      Saundersburgh
+    type: null
+    urgency: urgent
+    urgency_set_turn: null
+  - added_turn: 7
+    dormant: false
+    id: public_panic_spread
+    last_updated_turn: 10
+    outcome: Thread reached its natural conclusion.
+    progress:
+    - kind: advancement
+      text: Council member's collapse draws a crowd of residents
+    - kind: shift
+      text: Residents' rhythmic chanting drowns out council member's cries
+    - kind: shift
+      text: Residents' synchronized focus shifts toward Edwin
+    resolution_state: resolved
+    resolved_turn: 10
+    summary: The panicked flight of a council member through the intersection threatens
+      to incite civil unrest among residents
+    type: threat
+    urgency: urgent
+    urgency_set_turn: 7
+  goal_context: The political vacuum created by the council's breakdown provides a
+    window to move against the cult or seize power.
+  last_thread_created_turn: 10
+  resolution: null
+  threads:
+  - added_turn: null
+    dormant: true
+    id: lost_legacy
+    last_updated_turn: null
+    outcome: null
+    progress: []
+    resolution_state: null
+    resolved_turn: null
+    summary: Rumors suggest a cache of pre-collapse technology was found nearby.
+    type: opportunity
+    urgency: background
+    urgency_set_turn: null
+  - added_turn: null
+    dormant: true
+    id: council_secrets
+    last_updated_turn: null
+    outcome: null
+    progress: []
+    resolution_state: null
+    resolved_turn: null
+    summary: Internal friction within the council is creating political instability.
+    type: revelation
+    urgency: background
+    urgency_set_turn: null
+  - added_turn: 8
+    dormant: false
+    id: religious_influence_rise
+    last_updated_turn: 10
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Crowd begins synchronized chanting at the makeshift shrine
+    - kind: advancement
+      text: Chanting fervor spreads from shrine to intersection
+    resolution_state: null
+    resolved_turn: null
+    summary: The gathering at the makeshift shrine suggests Jimmy Snyder's cult is
+      gaining traction
+    type: threat
+    urgency: normal
+    urgency_set_turn: 8
+  - added_turn: null
+    dormant: false
+    id: council_instability
+    last_updated_turn: null
+    outcome: null
+    progress: []
+    resolution_state: null
+    resolved_turn: null
+    summary: The emotional collapse of council members threatens district leadership.
+    type: null
+    urgency: normal
+    urgency_set_turn: null
+  visible_goal: Expose the growing influence of the New Dawn cult and reclaim your
+    standing in the council.
+compendium:
+  npcs:
+    council_members:
+      bio: A group of officials sitting around a scarred oak table in the dimly lit
+        chamber.
+      first_seen_turn: 0
+      last_presence_turn: 6
+      last_seen_location: Saundersburgh Intersection
+      name: Three council members
+      personality: wary_opportunist
+      position: inside the chamber, behind the door
+      presence: known
+    elena_vance:
+      bio: Graying hair and sharp, piercing eyes; carries herself with an aggressive,
+        urgent authority. A pragmatic administrator who prioritizes resource management
+        over social stability.
+      fear: Resource depletion leading to total collapse
+      first_seen_turn: 0
+      last_presence_turn: 5
+      last_seen_location: Saundersburgh Intersection
+      leverage: Influence over council decisions and ration distribution
+      motivation: Ensuring the survival of the community through strict rationing
+      name: Elena Vance
+      personality: cold_pragmatist
+      position: inside the chamber, behind the heavy door
+      presence: known
+      title: Councilwoman
+    jimmy_snyder:
+      bio: A restless youth who finds meaning in the strange patterns of the new world.
+      bond: null
+      fear: Being forgotten by the history he is trying to write.
+      last_presence_turn: 1
+      last_seen_location: Saundersburgh Intersection
+      leverage: He has gained a massive following among the younger residents.
+      motivation: Spreading the doctrine of the New Dawn to the disillusioned.
+      name: Jimmy Snyder
+      notes: null
+      personality: true_believer
+      position: in the open intersection, preaching to a crowd
+      presence: known
+      title: Aspiring Prophet
+    raymond_love:
+      bio: A man who remembers the collapse as clearly as the sunrise, now leading
+        the council with a heavy hand.
+      bond: The NPC and PC once held a breach together while others fled. The memory
+        is one of mutual reliance.
+      fear: The complete disintegration of the Saundersburgh social order.
+      last_presence_turn: 5
+      last_seen_location: Saundersburgh Intersection
+      leverage: He holds the only legal authority to distribute water.
+      motivation: Maintaining total control over resources to prevent starvation.
+      name: Raymond Love
+      personality: cold_pragmatist
+      position: inside the chamber, behind the heavy door
+      presence: known
+      title: Community Elder
+    residents:
+      aliases:
+      - residents
+      bio: Individual 1 is a tall man with a scarred brow; Individual 2 is a short
+        man with nervous hands; Individual 3 is a woman in a torn shawl; Individual
+        4 is a youth holding a wooden staff. They are gathered in silent observation
+        of the altar.
+      first_seen_turn: 6
+      last_presence_turn: 10
+      last_seen_location: Saundersburgh Intersection
+      name: Two residents
+      personality: wary_opportunist
+      position: standing in the periphery of the intersection, watching Edwin Ritter
+        with synchronized focus
+      presence: present
+    unnamed_council_member:
+      aliases:
+      - unnamed council member
+      bio: A man with thinning hair and trembling hands; his face is flushed and eyes
+        are bloodshot from weeping. He appears to be suffering a complete emotional
+        breakdown under the pressure of council proceedings.
+      first_seen_turn: 5
+      last_presence_turn: 9
+      last_seen_location: Saundersburgh Intersection
+      name: Unnamed Council Member
+      position: a heap on the ground, sobbing loudly
+      presence: nearby
+inventory:
+- aliases: []
+  amount: 1
+  id: repaired_pistol
+  name: Mended Sidearm
+  notes: The grip is reinforced with heavy duct tape.
+- aliases: []
+  amount: 9
+  id: pistol_rounds
+  name: Brass Shells
+  notes: ''
+- aliases: []
+  amount: 1
+  id: water_crate
+  name: Sealed Water Crate
+  notes: A heavy plastic container from the old world.
+- aliases: []
+  amount: 3
+  id: medical_kit
+  name: Antibiotic Doses
+  notes: Last of the Amoxicillin supply.
+location:
+  description: A wide, cracked asphalt expanse where the encroaching vines and debris
+    create a sense of isolation from the nearby shrine.
+  id: overgrown_street
+  name: Saundersburgh Intersection
+meta:
+  _pack_source: zombie-survival
+  _seed_soft_warnings:
+  - Opening narrative 395 words (expected 530-930)
+  _seed_type: dynamic
+  compendium_touch_order:
+  - elena_vance
+  - council_members
+  - raymond_love
+  - unnamed_council_member
+  - residents
+  last_arc_resolve_turn: 6
+  last_chapter_end_turn: 4
+  last_thread_created_turn: 8
+  model: gpt-4o
+  prior_history:
+  - '- [T1] Edwin eavesdrops on a heated council debate regarding water rationing
+    and Jimmy Snyder''s rising influence.'
+  - '- [T2] Edwin fails to overhear specific ledger data due to the loud argument
+    and external shouting.'
+  - '- [T3] Edwin successfully manipulates the rusted door latch to eavesdrop on the
+    council''s argument without alerting them.'
+  - '- [T4] Edwin observes Elena Vance revealing the true, dire state of the southern
+    reservoir to a stunned Raymond Love.'
+  - '- [T5] Edwin confirms the council is lying about water levels while witnessing
+    their emotional collapse.'
+  - '- [T6] Edwin''s attempt to eavesdrop was compromised when a panicked council
+    member stumbled into the hallway and bolted past him.'
+  - '- [T7] Edwin pursues the panicked council member into the Saundersburgh Intersection,
+    drawing attention from local residents.'
+  - '- [T8] Edwin follows the fleeing council member into an alleyway, discovering
+    him collapsed before a group of residents gathered at a makeshift shrine.'
+  - '- [T9] Edwin retreats from the shrine''s intense religious fervor back into the
+    Saundersburgh Intersection after attempting to de-escalate the crowd.'
+  - '- [T10] Edwin identifies two residents watching him with vacant, synchronized
+    focus as the cult''s chanting spreads into the intersection.'
+  recent_beats:
+  - effect: null
+    turn: 6
+    type: null
+  - effect: null
+    turn: 7
+    type: null
+  - effect: The residents at the shrine begin chanting softly, signaling a shift toward
+      religious fervor.
+    turn: 8
+    type: revelation
+  - effect: The rhythmic chanting of the residents signals a transition from mere
+      curiosity to active cult devotion.
+    turn: 9
+    type: revelation
+  - effect: null
+    turn: 10
+    type: null
+  recent_rolls:
+  - band: partial
+    turn: 10
+  - band: crit_success
+    turn: 9
+  - band: success
+    turn: 3
+  - band: fail
+    turn: 2
+  - band: fail
+    turn: 1
+  session_name: The Echo of Broken Oaths
+  setting_pack: zombie-survival
+  turn: 10
+pc:
+  actions:
+  - Confront the limping man and herb-clutching woman directly
+  - Draw your Mended Sidearm to intimidate the staring residents
+  - Retreat toward the outskirts of the Saundersburgh Intersection
+  - Search the nearby vines for a place to hide
+  bio: Born just before the collapse, Edwin remembers the hum of a working power grid
+    and the taste of clean water. After losing his command during the Saundersburgh
+    breach, he now struggles to maintain order in a community that no longer looks
+    to him for leadership.
+  conditions: []
+  drive: ''
+  name: Edwin Ritter
+  stats:
+    charisma: 2
+    dexterity: 2
+    strength: 3
+    wits: 4
+  tagline: Former militia captain, keeper of the water rations
+resolved_arcs:
+- closed_threads: []
+  goal_context: The discovery of the ledger's true data provides leverage against
+    the council's deception.
+  resolution: The truth about the water shortage is exposed, shifting the political
+    landscape of Saundersburgh.
+  resolved_turn: 4
+  visible_goal: Expose the growing influence of the New Dawn cult and reclaim your
+    standing in the council.
+- closed_threads: []
+  goal_context: The council's deception regarding reservoir levels has been confirmed
+    through eavesdropping on Elena Vance and Raymond Love.
+  resolution: The truth of the water shortage is exposed, destabilizing council authority.
+  resolved_turn: 5
+  visible_goal: Expose the growing influence of the New Dawn cult and reclaim your
+    standing in the council.
+- closed_threads: []
+  goal_context: The political vacuum created by the council's breakdown provides a
+    window to move against the cult or seize power.
+  resolution: The council's internal stability has shattered following the reservoir
+    revelation and subsequent emotional collapse.
+  resolved_turn: 6
+  visible_goal: Expose the growing influence of the New Dawn cult and reclaim your
+    standing in the council.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  curtain_call: ''
+  location_entered_turn: 9
+  scene_phase: RISING
+  tags:
+  - community
+  - betrayal
+  - trust_breakdown
+  turn_entered: 9
+  turns_in_phase: 1
+  world_state:
+  - All water distribution is controlled by the local council.
+  - Movement outside the Saundersburgh perimeter requires a signed permit.
+  - Unsanctioned religious gatherings are strictly prohibited.
+  - id: council_collapse
+    text: The council's internal unity has broken as members flee in panic.
+    tier: persistent
+schema_version: 1
