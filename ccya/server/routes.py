@@ -873,17 +873,15 @@ async def switch_save(request: Request):
     if not save_name:
         return JSONResponse({"error": "Save name is required"}, status_code=400)
 
-    saves_dir = Path("saves")
-    target = (saves_dir / save_name).resolve()
-
-    # Guard: must be under saves/ or evals/runs/
-    if not _is_valid_save_path(target):
-        # Try evals/runs/
-        alt = (Path("evals/runs") / save_name).resolve()
-        if _is_valid_save_path(alt):
-            target = alt
-        else:
-            return JSONResponse({"error": "Invalid save path"}, status_code=400)
+    # Try both root dirs to resolve the target
+    target: Path | None = None
+    for root in [Path("saves"), Path("evals/runs")]:
+        candidate = (root / save_name).resolve()
+        if _is_valid_save_path(candidate):
+            target = candidate
+            break
+    if target is None:
+        return JSONResponse({"error": "Invalid save path"}, status_code=400)
 
     if not target.is_dir():
         return JSONResponse({"error": f"Save directory not found: {save_name}"}, status_code=404)
