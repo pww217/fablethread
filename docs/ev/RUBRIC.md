@@ -58,7 +58,7 @@ ev.py convergence --estimate saves/my-game/events.jsonl     # retro-compute for 
 ev.py convergence --by-scene saves/my-game/events.jsonl     # grouped by scene
 ev.py phase-transitions saves/my-game/events.jsonl
 ev.py beats saves/my-game/events.jsonl                      # beat type context
-ev.py check 5 recent_beats --save-dir saves/my-game
+ev.py check 5 beat_phase_validity --save-dir saves/my-game
 ```
 
 **Red flags:**
@@ -191,31 +191,7 @@ ev.py convergence saves/my-game/events.jsonl                # convergence score 
 
 ---
 
-### 7. Recent Beats History
-
-**What it validates:** recent_beats list structure, cap enforcement, monotonic turn numbers
-
-**What to look for:**
-- `recent_beats` exists in `state_snapshot.meta`
-- List capped at 5 entries (configurable via `recent_beats_max`)
-- Each entry has `turn`, `type`, and `effect` fields
-- Turn numbers are monotonically increasing
-
-**Commands:**
-```bash
-ev.py check 5 recent_beats --save-dir saves/my-game
-ev.py trace meta.recent_beats saves/my-game/events.jsonl    # recent beats over time
-```
-
-**Red flags:**
-- recent_beats missing from state
-- More than 5 entries in recent_beats
-- Missing type or effect fields in entries
-- Turn numbers not monotonically increasing
-
----
-
-### 8. Inventory & Conditions
+### 7. Inventory & Conditions
 
 **What it validates:** Inventory balance, condition lifecycle, cap enforcement
 

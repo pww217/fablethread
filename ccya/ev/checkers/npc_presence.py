@@ -8,7 +8,7 @@ from ccya.ev.events import extract_field
 
 _log = logging.getLogger(__name__)
 
-VALID_PRESENCE = {"present", "nearby", "known", "departed", "archived", None}
+VALID_PRESENCE = {"present", "nearby", "known", "departed", None}
 
 
 @register_checker(

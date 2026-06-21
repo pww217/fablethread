@@ -6,7 +6,7 @@ This document defines the target state for the CCYA eval system: checkers, CLI t
 
 ## Problem Statement
 
-The checker system has 27 checkers covering 14 engine mechanics, but coverage is uneven. Four major systems have no checker coverage (ruling engine, convergence scoring, narration quality, compaction). Three checkers overlap with existing ones. The CLI tooling lacks automated baseline comparison and warning storage. Reports are manually written despite an existing Jinja2 template.
+The checker system has 26 checkers covering 14 engine mechanics, but coverage is uneven. Four major systems have no checker coverage (ruling engine, convergence scoring, narration quality, compaction). Five checkers overlap or are obsolete. The CLI tooling lacks automated baseline comparison and warning storage. Reports are manually written despite an existing Jinja2 template.
 
 ## Constraints
 
@@ -30,7 +30,8 @@ The checker system has 27 checkers covering 14 engine mechanics, but coverage is
 | Remove `pacing_directives` phase_constraint | Delete the phase_constraint check from `pacing_directives`; keep directive rendering checks | `beat_phase_validity` does the same check. Duplicate coverage wastes checker budget. |
 | Remove `phase_persistence` | Delete this checker entirely | It is a regression guard for a specific bug. `phase_transition` already validates the state machine. |
 | Remove `action_quality` | Delete this checker; merge its concerns into a broader `player_input` checker | It only checks for duplicate actions. Too thin to justify a standalone checker. |
-| Remove `recent_beats` | Delete this checker | It only validates list structure (non-empty, max 10 entries). No semantic checking. |
+| Remove `recent_beats` | Delete this checker | It only validates list structure (non-empty, max 5 entries). No semantic checking. |
+| Remove `scene_age_tracking` | Delete this checker | `turn_entered` and `location_entered_turn` were removed from state during scene consolidation. The checker validates trivially true properties (turn numbers increment). |
 | Add ruling engine checkers | `ruling_reason_quality`, `ruling_band_distribution`, `ruling_intent_match` | Ruling is the first pipeline step with zero checker coverage. Biggest gap. |
 | Add convergence checker | `convergence_components` | Convergence drives CLIMAX transitions but has no checker. Second biggest gap. |
 | Add thread sanitizer quality checkers | `sanitizer_dedup_threshold`, `sanitizer_abandon_rate` | Sanitizer lifecycle is checked but quality is not. |
@@ -51,7 +52,7 @@ The checker system has 27 checkers covering 14 engine mechanics, but coverage is
 
 The checker framework lives in `ccya/ev/checkers/`. Checkers are registered via `@register_checker` decorator with metadata (id, type, requires_fields, description). The framework loads checkers lazily, filters events, validates required fields exist, and runs checkers against event lists.
 
-**27 registered checkers:**
+**26 registered checkers (before removals):**
 
 | ID | Type | What it checks | Fields read |
 |---|---|---|---|
@@ -249,7 +250,8 @@ All warning types should be stored as events with `kind="warning"`. This was par
 | `pacing_directives` phase_constraint | `ccya/ev/checkers/pacing.py` | Covered by `beat_phase_validity` |
 | `phase_persistence` | `ccya/ev/checkers/phase_persistence.py` | Deleted with no replacement |
 | `action_quality` | `ccya/ev/checkers/pacing.py` | Deleted with no replacement |
-| `recent_beats` | `ccya/ev/checkers/pacing.py` | Deleted with no replacement |
+| `recent_beats` | `ccya/ev/checkers/recent_beats.py` | Deleted with no replacement |
+| `scene_age_tracking` | `ccya/ev/checkers/scene_age_tracking.py` | `turn_entered`/`location_entered_turn` removed from state during scene consolidation; checker validates trivially true properties |
 
 ## What Is Unchanged
 
@@ -260,6 +262,9 @@ All warning types should be stored as events with `kind="warning"`. This was par
 - `ev.py play` — turn execution, LLM integration
 - `ev.py eval run` — scenario execution, checker running, report generation
 - `ev.py eval compare` — cross-run comparison (already implemented)
+- `ccya/ev/checkers/scene_age_tracking.py` — removed (turn_entered/location_entered_turn no longer in state)
+- `ccya/ev/checkers/recent_beats.py` — removed (structure-only check)
+- `ccya/ev/checkers/phase_persistence.py` — removed (regression guard)
 - `ev.py warnings` — warning display (already updated with thread/compendium dedup columns)
 - LLM checkers (`directive_tone_match`, `beat_narrative_chain`, `state_fidelity`) — unchanged
 - Event schema — checkers read from existing fields; no schema changes required
