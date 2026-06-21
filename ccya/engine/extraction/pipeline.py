@@ -107,10 +107,6 @@ async def _run_extraction_pipeline(
 
     _log.debug("extraction.scene.done trace_id=%s result_type=%s tokens_in=%d tokens_out=%d", trace_id, type(scene_result).__name__, scene_usage.get("prompt_tokens", 0), scene_usage.get("completion_tokens", 0))
 
-    # Build npc_context from compendium for storytell
-    comp = (state.get("compendium") or {}).get("npcs") or {}
-    scene_result.npc_context = build_npc_context(comp, narration)
-
     yield ("phase", {"phase": "extract_stream_done", "stream": "scene"})
 
     # --- Stream 2: State ---
@@ -165,6 +161,8 @@ async def _run_extraction_pipeline(
     _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
     # Build this-turn context from scene + state results for the storyteller stream
     extraction_ctx = _build_extraction_context(state, scene_result, state_result)
+    # Build npc_context from POST-scene compendium so we have updated NPC psychological fields
+    extraction_ctx.npc_context = build_npc_context(extraction_ctx.comp_this_turn, narration)
     storytell_msgs = _storytell_messages(
         env, narration, state,
         extraction_ctx=extraction_ctx,
