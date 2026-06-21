@@ -7,12 +7,16 @@
 
 {% include "sections/_npc_roster.j2" %}
 
-{% if candidate_npc_ids or scene_effect -%}
+{% if candidate_npcs -%}
 ## Scene Input
 
-Candidate NPCs: {% if candidate_npc_ids %}{{ candidate_npc_ids | join(", ") }}{% else %}none{% endif %}
-Scene Effect: {{ scene_effect or "none" }}
+Candidate NPCs:
+{% for c in candidate_npcs %}- **{{ c.id }}** ({{ c.type }}): {{ c.effect }}
+{% endfor %}
+{% else %}
+## Scene Input
 
+No candidate NPCs from scene. Generate a beat from scratch.
 {% endif %}
 {% include "sections/_npc_names.j2" %}
 

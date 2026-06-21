@@ -25,10 +25,8 @@ class _ExtractionContext:
     """Location dict after applying location_change from scene result (or state's if no change)."""
 
     # Scene stream outputs (stream 1) — passed through to storytell
-    candidate_npc_ids: list[str] = field(default_factory=list)
-    """Candidate NPC IDs identified by scene for next beat, passed to storytell."""
-    scene_effect: str = ""
-    """Vague psychological pressure effect from scene, mapped by storytell."""
+    candidate_npcs: list[dict[str, Any]] = field(default_factory=list)
+    """Per-NPC beat candidates: [{"id": "npc_id", "type": "motivation|fear|leverage|bond|personality", "effect": "vague psychological pressure ~5 words"}, ...]"""
 
     # State stream outputs (stream 2)
     inventory_this_turn: list[dict[str, Any]] = field(default_factory=list)
@@ -73,8 +71,7 @@ def _build_extraction_context(
     return _ExtractionContext(
         comp_this_turn=post_state.setdefault("compendium", {}).setdefault("npcs", {}),
         location_this_turn=location_this_turn,
-        candidate_npc_ids=list(scene_result.candidate_npc_ids or []),
-        scene_effect=scene_result.effect or "",
+        candidate_npcs=list(scene_result.candidate_npcs or []),
         inventory_this_turn=list(post_state.get("inventory") or []),
         conditions_this_turn=list(post_pc.get("conditions") or []),
     )

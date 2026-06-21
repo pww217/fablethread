@@ -22,8 +22,7 @@ flowchart LR
 
     subgraph OUT["Outputs — SceneExtractResult"]
         O1["compendium_npc_update<br>  durable identity changes (presence, bio upserts, personality on creation, position)"]:::outNode
-        O2["candidate_npc_ids<br>  1-3 NPC IDs likely to act next turn"]:::outNode
-        O3["effect<br>  vague psychological pressure ~5-7 words"]:::outNode
+        O2["candidate_npcs<br>  per-NPC beat candidates: [{id, type, effect}]"]:::outNode
     end
 
     IN --> LLM2A
@@ -32,7 +31,7 @@ flowchart LR
 
 ## Beat candidate selection
 
-Scene identifies 1-3 NPCs who are narratively relevant for the next beat and writes a vague psychological pressure effect. This is NOT a full beat — it's a signal to storytell about who matters narratively. Storytell maps these to specific NPCs and threads.
+Scene extracts per-NPC beat candidates as `candidate_npcs: [{id, type, effect}]` where `type` is one of `motivation | fear | leverage | bond | personality`. Each entry pairs an NPC with a specific driver type and a vague psychological pressure effect (~5 words). This is NOT a full beat — it's a signal to storytell about who matters narratively and how. Storytell maps these to specific NPCs and threads using three patterns: deliver as-is, combine multiple drivers, or apply effect to a thread.
 
 ## Extraction prompt (`extract_scene_system.j2`) — NPC quality rules
 
@@ -48,4 +47,4 @@ Four additions prevent common NPC compendium quality issues:
 
 ## Key forward dependency
 
-Step 2c receives `candidate_npc_ids` and `scene_effect` from scene, plus `npc_roster` (from build_npc_roster()) built from comp_this_turn. Scene writes vague effect; storytell maps to specific NPCs/threads. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Storytell (Step 2c).
+Step 2c receives `candidate_npcs: [{id, type, effect}]` from scene, plus `npc_roster` (from build_npc_roster()) built from comp_this_turn. Each candidate has a specific driver type (motivation/fear/leverage/bond/personality) and per-NPC effect string. Storytell maps these to beats using three patterns: deliver as-is, combine multiple drivers, or apply effect to a thread. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Storytell (Step 2c).

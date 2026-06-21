@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is the design authority for plans implementing the GM beat overhaul. It covers the new beat model (effect-driven, NPC-first), removal of `surface_as`, two-section storytell output, and NPC context injection from scene to storytell via extraction context.
+This document is the design authority for plans implementing the GM beat overhaul. It covers the new beat model (effect-driven, NPC-first), removal of `surface_as`, and scene-driven beat generation where scene extracts per-NPC candidates with driver + effect, and storytell maps them to threads/arc context.
 
 ## Problem Statement
 
@@ -12,13 +12,13 @@ The current GM beat system has three structural weaknesses:
 
 2. **`surface_as` is dead weight.** The field is rendered in prompts, validated (or rather, not validated), checked by an eval checker, and warned about in system prompts — but it has zero mechanical effect. It exists purely as a rendering hint that the narrator is told not to use. Every byte spent on `surface_as` is wasted.
 
-3. **The storyteller has too much NPC context, not the right kind.** The storyteller receives `npc_roster` (built from compendium at `storytell.py:63`) which includes bios, personalities, presence metadata, notes, position, last_seen_location, departed_reason. This is token-heavy and includes NPCs irrelevant to the current beat. The storyteller needs a lighter, curated view — relevant NPCs with only the psychological fields that matter for beat generation.
+3. **The storyteller cannot assign drivers reliably.** The storyteller receives `npc_roster` (built from compendium at `storytell.py:63`) which includes bios, personalities, presence metadata, notes, position, last_seen_location, departed_reason. This is token-heavy and includes NPCs irrelevant to the current beat. More critically, the storyteller is expected to assign `driver: motivation|fear|leverage` on beats but doesn't have the psychological field data to do so — it guesses. This produces unreliable driver assignments (e.g., assigning `motivation` to unnamed NPCs that have no motivation field).
 
 ## Constraints
 
 - **No new pipeline steps.** Beat generation stays inside the existing storytell stream. A future split is anticipated but not designed.
 - **No async / background execution.** Single LLM call per turn.
-- **Storytell context must not grow meaningfully.** `npc_context` replaces `npc_roster` for beat generation (cuts personalities, bios, presence metadata). Not additive. `npc_context` is built by the scene extractor (Step 2a), flows through `_ExtractionContext` (same-turn passer), and is received by storytell. Scene decides which NPCs are relevant based on narration + NPC fields alone, passes structured context to storytell.
+- **Storytell context must not grow meaningfully.** Scene emits per-NPC candidates with driver + effect; storytell receives these + slimmed names-only roster + thread/arc context. Not additive.
 - **Prompt must not conflate the two cognitive modes.** Structural separation in both input framing and output fields is the primary mitigation.
 - **No beat type → thread ID mechanical coupling.** The connection to threads should be inferrable from `effect`.
 - **Direct swap.** Per project AGENTS.md: no backwards compatibility. Delete unused fields, routes, config keys, models.
@@ -44,14 +44,16 @@ The current GM beat system has three structural weaknesses:
 | `effect` is the primary creative field | `effect: str` on the beat model. Required — the LLM must emit a short, concrete sentence describing what is about to happen. Narrator prompt uses it directly. | Replaces `surface_as` as the narrator's creative guidance. Short and concrete ("npc fears exposure, moves to block", "weather event disrupts"). Gives narrator flexibility — not a category label. Required in all cases (even environmental beats). |
 | `surface_as` removed entirely | Field deleted from `GMBeat` model. All references in prompts, checkers, validators go. | Zero mechanical effect. Dead code. |
 | Two-section storytell output | Flat JSON. No `record` wrapper. Structural separation is purely in the prompt (instructions tell the LLM to think in two sections). `gm_beat` field name is kept (not renamed to `beat`). | Keeps the extraction pipeline unchanged. The cognitive separation is in the prompt, not the schema. Keeping `gm_beat` avoids renaming downstream references. |
-| `npc_id` + `driver` on beat | Optional fields on the beat. Required when an NPC is the source. `driver` is one of `motivation | fear | leverage`. | Tells the narrator exactly whose psychology is driving the action. Useful for evals and future tooling. |
-| NPC context built by scene, flows through extraction_ctx to storytell | Scene extracts relevant NPC psychological fields based on narration + NPC fields alone (no arc/thread context). Passes structured list with npc_id + field type + effect string to storytell via `_ExtractionContext` (same-turn passer). Storytell picks which fields to use based on threads/arc/context that scene does not have. Replaces the full `npc_roster` for beat generation. | Scene is the authority on NPCs — it passes its interpretation of what NPC fields mean right now. Storytell adds arc/thread context on top. Storytell gets a slimmed-down npc_roster (name, title, maybe bio) instead of the full thing. Keeps token cost minimal. Use existing templating patterns (sections/, conditional formatting) to limit template sprawl. |
+| `candidate_npcs` from scene | Scene extracts per-NPC candidates: `[{id, type, effect}]` where `type` is one of `motivation|fear|leverage|bond|personality` and `effect` is ~5 words describing the psychological pressure. Scene passes this to storytell via `_ExtractionContext`. | Scene has the full psychological fields in the compendium and can accurately assign drivers. Storytell gets the driver from scene, not by guessing. |
+| Storytell beat patterns | Storytell receives `candidate_npcs` + thread/arc context and can: (1) deliver as-is — pick one candidate, minor wording tweak; (2) combine — two candidates interact (fear + leverage = one coherent beat); (3) thread-apply — map candidate's effect to an active/urgent thread. | Proper division of labor: scene identifies pressure, storytell writes the creative pivot and structural work (thread mapping, combination). |
+| `npc_id` + `driver` on beat | Optional fields on the beat. Required when an NPC is the source. `driver` is one of `motivation | fear | leverage | bond | personality`. | Tells the narrator exactly whose psychology is driving the action. Useful for evals and future tooling. Driver comes from scene's candidate assignment, not storytell guessing. |
 | Narrator receives `effect` only | Narrator prompt shows `effect` instead of `type` + `surface_as`. | Simplifies the narrator's creative guidance. `effect` is a concrete sentence — no need for category labels. |
 | Null effect with non-null npc_id → retriable error | If `effect` is empty but `npc_id` is non-null, log a warning and retry the storyteller call with a retry hint. If the retry also fails, coerce the entire beat to null. | An NPC-driven beat without effect is incoherent. The storyteller needs to explain what the NPC is doing. The retry hint tells the LLM specifically what went wrong. |
 | Driver/npc_id mismatch → no coercion | If `driver` is set but `npc_id` is missing/invalid, leave it. The storytell has already made its best judgment. Don't reject the whole beat. | Graceful degradation. The `effect` is still valid creative guidance. No need to second-guess the storytell. |
 | Single temperature, single LLM call | One call, one temperature. Record keeper and beat section use the same temperature. | Defer to a future phase if needed. Two calls double token cost and latency. |
 | No effect validation (other than non-empty) | No max length, no structural validation on `effect`. Trust the LLM. | Simpler code. If the LLM emits garbage, it's a prompt quality issue, not a validation issue. |
 | Keep `gm_beat` field name | `gm_beat` stays on `StorytellerResult`. Not renamed to `beat`. | Less work. Avoids renaming downstream references in checkers, pipeline, state tools. |
+| Storytell gets names-only roster | `npc_roster` for storytell is slimmed to id, name, title only. No psychological fields, no bios, no personalities. | Storytell doesn't need full NPC data — it gets drivers from scene's `candidate_npcs`. Names-only roster is sufficient for mapping. |
 
 ## Open Questions
 
@@ -136,7 +138,7 @@ Defined as a Literal with 6 values but **not validated**. Rendered in prompts bu
 
 1. **`surface_as` is dead code.** Defined, rendered in 3 prompt templates, warned about in system prompts, checked by an eval checker — but has zero mechanical effect. Every byte spent on it is wasted.
 
-2. **Storyteller lacks NPC context.** The storyteller cannot generate NPC-driven beats because it doesn't receive motivation/fear/leverage. This is the primary gap — the discovery findings identify NPC action as the primary beat driver.
+2. **Storyteller cannot assign drivers.** The storyteller is expected to set `driver: motivation|fear|leverage` but doesn't have the psychological field data to do so reliably. It guesses. This produces unreliable assignments (e.g., assigning `motivation` to unnamed NPCs that have no motivation field).
 
 3. **Beats are type-driven, not narrative-driven.** The storyteller optimizes for type compliance (constrained by pacing engine) rather than scene logic. `effect` would fix this by making the storyteller describe what's happening rather than selecting from a category list.
 
@@ -163,13 +165,13 @@ class GMBeat(BaseModel):
     ] | None = None
     effect: str = ""
     npc_id: str | None = None
-    driver: Literal["motivation", "fear", "leverage"] | None = None
+    driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None = None
     beat_expires_turn: int | None = None
 ```
 
 Changes from current:
 - **Removed:** `surface_as`
-- **Added:** `effect` (required — short concrete sentence), `npc_id` (optional), `driver` (optional)
+- **Added:** `effect` (required — short concrete sentence), `npc_id` (optional), `driver` (optional, now includes `bond` + `personality`)
 - **Kept:** `type` (for pacing engine), `beat_expires_turn` (unchanged)
 
 #### 2. Two-Section Storytell Output
@@ -195,7 +197,52 @@ The record keeper fields are unchanged. The structural separation is in the prom
 
 Note: This is already the current model shape — `StorytellerResult` has flat fields with `gm_beat: GMBeat | None`. The "two sections" is purely instructional text in the system prompt telling the LLM to think in two cognitive modes.
 
-#### 3. New Storytell Prompt
+#### 3. Scene Extracts Per-NPC Candidates with Driver + Effect
+
+Scene extracts `candidate_npcs: list[{id: str, type: str, effect: str}]` where:
+- `id`: NPC ID from compendium
+- `type`: one of `motivation | fear | leverage | bond | personality` — the psychological field driving the NPC's behavior
+- `effect`: ~5 words describing the psychological pressure. Vague, not a specific action. Examples: "Aris protective of the vaccine", "Webb worried about squad morale", "Elena knows a way out"
+
+Scene has the full psychological fields in the compendium and can accurately assign drivers. Storytell receives these candidates and does structural work:
+
+1. **Deliver as-is** — pick one candidate, minor wording tweak
+2. **Combine** — two candidates interact (fear + leverage = one coherent beat)
+3. **Thread-apply** — map candidate's effect to an active/urgent thread
+
+**Data flow:**
+```
+Scene (2a) → SceneExtractResult.candidate_npcs (new field)
+  ↓
+_build_extraction_context() → copies candidate_npcs to _ExtractionContext.candidate_npcs
+  ↓
+Storytell (2c) → reads candidate_npcs from _ExtractionContext → passes to prompt
+```
+
+**Example scene output:**
+```json
+{
+  "compendium_npc_update": [
+    { "id": "aris_thorne", "position": "guarding the cold case containing the vaccine, refusing to let anyone near" },
+    { "id": "marcus_webb", "position": "checking his rifle, voice rising over the decision" },
+    { "id": "elena_rostova", "position": "tracing a map on the wall, voice quiet but insistent" }
+  ],
+  "candidate_npcs": [
+    { "id": "aris_thorne", "type": "motivation", "effect": "Aris protective of the vaccine" },
+    { "id": "marcus_webb", "type": "fear", "effect": "Webb worried about squad morale" },
+    { "id": "elena_rostova", "type": "leverage", "effect": "Elena knows a way out" }
+  ]
+}
+```
+
+**Example storytell outputs from these candidates:**
+
+1. **Deliver as-is:** `"Aris refuses to release the vaccine"` — scene said "Aris protective of the vaccine," storytell makes it concrete.
+2. **Combine:** `"Squad draws weapons over the vaccine"` — Webb's fear (squad morale) + Aris's motivation (protective of vaccine) = squad escalates because Aris won't release.
+3. **Thread-apply:** `"Temperature warning flashes red"` — Aris's motivation + `vaccine_degradation` (URGENT thread) = time-critical pressure.
+4. **Combine + thread-apply:** `"Rostova offers vaccine for tunnel passage"` — all three candidates woven: Elena's leverage becomes the pivot that resolves Aris's motivation and Webb's fear simultaneously.
+
+#### 4. New Storytell Prompt
 
 The storyteller system prompt (`storytell_system.j2`) is rewritten to include:
 
@@ -229,9 +276,20 @@ These are separate fields in the JSON. Do not conflate them.
 - `type`: one of the `allowed_beat_types` listed below. Constrained by the pacing engine.
 - `effect`: a short, concrete sentence describing what is about to happen. Must be narratively specific — name NPCs, reference locations, tie to active threads. NOT a category label. NOT "ambient tension." If you cannot write a concrete sentence, emit `null` for the entire `gm_beat`.
 - `npc_id`: the ID of the NPC driving this beat. Required when `driver` is set.
-- `driver`: one of `motivation`, `fear`, `leverage`. Required when `npc_id` is set. Tells the narrator whose psychology is driving the action.
+- `driver`: one of `motivation`, `fear`, `leverage`, `bond`, `personality`. Required when `npc_id` is set. Tells the narrator whose psychology is driving the action.
 
-**Priority: NPC action first.** Check present NPCs (see NPC Context below). If an NPC has an obvious move given the current situation, that becomes the beat. Environmental/atmospheric beats are fallbacks only, and even then must be anchored to an active thread or NPC situation.
+**Scene-driven beat generation:** Scene has already identified candidate NPCs and their psychological drivers. Your job is to map them to threads and write the creative pivot.
+
+- **Scene is the authority on who matters narratively; you are the authority on how it connects to story structure.**
+- `candidate_npcs` is provided in the user prompt (variable data). Use it as your starting point.
+- **Three patterns:**
+  1. **Deliver as-is:** Pick one candidate and deliver it with minor wording tweaks.
+  2. **Combine:** Two candidates interact (e.g., one NPC's fear + another's leverage = one coherent beat).
+  3. **Thread-apply:** Map a candidate's effect to an active/urgent thread.
+- You may optionally blend effects from multiple candidates and attach the beat to threads.
+- If scene provided no candidates, generate a beat from scratch based on narration + threads.
+
+**Priority: NPC action first.** Check `candidate_npcs` from scene. If an NPC has an obvious move given the current situation, that becomes the beat. Environmental/atmospheric beats are fallbacks only, and even then must be anchored to an active thread or NPC situation.
 
 **Null beats are allowed.** Only emit `null` if no NPC has a motivated move and no thread has a natural next action. Given LLM tendencies to always comply, use this permission sparingly.
 
@@ -243,10 +301,6 @@ These are separate fields in the JSON. Do not conflate them.
 
 **Diversity:** Don't repeat the same beat `type` more than twice consecutively. Use `recent_beats` (below) as guidance.
 
-## NPC Context
-
-Present NPCs are listed below. For each, you have: name, title, motivation, fear, leverage, bond. Use this to generate NPC-driven beats. This is your primary beat source.
-
 ## Beat Types
 
 **For this turn, only the types in the `allowed_beat_types` list are valid. `gm_beat.type` MUST be one of those types.**
@@ -254,13 +308,23 @@ Present NPCs are listed below. For each, you have: name, title, motivation, fear
 
 **User prompt additions:**
 
-The user prompt (`storytell_user.j2`) adds an NPC Context section before the existing GM Beat section:
+The user prompt (`storytell_user.j2`) adds a Scene Input section before the existing GM Beat section:
 
 ```
-## NPC Context
-{% for npc in npc_context %}
-- **{{ npc.name }}** ({{ npc.title }}) — wants: {{ npc.motivation or "unknown" }} | fears: {{ npc.fear or "unknown" }} | leverage: {{ npc.leverage or "unknown" }} | bond: {{ npc.bond or "none" }}
+## Scene Input
+
+{% if candidate_npcs %}
+Candidate NPCs:
+{% for c in candidate_npcs %}
+- **{{ c.id }}** ({{ c.type }}): {{ c.effect }}
 {% endfor %}
+{% else %}
+No candidate NPCs from scene. Generate a beat from scratch.
+{% endif %}
+
+## NPC Names
+
+{% for npc in npc_roster %}{{ npc.name }}{% if not loop.last %}, {% endif %}{% endfor %}
 
 ## GM Beat
 {% if pending_beat and pending_beat.type %}
@@ -280,52 +344,6 @@ No beat currently carried over from the previous turn. Choose freely.
 ```
 
 Note: `surface_as` is removed from the pending beat display and recent beats display. `recent_beats` is kept and used as diversity guidance.
-
-#### 4. NPC Context Injection
-
-The storyteller prompt receives two variables:
-
-1. **`npc_context`** — A list of dicts built by the **scene extractor** (Step 2a), flowing through `_ExtractionContext` (the same-turn passer), received by storytell. Each entry has `npc_id`, a field type key (`fear`, `motivation`, `leverage`, or `bond`), and an effect string describing what that field means right now.
-
-2. **`npc_roster`** — Slimmed down. Only `id`, `name`, `title`, and optionally `bio`. No bios, personalities, presence metadata, notes, position, last_seen_location, departed_reason. This is a significant reduction from the current npc_roster.
-
-Scene decides which NPCs are relevant based on narration + NPC fields alone (no arc/thread context). It passes structured context to storytell. Storytell then picks which fields to use based on threads/arc/context that scene does not have. This division of labor is better because:
-
-- Scene is the authority on NPCs — it passes its interpretation of what NPC fields mean right now
-- Storytell adds arc/thread context on top to make the final selection
-- Avoids duplicate filtering logic between scene and storytell
-- Keeps token cost minimal — only relevant fields are passed
-
-**Data flow:**
-```
-Scene (2a) → SceneExtractResult.npc_context (new field)
-  ↓
-_build_extraction_context() → copies npc_context to _ExtractionContext.npc_context
-  ↓
-Storytell (2c) → reads npc_context from _ExtractionContext → passes to prompt
-```
-
-The `npc_context` is built in `ccya/engine/extraction/scene.py` from the compendium. This is a new function (e.g., `build_npc_context()`) that extracts relevant NPC psychological fields. The format is:
-
-```python
-[
-    {"npc_id": "guard_captain_voss", "fear": "does not want the ledger contents revealed; moves to block"},
-    {"npc_id": "merchant_halden", "motivation": "wants to maintain trade relationships with the player"},
-]
-```
-
-Each entry has `npc_id` and exactly one psychological field. The value is scene's interpretation of what that field means right now (the "effect"). Multiple entries are allowed. The storytell prompt renders this as a section before the beat instructions.
-
-**npc_roster slimming:** The current `build_npc_roster()` returns dicts with id, name, title, bio, presence, motivation, fear, leverage, bond, notes, last_presence_turn, last_seen_location, departed_reason, personality_label, personality_traits, personality_speech_hint. For storytell, we only need id, name, title, and optionally bio. This is a significant reduction.
-
-A new Jinja2 section template (`sections/_npc_context.j2`) is created for rendering the NPC Context in the storyteller user prompt. This uses existing templating patterns (conditional formatting, sections/) to limit template sprawl. The template should follow the same style as `_npc_roster.j2` for consistency.
-
-**Model changes:**
-- `SceneExtractResult` gains `npc_context: list[dict[str, Any]] = Field(default_factory=list)`
-- `_ExtractionContext` gains `npc_context: list[dict[str, Any]] = field(default_factory=list)`
-- `_build_extraction_context()` copies `scene_result.npc_context` to `ctx.npc_context`
-- `storytell.py` passes `extraction_ctx.npc_context` to the storytell user prompt template
-- `storytell.py` passes slimmed-down `npc_roster` (id, name, title, bio only) instead of full roster
 
 #### 5. Narrator Prompt Simplification
 
@@ -371,7 +389,7 @@ Driver/npc_id mismatch is NOT coerced. If the storytell emits a driver that does
 
 2. **Two separate LLM calls (record + beat).** Rejected: doubles token cost and latency. Single call with structural separation is the primary mitigation.
 
-3. **Full NPC context in storytell (bio, archetype, presence model).** Rejected: token cost. Only motivation/fear/leverage/bond + name/title is needed for beat generation.
+3. **Full NPC context in storytell (bio, archetype, presence model).** Rejected: token cost. Only names (id, name, title) are needed for storytell — drivers come from scene's `candidate_npcs`.
 
 4. **Migration path for schema change.** Rejected: per project AGENTS.md, no backwards compatibility. Direct swap. Old state files are not carried forward.
 
@@ -385,9 +403,9 @@ Driver/npc_id mismatch is NOT coerced. If the storytell emits a driver that does
 
 2. **LLM emits category-label-style effect.** The storyteller may emit something like "pressure building" instead of a concrete sentence. Mitigation: prompt instruction. No structural validation (per decision). This is a prompt quality issue.
 
-3. **LLM emits invalid `driver` values.** The `driver` field is a Literal with 3 values. If the LLM emits something else, Pydantic validation will coerce it to null. This is acceptable — the `effect` is still valid.
+3. **LLM emits invalid `driver` values.** The `driver` field is a Literal with 5 values. If the LLM emits something else, Pydantic validation will coerce it to null. This is acceptable — the `effect` is still valid.
 
-4. **NPC context token cost.** Adding `npc_context` to the storyteller prompt increases context size. Mitigation: scene passes only relevant NPCs (not all present NPCs), only 2 fields per entry (npc_id + one psychological field with effect string). Storytell gets slimmed-down npc_roster (id, name, title, bio only). If token cost is a problem, reduce to npc_id only.
+4. **Scene doesn't emit candidates.** If scene forgets or can't decide, storytell needs to fall back to generating from scratch. The prompt instruction tells storytell to map scene's suggestion OR generate if scene provided nothing.
 
 5. **Narrator prompt confusion.** The narrator receives `effect` instead of `type` + `surface_as`. If the narrator was relying on `type` for creative guidance, it may need prompt adjustment. Mitigation: the system prompt already tells the narrator to use the beat as "creative guidance" — `effect` is more specific creative guidance.
 
@@ -412,7 +430,8 @@ Driver/npc_id mismatch is NOT coerced. If the storytell emits a driver that does
 | `gm_beat` field | `ccya/models/extraction.py` (StorytellerResult) | Kept as `gm_beat`. Not renamed. |
 | `surface_as` in recent_beats | `ccya/engine/turn_state.py:475` | Removed from beat history snapshot. |
 | `surface_as` validation | `ccya/ev/checkers/recent_beats.py:77-81` | Updated to validate `effect` instead of `surface_as`. |
-| `npc_roster` in storyteller prompt | `ccya/engine/extraction/storytell.py` | Replaced by slimmed-down npc_roster (id, name, title, bio only) + `npc_context` (built by scene extractor, flows through _ExtractionContext, structured list of npc_id + psychological field + effect string). |
+| `npc_roster` in storyteller prompt | `ccya/engine/extraction/storytell.py` | Replaced by names-only roster (id, name, title) + `candidate_npcs` (built by scene extractor, flows through _ExtractionContext, structured list of id + driver type + effect string). |
+| `build_npc_context()` function | `ccya/engine/extraction/scene.py` | Removed — replaced by `candidate_npcs` in scene extraction output. |
 
 ## What Is Unchanged
 
@@ -420,13 +439,11 @@ Driver/npc_id mismatch is NOT coerced. If the storytell emits a driver that does
 - **Beat lifecycle.** `pending_gm_beat` storage in `state.meta`, expiry check in narrate, write in turn.py — all unchanged.
 - **Beat types.** `type` field stays on the beat model. `BEAT_PHASE_MAP`, `BEAT_BUCKETS`, `derive_allowed_beat_types()`, `compute_convergence_score()`, `_compute_scene_phase()` — all unchanged.
 - **Threading system.** `ArcThread` model, thread operations, thread reference in prompts — all unchanged.
-- **NPC compendium model.** `CompendiumNpcUpdate` fields (motivation/fear/leverage) — unchanged. The storyteller prompt gains access to them via `npc_context` (replacing `npc_roster`).
+- **NPC compendium model.** `CompendiumNpcUpdate` fields (motivation/fear/leverage) — unchanged.
 - **Narrator system prompt.** NPC behavioral guidance (`narrate_system.j2:65-71`) — unchanged. The system prompt line 11 is updated to reference `effect` instead of `type` + `surface_as`. Only the user prompt rendering changes.
 - **Beat history.** `recent_beats` snapshot in `turn_state.py` — structure stays the same, just without `surface_as`. New structure: `{"turn": N, "type": "...", "effect": "..."}`.
 - **Storyteller prompt structure.** The overall storytell prompt (system + user) stays the same. Only the beat section changes. Net prompt growth ~15 lines — acceptable.
-- **Scene extractor.** Gains `build_npc_context()` function in this overhaul (new, not a separate pipeline step). Scene extracts relevant NPC psychological fields based on narration + NPC fields alone (no arc/thread context), passes structured list to storytell via extraction_ctx.
-- **SceneExtractResult.** Gains `npc_context` field. This is how npc_context flows from scene to storytell.
-- **Storytell npc_roster.** Slimmed down to id, name, title, bio only. This is a significant reduction from the current full roster.
+- **SceneExtractResult.** Gains `candidate_npcs: list[{id, type, effect}]` field. This is how candidates flow from scene to storytell.
 - **StateDelta.** Beat is intentionally absent from StateDelta (written directly to `state["meta"]["pending_gm_beat"]`). This stays.
 - **Floor relief.** Beat history is still post-floor-relief. Unchanged.
 
@@ -449,7 +466,7 @@ class GMBeat(BaseModel):
     ] | None = None
     effect: str = ""
     npc_id: str | None = None
-    driver: Literal["motivation", "fear", "leverage"] | None = None
+    driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None = None
     beat_expires_turn: int | None = None
 ```
 
@@ -475,10 +492,10 @@ class SceneExtractResult(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
-    npc_context: list[dict[str, Any]] = Field(
+    candidate_npcs: list[dict[str, Any]] = Field(
         default_factory=list
     )
-    # npc_context format: [{"npc_id": "guard_captain_voss", "fear": "does not want the ledger contents revealed; moves to block"}, ...]
+    # candidate_npcs format: [{"id": "guard_captain_voss", "type": "fear", "effect": "Voss fears exposure"}, ...]
 ```
 
 ### _ExtractionContext (updated)
@@ -490,30 +507,32 @@ class _ExtractionContext:
     location_this_turn: dict[str, Any] = field(default_factory=dict)
     inventory_this_turn: list[dict[str, Any]] = field(default_factory=list)
     conditions_this_turn: list[dict[str, Any]] = field(default_factory=list)
-    npc_context: list[dict[str, Any]] = field(default_factory=list)
-    # npc_context flows from scene → extraction_ctx → storytell
+    candidate_npcs: list[dict[str, Any]] = field(default_factory=list)
+    # candidate_npcs flows from scene → extraction_ctx → storytell
 ```
 
 ## Context for Implementing LLMs
 
 - **`ccya/models/extraction.py:181-219`** — GMBeat model definition. This is where `surface_as` is removed and `effect`/`npc_id`/`driver` are added.
 - **`ccya/models/extraction.py:222-231`** — StorytellerResult model. `gm_beat` kept as-is (not renamed).
-- **`ccya/models/extraction.py`** — SceneExtractResult. Add `npc_context: list[dict[str, Any]]` field.
-- **`ccya/engine/extraction/context.py`** — _ExtractionContext. Add `npc_context` field. Update `_build_extraction_context()` to copy `scene_result.npc_context` to `ctx.npc_context`.
+- **`ccya/models/extraction.py`** — SceneExtractResult. Add `candidate_npcs: list[dict[str, Any]]` field.
+- **`ccya/engine/extraction/context.py`** — _ExtractionContext. Add `candidate_npcs` field. Update `_build_extraction_context()` to copy `scene_result.candidate_npcs` to `ctx.candidate_npcs`.
 - **`ccya/engine/turn.py:256-265`** — Beat lifecycle: write/pop `pending_gm_beat`. Add driver/npc_id validation and null-effect-with-npc_id retry logic here.
 - **`ccya/engine/turn.py:473-476`** — History event `gm_beat` dict. Replace `surface_as` with `effect`.
 - **`ccya/engine/narrate.py:163-174`** — Pre-narration expiry check. Unchanged.
 - **`ccya/engine/narrate.py:271`** — Pass beat to `_narrate_messages()`. Unchanged.
-- **`ccya/engine/extraction/scene.py`** — New function `build_npc_context()` that extracts relevant NPC psychological fields from compendium. Scene decides relevance based on narration + NPC fields alone (no arc/thread context). Returns structured list: `[{"npc_id": "x", "fear": "string"}, ...]`.
-- **`ccya/engine/extraction/storytell.py:87`** — Pass pending beat to storytell prompt. Receive pre-built `npc_context` variable from `extraction_ctx.npc_context`. Pass slimmed-down `npc_roster` (id, name, title, bio only) instead of full roster. Replace `npc_roster` with `npc_context` for beat generation.
+- **`ccya/engine/extraction/scene.py`** — Scene extracts `candidate_npcs` as part of its normal output (not a separate function). Scene has full compendium access and assigns accurate drivers.
+- **`ccya/engine/extraction/storytell.py:87`** — Pass pending beat to storytell prompt. Receive pre-built `candidate_npcs` variable from `extraction_ctx.candidate_npcs`. Pass names-only `npc_roster` (id, name, title) instead of full roster.
 - **`ccya/engine/extraction/pipeline.py:302-304`** — Comment about gm_beat being absent from StateDelta. No change needed (field name stays `gm_beat`).
 - **`ccya/engine/turn_state.py:470-480`** — Beat history snapshot. Remove `surface_as` from snapshot. Add `effect` to snapshot.
 - **`ccya/prompts/narrate_system.j2:11`** — Beat priority ordering. Update to reference `effect` instead of `type` + `surface_as`.
 - **`ccya/prompts/narrate_user.j2:86-88`** — Beat rendering. Replace `type`+`surface_as` with `effect`.
-- **`ccya/prompts/storytell_system.j2:76-94`** — Beat schema. Rewrite for two-section output with `effect`-first guidance. Remove `surface_as` references.
-- **`ccya/prompts/storytell_user.j2:42-58`** — Pending beat context. Remove `surface_as` from display. Add NPC Context section.
-- **`ccya/prompts/sections/_npc_context.j2`** — New template. Renders NPC Context for storytell (npc_id + psychological field).
+- **`ccya/prompts/storytell_system.j2:76-94`** — Beat schema. Rewrite for scene-driven beat generation with `effect`-first guidance. Remove `surface_as` references.
+- **`ccya/prompts/storytell_user.j2:42-58`** — Pending beat context. Remove `surface_as` from display. Add Scene Input section with `candidate_npcs`.
+- **`ccya/prompts/sections/_npc_names.j2`** — New template. Renders NPC names from `npc_roster` (id, name, title only).
+- **`ccya/prompts/sections/_npc_context.j2`** — Deleted. Replaced by `_npc_names.j2` + `candidate_npcs` in user prompt.
 - **`ccya/prompts/sections/_npc_roster.j2:10`** — NPC rendering. Unchanged (already renders motivation/fear/leverage for narrator).
+- **`ccya/engine/npc_roster.py`** — `build_npc_roster()` slim mode: remove `bio` from slim output. Only id, name, title.
 - **`ccya/ev/checkers/pacing.py:128-159`** — surface_as checker. Remove entirely.
 - **`ccya/ev/checkers/gm_beat.py`** — Beat lifecycle checker. Update to handle `effect` field. Field name stays `gm_beat`.
 - **`ccya/ev/checkers/llm_checkers.py:133`** — `beat_narrative_chain` checker. Remove `surface_as` reference.

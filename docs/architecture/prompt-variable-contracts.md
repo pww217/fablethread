@@ -53,8 +53,8 @@ Cross-reference mapping every user template to its section includes and context 
 
 ### `_storytell_messages()` → `storytell_user.j2`
 
-**Context vars passed:** `narration`, `npc_roster`, `candidate_npc_ids`, `scene_effect`, `location`, `inventory`, `conditions`, `current_arc`, `all_threads`, `world_state`, `resolved_arcs`, `intent`, `pacing_context`, `recent_turns`, `prior_history`, `pending_beat`, `recent_beats`, `turn_no`, `band`, `scene_phase`, `curtain_call`, `allowed_beat_types`, `pc_name`
+**Context vars passed:** `narration`, `npc_roster`, `candidate_npcs`, `location`, `inventory`, `conditions`, `current_arc`, `all_threads`, `world_state`, `resolved_arcs`, `intent`, `pacing_context`, `recent_turns`, `prior_history`, `pending_beat`, `recent_beats`, `turn_no`, `band`, `scene_phase`, `curtain_call`, `allowed_beat_types`, `pc_name`
 
 **Section includes:** `_inventory.j2`, `_conditions.j2`, `_npc_roster.j2`, `_npc_names.j2`, `_location.j2`, `_arc.j2`, `_thread_list.j2`, `_recent_turns.j2`
 
-**Inline (not section):** Scene Input (candidate_npc_ids + scene_effect), Threads section, world_state block, pacing_context, scene_phase, curtain_call, GM beat, recent beats, rules_outcome, prior_history, player_intent, narration blocks, beat type reminder
+**Inline (not section):** Scene Input (candidate_npcs as formatted list), Threads section, world_state block, pacing_context, scene_phase, curtain_call, GM beat, recent beats, rules_outcome, prior_history, player_intent, narration blocks, beat type reminder

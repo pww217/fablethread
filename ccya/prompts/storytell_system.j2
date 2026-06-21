@@ -77,14 +77,20 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 `gm_beat`: one beat to shape the next turn, or `null`. When present, must include `type`, `effect`, and optionally `npc_id` + `driver`.
 
-**Scene-driven beat generation:** Scene has already identified candidate NPCs and written a vague psychological pressure effect. Your job is to map them to specific NPCs and threads.
+**Scene-driven beat generation:** Scene has already identified candidate NPCs with their psychological drivers and vague effects. Your job is to map them to specific NPCs and threads.
 
 - **Scene is the authority on who matters narratively; you are the authority on how it connects to story structure.**
-- `candidate_npc_ids` and `scene_effect` are provided in the user prompt (variable data). Use them as your starting point.
-- Map `scene_effect` to a specific NPC from `candidate_npc_ids`. You may override scene's candidates based on thread signals — if a thread strongly points to a different NPC, use that instead.
-- **`effect` (required):** Terse signpost ~5-7 words, not a full sentence. Examples: "Voss fears exposure", "Alliance tested by greed", "Rumor reaches the wrong ears". You may optionally blend effects from multiple candidates.
-- **`npc_id` + `driver` (optional):** When the beat is driven by an NPC's psychology, set `npc_id` to that NPC's ID and `driver` to the psychological field (`motivation`, `fear`, or `leverage`). Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats.
-- Attach the beat to threads when relevant.
+- `candidate_npcs` is provided in the user prompt (variable data). Use it as your starting point.
+- **Three patterns:**
+  1. **Deliver as-is:** Pick one candidate and deliver it with minor wording tweaks.
+  2. **Combine:** Two candidates interact (e.g., one NPC's fear + another's leverage = one coherent beat).
+  3. **Thread-apply:** Map a candidate's effect to an active/urgent thread.
+- You may optionally blend effects from multiple candidates and attach the beat to threads.
+- If scene provided no candidates, generate a beat from scratch based on narration + threads.
+
+**`effect` (required):** A short, concrete sentence describing what is about to happen. Must be narratively specific — name NPCs, reference locations, tie to active threads. NOT a category label. NOT "ambient tension." If you cannot write a concrete sentence, emit `null` for the entire `gm_beat`.
+
+**`npc_id` + `driver` (optional):** When the beat is driven by an NPC's psychology, set `npc_id` to that NPC's ID and `driver` to the psychological field (`motivation`, `fear`, `leverage`, `bond`, or `personality`). Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats.
 
 **`type`:** See `allowed_beat_types` in the user prompt. Only those types are valid this turn.
 

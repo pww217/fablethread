@@ -179,6 +179,10 @@ def _coerce_scene_json(j: dict[str, Any]) -> dict[str, Any]:
         if not required.issubset(j["thread_add"].keys()):
             del j["thread_add"]
 
+    # Coerce empty arc_resolve (LLM often emits {} instead of omitting)
+    if isinstance(j.get("arc_resolve"), dict) and not j["arc_resolve"]:
+        del j["arc_resolve"]
+
     return j
 
 
