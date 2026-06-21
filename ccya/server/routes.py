@@ -858,6 +858,7 @@ def _is_valid_save_path(target: Path) -> bool:
             target.relative_to(root.resolve())
             return True
         except ValueError:
+            _log.debug("_is_valid_save_path: %s not under %s", target, root.resolve())
             continue
     return False
 
@@ -877,12 +878,13 @@ async def switch_save(request: Request):
     target: Path | None = None
     for root in [Path("saves"), Path("evals/runs")]:
         candidate = (root / save_name).resolve()
-        if _is_valid_save_path(candidate):
+        if _is_valid_save_path(candidate) and candidate.is_dir():
             target = candidate
             break
     if target is None:
         return JSONResponse({"error": "Invalid save path"}, status_code=400)
 
+    _log.info("switch_save target=%s is_dir=%s", target, target.is_dir())
     if not target.is_dir():
         return JSONResponse({"error": f"Save directory not found: {save_name}"}, status_code=404)
 

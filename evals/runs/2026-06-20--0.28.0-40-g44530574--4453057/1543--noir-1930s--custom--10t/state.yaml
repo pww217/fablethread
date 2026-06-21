@@ -1,0 +1,406 @@
+__seed_meta__:
+  actions:
+  - Confront Matthew about the discrepancy in the witness statements.
+  - Deflect his warning and ask him for help accessing the padlocked drawer.
+  - Quickly slide the incriminating photograph into your notebook to hide it.
+  - Investigate the teletype machine for any recent, unexplained printouts.
+  opening_narrative: 'The heavy, metallic scent of wet wool and stale coffee hangs
+    thick in the air, clinging to the back of your throat. You sit at a scarred wooden
+    desk, the rhythmic, aggressive clatter of the teletype machine providing a relentless
+    heartbeat to the silence of the precinct records room. Smoke from a dozen forgotten
+    cigarettes curls lazily under the flickering ceiling lights, creating hazy islands
+    in the dimness. The floor beneath your boots is slick, stained by the rain that
+    has been tracking in from the streets all evening, leaving dark, muddy patches
+    near the heavy iron door.
+
+
+    You stare down at the file spread before you, but your eyes keep drifting to the
+    padlocked bottom drawer of the filing cabinet across the room. It stands there
+    like a silent sentry, guarding secrets that don''t belong in a public ledger.
+    You know what you saw earlier—the way the ink on the witness statement looked
+    too fresh, too deliberate, as if someone had sat here just an hour ago with a
+    fountain pen and a heavy conscience. The official report says the suspect was
+    alone, but the photograph tucked into your pocket tells a different story, one
+    involving two men and a struggle that never made it into the paper.
+
+
+    The door creaks open, and the heavy tread of boots echoes against the linoleum.
+    Matthew Ross walks in, his shoulders slumped under the weight of his overcoat.
+    He doesn''t look at you at first; he just heads for the coffee urn, his movements
+    slow and heavy, like a man walking through deep water. He looks older than he
+    did when you were both digging foxholes in France, the lines around his eyes etched
+    deep by years of seeing things that cannot be unseen.
+
+
+    ''You should be home, Robert,'' Matthew says, his voice a low rasp that barely
+    carries over the teletype''s chatter. He pours a cup of coffee, the liquid dark
+    and oily, and finally turns to face you. His eyes linger on the document you are
+    holding, and for a second, the weary mask slips, revealing a flash of something
+    sharp and panicked. He steps closer, leaning his hands on your desk, his shadow
+    stretching long and jagged across your paperwork. ''Some things are better left
+    unread. Some mistakes are easier to live with if they stay buried in the archives.''
+
+
+    He isn''t talking about the weather. He is looking directly at the discrepancy
+    you just uncovered, and the silence that follows is heavier than the rain outside.
+    You can see the tension in his jaw, the way his fingers twitch near his holster.
+    He is a man caught between the loyalty he owes a brother-in-arms and the duty
+    he owes a system that is clearly rotting from the inside out. Outside, a heavy
+    rain begins to lash against the windowpanes, punctuating the tension of the room.
+    You realize then that Matthew isn''t just here to tell you to go home; he is here
+    to see if you have already seen too much.'
+  outcome_summary: Robert faces a direct confrontation with Matthew Ross regarding
+    the suspicious alterations in the homicide files.
+__seed_pools__:
+  arc:
+    description: ''
+    id: evidence_tampering
+    incompatible_with: []
+    tags:
+    - evidence
+    - tampering
+    - cover_up
+  character_dynamic:
+    description: ''
+    id: compromised_professional
+    incompatible_with:
+    - outsider_with_access
+    - free_agent
+    tags:
+    - ethical_corruption
+    - system_participant
+    - moral_erosion
+  moral_pressure:
+    description: ''
+    id: institutional_corruption
+    incompatible_with: []
+    tags:
+    - institutional
+    - corruption
+    - system_failure
+  npc_bond:
+    description: The NPC served in the same unit as the PC overseas. The war is over
+      but the habits — and the trust — stayed.
+    id: old_war_buddy
+    incompatible_with: []
+    tags:
+    - war
+    - veteran
+    - trench
+  scene_bundle:
+    conditions:
+    - the floor slick from tracked-in rain
+    - smoke hanging under the ceiling lights
+    id: police_precinct
+    items:
+    - a typewriter with a stuck 'e' key
+    - a filing cabinet with the bottom drawer padlocked
+    sensory:
+    - the clatter of a teletype machine
+    - the smell of stale coffee and cheap tobacco
+  situation:
+    description: ''
+    id: judicial_rigging
+    incompatible_with: []
+    tags:
+    - judicial
+    - rigging
+    - system_abuse
+arc:
+  completed_threads:
+  - added_turn: 6
+    dormant: false
+    id: hidden_evidence_discovery
+    outcome: Robert discovered the charred folder containing suppressed evidence.
+    progress: []
+    resolution_state: resolved
+    resolved_turn: 7
+    summary: A charred manila folder found in an unmarked drawer suggests a deeper
+      level of evidence suppression
+    urgency: normal
+    urgency_set_turn: 6
+  - added_turn: 7
+    dormant: false
+    id: public_exposure_risk
+    last_updated_turn: 10
+    outcome: Thread reached its natural conclusion.
+    progress:
+    - kind: shift
+      text: Robert hides behind a desk to evade Ross.
+    - kind: shift
+      text: Officers notice Ross's frantic searching behavior
+    - kind: shift
+      text: Robert crawls through desks toward the wiry officer
+    resolution_state: resolved
+    resolved_turn: 10
+    summary: Robert's sudden flight into the bullpen risks a public scene
+    urgency: urgent
+    urgency_set_turn: 7
+  goal_context: The discovery of the charred folder provides a concrete lead into
+    the source of the tampering.
+  last_thread_created_turn: 7
+  resolution: null
+  threads:
+  - dormant: true
+    id: union_pressure
+    progress: []
+    summary: Local labor leaders are demanding access to specific precinct reports
+      regarding dock accidents.
+    type: opportunity
+    urgency: background
+  - dormant: true
+    id: missing_ledger
+    progress: []
+    summary: A discrepancy in the evidence locker logs hints at a larger systemic
+      theft.
+    type: revelation
+    urgency: background
+  - dormant: false
+    id: precinct_coverup_depth
+    last_updated_turn: 8
+    progress:
+    - kind: advancement
+      text: The charred folder confirms active evidence suppression.
+    summary: The charred folder in the unmarked drawer points toward a high-level
+      precinct coverup
+    urgency: urgent
+  visible_goal: Identify which specific files were altered in the recent homicide
+    investigation.
+compendium:
+  npcs:
+    clerk_joseph_vance:
+      bio: A nervous man with twitching hands who spends most of his time avoiding
+        eye contact.
+      bond: null
+      fear: Being caught in the middle of departmental politics.
+      last_presence_turn: 7
+      last_seen_location: Police Precinct Bullpen
+      leverage: null
+      motivation: To stay unnoticed and keep his job.
+      name: Joseph Vance
+      personality: conflict_avoidant
+      position: scrambling backward into the shadows of the heavy iron shelves
+      presence: known
+      title: Records Clerk
+    detective_matthew_ross:
+      bio: A weary man with heavy eyes and a permanent scent of tobacco. He served
+        in the same infantry unit as Robert during the Great War.
+      bond: The NPC served in the same unit as the PC overseas. The war is over but
+        the habits — and the trust — stayed.
+      fear: Losing his pension and facing disgrace.
+      last_presence_turn: 10
+      last_seen_location: Police Precinct Bullpen
+      leverage: null
+      motivation: To maintain order at any cost to avoid further chaos.
+      name: Matthew Ross
+      personality: broken_defeated
+      position: stepping forward to block the path between Robert and the exit
+      presence: present
+      title: Senior Detective
+    officer_wiry:
+      aliases:
+      - wiry officer
+      bio: A slender, quick-moving officer with sharp, observant eyes. He is highly
+        attentive to his surroundings and reacts instantly to subtle disturbances
+        in the office environment.
+      first_seen_turn: 9
+      last_presence_turn: 10
+      last_seen_location: Police Precinct Bullpen
+      name: Wiry Officer
+      position: at a workstation, watching Robert
+      presence: present
+    uniformed_officers:
+      aliases:
+      - uniformed officers
+      bio: Standing mid-conversation under harsh electric lights. They are currently
+        distracted by their own dialogue in the main bullpen.
+      first_seen_turn: 6
+      last_presence_turn: 9
+      last_seen_location: Police Precinct Bullpen
+      name: Three uniformed officers
+      personality: wary_opportunist
+      position: in a cluster near the center aisle; one broad-shouldered officer watching
+        Ross, one wiry man straightening up, and one woman with a coiled bun standing
+        up
+      presence: present
+    woman_sharp_eyes:
+      aliases:
+      - woman with sharp eyes
+      bio: A woman with a coiled bun and a piercing, suspicious gaze. She moves with
+        a measured, rhythmic stride that suggests disciplined training or a high level
+        of authority.
+      first_seen_turn: 9
+      last_presence_turn: 10
+      last_seen_location: Police Precinct Bullpen
+      name: Woman with Sharp Eyes
+      position: walking toward Robert's position between the desks
+      presence: present
+inventory:
+- aliases: []
+  amount: 1
+  id: service_revolver
+  name: Smith and Wesson Revolver
+  notes: ''
+- aliases: []
+  amount: 6
+  id: revolver_rounds
+  name: Revolver Rounds
+  notes: ''
+- aliases: []
+  amount: 1
+  id: investigator_notebook
+  name: Leather Bound Notebook
+  notes: ''
+- aliases: []
+  amount: 1
+  id: brass_flashlight
+  name: Heavy Brass Flashlight
+  notes: ''
+- aliases: []
+  amount: 1
+  id: evidence_photo
+  name: Faded Crime Scene Photograph
+  notes: A photo of a disturbed crime scene that doesn't match the official report.
+- aliases: []
+  amount: 50
+  id: dollars
+  name: Dollars
+  notes: ''
+- amount: 1
+  id: unlabelled_manila_folder
+  name: Unlabelled Manila Folder
+  notes: edges slightly charred, found in unmarked drawer
+location:
+  description: A wide, brightly lit area filled with desks, ringing telephones, and
+    uniformed officers under harsh electric lights.
+  id: police_precinct_bullpen
+  name: Police Precinct Bullpen
+meta:
+  _pack_source: noir-1930s
+  _seed_soft_warnings:
+  - Opening narrative 503 words (expected 530-930)
+  _seed_type: dynamic
+  compendium_touch_order:
+  - clerk_joseph_vance
+  - uniformed_officers
+  - officer_wiry
+  - woman_sharp_eyes
+  - detective_matthew_ross
+  last_arc_resolve_turn: 6
+  last_thread_created_turn: 7
+  model: gpt-4o
+  pending_gm_beat:
+    beat_expires_turn: 12
+    effect: Matthew Ross steps into the aisle, blocking Robert's path to the exit.
+    type: complication
+  prior_history:
+  - '- [T1] Robert examines the photograph for tampering while Matthew Ross attempts
+    to dissuade him from pursuing the investigation.'
+  - '- [T2] Robert Sullivan discovers a suspiciously pristine homicide folder after
+    Joseph Vance accidentally knocks a stack of files onto the floor.'
+  - '- [T3] Robert Sullivan discovers that Case File #402 consists of suspiciously
+    pristine paper despite its supposed age.'
+  - '- [T4] Robert Sullivan confirmed that Case File #402 contains substituted documents,
+    drawing a direct threat from Matthew Ross.'
+  - '- [T5] Robert Sullivan returned the suspicious file to its cabinet to de-escalate
+    the confrontation with Matthew Ross.'
+  - '- [T6] Robert Sullivan discovered a charred, unlabelled manila folder in an unmarked
+    drawer after being signaled by Joseph Vance.'
+  - '- [T7] Robert Sullivan seized the charred folder and fled into the main bullpen
+    to escape Matthew Ross.'
+  - '- [T8] Robert Sullivan hides behind a heavy oak desk with the charred folder
+    as Matthew Ross enters the bullpen searching for him.'
+  - '- [T9] Robert Sullivan remains hidden behind a desk as Matthew Ross''s frantic
+    search draws the attention of the uniformed officers.'
+  - '- [T10] Robert Sullivan attempts to sneak toward the wiry officer''s desk but
+    is intercepted by Matthew Ross''s shadow and the approaching woman with sharp
+    eyes.'
+  recent_beats:
+  - effect: null
+    turn: 6
+    type: null
+  - effect: null
+    turn: 7
+    type: null
+  - effect: null
+    turn: 8
+    type: null
+  - effect: The sharp-eyed officer begins walking toward Robert's desk to investigate
+      the sudden silence.
+    turn: 9
+    type: pressure
+  - effect: Matthew Ross steps into the aisle, blocking Robert's path to the exit.
+    turn: 10
+    type: complication
+  recent_rolls:
+  - band: fail
+    turn: 10
+  - band: setback
+    turn: 9
+  - band: success
+    turn: 8
+  - band: fail
+    turn: 7
+  - band: crit_success
+    turn: 4
+  session_name: The Weight of Paperwork
+  setting_pack: noir-1930s
+  turn: 10
+pc:
+  actions:
+  - Slide under the nearby desk to evade the woman's gaze
+  - Brandish the Smith and Wesson Revolver to force a standoff
+  - Dash toward the wiry officer to grab his reports
+  - Confront Matthew Ross directly while clutching the charred folder
+  bio: Transitioned from the administrative desk to field investigation after discovering
+    a ledger discrepancy. He seeks to maintain his integrity despite mounting debts
+    owed to local creditors.
+  conditions: []
+  drive: ''
+  name: Robert Sullivan
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 2
+    wits: 4
+  tagline: Former precinct clerk, specialist in document authenticity
+resolved_arcs:
+- closed_threads: []
+  goal_context: The investigation has shifted from suspicion to confirmed tampering
+    within the precinct records.
+  resolution: 'Robert has confirmed physical evidence of document substitution within
+    Case File #402, proving internal sabotage.'
+  resolved_turn: 4
+  visible_goal: Identify which specific files were altered in the recent homicide
+    investigation.
+- closed_threads: []
+  goal_context: The discovery of the charred folder provides a concrete lead into
+    the source of the tampering.
+  resolution: Robert has uncovered the physical proof of document substitution, shifting
+    the investigation from suspicion to direct confrontation with precinct corruption.
+  resolved_turn: 6
+  visible_goal: Identify which specific files were altered in the recent homicide
+    investigation.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  curtain_call: ''
+  location_entered_turn: 7
+  scene_phase: RISING
+  tags:
+  - judicial
+  - rigging
+  - evidence_tampering
+  - police_precinct
+  turn_entered: 7
+  turns_in_phase: 1
+  world_state:
+  - Strict curfew enforces silence in all residential districts after sunset.
+  - The District Attorney has banned all independent private investigators from accessing
+    court archives.
+  - Union strikes have effectively blockaded the shipping docks, slowing all city
+    commerce.
+  - id: hidden_evidence_discovery
+    text: Robert discovered the charred folder containing suppressed evidence.
+    tier: persistent
+schema_version: 1
