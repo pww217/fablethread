@@ -1,0 +1,11 @@
+created_at: '2026-06-20T16:42:48'
+git_sha: 4b106a1
+git_branch: main
+git_tag: 0.28.0-47-g4b106a12
+git_dirty: true
+pack: noir-1930s
+personality: custom
+max_turns: 2
+actual_turns: null
+duration_ms: null
+pass_rate: null

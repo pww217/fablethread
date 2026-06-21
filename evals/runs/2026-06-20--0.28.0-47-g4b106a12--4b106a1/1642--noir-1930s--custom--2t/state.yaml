@@ -1,0 +1,280 @@
+__seed_meta__:
+  actions:
+  - Intercept the envelope before it slides off the roof edge.
+  - Confront Thomas Vance about his sudden interest in Clark's files.
+  - Attempt to leap across the gap to reach Clark Harris.
+  - Draw your revolver and demand both men stand down.
+  opening_narrative: 'The smell of hot tar rises from the blistering roof, thick and
+    suffocating under the midday sun. You steady your breathing, feeling the grit
+    of industrial soot beneath your palms as you crouch near the edge of the Spearsport
+    warehouse. Below, the distant wail of a police siren cuts through the heavy air,
+    a lonely sound that underscores the silence of this high-altitude wasteland. A
+    loose antenna clatters violently in a sudden gust of wind, sounding like a frantic
+    heartbeat against the metal housing.
+
+
+    You aren''t supposed to be up here. As a union investigator, your jurisdiction
+    ends at the street level or inside the union halls, but the information Clark
+    Harris whispered to you before he vanished changed everything. He didn''t just
+    hand you a lead; he handed you a death sentence wrapped in newsprint. Now, looking
+    across the gap between this building and the next, the distance looks much wider
+    than it did from the street. The fire escape on the adjacent structure ends abruptly
+    six feet short of your current position, a jagged iron limb reaching for a ledge
+    it will never touch.
+
+
+    A frantic scuffle breaks out near the water tower. Clark Harris bursts through
+    the heavy metal door leading to the roof, his eyes wide and wild, clutching a
+    manila envelope to his chest like it was a holy relic. He looks less like a journalist
+    and more like a cornered animal. Behind him, Thomas Vance emerges, his massive
+    frame silhouetted against the bright sky. Vance isn''t running; he is stalking,
+    his heavy boots thudding rhythmically on the tarred surface. His face is set in
+    a grim mask of duty, though his eyes flicker with a frantic energy that contradicts
+    his steady pace.
+
+
+    "Give it here, Clark!" Vance bellows, his voice cutting through the wind. "The
+    union can''t have this mess turning into a circus! We handle this internally!"
+
+
+    Clark doesn''t stop. He lunges toward your position, his eyes locking onto yours
+    for a split second—a look of desperate recognition and terror. He knows you are
+    the only one who can read what is inside that envelope without selling it to the
+    highest bidder or burying it in a headline. He trips on a loose patch of roofing
+    material, the envelope slipping from his grasp and sliding toward the edge of
+    the roof. At the same time, Vance reaches for his heavy coat pocket, his hand
+    closing around something substantial and metallic. The gap between you and Clark
+    is growing, and the distance to the next building feels like an abyss. You have
+    seconds to decide if you are going to protect the truth or let it fall into the
+    shadows of the docks below.'
+  outcome_summary: Clark Harris has lost control of the incriminating documents during
+    a frantic rooftop confrontation with Thomas Vance.
+__seed_pools__:
+  arc:
+    description: ''
+    id: racketeering_conspiracy
+    incompatible_with: []
+    tags:
+    - racketeering
+    - conspiracy
+    - organized_crime
+  character_dynamic:
+    description: ''
+    id: outsider_with_access
+    incompatible_with:
+    - embedded_investigator
+    - compromised_professional
+    tags:
+    - external_perspective
+    - limited_resources
+    - outside_looking_in
+  moral_pressure:
+    description: ''
+    id: professional_ethics
+    incompatible_with: []
+    tags:
+    - professional
+    - ethics
+    - code_of_conduct
+  npc_bond:
+    description: The NPC is connected to the PC through family — a cousin, an in-law,
+      a parent's old friend. The tie is personal, not professional.
+    id: family_connection
+    incompatible_with: []
+    tags:
+    - family
+    - obligation
+    - blood_tie
+  scene_bundle:
+    conditions:
+    - the tar roof blistering in the sun
+    - the gap between buildings wider than it looks
+    id: rooftop_chase
+    items:
+    - a water tower with a loose ladder
+    - a fire escape that ends six feet short
+    sensory:
+    - the wail of a siren from the street below
+    - the clatter of a loose antenna in the wind
+  situation:
+    description: ''
+    id: media_manipulation
+    incompatible_with: []
+    tags:
+    - media
+    - manipulation
+    - information_control
+arc:
+  completed_threads:
+  - dormant: true
+    id: missing_ledger_clue
+    outcome: The manila envelope containing the leak fell into the docks.
+    progress: []
+    resolution_state: failed
+    resolved_turn: 2
+    summary: A series of anonymous tips suggests a second set of books exists.
+    type: opportunity
+    urgency: background
+  goal_context: The ledger contains proof of systematic embezzlement that could destroy
+    Lawrence's standing with the union and his remaining family ties.
+  last_thread_created_turn: 0
+  resolution: null
+  threads:
+  - dormant: false
+    id: syndicate_infiltration
+    progress: []
+    summary: A shadow organization is quietly acquiring control over local news outlets.
+    type: threat
+    urgency: normal
+  - dormant: false
+    id: unreliable_witnesses
+    last_updated_turn: 2
+    progress:
+    - kind: shift
+      text: Vance confronts Harris over the envelope
+    summary: Key union members are providing conflicting accounts of the recent thefts.
+    type: complication
+    urgency: normal
+  - dormant: true
+    id: media_blackout
+    progress: []
+    summary: The city newspaper office is suddenly under heavy police guard.
+    type: threat
+    urgency: background
+  visible_goal: Secure the leaked ledger before the Gazette publishes a sanitized
+    version.
+compendium:
+  npcs:
+    clark_harris:
+      bio: A frantic man with ink-stained fingers and eyes that never stop moving.
+      bond: The NPC is connected to the PC through family — a cousin, an in-law, a
+        parent's old friend. The tie is personal, not professional.
+      fear: Losing his press credentials and falling into obscurity.
+      last_presence_turn: 2
+      last_seen_location: Spearsport Industrial District Rooftops
+      leverage: null
+      motivation: To break the biggest story of the decade regardless of the cost.
+      name: Clark Harris
+      notes: null
+      personality: wary_opportunist
+      position: on his knees, hands hovering over his chest in despair
+      presence: present
+      title: Lead Reporter for The Spearsport Gazette
+    thomas_vance:
+      bio: A heavy-set man with a gravelly voice and a permanent scowl.
+      bond: null
+      fear: The complete collapse of the dockworkers strike.
+      last_presence_turn: 2
+      last_seen_location: Spearsport Industrial District Rooftops
+      leverage: He knows which union leaders are on the syndicate payroll.
+      motivation: Protecting the union's reputation from outside interference.
+      name: Thomas Vance
+      notes: null
+      personality: volatile_loyalist
+      position: looming over Lawrence Brandon, stepping between him and Clark Harris
+      presence: present
+      title: Union Foreman
+inventory:
+- aliases: []
+  amount: 1
+  id: service_revolver
+  name: Colt Detective Special
+  notes: ''
+- aliases: []
+  amount: 6
+  id: revolver_ammo
+  name: .38 Revolver Rounds
+  notes: ''
+- aliases: []
+  amount: 1
+  id: investigation_notebook
+  name: Leather Bound Ledger Notebook
+  notes: ''
+- aliases: []
+  amount: 1
+  id: pocket_flashlight
+  name: Brass Flashlight
+  notes: ''
+- aliases: []
+  amount: 1
+  id: incriminating_photo
+  name: Faded Photograph of a Dockside Meeting
+  notes: Something that shouldn't have been captured on film.
+- aliases: []
+  amount: 50
+  id: dollars
+  name: Dollars
+  notes: ''
+location:
+  description: A labyrinth of interconnected flat roofs, rusted water towers, and
+    narrow alleys overlooking the shipping docks.
+  id: spearsport_rooftops
+  name: Spearsport Industrial District Rooftops
+meta:
+  _pack_source: noir-1930s
+  _seed_soft_warnings:
+  - Opening narrative 450 words (expected 530-930)
+  _seed_type: dynamic
+  model: claud-3-5-sonnet
+  pending_gm_beat:
+    beat_expires_turn: 4
+    effect: Thomas Vance reaches for his heavy belt, eyeing the frantic Clark Harris
+      with growing suspicion.
+    type: pressure
+  prior_history:
+  - '- [T1] Lawrence Brandon fails his attempt to leap to the adjacent building and
+    nearly falls from the rooftop.'
+  - '- [T2] Lawrence Brandon fails to recover the manila envelope, sending the leak
+    plummeting into the dark docks below.'
+  recent_beats:
+  - effect: null
+    turn: 1
+    type: null
+  - effect: Thomas Vance reaches for his heavy belt, eyeing the frantic Clark Harris
+      with growing suspicion.
+    turn: 2
+    type: pressure
+  recent_rolls:
+  - band: crit_fail
+    turn: 2
+  session_name: The Paper Trail Syndicate
+  setting_pack: noir-1930s
+  turn: 2
+pc:
+  actions:
+  - Demand that Thomas Vance explains his sudden interference
+  - Attempt to climb down the brickwork toward the docks
+  - Draw your Colt Detective Special to intimidate Vance
+  - Grab Clark Harris to pull him away from the ledge
+  bio: A former precinct clerk who moved to union enforcement after a departmental
+    scandal. He possesses an uncanny ability to spot forged signatures and doctored
+    books. He is currently working off a mounting gambling debt owed to a local social
+    club.
+  conditions: []
+  drive: ''
+  name: Lawrence Brandon
+  stats:
+    charisma: 3
+    dexterity: 3
+    strength: 2
+    wits: 4
+  tagline: Union investigator, expert at reading ledger inconsistencies
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  curtain_call: ''
+  scene_phase: SETUP
+  tags:
+  - media_manipulation
+  - rooftop_chase
+  - high_stakes
+  turns_in_phase: 2
+  world_state:
+  - The city dockworkers union is under heavy surveillance by federal agents.
+  - Newspaper syndicates have exclusive rights to all maritime crime reporting.
+  - Strict curfew enforcement restricts movement between the industrial and residential
+    wards.
+  - id: missing_ledger_clue
+    text: The manila envelope containing the leak fell into the docks.
+    tier: persistent
+schema_version: 1
