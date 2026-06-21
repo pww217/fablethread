@@ -10,37 +10,6 @@ from ccya.engine.npc_roster import build_npc_roster
 from ccya.personality import ARCHETYPES
 
 
-def build_npc_context(
-    comp: dict[str, Any],
-    narration: str,
-) -> list[dict[str, Any]]:
-    """Extract NPC psychological context from compendium for storytell.
-
-    Returns list of dicts with npc_id and relevant psychological fields
-    (motivation, fear, leverage) that are non-empty.
-    """
-    context: list[dict[str, Any]] = []
-    for nid, entry in comp.items():
-        if not isinstance(entry, dict):
-            continue
-        entry_name = entry.get("name") or ""
-        if not entry_name:
-            continue
-        fields: dict[str, Any] = {"npc_id": nid}
-        fear = entry.get("fear") or ""
-        motivation = entry.get("motivation") or ""
-        leverage = entry.get("leverage") or ""
-        if fear:
-            fields["fear"] = fear
-        if motivation:
-            fields["motivation"] = motivation
-        if leverage:
-            fields["leverage"] = leverage
-        if len(fields) > 1:
-            context.append(fields)
-    return context
-
-
 def _extract_scene_messages(
     env: Environment,
     narration: str,

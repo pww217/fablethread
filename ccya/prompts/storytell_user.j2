@@ -7,7 +7,14 @@
 
 {% include "sections/_npc_roster.j2" %}
 
-{% include "sections/_npc_context.j2" %}
+{% if candidate_npc_ids or scene_effect -%}
+## Scene Input
+
+Candidate NPCs: {% if candidate_npc_ids %}{{ candidate_npc_ids | join(", ") }}{% else %}none{% endif %}
+Scene Effect: {{ scene_effect or "none" }}
+
+{% endif %}
+{% include "sections/_npc_names.j2" %}
 
 {% include "sections/_location.j2" %}
 

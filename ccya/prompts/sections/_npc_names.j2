@@ -1,0 +1,5 @@
+{% if npc_roster -%}
+## NPC Names
+
+{{ npc_roster | map(attribute='name') | join(', ') }}
+{% endif %}
