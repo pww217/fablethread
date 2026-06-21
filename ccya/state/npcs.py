@@ -259,6 +259,20 @@ def apply_npc_scene_management(
                     if a.lower() not in {x.lower() for x in existing_aliases}:
                         existing_aliases.add(a.lower())
                 entry["aliases"] = list(existing_aliases)
+            # Guard: unnamed NPCs (name matches an alias) get bio only.
+            _is_unnamed = (
+                comp_upd.name
+                and comp_upd.aliases
+                and comp_upd.name.lower().strip() in {a.lower().strip() for a in comp_upd.aliases}
+            )
+            if _is_unnamed:
+                comp_upd = comp_upd.model_copy(update={
+                    "motivation": None,
+                    "fear": None,
+                    "leverage": None,
+                    "bond": None,
+                    "personality": None,
+                })
             if comp_upd.motivation is not None:
                 entry["motivation"] = comp_upd.motivation
             if comp_upd.fear is not None:
