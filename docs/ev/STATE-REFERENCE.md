@@ -25,7 +25,7 @@ and which checkers consume it.
 
 **Contents:** Full `state.yaml` structure — `arc`, `pc`, `inventory`, `location`, `scene`, `meta`, `compendium`, `world_state`, etc.
 
-**Used by checkers:** `arc_resolution_validity`, `thread_resolution_validity`, `thread_lifecycle`, `arc_goal_updates`, `goal_update_validity`, `recent_beats`, `scene_age_tracking`, `beat_narrative_chain`, `npc_presence`, `inventory_integrity`, `conditions_lifecycle`, `compendium_lifecycle`
+**Used by checkers:** `arc_resolution_validity`, `thread_resolution_validity`, `thread_lifecycle`, `arc_goal_updates`, `goal_update_validity`, `beat_narrative_chain`, `npc_presence`, `inventory_integrity`, `conditions_lifecycle`, `compendium_lifecycle`
 
 **⚠️ Critical gotcha:** Because `state_snapshot` is captured post-turn, any thread/arc resolution that happened during the turn is already reflected in it. Checkers that validate `arc_resolve.drop_threads` or `thread_resolve` IDs must compare against the **previous** turn's `state_snapshot` (pre-resolution state), not the current turn's. See the checker fix in commit `677258e` for the pattern.
 
@@ -175,7 +175,7 @@ class _ExtractionContext:
 
 **Contents:** `IntentEnvelope` + `RulesOutcome` — intent, check details, dice roll, band, directive, intent_verb, impossible flag.
 
-**Used by checkers:** `roll_band_consistency`, `action_quality`, `directive_tone_match`
+**Used by checkers:** `roll_band_consistency`, `directive_tone_match`
 
 ### 8. `narrate` (event field)
 

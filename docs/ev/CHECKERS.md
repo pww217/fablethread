@@ -12,7 +12,7 @@ Checkers are organized by domain:
 - **Inventory & conditions**: `location_change`, `inventory_integrity`, `conditions_lifecycle`
 - **Threads & arcs**: `thread_lifecycle`, `arc_goal_updates`
 - **NPCs**: `npc_presence`
-- **Pacing**: `pacing_directives`, `action_quality`, `phase_transition`, `recent_beats`, `phase_persistence`, `scene_age_tracking`, `climax_turn_counting`, `breather_enforcement`, `roll_band_consistency`, `beat_phase_validity`
+- **Pacing**: `pacing_directives`, `phase_transition`, `climax_turn_counting`, `breather_enforcement`, `roll_band_consistency`, `beat_phase_validity`
 - **Threads & arcs**: `thread_lifecycle`, `arc_goal_updates`, `thread_resolution_validity`, `new_thread_validity`, `arc_resolution_validity`, `goal_update_validity`
 - **NPCs**: `npc_presence`, `compendium_lifecycle`
 - **Sanitizer**: `sanitizer_lifecycle`
@@ -77,7 +77,7 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `state_snapshot.compendium.npcs`, `applied.compendium_npc_update`
-- **What it checks:** All NPC presence values in compendium are valid (`present`, `nearby`, `known`, `departed`, `archived`). Departed NPCs have required `departed_reason` field.
+- **What it checks:** All NPC presence values in compendium are valid (`present`, `nearby`, `known`, `departed`). Departed NPCs have required `departed_reason` field.
 - **CLI:** `ev.py check TURN npc_presence`
 - **Caveats:** Only checks state_snapshot compendium entries, not extraction output. Note: `extraction_context` is NOT stored in events.
 
@@ -85,9 +85,9 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `ruling`, `narrate_prompt`, `extraction.storytell.rendered_user`
-- **What it checks:** outcome_hint rendered in narrator prompt, directive rendered in storyteller prompt, removed directives not present, beat type variety maintained
+- **What it checks:** outcome_hint rendered in narrator prompt, directive rendered in storyteller prompt, removed directives not present
 - **CLI:** `ev.py check TURN pacing_directives`
-- **Caveats:** Removed directives: "Overwhelm", "Pressure", "location pressure", "location imperative", "combat fatigue". Beat type variety warns if a single type exceeds 60% of all beats (requires 3+ beats). Surface_as consistency checks that consecutive same-type beats don't flip between "ambient" and "environmental" without a directive change. Phase constraint check verifies beat types are allowed for the current scene_phase per BEAT_PHASE_MAP. Uses regex word boundaries to avoid false positives from word variants (e.g., "overwhelmed" matching "Overwhelm").
+- **Caveats:** Removed directives: "Overwhelm", "Pressure", "location pressure", "location imperative", "combat fatigue". Uses regex word boundaries to avoid false positives from word variants (e.g., "overwhelmed" matching "Overwhelm").
 
 ### phase_transition
 
@@ -96,30 +96,6 @@ When inspecting a game, check one area at a time rather than running all checker
 - **What it checks:** Phase engine transitions follow the state machine (SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION, RESOLUTION→BREATHER, BREATHER→RISING, any→SETUP on location_change), climax_turn_count monotonicity, outcome_hint consistency during climax limit
 - **CLI:** `ev.py check TURN phase_transition`
 - **Caveats:** Any→SETUP is always valid (location_change). CLIMAX turn count must increment by 1 within CLIMAX phase. When climax_turn_count >= 4 (default limit), outcome_hint must be "transition".
-
-### recent_beats
-
-- **Type:** deterministic
-- **Fields:** `state_snapshot`
-- **What it checks:** recent_beats exists in state, capped at 5 entries, entry structure (turn/type/effect), monotonic turn numbers
-- **CLI:** `ev.py check TURN recent_beats`
-- **Caveats:** Default cap is 5 entries per config.recent_beats_max. Each entry must have turn, type, and effect fields.
-
-### phase_persistence
-
-- **Type:** deterministic
-- **Fields:** `scene_phase`
-- **What it checks:** scene_phase field present and valid on every turn (regression guard for phase-persistence bug)
-- **CLI:** `ev.py check TURN phase_persistence`
-- **Caveats:** Validates that scene_phase is one of SETUP/RISING/CLIMAX/RESOLUTION/BREATHER on every turn. The original bug caused phase to never be written to state, resetting every turn.
-
-### scene_age_tracking
-
-- **Type:** deterministic
-- **Fields:** `state_snapshot`
-- **What it checks:** scene_age increments by 1 each turn, resets to 0 on location change
-- **CLI:** `ev.py check TURN scene_age_tracking`
-- **Caveats:** scene_age = current_turn - location_entered_turn. First turn and location change turns are skipped (age is 0).
 
 ### climax_turn_counting
 
@@ -192,14 +168,6 @@ When inspecting a game, check one area at a time rather than running all checker
 - **What it checks:** goal_update is non-empty string, must differ from previous visible_goal
 - **CLI:** `ev.py check TURN goal_update_validity`
 - **Caveats:** Skips turns where arc_resolve is also emitted (arc_resolve.visible_goal supersedes goal_update). Validates goal_update differs from next turn's arc.visible_goal.
-
-### action_quality
-
-- **Type:** deterministic
-- **Fields:** `actions`, `ruling`
-- **What it checks:** Actions list is non-empty, all actions are distinct
-- **CLI:** `ev.py check TURN action_quality`
-- **Caveats:** Simple count/distinct check. Reports failures for empty actions lists or duplicate entries.
 
 ### sanitizer_lifecycle
 
