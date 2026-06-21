@@ -81,7 +81,7 @@ def main() -> None:
     from ccya.ev.events import load_events, find_turn
 
     # Auto-detect events.jsonl from --save-dir when no positional events path given
-    if cmd != "play" and "save-dir" in flags and not (len(args) > 1 and (args[-1].endswith(".jsonl") or args[-1].startswith("saves/"))):
+    if cmd not in ("play", "prompt-eval") and "save-dir" in flags and not (len(args) > 1 and (args[-1].endswith(".jsonl") or args[-1].startswith("saves/"))):
         turn_file = Path(str(flags["save-dir"])) / "events.jsonl"
 
     # Skip events path extraction for play command — events are written by play_turn()
@@ -92,14 +92,17 @@ def main() -> None:
         else:
             turn_file = candidate
         args = args[:-1]
-    elif cmd != "play" and "save-dir" in flags:
+    elif cmd not in ("play", "prompt-eval") and "save-dir" in flags:
         turn_file = Path(str(flags["save-dir"])) / "events.jsonl"
+    elif cmd in ("play", "prompt-eval"):
+        # play writes events; prompt-eval renders/calls — neither needs pre-loaded events
+        pass
     else:
         print("Error: no events file specified. Use --save-dir <path> or pass events.jsonl path as argument.", file=sys.stderr)
         sys.exit(1)
 
     # Skip loading events for commands that don't need them
-    skip_events = cmd in ("play", "init", "status", "help")
+    skip_events = cmd in ("play", "init", "status", "help", "prompt-eval")
     # Also skip for check --list (checker list doesn't need data)
     if cmd == "check" and "list" in flags:
         skip_events = True

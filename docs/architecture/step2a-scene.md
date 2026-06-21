@@ -33,6 +33,8 @@ flowchart LR
 
 Scene extracts per-NPC beat candidates as `candidate_npcs: [{id, type, effect}]` where `type` is one of `motivation | fear | leverage | bond`. Each entry pairs an NPC with a specific driver type and an observable behavioral pressure effect (~1 sentence). This is NOT a full beat — it's a signal to storytell about who matters narratively and how. Storytell maps these to specific NPCs and threads using three patterns: deliver as-is, combine multiple drivers, or apply effect to a thread.
 
+Scene receives psychological fields (motivation/fear/leverage/bond) for all presence levels via `show_all_fields=True` in `_npc_roster.j2`. Effects must directly reference these compendium fields as ground truth — never invent new psychological drivers.
+
 ## Extraction prompt (`extract_scene_system.j2`) — NPC quality rules
 
 Four additions prevent common NPC compendium quality issues:
