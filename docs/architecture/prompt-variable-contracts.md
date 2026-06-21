@@ -10,7 +10,7 @@ Cross-reference mapping every user template to its section includes and context 
 | `_conditions.j2` | ruling, narrate, extract_state, storytell | — | `conditions`, `show_age`, `turn_no` | `## active_conditions` |
 | `_inventory.j2` | ruling, narrate, extract_state, storytell | — | `inventory` (→`state.inventory`) | `## Inventory` |
 | `_location.j2` | narrate, storytell | — | `location` (→`state.location`) | `## Location` |
-| `_npc_roster.j2` | narrate, scene, storytell | `npc_roster` (list) | `turn_no` | `## Characters` |
+| `_npc_roster.j2` | narrate, scene, storytell | `npc_roster` (list) | `turn_no`, `show_all_fields` (bool, defaults to present-only when absent) | `## Characters` |
 | `_npc_names.j2` | storytell | `npc_roster` (list) | — | `## NPC Names` |
 | `_thread_list.j2` | narrate, storytell | `threads` (list) | `turn_no` | `### Active Threads` / `### Dormant Threads` |
 | `_arc.j2` | narrate, storytell | — | `current_arc`, `resolved_arcs` | `### Campaign Arc`, `### Previously Resolved Arcs`, `### Completed Threads` |
@@ -37,7 +37,7 @@ Cross-reference mapping every user template to its section includes and context 
 
 ### `_extract_scene_messages()` → `extract_scene_user.j2`
 
-**Context vars passed:** `narration`, `location`, `npc_roster`, `pc_name`, `turn_no`
+**Context vars passed:** `narration`, `location`, `npc_roster`, `pc_name`, `turn_no`, `show_all_fields`
 
 **Section includes:** `_npc_roster.j2`
 

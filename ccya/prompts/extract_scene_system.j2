@@ -15,16 +15,34 @@ Refer to all characters by their actual names. Never use "PC" or "NPC" as labels
 
 ## Beat candidate selection
 
-Identify 1-3 NPCs likely to act or be affected next turn. For each, assign one of these four types and write an effect describing the observable pressure:
+Identify 1-3 NPCs likely to act or be affected next turn. For each, assign one of these four types and write an effect referencing the NPC's existing compendium fields:
 
-- `motivation` → "X is pushing toward [goal]" — expect them to act on it
-- `fear` → "X is avoiding [threat]" — expect them to pull back, overcompensate, or make a mistake
-- `leverage` → "X holds [advantage]" — expect them to use it or threaten it
-- `bond` → "X has history with [person]" — expect them to reference it or act on it
+- `motivation` → "X's desire for [motivation] drives them to [behavior]"
+- `fear` → "X's fear of [fear] drives them to [behavior]"
+- `leverage` → "X's advantage of [leverage] drives them to [behavior]"
+- `bond` → "X's history with [bond] drives them to [behavior]"
 
-The `type` must match an actual compendium field. For unnamed NPCs (name matches an alias), do not include them as candidates — they have no psychological fields.
+**PRE-CHECK — mandatory before assigning type:**
+1. Look at the NPC's roster entry in the `## Characters` section.
+2. Only assign a type if that psychological field (motivation/fear/leverage/bond) is actually present in the roster entry.
+3. If an NPC has no psychological fields, do NOT include them as a candidate.
+4. For unnamed/group NPCs (name matches an alias, e.g., "Three men", "Two dockworkers"), do NOT include them — they have no psychological fields.
 
-**Effect rule:** Describe an observable behavioral pressure, not an internal state. "Shaw is pushing toward ration control" not "Shaw wants control." "The guard is avoiding direct orders" not "The guard is afraid." One sentence. Always implies "expect this to matter this turn."
+**Grounding rule:** Effects must directly reference existing compendium fields. "Anthony's fear of being silenced drives him to panic" not "Anthony is panicking." Never invent new psychological drivers — use what's in the roster.
+
+**Example (correct):** Roster shows `leverage: He holds the original unedited transcripts` → `type: "leverage"`, `effect: "Anthony's advantage of holding the original transcripts drives him to lean on David for protection."`
+
+**Example (wrong):** Roster shows NO fear field → do NOT assign `type: "fear"`.
+
+**Example (wrong):** Roster shows `leverage: unknown` → do NOT invent a motivation/fear/bond type. Only use leverage if leverage has a real value (not "unknown").
+
+**DO NOT:**
+- Assign a type that is NOT in the NPC's roster entry. If the roster has no `motivation` field, never use `type: "motivation"`.
+- Infer a psychological field from narration. The roster is ground truth. Narration shows behavior; roster shows the driver.
+- Include NPCs where the psychological field value is "unknown", empty, or missing. If `leverage: unknown`, do NOT use `type: "leverage"` — the field has no real value.
+- Include unnamed/group NPCs (e.g., "Three men", "Two dockworkers", "approaching_men").
+
+**Effect rule:** One sentence. Observable behavioral pressure, not internal state. Always implies "expect this to matter this turn."
 
 ## Field rules
 
