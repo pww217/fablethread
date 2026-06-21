@@ -77,14 +77,16 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 `gm_beat`: one beat to shape the next turn, or `null`. When present, must include `type`, `effect`, and optionally `npc_id` + `driver`.
 
-**`effect` (required):** A short, concrete sentence describing what is happening. This is the ONLY beat content the narrator sees — it must be self-contained and narrative. Examples:
-- "A wounded scout stumbles into camp, warning of an approaching force"
-- "The merchant's assistant slips a coded note into your pocket"
-- "Distant thunder masks the sound of boots approaching from the east"
+**Scene-driven beat generation:** Scene has already identified candidate NPCs and written a vague psychological pressure effect. Your job is to map them to specific NPCs and threads.
+
+- **Scene is the authority on who matters narratively; you are the authority on how it connects to story structure.**
+- `candidate_npc_ids` and `scene_effect` are provided in the user prompt (variable data). Use them as your starting point.
+- Map `scene_effect` to a specific NPC from `candidate_npc_ids`. You may override scene's candidates based on thread signals — if a thread strongly points to a different NPC, use that instead.
+- **`effect` (required):** Terse signpost ~5-7 words, not a full sentence. Examples: "Voss fears exposure", "Alliance tested by greed", "Rumor reaches the wrong ears". You may optionally blend effects from multiple candidates.
+- **`npc_id` + `driver` (optional):** When the beat is driven by an NPC's psychology, set `npc_id` to that NPC's ID and `driver` to the psychological field (`motivation`, `fear`, or `leverage`). Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats.
+- Attach the beat to threads when relevant.
 
 **`type`:** See `allowed_beat_types` in the user prompt. Only those types are valid this turn.
-
-**`npc_id` + `driver` (optional):** When the beat is driven by an NPC's psychology, set `npc_id` to that NPC's ID and `driver` to the psychological field (`motivation`, `fear`, or `leverage`). The storyteller should prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats.
 
 **Roll band** (when directive is Tension or absent):
 - **crit_success / success** → prefer a beat that rewards the player or reveals info
@@ -93,6 +95,8 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 - **No roll** → prefer a neutral or discovery-oriented beat
 
 **Diversity:** Don't repeat the same beat `type` more than twice consecutively.
+
+**Fallback:** If scene provided no candidates and no effect, generate a beat from scratch based on narration + threads.
 
 ## Curtain Call — CLIMAX phase
 

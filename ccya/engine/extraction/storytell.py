@@ -72,7 +72,8 @@ def _storytell_messages(
             "narration": narration,
             # This-turn derived values (from extraction_ctx) — NOT state
             "npc_roster": npc_roster,
-            "npc_context": extraction_ctx.npc_context,
+            "candidate_npc_ids": extraction_ctx.candidate_npc_ids,
+            "scene_effect": extraction_ctx.scene_effect,
             "comp_this_turn": extraction_ctx.comp_this_turn,
             "location": extraction_ctx.location_this_turn,
             "inventory": extraction_ctx.inventory_this_turn,

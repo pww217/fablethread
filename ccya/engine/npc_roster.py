@@ -23,7 +23,7 @@ def build_npc_roster(
 ) -> list[dict[str, Any]]:
     """Build sorted NPC roster from compendium, filtering by presence.
 
-    When slim=True, only includes id, name, title, bio.
+    When slim=True, only includes id, name, title.
     Otherwise returns list of dicts with keys: id, name, title, bio, presence, motivation,
     fear, leverage, bond, notes, last_presence_turn, last_seen_location,
     departed_reason.
@@ -46,7 +46,6 @@ def build_npc_roster(
                 "id": nid,
                 "name": name,
                 "title": _strip_non_ascii(entry.get("title") or ""),
-                "bio": (entry.get("bio") or "").strip() or None,
             }
         else:
             seen[nid] = {

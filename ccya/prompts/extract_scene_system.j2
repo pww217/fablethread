@@ -8,9 +8,18 @@ Refer to all characters by their actual names. Never use "PC" or "NPC" as labels
 
 ```json
 {
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "position": "..."}]
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "position": "..."}],
+  "candidate_npc_ids": ["npc_id_1", "npc_id_2"],
+  "effect": "vague psychological pressure ~5-7 words"
 }
 ```
+
+## Beat candidate selection
+
+Based on narration + NPC fields, identify 1-3 NPCs who are likely to act or be affected next turn. Write a vague effect describing the psychological pressure (~5-7 words). These are suggestions — storytell will map them to specific NPCs and threads.
+
+- `candidate_npc_ids`: 1-3 NPC IDs from the compendium who are narratively relevant for the next beat. Include NPCs who are present, nearby, or have strong thread connections.
+- `effect`: A vague psychological pressure effect (~5-7 words). Not a full sentence. Examples: "Voss fears exposure", "Alliance tested by greed", "Rumor reaches the wrong ears". Do NOT name a specific NPC in the effect — keep it vague. Storytell will map it.
 
 ## Field rules
 

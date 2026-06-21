@@ -12,7 +12,7 @@ from jinja2 import Environment
 
 from ccya.engine.config import EngineConfig
 from ccya.engine.extraction.context import _build_extraction_context
-from ccya.engine.extraction.scene import _extract_scene_messages, build_npc_context
+from ccya.engine.extraction.scene import _extract_scene_messages
 from ccya.engine.extraction.state import _extract_state_messages
 from ccya.engine.extraction.storytell import _storytell_messages
 from ccya.engine.extraction.utils import _call_stream, _capitalize_inventory_names, _context_meta, _dedup_compendium_update
@@ -161,8 +161,6 @@ async def _run_extraction_pipeline(
     _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
     # Build this-turn context from scene + state results for the storyteller stream
     extraction_ctx = _build_extraction_context(state, scene_result, state_result)
-    # Build npc_context from POST-scene compendium so we have updated NPC psychological fields
-    extraction_ctx.npc_context = build_npc_context(extraction_ctx.comp_this_turn, narration)
     storytell_msgs = _storytell_messages(
         env, narration, state,
         extraction_ctx=extraction_ctx,

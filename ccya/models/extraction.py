@@ -119,7 +119,8 @@ class SceneExtractResult(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
-    npc_context: list[dict[str, Any]] = Field(default_factory=list)
+    candidate_npc_ids: list[str] = Field(default_factory=list, max_length=3)
+    effect: str = ""
 
 
 class StateExtractResult(BaseModel):
