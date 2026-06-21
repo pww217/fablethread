@@ -1,0 +1,432 @@
+__seed_meta__:
+  actions:
+  - Stand up and pull Vance toward the kitchen exit.
+  - Confront the two men before they reach our table.
+  - Keep a low profile and watch the room for an escape route.
+  - Demand Mark Holloway help us get out through the back.
+  opening_narrative: 'The smell of stale rye and unwashed wool clings to your throat.
+    You sit at a corner table in the Blind Pig, watching the amber liquid swirl in
+    your glass, the light from the low-hanging lamps barely cutting through the haze
+    of blue cigarette smoke. The music from the phonograph in the corner skips rhythmically,
+    a scratching sound that sets your teeth on edge. Around you, the low laughter
+    from the back room drifts over, punctuated by the constant, rhythmic clink of
+    glasses behind the bar.
+
+
+    Anthony Vance sits opposite you, his face pale under the dim light. He hasn''t
+    touched his drink. His fingers twitch against the wood of the table, and every
+    time the door to the speakeasy creaks, he flinches as if expecting a blow. You
+    remember him from that courtroom two years ago—the way his voice cracked when
+    he realized the witnesses had all changed their stories simultaneously. He was
+    supposed to be your star witness, the one who would finally pin the waterfront
+    graft on the union leaders, but instead, he became the man whose failure ended
+    your career.
+
+
+    ''They know, David,'' Vance whispers, leaning in so close you can smell the sour
+    sweat on his collar. ''The papers... they aren''t just ignoring it anymore. They''re
+    actively burying it. They sent a man to my apartment this morning. He didn''t
+    say a word, just stood there, watching.''
+
+
+    You scan the room, your eyes trained to read the tension in a space before the
+    violence starts. Mark Holloway, the bartender, is wiping the brass rail with more
+    force than necessary, his eyes darting toward the entrance every time a patron
+    enters. The atmosphere has shifted; the casual murmur of the patrons has dipped
+    into an uneasy, watchful quiet.
+
+
+    At the threshold of the club, two men enter. They don''t look like the usual crowd
+    looking for a quick drink to forget the day. One is tall, wearing a heavy bowler
+    hat that casts his eyes into deep shadow, moving with a measured, predatory stillness.
+    Beside him, a shorter man with a thick neck and a nervous habit of tapping a lead
+    pipe against his thigh scans the room. They aren''t looking for a seat; they are
+    looking for a specific face. They begin to move through the crowd, cutting through
+    the smoke toward your corner. Vance sees them too. His breathing hitches, and
+    he reaches into his coat, clutching something small and hard. He looks at you,
+    eyes wide with a frantic, desperate plea, waiting to see if you are still the
+    man who can keep him alive or just another ghost of the past.'
+  outcome_summary: Anthony Vance has identified his pursuers, placing him in immediate
+    danger within the speakeasy.
+__seed_pools__:
+  arc:
+    description: ''
+    id: media_manipulation
+    incompatible_with: []
+    tags:
+    - media
+    - manipulation
+    - public_opinion_control
+  character_dynamic:
+    description: ''
+    id: compromised_witness
+    incompatible_with: []
+    tags:
+    - trauma
+    - cooperation
+    - vulnerability
+  moral_pressure:
+    description: ''
+    id: blood_money
+    incompatible_with: []
+    tags:
+    - compensation
+    - ethics
+    - dirty_money
+  npc_bond:
+    description: The NPC was a witness in a case the PC worked. The testimony fell
+      apart, the case collapsed, and the PC still doesn't know whose hand was in it.
+    id: corrupted_witness
+    incompatible_with: []
+    tags:
+    - testimony
+    - corruption
+    - court_case
+  scene_bundle:
+    conditions:
+    - the room hazy with cigarette smoke
+    - the music from the phonograph skipping
+    id: speakeasy
+    items:
+    - a brass rail worn smooth by shoe leather
+    - a glass with lipstick on the rim
+    sensory:
+    - the low laughter from a back room
+    - the clink of glasses behind the bar
+  situation:
+    description: ''
+    id: witness_protection
+    incompatible_with: []
+    tags:
+    - witness
+    - protection
+    - vulnerability
+arc:
+  completed_threads: []
+  goal_context: The immediate survival of David Scott and Anthony Vance is now threatened
+    by the enforcer's breach.
+  last_thread_created_turn: 15
+  resolution: null
+  threads:
+  - added_turn: null
+    dormant: true
+    id: leaked_documents
+    last_updated_turn: null
+    outcome: null
+    progress: []
+    resolution_state: null
+    resolved_turn: null
+    summary: A series of anonymous leaflets are appearing, hinting at a massive corruption
+      web in the city.
+    type: revelation
+    urgency: background
+    urgency_set_turn: null
+  - added_turn: null
+    dormant: true
+    id: union_payoff
+    last_updated_turn: null
+    outcome: null
+    progress: []
+    resolution_state: null
+    resolved_turn: null
+    summary: Large sums of untraceable cash are moving through the waterfront accounts.
+    type: opportunity
+    urgency: background
+    urgency_set_turn: null
+  - added_turn: 7
+    dormant: true
+    id: found_syndicate_ledger
+    last_updated_turn: 15
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Ledger secured during alleyway chase
+    resolution_state: null
+    resolved_turn: null
+    summary: Discovery of a discarded Waterfront Distribution ledger in the alleyway
+    type: revelation
+    urgency: normal
+    urgency_set_turn: 15
+  - added_turn: null
+    dormant: false
+    id: physical_confrontation
+    last_updated_turn: null
+    outcome: null
+    progress:
+    - kind: setback
+      text: Enforcer breached storefront and collided with David
+    resolution_state: null
+    resolved_turn: null
+    summary: Direct melee combat between David Scott and the heavy-jawed enforcer
+      in the storefront
+    type: threat
+    urgency: urgent
+    urgency_set_turn: null
+  - added_turn: null
+    dormant: false
+    id: shopkeeper_paralysis
+    last_updated_turn: null
+    outcome: null
+    progress: []
+    resolution_state: null
+    resolved_turn: null
+    summary: The shopkeepers are frozen by fear and failing to assist the escape.
+    type: null
+    urgency: normal
+    urgency_set_turn: null
+  visible_goal: Escort Anthony Vance to a safe house before the press syndicates or
+    their muscle can intercept him.
+compendium:
+  npcs:
+    anthony_vance:
+      bio: A man with trembling hands and eyes that never stay fixed on one point,
+        looking perpetually over his shoulder.
+      bond: The NPC was a witness in a case the PC worked. The testimony fell apart,
+        the case collapsed, and the PC still doesn't know whose hand was in it.
+      fear: Being silenced by the syndicates.
+      last_presence_turn: 15
+      last_seen_location: Darkened Storefront
+      leverage: He holds the original unedited transcripts of the union hearing.
+      motivation: To expose the truth before the press kills him.
+      name: Anthony Vance
+      personality: desperate_idealist
+      position: cowering behind David Scott
+      presence: present
+      title: Disgraced Former Clerk
+    mark_holloway:
+      bio: A sturdy man with a permanent scowl and hands stained by tobacco and gin.
+      bond: null
+      fear: Losing his liquor license to a raid.
+      last_presence_turn: 6
+      last_seen_location: Alleyway
+      leverage: null
+      motivation: Keep the business running without attracting police attention.
+      name: Mark Holloway
+      personality: blunt_survivor
+      position: ducking behind the bar inside The Rusty Anchor, clutching a heavy
+        bottle
+      presence: known
+      title: Speakeasy Bartender
+    shopkeepers:
+      aliases:
+      - shopkeepers
+      bio: One tall man with thinning hair and a thick apron; one shorter man with
+        grease-stained fingers. Both appear startled and frozen by the sudden violence.
+      first_seen_turn: 12
+      last_presence_turn: 15
+      last_seen_location: Darkened Storefront
+      name: Two shopkeepers
+      personality: wary_opportunist
+      position: frozen in place, staring at David Scott's chest
+      presence: present
+    two_enforcers:
+      bio: One man with a heavy jaw and a bowler hat, the other shorter with a nervous
+        habit of tapping a lead pipe against his thigh.
+      bond: null
+      fear: Failing their employer's specific instructions.
+      last_presence_turn: 15
+      last_seen_location: Darkened Storefront
+      leverage: null
+      motivation: Retrieve the documents held by Vance at any cost.
+      name: One enforcer
+      personality: cold_pragmatist
+      position: the heavy-jawed man is lunging through the threshold, barreling into
+        David Scott
+      presence: present
+      title: Syndicate muscle
+inventory:
+- aliases: []
+  amount: 1
+  id: service_revolver
+  name: Colt Detective Special
+  notes: ''
+- aliases: []
+  amount: 3
+  id: revolver_rounds
+  name: .38 Revolver Rounds
+  notes: ''
+- aliases: []
+  amount: 1
+  id: leather_notebook
+  name: Weathered Leather Notebook
+  notes: ''
+- aliases: []
+  amount: 1
+  id: evidence_photo
+  name: Crinkled Photograph of a Dockside Meeting
+  notes: The one piece of evidence that didn't make it into the official record.
+- aliases: []
+  amount: 1
+  id: brass_lighter
+  name: Engraved Brass Lighter
+  notes: ''
+- aliases: []
+  amount: 50
+  id: dollars
+  name: Dollars
+  notes: ''
+- amount: 1
+  id: syndicate_ledger
+  name: 'Syndicate Ledger: Waterfront Distribution  Q3'
+  notes: embossed with union insignia, held in hand
+location:
+  description: A dim, dust-choked interior smelling of stale tobacco and unwashed
+    linen, containing workbenches and startled shopkeepers.
+  id: darkened_storefront
+  name: Darkened Storefront
+meta:
+  _pack_source: noir-1930s
+  _seed_soft_warnings:
+  - Opening narrative 439 words (expected 530-930)
+  _seed_type: dynamic
+  compendium_touch_order:
+  - mark_holloway
+  - shopkeepers
+  - anthony_vance
+  - two_enforcers
+  last_arc_resolve_turn: 15
+  last_inventory_change_reason: Player fired a shot from revolver
+  last_thread_created_turn: 14
+  model: claude-3-5-sonnet
+  prior_history:
+  - '- [T1] David Scott and Anthony Vance flee into the alleyway to escape two approaching
+    enforcers.'
+  - '- [T2] David Scott attempts to hide in the shadows, but Anthony Vance''s panicked
+    cry alerts the enforcers to their position.'
+  - '- [T3] David Scott levels his Colt Detective Special at the enforcers, forcing
+    them into a cautious standoff after Anthony Vance''s cry.'
+  - '- [T4] David Scott shoved Anthony Vance into The Rusty Anchor to escape the enforcers''
+    flanking maneuver.'
+  - '- [T5] David Scott attempts to use Mark Holloway''s distraction to mask their
+    presence, but the enforcers are closing in on their position.'
+  - '- [T6] David Scott successfully forced Anthony Vance out of The Rusty Anchor
+    and into the rear alleyway to evade the enforcers.'
+  - '- [T7] David Scott discovers a Syndicate ledger in the alleyway just as the heavy-jawed
+    enforcer emerges from the kitchen door.'
+  - '- [T8] David Scott''s attempt to sneak into the shadows fails when he stumbles
+    against crates, alerting both enforcers to their position.'
+  - '- [T9] David Scott levels his revolver at the heavy-jawed enforcer, but Anthony
+    Vance''s hyperventilating draws the shorter enforcer into a flanking maneuver.'
+  - '- [T10] David Scott attempts to suppress Anthony Vance''s panic while facing
+    a sudden physical assault from the shorter enforcer.'
+  - '- [T11] David Scott successfully shoots the shorter enforcer after absorbing
+    a blow to his arm, leaving the heavy-jawed man reeling.'
+  - '- [T12] David Scott takes a gunshot to the chest and narrowly escapes the alleyway
+    with Anthony Vance as the heavy-jawed enforcer pursues them onto the main street.'
+  - '- [T13] David Scott fires a suppressing shot at the heavy-jawed enforcer and
+    drags Anthony Vance into a darkened storefront to seek cover.'
+  - '- [T14] David Scott fails to intimidate the shopkeepers and is forced into a
+    direct confrontation as the heavy-jawed enforcer breaches the storefront.'
+  - '- [T15] David Scott''s warning shot fails to intimidate the enforcer, who lunges
+    through the doorway and slams into him, causing David to stumble against a workbench.'
+  recent_beats:
+  - effect: The heavy-jawed enforcer draws a heavy revolver, aiming at David Scott
+      while his partner lies wounded.
+    turn: 11
+    type: pressure
+  - effect: null
+    turn: 12
+    type: null
+  - effect: null
+    turn: 13
+    type: null
+  - effect: One enforcer lunges through the doorway, forcing David Scott to choose
+      between firing or shielding Anthony Vance.
+    turn: 14
+    type: escalation
+  - effect: null
+    turn: 15
+    type: null
+  recent_rolls:
+  - band: fail
+    turn: 15
+  - band: fail
+    turn: 14
+  - band: success
+    turn: 13
+  - band: fail
+    turn: 12
+  - band: success
+    turn: 11
+  session_name: The Paper Trail Scandal
+  setting_pack: noir-1930s
+  turn: 15
+pc:
+  actions:
+  - Brace against the workbench to stabilize your aim at the enforcer.
+  - Push Anthony Vance toward the back room while absorbing the impact.
+  - Swing the Colt Detective Special at the enforcer's head during the collision.
+  - Use the Syndicate Ledger as a blunt weapon to strike the man.
+  bio: After a botched investigation into the waterfront unions, David was forced
+    out of official capacity. He now works as a freelance finder, driven by a need
+    to rectify the one case that broke his reputation. He carries the weight of a
+    failed prosecution that let a killer walk.
+  conditions:
+  - added_turn: 10
+    description: A heavy blow from a lead pipe has left your forearm throbbing with
+      white-hot pain.
+    id: wounded_arm
+    label: Wounded Arm
+  - added_turn: 11
+    description: A gunshot has torn through your torso, leaving you gasping and bleeding
+      heavily.
+    id: chest_wound
+    label: Chest Wound
+  drive: ''
+  name: David Scott
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 2
+    wits: 4
+  tagline: Former union investigator, expert at spotting forged ledgers
+resolved_arcs:
+- closed_threads: []
+  goal_context: The immediate chase has transitioned from an open alleyway to a crowded
+    public establishment.
+  resolution: David Scott successfully moved Anthony Vance from the alleyway to the
+    safety of The Rusty Anchor, though the enforcers are in hot pursuit.
+  resolved_turn: 4
+  visible_goal: Escort Anthony Vance to a safe house before the press syndicates or
+    their muscle can intercept him.
+- closed_threads: []
+  goal_context: The current plan of using the speakeasy as cover has failed due to
+    the enforcers' arrival.
+  resolution: The attempt to escort Anthony Vance safely through The Rusty Anchor
+    has collapsed into a chaotic brawl as enforcers entered the establishment.
+  resolved_turn: 5
+  visible_goal: Escort Anthony Vance to a safe house before the press syndicates or
+    their muscle can intercept him.
+- closed_threads: []
+  goal_context: David Scott and Anthony Vance have just breached a darkened storefront
+    to escape an enforcer.
+  resolution: The immediate pursuit has transitioned into a frantic indoor standoff,
+    shifting the focus from flight to survival within the storefront.
+  resolved_turn: 13
+  visible_goal: Escort Anthony Vance to a safe house before the press syndicates or
+    their muscle can intercept him.
+- closed_threads: []
+  goal_context: The immediate survival of David Scott and Anthony Vance is now threatened
+    by the enforcer's breach.
+  resolution: The storefront standoff has escalated into a direct physical confrontation
+    between David Scott and the heavy-jawed enforcer.
+  resolved_turn: 15
+  visible_goal: Escort Anthony Vance to a safe house before the press syndicates or
+    their muscle can intercept him.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 3
+  curtain_call: forced
+  location_entered_turn: 13
+  scene_phase: CLIMAX
+  tags:
+  - witness
+  - protection
+  - vulnerability
+  - speakeasy
+  turn_entered: 13
+  turns_in_phase: 2
+  world_state:
+  - Local news syndicates are strictly controlled by the Sarabury Press Association.
+  - Prohibition enforcement has shifted to private, unaligned militia patrols.
+schema_version: 1
