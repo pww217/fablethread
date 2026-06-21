@@ -9,8 +9,6 @@ import yaml
 
 from ccya.state.io import load_state as _engine_load_state
 
-DEFAULT_SAVE_DIR = Path("saves/default")
-
 STREAMS = ("ruling", "narrate", "scene", "state", "storytell")
 
 
@@ -76,9 +74,7 @@ def state_diff(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     return lines
 
 
-def load_state_yaml(save_dir: Path | None = None) -> dict[str, Any]:
-    if save_dir is None:
-        save_dir = DEFAULT_SAVE_DIR
+def load_state_yaml(save_dir: Path) -> dict[str, Any]:
     path = save_dir / "state.yaml"
     if not path.exists():
         print(f"Error: {path} not found", file=sys.stderr)

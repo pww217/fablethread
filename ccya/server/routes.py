@@ -51,6 +51,13 @@ from .tv import _turn_viewer_data
 # Import the app module to reference its globals (enables test patching)
 _app_mod = sys.modules["ccya.server.app"]
 
+
+def _require_save() -> JSONResponse | None:
+    """Return a 400 error if no save is active, or None if save exists."""
+    if _app_mod.SAVE_DIR is None:
+        return JSONResponse({"error": "No save selected. Switch to a save or create a new game."}, status_code=400)
+    return None
+
 _log = logging.getLogger(__name__)
 
 
@@ -121,7 +128,7 @@ def _save_rel_name(save_dir: Path) -> str:
 
 
 def _list_saves() -> list[dict[str, Any]]:
-    """List all available saves (excluding default)."""
+    """List all available saves."""
     save_dirs = _app_mod._find_all_save_dirs()
     save_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
@@ -184,6 +191,24 @@ def _list_saves() -> list[dict[str, Any]]:
 
 @_app_mod.app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
+    if _app_mod.SAVE_DIR is None:
+        ctx = _debug_context()
+        ctx["state"] = {}
+        ctx["history"] = []
+        ctx["last_actions"] = []
+        ctx["opening"] = ""
+        ctx["opening_actions"] = []
+        ctx["opening_outcome_summary"] = ""
+        ctx["has_narrative"] = False
+        ctx["pack_name"] = _app_mod._active_pack.manifest.name
+        ctx["character_creation_enabled"] = _app_mod.config.get("game", {}).get(
+            "character_creation_enabled", True
+        )
+        ctx["active_save_name"] = ""
+        ctx["no_save"] = True
+        css_path = _app_mod.BASE_DIR / "static" / "app.css"
+        ctx["css_v"] = int(css_path.stat().st_mtime) if css_path.exists() else 0
+        return _app_mod._render("index.html", ctx)
     history = _load_recent_history(_app_mod.SAVE_DIR)
     last_actions = _load_last_actions(_app_mod.SAVE_DIR) if history else []
     state = _load_current_state()
@@ -210,6 +235,8 @@ async def index(request: Request):
 
 @_app_mod.app.get("/turn")
 async def get_turn(input: str = ""):
+    if err := _require_save():
+        return err
     user_input = input.strip()
     if not user_input:
 
@@ -317,6 +344,8 @@ async def get_turn(input: str = ""):
 
 @_app_mod.app.post("/turn/cancel")
 async def cancel_turn():
+    if err := _require_save():
+        return err
     if not is_turn_in_progress(str(_app_mod.SAVE_DIR)):
         return JSONResponse({"ok": True})
 
@@ -349,6 +378,8 @@ async def cancel_turn():
 
 @_app_mod.app.post("/turn/delete")
 async def delete_last_turn():
+    if err := _require_save():
+        return err
     if is_turn_in_progress(str(_app_mod.SAVE_DIR)):
         return JSONResponse(
             {"error": "Turn already in progress"}, status_code=409
@@ -509,6 +540,8 @@ async def new_game_reroll(request: Request):
 
 @_app_mod.app.get("/panels/state")
 def panel_state(request: Request):
+    if err := _require_save():
+        return err
     _log.debug("panel_state called")
     ctx = _debug_context()
     _resolve_npc_personalities(ctx["state"])
@@ -552,6 +585,8 @@ def _resolve_npc_personalities(state: dict[str, Any]) -> None:
 
 @_app_mod.app.get("/panels/state-left")
 def panel_state_left(request: Request):
+    if err := _require_save():
+        return err
     state = _load_current_state()
     _resolve_npc_personalities(state)
     return _app_mod._render("_state_left.html", {"state": state})
@@ -559,22 +594,30 @@ def panel_state_left(request: Request):
 
 @_app_mod.app.get("/panels/state-right")
 def panel_state_right(request: Request):
+    if err := _require_save():
+        return err
     _log.debug("panel_state_right called")
     return _app_mod._render("_state_right.html", _debug_context())
 
 
 @_app_mod.app.get("/panels/actions")
 def panel_actions(request: Request):
+    if err := _require_save():
+        return err
     return _app_mod._render("_actions.html", {"state": _load_current_state()})
 
 
 @_app_mod.app.post("/panels/debug/clear-errors")
 def debug_clear_errors():
+    if err := _require_save():
+        return err
     return _app_mod._render("_debug.html", _debug_context())
 
 
 @_app_mod.app.get("/panels/debug")
 def panel_debug():
+    if err := _require_save():
+        return err
     return _app_mod._render("_debug.html", _debug_context())
 
 
@@ -677,12 +720,16 @@ async def new_game_generate_pack(request: Request):
 
 @_app_mod.app.get("/panels/turn-log", response_class=HTMLResponse)
 def panel_turn_log(limit: int = 50):
+    if err := _require_save():
+        return err
     lim = max(1, min(limit, 200))
     return _app_mod._render("_turn_log.html", {"entries": _turn_log_entries(_app_mod.SAVE_DIR, lim)})
 
 
 @_app_mod.app.get("/turn_viewer", response_class=HTMLResponse)
 def turn_viewer():
+    if err := _require_save():
+        return err
     css_path = _app_mod.BASE_DIR / "static" / "app.css"
     css_v = int(css_path.stat().st_mtime) if css_path.exists() else 0
     turns, no_events = _turn_viewer_data(_app_mod.SAVE_DIR)
@@ -699,6 +746,8 @@ def turn_viewer():
 
 @_app_mod.app.get("/turn_viewer/data")
 def turn_viewer_data():
+    if err := _require_save():
+        return err
     turns, no_events = _turn_viewer_data(_app_mod.SAVE_DIR)
     latest = turns[0] if turns else None
     return JSONResponse(
@@ -846,7 +895,7 @@ async def post_settings(request: Request):
 
 @_app_mod.app.get("/api/saves")
 async def list_saves():
-    """List all available saves (excluding default)."""
+    """List all available saves."""
     saves = _list_saves()
     return JSONResponse({"saves": saves})
 
@@ -920,10 +969,6 @@ async def delete_save(request: Request):
     save_name = str(data.get("save_name", "")).strip()
     if not save_name:
         return JSONResponse({"error": "Save name is required"}, status_code=400)
-
-    # Prevent deleting default
-    if save_name == "default":
-        return JSONResponse({"error": "Cannot delete the default save"}, status_code=400)
 
     # Prevent deleting the currently active save
     if save_name == _save_rel_name(_app_mod.SAVE_DIR):

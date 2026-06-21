@@ -25,7 +25,7 @@ REPO_ROOT = BASE_DIR.parent.parent
 TEMPLATES_DIR = BASE_DIR.parent / "templates"
 PROMPTS_DIR = BASE_DIR.parent / "prompts"
 PACKS_DIR = REPO_ROOT / "packs"
-SAVE_DIR = Path("saves") / "default"
+SAVE_DIR: Path | None = None
 
 
 def _find_all_save_dirs() -> list[Path]:
@@ -63,10 +63,10 @@ engine_config = build_engine_config(config)
 
 logger = setup_logging(config)
 
-if SAVE_DIR.name != "default":
+if SAVE_DIR is not None:
     logger.info("Resumed save: %s", SAVE_DIR)
 else:
-    logger.info("No existing save found, will use fresh state")
+    logger.info("No existing save found — select or create a save to begin")
 
 _pack_id: str = config.get("game", {}).get("setting_pack", "zombie-survival")
 try:

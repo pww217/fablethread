@@ -25,7 +25,7 @@ class EvConfig:
     turn_limit: int = 20
     sample_rate: float = 1.0
     checker_model: str = ""
-    save_dir: str = "saves/default"
+    save_dir: str = ""
 
 
 @dataclass

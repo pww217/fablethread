@@ -18,9 +18,6 @@ if sys.version_info < (3, 13):
     print("Use: .venv/bin/python scripts/debug/ev.py <command>", file=sys.stderr)
     sys.exit(1)
 
-DEFAULT_SAVE_DIR = Path("saves/default")
-DEFAULT_FILE = DEFAULT_SAVE_DIR / "events.jsonl"
-
 STREAM_ALIASES: dict[str, str] = {
     "rules": "ruling",
     "ruling": "ruling",
@@ -98,7 +95,8 @@ def main() -> None:
     elif cmd != "play" and "save-dir" in flags:
         turn_file = Path(str(flags["save-dir"])) / "events.jsonl"
     else:
-        turn_file = DEFAULT_FILE
+        print("Error: no events file specified. Use --save-dir <path> or pass events.jsonl path as argument.", file=sys.stderr)
+        sys.exit(1)
 
     # Skip loading events for commands that don't need them
     skip_events = cmd in ("play", "init", "status", "help")
@@ -180,7 +178,10 @@ def main() -> None:
             show_sanitize = "sanitize" in flags
             cmd_mechanics(ev, events=events, show_pacing=show_pacing, show_dice=show_dice, show_sanitize=show_sanitize)
         case "state":
-            save_dir_path = Path(flags["save-dir"]) if "save-dir" in flags else DEFAULT_SAVE_DIR
+            if "save-dir" not in flags:
+                print("Error: --save-dir is required for state command", file=sys.stderr)
+                sys.exit(1)
+            save_dir_path = Path(flags["save-dir"])
             fmt = flags.get("format", "full")
             valid_formats = ("full", "compact", "pc", "inventory", "location", "scene", "arc", "npcs", "compidx")
             if fmt not in valid_formats:
