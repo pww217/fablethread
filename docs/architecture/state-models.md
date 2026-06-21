@@ -57,7 +57,7 @@ world.factions: [str], world.locations: [str]
 
 - **IntentEnvelope**: `intent`, `intent_verb`, `target`, `check.required`, `check.skill`, `check.difficulty`, `impossible`, `reason`
 - **RulesOutcome**: `rolled`, `skill`, `difficulty`, `stat_value`, `stat_mod`, `diff_mod`, `dice`, `raw_total`, `final_total`, `band`, `directive`, `intent`, `intent_verb`, `impossible`, `reason`
-- **SceneExtractResult**: `compendium_npc_update`
+- **SceneExtractResult**: `compendium_npc_update`, `candidate_npcs: list[dict]` (per-NPC beat candidates: [{id, type, effect}])
 - **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`, `location_change`, `location_description`
 - **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (str | None, applied directly to arc dict), `arc_resolve` (ArcResolution | None), `thread_resolve` (with outcome sentence + promote_to_world_state flag), `thread_add`, `gm_beat`, `actions`, `outcome_summary`
 - **SeedEnvelope**: `seed_state: GameState`, `opening_narrative`, `actions`, `arc: CampaignArc` (includes `goal_context` — UI-only, not rendered in prompts; unified `threads[]` with `progress: list[ProgressEntry]`, `completed_threads[]`)
@@ -75,7 +75,7 @@ world.factions: [str], world.locations: [str]
 - **ArcResolution**: `resolution`, `visible_goal`, `goal_context`, `drop_threads: list[str]`, `new_threads: list[ArcThread]`
 - **CompendiumNpcUpdate**: NPC upsert data with `position` field for spatial positioning
 - **StateDelta**: Merges all three extraction results; contains `location_change`, `location_description`, `compendium_npc_update`, `thread_update/arc_resolve/thread_resolve/thread_add`, `inventory_add/remove/update`, `pc_condition_add/remove`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`.
-- **GMBeat**: `type`, `effect`, `npc_id`, `driver`, `beat_expires_turn`
+- **GMBeat**: `type`, `effect`, `npc_id`, `driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None`, `beat_expires_turn`
 - **WorldStateFact**: `id: str`, `text: str`, `tier: Literal["permanent", "persistent"] = "persistent"`
 
 ### Extraction models (ccya/models/extraction.py)

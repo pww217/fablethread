@@ -12,7 +12,7 @@ flowchart LR
 
     subgraph IN["Inputs"]
         S1["narrative (from Step 1)"]:::xstream
-        S2["_ExtractionContext<br>(comp_this_turn, location,<br>candidate_npc_ids, scene_effect,<br>inventory, conditions)<br>built by _build_extraction_context()"]:::xstream
+        S2["_ExtractionContext<br>(comp_this_turn, location,<br>candidate_npcs, inventory,<br>conditions)<br>built by _build_extraction_context()"]:::xstream
         S3["npc_roster<br>(from build_npc_roster())"]:::xstream
         S4["pacing_context<br>(directive · outcome_hint)"]:::xstream
         S4b["scene_phase<br>(SETUP/RISING/CLIMAX/RESOLUTION/BREATHER)"]:::xstream
@@ -60,11 +60,11 @@ GMBeat
   type: complication | revelation | opportunity | breathing_room | pressure | twist | setback | escalation | callback
   effect: str (required — terse signpost ~5-7 words, not a full sentence)
   npc_id: str | None
-  driver: Literal["motivation", "fear", "leverage"] | None
+  driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None
   beat_expires_turn: int | None — turn number at which the beat expires; set to turn_no + 2 when stored
 ```
 
-**Scene-driven beats:** Scene provides `candidate_npc_ids` and `scene_effect` as starting signals. Storytell maps them to specific NPCs and threads, writing the final `effect`. If scene provided no candidates, storytell generates a beat from scratch based on narration + threads.
+**Scene-driven beats:** Scene provides `candidate_npcs: [{id, type, effect}]` as starting signals. Storytell maps them to specific NPCs and threads using three patterns: (1) deliver as-is — use the candidate's driver and effect directly; (2) combine — merge multiple drivers into a single beat; (3) thread-apply — apply the effect to an existing thread. If scene provided no candidates, storytell generates a beat from scratch based on narration + threads.
 
 **Validation:** Only `type` is validated by `StorytellerResult._nullify_invalid_gm_beat` — nullified if type is falsy or not in the valid set. `effect` is required (empty string default). Python accepts whatever gm_beat the LLM emits with no correction or override.
 
