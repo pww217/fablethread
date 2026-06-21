@@ -45,7 +45,7 @@ Add `party: bool` to `CompendiumNpcUpdate` model and compendium entries. The sce
 
 ## Status
 
-`open`
+`completed`
 
 ## Phases
 

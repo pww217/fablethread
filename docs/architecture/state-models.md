@@ -46,7 +46,7 @@ scene:
   turn_entered: int            # when the current scene was entered (set on location change, used by _compute_ages())
   location_entered_turn: int   # when location was last changed
 
-compendium.npcs: dict[id] → {name, title, bio, aliases: [str], presence: str | "present"|"nearby"|"known"|"departed"|"archived", position: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), personality: str | None (archetype id; write-once, immutable), first_seen_turn: int | None, last_presence_turn: int | None, last_seen_location: str | None, departed_reason: str | None, departed_turn: int | None}
+compendium.npcs: dict[id] → {name, title, bio, aliases: [str], presence: str | "present"|"nearby"|"known"|"departed"|"archived", position: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), personality: str | None (archetype id; write-once, immutable), first_seen_turn: int | None, last_presence_turn: int | None, last_seen_location: str | None, departed_reason: str | None, departed_turn: int | None, party: bool | None (companion flag — exempts from location-change auto-demotion, auto-cleared on departed)}
 
 world.factions: [str], world.locations: [str]
 ```
@@ -68,19 +68,19 @@ world.factions: [str], world.locations: [str]
 - **CampaignArc**: `visible_goal`, `goal_context`, `threads: list[ArcThread]`, `completed_threads: list[ArcThread]`, `resolution`, `last_thread_created_turn`
 - **Condition**: `id`, `label`, `description`, `added_turn`
 - **InventoryItem**: `id`, `name`, `notes`, `amount`, `aliases: [str]`
-- **NpcPresence**: `name`, `title`, `bio`, `aliases: [str]`, `presence`, `position`, `motivation`, `fear`, `leverage`, `personality`, `first_seen_turn`, `last_presence_turn`, `last_seen_location`, `departed_reason`, `departed_turn`
+- **NpcPresence**: `name`, `title`, `bio`, `aliases: [str]`, `presence`, `position`, `motivation`, `fear`, `leverage`, `personality`, `first_seen_turn`, `last_presence_turn`, `last_seen_location`, `departed_reason`, `departed_turn` — note: `party` is NOT a field on this enum (it's a compendium entry field, not a presence value)
 - **ProgressEntry**: `kind: Literal["advancement", "setback", "shift"]`, `text`
 - **ThreadResolution**: `id`, `resolution_state: Literal["resolved", "failed", "abandoned"]`, `outcome: str`
 - **ThreadUpdate**: `id`, `dormant`, `urgency`, `type`, `summary`, `progress`, `progress_kind`
 - **ArcResolution**: `resolution`, `visible_goal`, `goal_context`, `drop_threads: list[str]`, `new_threads: list[ArcThread]`
-- **CompendiumNpcUpdate**: NPC upsert data with `position` field for spatial positioning
+- **CompendiumNpcUpdate**: NPC upsert data with `position` field for spatial positioning, `party` field for companion exemption from location-change auto-demotion
 - **StateDelta**: Merges all three extraction results; contains `location_change`, `location_description`, `compendium_npc_update`, `thread_update/arc_resolve/thread_resolve/thread_add`, `inventory_add/remove/update`, `pc_condition_add/remove`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`.
 - **GMBeat**: `type`, `effect`, `npc_id`, `driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None`, `beat_expires_turn`
 - **WorldStateFact**: `id: str`, `text: str`, `tier: Literal["permanent", "persistent"] = "persistent"`
 
 ### Extraction models (ccya/models/extraction.py)
 
-- **CompendiumNpcUpdate**: NPC identity changes (presence, notes, bio upserts, personality on creation, position)
+- **CompendiumNpcUpdate**: NPC identity changes (presence, notes, bio upserts, personality on creation, position, party companion flag)
 - **StateDelta**: See above
 - **SceneExtractResult**: See above
 - **StateExtractResult**: See above

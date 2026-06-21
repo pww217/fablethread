@@ -38,6 +38,9 @@ def _thread_is_active(th: dict[str, Any]) -> bool:
 
 
 def cmd_state(fmt: str = "full", save_dir_path: Path | None = None) -> None:
+    if save_dir_path is None:
+        print("Error: save directory not specified", file=sys.stderr)
+        sys.exit(1)
     state = load_state_yaml(save_dir_path)
     format_state(state, fmt)
 

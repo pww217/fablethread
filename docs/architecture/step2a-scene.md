@@ -21,7 +21,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs — SceneExtractResult"]
-        O1["compendium_npc_update<br>  durable identity changes (presence, bio upserts, personality on creation, position)"]:::outNode
+        O1["compendium_npc_update<br>  durable identity changes (presence, bio upserts, personality on creation, position, party companion flag)"]:::outNode
         O2["candidate_npcs<br>  per-NPC beat candidates: [{id, type, effect}]"]:::outNode
     end
 
@@ -46,6 +46,8 @@ Four additions prevent common NPC compendium quality issues:
 3. **Group NPC identity**: Group NPCs (e.g., "Two sailors") have short names with quantity + type only. Distinguishing features for each individual in the group go in the `bio` field (appearance, demeanor, visible trait). The scene extractor pulls these from narration into the bio. The narrator references bio details when reintroducing groups rather than collapsing to the generic type. This makes reuse feel like the same people, not any two sailors.
 
 4. **Passive NPC extraction**: When a named character enters the scene as the recipient of a major action (rescue, capture, healing, transport, medical aid), the LLM must create a compendium entry for them even if they don't perform visible actions. Belt-and-suspenders coverage — the primary alias-first naming naturally captures passive NPCs through descriptive aliases.
+
+5. **Party assignment**: The scene extractor assigns `party: true` to companion NPCs — characters who consistently accompany the PC. Criteria: "Is this character likely to follow the PC, or have they been following them?" Set `party: true` when narration shows the NPC is traveling with, accompanying, or staying near the PC by choice. Keep it until narration clearly shows parting ways (departure, betrayal, death, different destination). Do NOT set for oppositional, temporary scene characters, or neutral parties. Only emit when the value changes (omit unchanged). This runs in stream 1 (scene extractor) because it must be available before delta builder's auto-demotion loop runs after state extraction.
 
 ## Key forward dependency
 

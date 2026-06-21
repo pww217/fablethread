@@ -230,6 +230,8 @@ def apply_delta(
         comp = state.setdefault("compendium", {}).setdefault("npcs", {})
         for entry in comp.values():
             if isinstance(entry, dict) and entry.get("presence") == "present":
+                if entry.get("party"):
+                    continue
                 entry["presence"] = "nearby"
                 entry.pop("notes", None)
         _stamp_turn = state.get("meta", {}).get("turn", 0) + 1

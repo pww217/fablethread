@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 import uvicorn
 
@@ -28,6 +29,9 @@ def main() -> None:
         import yaml
         from ccya.state import init_save_dir
 
+        if SAVE_DIR is None:
+            print("Error: save directory not configured", file=sys.stderr)
+            sys.exit(1)
         pack = config.get("game", {}).get("setting_pack", "zombie-survival")
         seed_path = f"packs/{pack}/seed_state.yaml"
         with open(seed_path) as f:

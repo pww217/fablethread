@@ -31,6 +31,7 @@ class CompendiumNpcUpdate(BaseModel):
     bond: str | None = None         # durable personal history — human-readable description
     departed_reason: str | None = None     # combined: "short label — prose" describing the departure
     departed_turn: int | None = None       # set by engine on first presence:"departed"
+    party: bool | None = None              # companion flag — exempts from location-change auto-demotion
 
 
 def _coerce_inventory_remove_item(v: Any) -> Any:

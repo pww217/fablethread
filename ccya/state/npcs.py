@@ -272,6 +272,7 @@ def apply_npc_scene_management(
                     "leverage": None,
                     "bond": None,
                     "personality": None,
+                    "party": None,
                 })
             if comp_upd.motivation is not None:
                 entry["motivation"] = comp_upd.motivation
@@ -312,6 +313,8 @@ def apply_npc_scene_management(
                         npc_id=resolved_id,
                     )
                     entry["personality"] = arch.id
+            if comp_upd.party is not None:
+                entry["party"] = comp_upd.party
             if comp_upd.presence is not None:
                 entry["presence"] = comp_upd.presence
                 if comp_upd.presence == "present":
@@ -324,6 +327,7 @@ def apply_npc_scene_management(
                 if current_turn_no is not None:
                     entry["departed_turn"] = entry.get("departed_turn", current_turn_no)
                 entry.pop("position", None)
+                entry.pop("party", None)
             if comp_upd.presence == "nearby":
                 if current_turn_no is not None:
                     entry["last_presence_turn"] = current_turn_no
