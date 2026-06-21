@@ -29,9 +29,10 @@
         <button
             type="button"
             class="tv-view-toggle"
+            :class="activeView === 'pipeline' ? 'tv-toggle-pipeline' : 'tv-toggle-delta'"
             @click="setView(activeView === 'pipeline' ? 'delta' : 'pipeline')"
-            :title="activeView === 'pipeline' ? 'Show Deltas' : 'Show Pipeline'"
-        >⇆</button>
+            x-text="activeView === 'pipeline' ? 'Pipeline' : 'Deltas'"
+        ></button>
         <div class="turn-viewer-actions">
             <span class="turn-viewer-live" x-show="liveConnected" title="Live updates">● live</span>
             <button type="button" class="turn-viewer-refresh-btn" id="tv-refresh" title="Reload from events.jsonl">↻</button>
@@ -130,8 +131,7 @@
                         </div>
                     </div>
                     <div class="tv-turn-header-mobile">
-                        <span class="tv-mobile-turn-num" x-text="'Turn ' + t.turn"></span>
-                        <span class="tv-mobile-turn-count" x-text="(idx + 1) + ' / ' + visibleTurns().length"></span>
+                        <span x-text="'Turn ' + t.turn"></span>
                     </div>
                     <span class="tv-turn-chevron" :class="{ 'open': !isTurnCollapsed(t.turn) }">▶</span>
                 </div>
@@ -169,22 +169,20 @@
                                 <div class="tv-stage-body" x-show="expandedKey(t.turn, stage)">
                                     <div x-show="t.streams[stage].skipped" class="tv-skipped">Skipped</div>
                                     <div x-show="!t.streams[stage].skipped">
-                                        <template x-if="stage === 'ruling' && t.ruling_intent">
-                                            <dl class="tv-rules-dl">
-                                                <template x-if="t.ruling_intent.intent"><dt>intent</dt><dd x-text="t.ruling_intent.intent"></dd></template>
-                                                <template x-if="t.ruling_intent.intent_verb"><dt>intent_verb</dt><dd x-text="t.ruling_intent.intent_verb"></dd></template>
-                                                <template x-if="t.ruling_intent.target"><dt>target</dt><dd x-text="t.ruling_intent.target"></dd></template>
-                                                <template x-if="t.ruling_intent.check">
-                                                    <dt>check</dt>
-                                                    <dd><pre class="tv-inline-json" x-text="JSON.stringify(t.ruling_intent.check, null, 2)"></pre></dd>
-                                                </template>
-                                            </dl>
-                                        </template>
-
                                         <div x-show="t.prompts[stage] && (t.prompts[stage].system || t.prompts[stage].user || t.prompts[stage].output)">
                                             <div class="tv-prompt-output-tabs">
-                                                <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) !== 'output' }" @click="setTab(t.turn, stage, 'prompt')">Prompt</button>
                                                 <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) === 'output' }" @click="setTab(t.turn, stage, 'output')">Output</button>
+                                                <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) !== 'output' }" @click="setTab(t.turn, stage, 'prompt')">Prompt</button>
+                                            </div>
+
+                                            <div class="tv-content-panel" x-show="tabKey(t.turn, stage) === 'output'">
+                                                <template x-if="stage === 'narrate'">
+                                                    <div class="tv-output-text markdown" x-html="mdNarrative(t)"></div>
+                                                </template>
+                                                <template x-if="stage !== 'narrate'">
+                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.prompts[stage] ? (t.prompts[stage].output || '') : '')"></code></pre>
+                                                </template>
+                                                <div class="tv-no-prompt" x-show="!t.prompts[stage].output">No output data available</div>
                                             </div>
 
                                             <div class="tv-content-panel" x-show="tabKey(t.turn, stage) !== 'output'">
@@ -200,16 +198,6 @@
                                                     <div class="tv-prompt-text markdown" x-html="mdText(t.prompts[stage].user)"></div>
                                                 </div>
                                                 <div class="tv-no-prompt" x-show="!t.prompts[stage].system && !t.prompts[stage].user">No prompt data available</div>
-                                            </div>
-
-                                            <div class="tv-content-panel" x-show="tabKey(t.turn, stage) === 'output'">
-                                                <template x-if="stage === 'narrate'">
-                                                    <div class="tv-output-text markdown" x-html="mdNarrative(t)"></div>
-                                                </template>
-                                                <template x-if="stage !== 'narrate'">
-                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.prompts[stage] ? (t.prompts[stage].output || '') : '')"></code></pre>
-                                                </template>
-                                                <div class="tv-no-prompt" x-show="!t.prompts[stage].output">No output data available</div>
                                             </div>
                                         </div>
 
@@ -339,10 +327,7 @@
                         </template>
                     </div>
                     </div>
-                    <div class="tv-swipe-dots" x-show="!isTurnCollapsed(t.turn)">
-                        <span class="tv-swipe-dot" :class="{ active: activeView === 'delta' }"></span>
-                        <span class="tv-swipe-dot" :class="{ active: activeView === 'pipeline' }"></span>
-                    </div>
+
                 </div>
             </div>
         </template>
@@ -350,6 +335,24 @@
         </template>
     </template>
 </div>
+
+    <div class="tv-mobile-header" x-show="window.innerWidth <= 768">
+        <span class="tv-mobile-header-turn" x-text="'Turn ' + (visibleTurns()[mobileFocusedIdx] ? visibleTurns()[mobileFocusedIdx].turn : '—')"></span>
+        <button
+            type="button"
+            class="tv-mobile-view-toggle"
+            :class="activeView === 'pipeline' ? 'tv-toggle-pipeline' : 'tv-toggle-delta'"
+            @click="setView(activeView === 'pipeline' ? 'delta' : 'pipeline')"
+            x-text="activeView === 'pipeline' ? 'Pipeline' : 'Deltas'"
+        ></button>
+        <a href="/" class="tv-mobile-header-game">← Game</a>
+    </div>
+
+    <div class="tv-mobile-nav" x-show="window.innerWidth <= 768 && visibleTurns().length > 0">
+        <button class="tv-nav-btn" @click="navMobileTurn(-1)" :disabled="mobileFocusedIdx <= 0">◀</button>
+        <span class="tv-nav-label" x-text="'Turn ' + (visibleTurns()[mobileFocusedIdx] ? visibleTurns()[mobileFocusedIdx].turn : '—')"></span>
+        <button class="tv-nav-btn" @click="navMobileTurn(1)" :disabled="mobileFocusedIdx >= visibleTurns().length - 1">▶</button>
+    </div>
 {% else %}
 <div class="turn-viewer-page">
     <div class="turn-viewer-header">
@@ -397,7 +400,18 @@ function tvRoot() {
         systemOpenMap: {},
         turnCollapsed: {},
         activeView: 'delta',
-        mobileFocusedIdx: 0,
+        mobileFocusedIdx: (function() {
+            var el = document.getElementById('tv-initial-data');
+            if (!el) return 0;
+            try {
+                var data = JSON.parse(el.textContent);
+                if (!Array.isArray(data) || !data.length) return 0;
+                for (var i = 0; i < data.length; i++) {
+                    if (data[i] && data[i].row_kind !== 'seed') return i;
+                }
+                return 0;
+            } catch(e) { return 0; }
+        })(),
         _swipeStartX: 0,
         _swipeStartY: 0,
         focusedTurnIdx: 0,
@@ -420,12 +434,11 @@ function tvRoot() {
         },
         _collapseTurns() {
             var self = this;
+            var onMobile = window.innerWidth <= 768;
             this.turns.forEach(function(t, i) {
                 var key = t.row_kind === 'seed' ? 'seed' : t.row_kind === 'sanitizer' ? 's-' + t.turn : t.turn;
-                self.turnCollapsed[key] = i > 0;
+                self.turnCollapsed[key] = onMobile ? false : i > 0;
             });
-            var vt = this.visibleTurns();
-            this.mobileFocusedIdx = Math.max(0, vt.length - 1);
             this.$nextTick(function() { self.hlAllVisibleJson(); });
         },
         stageClasses(t, stage) {
@@ -458,7 +471,7 @@ function tvRoot() {
         },
         tabKey(turn, stage) {
             var k = turn + '-' + stage;
-            return this.stageTabs[k] === 'output' ? 'output' : 'prompt';
+            return this.stageTabs[k] === 'prompt' ? 'prompt' : 'output';
         },
         setTab(turn, stage, which) {
             this.stageTabs[turn + '-' + stage] = which === 'output' ? 'output' : 'prompt';
@@ -474,6 +487,7 @@ function tvRoot() {
             return !!this.turnCollapsed[turn];
         },
         toggleTurnCollapsed(turn) {
+            if (window.innerWidth <= 768) return;
             this.turnCollapsed[turn] = !this.turnCollapsed[turn];
         },
         setView(which) {
@@ -503,15 +517,6 @@ function tvRoot() {
                 var absDx = Math.abs(dx);
                 var absDy = Math.abs(dy);
 
-                if (absDy > absDx && absDy > 40) {
-                    if (dy < 0) {
-                        self.navMobileTurn(1);
-                    } else {
-                        self.navMobileTurn(-1);
-                    }
-                    return;
-                }
-
                 if (absDx > absDy && absDx > 40) {
                     if (dx > 0) {
                         self.setView('pipeline');
@@ -527,6 +532,11 @@ function tvRoot() {
             var newIdx = this.mobileFocusedIdx + delta;
             newIdx = Math.max(0, Math.min(newIdx, vt.length - 1));
             this.mobileFocusedIdx = newIdx;
+            var t = vt[newIdx];
+            if (t) {
+                var key = t.row_kind === 'seed' ? 'seed' : t.row_kind === 'sanitizer' ? 's-' + t.turn : t.turn;
+                this.turnCollapsed[key] = false;
+            }
         },
         navToIdx(idx) {
             var vt = this.visibleTurns();

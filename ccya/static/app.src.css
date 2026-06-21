@@ -1832,6 +1832,11 @@ body {
 
 @media (max-width: 768px) {
 
+  /* ── Dynamic viewport — prevents input bar from slipping below browser bar ── */
+  .app-shell {
+    height: 100dvh;
+  }
+
   /* ── Hide desktop-only elements ── */
   .gutter { display: none; }
   .gutter-hint { display: none; }
@@ -2031,36 +2036,64 @@ body {
   /* ── Turn viewer mobile ── */
   .tv-view-toggle { display: none; }
 
-  .tv-swipe-dots {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    padding: 6px 0 2px;
-  }
-  .tv-swipe-dot {
-    display: inline-block;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: transparent;
-    border: 1px solid var(--text-muted);
-    transition: background 150ms;
-  }
-  .tv-swipe-dot.active {
-    background: var(--text-muted);
-  }
-
   /* ── Turn viewer mobile header (hide desktop, show thin bar) ── */
   .tv-turn-header-desktop { display: none !important; }
   .tv-turn-chevron { display: none !important; }
   .tv-turn-header-mobile {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     padding: 4px 12px;
+    padding-top: max(4px, env(safe-area-inset-top));
     font-size: 0.71rem;
     color: var(--text-muted);
     border-bottom: 1px solid var(--border-subtle);
+  }
+
+  /* ── Hide turn-viewer header + filter bar entirely on mobile ── */
+  .turn-viewer-header { display: none !important; }
+  .turn-viewer-filter-bar { display: none !important; }
+
+  /* ── Mobile fixed header (Turn # + toggle + Game) ── */
+  .tv-mobile-header {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    align-items: center;
+    justify-content: space-between;
+    padding: max(8px, env(safe-area-inset-top)) 12px 8px 12px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.79rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .tv-mobile-header-turn {
+    flex-shrink: 0;
+  }
+  .tv-mobile-view-toggle {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    cursor: pointer;
+    transition: all 120ms;
+    line-height: 1.4;
+    z-index: 5;
+  }
+  .tv-mobile-header-game {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: none;
+    flex-shrink: 0;
   }
 
   /* ── Hide turn-viewer header + filter bar entirely on mobile ── */
@@ -2083,22 +2116,78 @@ body {
   }
 
   /* ── Mobile full-screen turn cards ── */
-  .tv-turn-card {
+  .turn-viewer-page {
+    height: 100vh;
+  }
+  #tv-root {
+    touch-action: pan-y;
+  }
+  .tv-mobile-header {
+    display: flex;
+  }
+  .tv-turn-card,
+  .tv-compaction-card {
     position: absolute;
-    inset: 0;
+    top: 44px;
+    left: 0;
+    right: 0;
+    bottom: 60px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     margin: 0;
     border: none;
     border-radius: 0;
-    -webkit-overflow-scrolling: touch;
   }
   .turn-viewer-body {
-    position: fixed;
-    inset: 0;
+    position: relative;
     overflow: hidden;
-    padding: 0;
-    margin: 0;
+    flex: 1;
   }
+}
+
+.tv-mobile-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 20px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+}
+@media (max-width: 768px) {
+  .tv-mobile-nav {
+    display: flex;
+  }
+}
+
+.tv-nav-btn {
+  font-size: 1.1rem;
+  padding: 6px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tv-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.tv-nav-btn:active:not(:disabled) {
+  background: var(--bg-highlight);
+}
+.tv-nav-label {
+  font-size: 0.86rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
 }
 
 /* When pills are moved inside narrative panel on desktop, break out of panel padding */
@@ -2527,12 +2616,36 @@ body {
   color: var(--text-muted);
   font-family: var(--font-mono);
   flex-shrink: 0;
+  margin-right: auto;
+}
+
+.tv-view-toggle {
+  font-size: 0.86rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 120ms;
+  flex-shrink: 0;
+}
+.tv-toggle-pipeline {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.tv-toggle-delta {
+  color: var(--accent-blue);
+  background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent-blue) 30%, transparent);
 }
 
 .turn-viewer-actions {
   display: flex;
   gap: 8px;
   align-items: center;
+  margin-left: auto;
 }
 
 .turn-viewer-back-btn {
@@ -2783,6 +2896,14 @@ body {
 
 .tv-turn-header:hover {
   background: var(--bg-surface);
+}
+
+.tv-turn-header-desktop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .tv-turn-number {
