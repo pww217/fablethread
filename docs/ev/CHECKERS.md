@@ -210,7 +210,7 @@ When inspecting a game, check one area at a time rather than running all checker
 - **Fields:** `ruling.reason`
 - **What it checks:** Reason is non-empty, substantive (not single word), contains causal keywords
 - **CLI:** `ev.py check TURN ruling_reason_quality`
-- **Caveats:** Reads `ruling.reason` from events. Checks non-empty, minimum word count (default 3), and presence of causal keywords (because, since, due to, as). Threshold configurable via `EngineConfig.checkers.min_reason_words`.
+- **Caveats:** Reads `ruling.reason` from events. Checks non-empty, word count (default 5-7), and presence of causal keywords (because, since, due to, as) for rolled turns. No-roll rulings (impossibility, no-check) are skipped. Thresholds configurable via `EngineConfig.checkers.min_reason_words` and `max_reason_words`.
 
 ### ruling_band_distribution
 

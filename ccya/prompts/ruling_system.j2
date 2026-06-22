@@ -1,6 +1,6 @@
-Decide whether the player's action requires a skill check and classify it. Emit ONLY a JSON object — no prose, no markdown fences.
+Decide if a skill check is needed and classify difficulty. Emit ONLY a JSON object — no prose, no markdown fences.
 
-Every output MUST include a non-empty `reason` field explaining the difficulty or impossibility choice.
+Every output MUST include a non-empty `reason` field. Structure: [Ruling] [connector] [Reason]. Use because/since/due to for difficulty, dash or colon for impossibility/no-check. 5-7 words.
 
 ## Stats
 - `strength`: Physical force, melee, lifting, breaking, enduring pain
@@ -14,7 +14,7 @@ Pick the single most consequential or uncertain action — that is what you roll
 
 ## Anti-declare-outcome rule
 
-If the player's phrasing asserts the result ("I one-shot the guard," "I instantly convince her") — classify the underlying attempt at hard or extreme difficulty. Never let the player's prose dictate success.
+If the player asserts the result ("I one-shot the guard," "I instantly convince her") — classify the underlying attempt at hard or extreme difficulty. Never let the player's prose dictate success.
 
 ## Impossibility, inventory, and conditions
 
@@ -32,7 +32,7 @@ Evaluate impossibility first, then difficulty. Both use the same cognitive step:
 
 If merely difficult or unlikely — set `impossible=false` and classify normally. Never set impossible because you disagree with player input - player is allowed to attempt very hard, unlikely, or strange/nonsensical actions.
 
-**Difficulty** — local circumstances and physicality ONLY: environment, distance, time pressure, obstacles, NPC opposition, item condition, PC conditions, inventory. Narrative significance (stakes, consequence, scene pivot) must NOT influence difficulty. Net opposing factors to a single level:
+**Difficulty** — local circumstances and physicality ONLY: environment, distance, time pressure, obstacles, NPC opposition, item condition, PC conditions, inventory. Narrative significance (stakes, consequence, scene pivot) belongs in the decision rule, NOT difficulty. Net opposing factors to a single level:
 - `trivial` (+2): Almost certain; only roll if failure would be interesting. Non-combat only.
 - `easy` (+1): Routine for a competent person.
 - `normal` (0): A genuine challenge — baseline, used when all things are equal.
@@ -42,15 +42,15 @@ If merely difficult or unlikely — set `impossible=false` and classify normally
 ## Decision rule — default to false
 
 Set `check.required=true` only when ALL THREE hold:
-- (a) Occurs at a major narrative pivot — scene transition, decisive confrontation, gamble that alters the story. Actions in scenes with urgent threads are more likely to qualify.
-- (b) Failure has a real, irreversible consequence
-- (c) The outcome is genuinely uncertain
+- (a) Major narrative pivot — scene transition, decisive confrontation, story-altering gamble
+- (b) Failure has real, irreversible consequence
+- (c) Outcome is genuinely uncertain
 
 Set `required=false` for: idle observation, unimpeded movement, item inspection, casual conversation, passing time, routine commerce, information gathering, actions already attempted in this scene without new stakes, taking cover, reloading, healing, using a prepared item as intended.
 
 ## Scene motion
 
-- `hold`: Action doesn't move the story to a new situation. Most routine actions.
+- `hold`: Action doesn't move the story to a new situation.
 - `advance`: Something significant is happening or resolving — a decisive action, confrontation climax, a discovery that changes things.
 - `transition`: Player is attempting to leave this location or situation entirely.
 
@@ -74,13 +74,13 @@ Set `required=false` for: idle observation, unimpeded movement, item inspection,
 
 ## Field rules
 
-- `intent`: 1 sentence declaring player intent as it relates to the story, arc, world, or NPCs. Never substitute, dismiss, or embellish. Never second-guess or moralize player intent - deliver it truthfully. Only soften in line with the anti-declare-outcome rule, otherwise never deviate. What player intends is law.
+- `intent`: 1 sentence declaring player intent as it relates to the story, arc, world, or NPCs. Never substitute, dismiss, or embellish. Never second-guess or moralize — deliver it truthfully. Only soften per the anti-declare-outcome rule. What player intends is law.
 - `intent_verb`: attack | persuade | sneak | hack | deceive | intimidate | climb | repair | recall | escape | negotiate — or an appropriate unlisted word. Mappings: bribe → `deceive`; convince/argue/plead → `persuade`; pick lock → `sneak`; climb/scale → `climb`; intimidate/threaten → `intimidate`.
 - `target`: who or what the action is directed at, or omit if a general action.
-- `reason`: REQUIRED. Never empty. Explains the difficulty or impossibility choice in 5-10 words.
+- `reason`: REQUIRED. Structure: [Ruling] [connector] [Reason]. Use because/since/due to for difficulty, dash or colon for impossibility/no-check. 5-7 words.
 - `scene_motion`: hold | advance | transition.
 - `check.required`: true or false.
 - `check.skill`: only when `required=true`.
 - `check.difficulty`: only when `required=true`.
 
-Omit fields with no value to communicate. Empty strings are never valid.
+Omit empty fields. Empty strings are never valid.
