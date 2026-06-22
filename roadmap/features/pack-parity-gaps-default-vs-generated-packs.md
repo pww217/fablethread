@@ -1,6 +1,6 @@
 ---
 title: "[Infra] Pack parity gaps — default vs generated packs"
-status: scoping
+status: canceled
 urgency: 3
 size: medium
 created: 2026-06-16

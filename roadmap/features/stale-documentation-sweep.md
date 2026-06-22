@@ -1,6 +1,6 @@
 ---
 title: "[Tech Debt] Stale documentation sweep"
-status: scoping
+status: canceled
 urgency: 4
 size: small
 created: 2026-06-14

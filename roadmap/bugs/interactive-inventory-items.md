@@ -1,6 +1,6 @@
 ---
 title: "[Scene] Interactive inventory items"
-status: idea
+status: canceled
 urgency: 4
 size: medium
 created: 2026-06-14
