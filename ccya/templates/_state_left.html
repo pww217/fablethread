@@ -13,6 +13,7 @@
             {% set npc_name = (npc.get('display_name') or npc.get('id') or npc) if npc is mapping else npc %}
             {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
             {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
+            {% set npc_position = npc.get('position', '') if npc is mapping else '' %}
             {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}
             {% set _mot = npc.get('motivation', '') if npc is mapping else '' %}
             {% set npc_bond = npc.get('bond_label', '') or npc.get('bond', '') if npc is mapping else '' %}
@@ -21,8 +22,8 @@
             {% set _has_tt = npc_bio or npc_pl or _mot or npc_bond %}
             <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
-                {% if npc_notes %}
-                <span class="npc-notes-inline">{{ npc_notes }}</span>
+                {% if npc_position %}
+                <span class="npc-position-inline">{{ npc_position }}</span>
                 {% endif %}
                 {% if _has_tt %}
                 <div class="tooltip-body" data-md-compendium>

@@ -770,6 +770,7 @@ body {
    High specificity (.npc-item .npc-notes-inline) so it always wins over any
    sibling/ancestor rule (e.g. tailwind preflight). */
 .npc-item .npc-notes-inline,
+.npc-item .npc-position-inline,
 .npc-item .npc-notes-inline * {
   margin: 0;
   padding: 0;
@@ -4143,6 +4144,7 @@ body {
     .stat-label                  { font-size: 0.64rem; }
     .stat-tagline                { font-size: 0.64rem; }
     .npc-notes-inline,
+    .npc-position-inline,
     .npc-notes-inline *          { font-size: 0.59rem !important; }
     .scene-pill                  { font-size: 0.59rem; }
     .condition-pill              { font-size: 0.59rem; }
