@@ -53,6 +53,25 @@ def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
     return entries[:10]
 
 
+def _build_rules_outcome(turn_ev: dict[str, Any]) -> dict[str, Any] | None:
+    """Build a rules_outcome dict from a ruling event, matching engine shape."""
+    ruling = turn_ev.get("ruling") or {}
+    if not ruling.get("rolled") and not ruling.get("impossible"):
+        return None
+    outcome: dict[str, Any] = {
+        "rolled": ruling.get("rolled", False),
+        "impossible": ruling.get("impossible", False),
+        "reason": ruling.get("reason", ""),
+        "band": ruling.get("band", ""),
+        "directive": ruling.get("directive", ""),
+        "dice": ruling.get("dice", []),
+        "stat_mod": ruling.get("stat_mod", 0),
+        "skill": ruling.get("skill", ""),
+        "final_total": ruling.get("final_total", 0),
+    }
+    return outcome
+
+
 def build_prompt_context(
     events: list[dict[str, Any]],
     turn_no: int,
@@ -225,7 +244,7 @@ def build_prompt_context(
             "pc": pc,
             "prior_history": list((meta.get("prior_history") or [])[:-1]),
             "recent_turns": [],
-            "rules_outcome": None,
+            "rules_outcome": _build_rules_outcome(turn_ev),
             "npc_name_pool": {},
             "user_input": "",
             "pending_beat": prev_meta.get("pending_gm_beat"),
