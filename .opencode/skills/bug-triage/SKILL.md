@@ -14,11 +14,11 @@ Purpose: Confirm bugs are real, assess severity, and set roadmap status. The las
 
 1. **Read the bug report** — understand expected vs. actual behavior, reproduction context, root cause estimate
 2. **Reproduce** — load the save, inspect the turn, run targeted checkers:
-   ```bash
-   .venv/bin/python scripts/debug/ev.py turn <N> <save-path>
-   .venv/bin/python scripts/debug/ev.py check <N> <checker_name> --save-dir <save-path>
-   .venv/bin/python scripts/debug/ev.py mechanics <N> --dice --pacing <save-path>
-   ```
+    ```bash
+    .venv/bin/python scripts/debug/ev.py turn <N> --save-dir <save-dir>
+    .venv/bin/python scripts/debug/ev.py check <N> <checker_name> --save-dir <save-dir>
+    .venv/bin/python scripts/debug/ev.py mechanics <N> --dice --pacing --save-dir <save-dir>
+    ```
 3. **Assess** — is it real? Is it a prompt issue, engine bug, checker false positive, or intended behavior?
 4. **If real:** assess severity (blocker, major, minor, cosmetic) and urgency
 5. **If not real:** set status to `canceled` with a note explaining why

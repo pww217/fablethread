@@ -31,3 +31,12 @@ def resolve_player_config(flags: dict[str, str], session_config: dict[str, Any] 
             custom_persona = player["custom_persona"]
 
     return {"personality": personality, "custom_persona": custom_persona}
+
+
+def resolve_auto_report(flags: dict[str, str], session_config: dict[str, Any] | None) -> bool:
+    """Return auto_report with resolution: CLI flag > session_config > default False."""
+    if "auto-report" in flags:
+        return True
+    if session_config is not None and session_config.get("auto_report"):
+        return True
+    return False

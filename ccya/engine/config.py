@@ -97,7 +97,7 @@ async def await_turn_done(save_dir: str, timeout: float = 30.0) -> bool:
 @dataclass
 class CheckerConfig:
     min_reason_words: int = 5
-    max_reason_words: int = 7
+    max_reason_words: int = 10
     band_skew_ratio: float = 0.8
     location_min_sentences: int = 1
     location_min_words: int = 15

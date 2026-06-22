@@ -214,6 +214,16 @@ class GMBeat(BaseModel):
     driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None = None
     beat_expires_turn: int | None = None
 
+    @field_validator("driver", mode="before")
+    @classmethod
+    def _coerce_gm_beat_driver(cls, v: Any) -> Any:
+        valid_drivers = {"motivation", "fear", "leverage", "bond", "personality"}
+        if isinstance(v, str):
+            v = v.lower()
+            if v not in valid_drivers:
+                return None
+        return v
+
 
 class StorytellerResult(BaseModel):
     actions: list[str] = Field(default_factory=list)

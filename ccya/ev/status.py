@@ -12,6 +12,16 @@ from ccya.state.io import load_state
 
 def cmd_status(flags: dict[str, str]) -> None:
     """Print session dashboard."""
+    if "help" in flags:
+        print("Usage: ev.py status [--save-dir DIR]")
+        print()
+        print("Print session dashboard: turn count, config, file paths.")
+        print()
+        print("Flags:")
+        print("  --save-dir DIR    Specify session directory (defaults to evals/runs/latest)")
+        print("  --help            Show this help")
+        sys.exit(0)
+
     save_dir_str = flags.get("save-dir")
     if save_dir_str:
         save_dir = Path(save_dir_str)

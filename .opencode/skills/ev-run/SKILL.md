@@ -42,7 +42,7 @@ for pair in $pairs; do
 done
 ```
 
-The `--auto-report` flag writes a per-run `report.md` inside each run directory.
+The `--auto-report` flag writes a per-run `report.md` inside each run directory. Alternatively, set `auto_report: true` in the session's `ev.yaml` to enable it without the flag.
 
 ## Consolidated Report (`REPORT.md`)
 

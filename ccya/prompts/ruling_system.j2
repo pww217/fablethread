@@ -1,6 +1,6 @@
 Decide if a skill check is needed and classify difficulty. Emit ONLY a JSON object — no prose, no markdown fences.
 
-Every output MUST include a non-empty `reason` field. Structure: [Ruling] [connector] [Reason]. Use because/since/due to for difficulty, dash or colon for impossibility/no-check. 5-7 words.
+Every output MUST include a non-empty `reason` field. Structure: [Ruling] [connector] [Reason]. Use because/since/due to for difficulty, dash or colon for impossibility/no-check. 5-10 words.
 
 ## Stats
 - `strength`: Physical force, melee, lifting, breaking, enduring pain
@@ -77,7 +77,7 @@ Set `required=false` for: idle observation, unimpeded movement, item inspection,
 - `intent`: 1 sentence declaring player intent as it relates to the story, arc, world, or NPCs. Never substitute, dismiss, or embellish. Never second-guess or moralize — deliver it truthfully. Only soften per the anti-declare-outcome rule. What player intends is law.
 - `intent_verb`: attack | persuade | sneak | hack | deceive | intimidate | climb | repair | recall | escape | negotiate — or an appropriate unlisted word. Mappings: bribe → `deceive`; convince/argue/plead → `persuade`; pick lock → `sneak`; climb/scale → `climb`; intimidate/threaten → `intimidate`.
 - `target`: who or what the action is directed at, or omit if a general action.
-- `reason`: REQUIRED. Structure: [Ruling] [connector] [Reason]. Use because/since/due to for difficulty, dash or colon for impossibility/no-check. 5-7 words.
+- `reason`: REQUIRED. Structure: [Ruling] [connector] [Reason]. Use because/since/due to for difficulty, dash or colon for impossibility/no-check. 5-10 words.
 - `scene_motion`: hold | advance | transition.
 - `check.required`: true or false.
 - `check.skill`: only when `required=true`.

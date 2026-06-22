@@ -39,7 +39,7 @@ def _resolve_stream(name: str) -> str:
 
 def _strip_flags(args: list[str]) -> tuple[dict[str, str], list[str]]:
     # Boolean flags that don't take values
-    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact", "list", "verbose", "summary", "estimate", "include-compaction", "user-only", "auto-report", "llm-checkers"}
+    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact", "list", "verbose", "summary", "estimate", "include-compaction", "user-only", "auto-report", "llm-checkers", "eval", "help"}
     flags: dict[str, str] = {}
     positional: list[str] = []
     i = 0
@@ -80,34 +80,37 @@ def main() -> None:
 
     from ccya.ev.events import load_events, find_turn
 
+    # Initialize turn_file for commands that need it
+    turn_file: Path | None = None
+
     # Auto-detect events.jsonl from --save-dir when no positional events path given
-    if cmd not in ("play", "prompt-eval") and "save-dir" in flags and not (len(args) > 1 and (args[-1].endswith(".jsonl") or args[-1].startswith("saves/"))):
+    if cmd not in ("play", "prompt-eval", "init", "eval", "status", "check") and "save-dir" in flags and not (len(args) > 1 and (args[-1].endswith(".jsonl") or args[-1].startswith("saves/"))):
         turn_file = Path(str(flags["save-dir"])) / "events.jsonl"
 
-    # Skip events path extraction for play command — events are written by play_turn()
-    elif cmd not in ("play", "prompt-eval") and len(args) > 1 and args[-1].startswith("saves/"):
+    # Skip events path extraction for commands that don't need pre-loaded events
+    elif cmd not in ("play", "prompt-eval", "init", "eval", "status", "check") and len(args) > 1 and args[-1].startswith("saves/"):
         candidate = Path(args[-1])
         if candidate.is_dir():
             turn_file = candidate / "events.jsonl"
         else:
             turn_file = candidate
         args = args[:-1]
-    elif cmd not in ("play", "prompt-eval") and "save-dir" in flags:
+    elif cmd not in ("play", "prompt-eval", "init", "eval", "status", "check") and "save-dir" in flags:
         turn_file = Path(str(flags["save-dir"])) / "events.jsonl"
-    elif cmd in ("play", "prompt-eval"):
-        # play writes events; prompt-eval renders/calls — neither needs pre-loaded events
+    elif cmd in ("play", "prompt-eval", "init", "eval", "status", "check"):
+        # play writes events; prompt-eval renders/calls; eval subcommands load events themselves; init creates new sessions; status reads state directly; check loads events itself
         pass
     else:
         print("Error: no events file specified. Use --save-dir <path> or pass events.jsonl path as argument.", file=sys.stderr)
         sys.exit(1)
 
     # Skip loading events for commands that don't need them
-    skip_events = cmd in ("play", "init", "status", "help", "prompt-eval")
+    skip_events = cmd in ("play", "init", "status", "help", "prompt-eval", "eval")
     # Also skip for check --list (checker list doesn't need data)
     if cmd == "check" and "list" in flags:
         skip_events = True
 
-    events = load_events(turn_file) if not skip_events else []
+    events = load_events(turn_file) if not skip_events and turn_file else []
 
     match cmd:
         case "help":
@@ -338,15 +341,29 @@ def main() -> None:
             cmd_status(flags)
         case "eval":
             from ccya.ev.eval import cmd_eval_run, cmd_eval_list, cmd_eval_compare
+            from ccya.ev.session_config import resolve_auto_report
 
             if len(args) < 2:
-                print("Usage: ev.py eval run <scenario.yaml> [--model] [--temp] [--checkers] [--report]", file=sys.stderr)
+                print("Usage: ev.py eval run <scenario.yaml> [--model] [--temp] [--checkers] [--report] [--auto-report] [--llm-checkers]", file=sys.stderr)
                 print("       ev.py eval list", file=sys.stderr)
                 print("       ev.py eval compare <baseline> <current> [--checkers]", file=sys.stderr)
                 sys.exit(1)
 
             subcmd = args[1]
             if subcmd == "run":
+                if "help" in flags:
+                    print("Usage: ev.py eval run <scenario.yaml> [--model] [--temp] [--checkers] [--report] [--auto-report] [--llm-checkers]")
+                    print()
+                    print("Run a scenario against the game engine and check results.")
+                    print()
+                    print("Flags:")
+                    print("  --model NAME          Override LLM model")
+                    print("  --temp N              Override temperature")
+                    print("  --checkers            Comma-separated checker IDs to run")
+                    print("  --report PATH         Write report to PATH")
+                    print("  --auto-report         Write report.md in session directory")
+                    print("  --llm-checkers        Include LLM-based checkers")
+                    sys.exit(0)
                 if len(args) < 3:
                     print("Usage: ev.py eval run <scenario.yaml> ...", file=sys.stderr)
                     sys.exit(1)
@@ -357,18 +374,27 @@ def main() -> None:
                 if checker_list is not None:
                     checker_list = [c.strip() for c in checker_list if c.strip()]
                 report_path = Path(flags["report"]) if "report" in flags else None
+                auto_report = resolve_auto_report(flags, {})
                 cmd_eval_run(
                     scenario_path,
                     model=model,
                     temp=temp,
                     checkers=checker_list,
                     report=report_path,
-                    auto_report="auto-report" in flags,
+                    auto_report=auto_report,
                     llm_checkers="llm-checkers" in flags,
                 )
             elif subcmd == "list":
                 cmd_eval_list()
             elif subcmd == "compare":
+                if "help" in flags:
+                    print("Usage: ev.py eval compare <baseline_dir> <current_dir> [--checkers]")
+                    print()
+                    print("Compare two eval runs side-by-side. Shows IMPROVED, REGRESSION, unchanged, added, or removed checkers.")
+                    print()
+                    print("Flags:")
+                    print("  --checkers          Comma-separated checker IDs to compare")
+                    sys.exit(0)
                 if len(args) < 4:
                     print("Usage: ev.py eval compare <baseline_dir> <current_dir> [--checkers]", file=sys.stderr)
                     sys.exit(1)

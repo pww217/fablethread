@@ -8,11 +8,12 @@
 
 ## Save directory convention
 
+All inspection commands require `--save-dir DIR`. There is no default or positional path support.
+
 | Pattern | Command |
 |---------|---------|
-| Default (latest) | `ev.py turn 5` → reads from `evals/runs/latest` |
-| Specific run | `ev.py turn 5 evals/runs/YYYY-MM-DD_{tag}_{sha}/run-name/` |
-| State access | Add `--save-dir evals/runs/YYYY-MM-DD_{tag}_{sha}/run-name` |
+| Latest run | `ev.py turn 5 --save-dir evals/runs/latest` |
+| Specific run | `ev.py turn 5 --save-dir evals/runs/YYYY-MM-DD_{tag}_{sha}/run-name/` |
 
 ## Session config (ev.yaml)
 
@@ -32,11 +33,11 @@ Every session directory can contain an `ev.yaml`. Resolution: CLI flags > `ev.ya
 
 | If you want... | Command |
 |---|---|
-| One-line overview | `ev.py summary [save-path]` |
-| Full timing + tokens | `ev.py timing [save-path]` |
-| Full dump of one turn | `ev.py turn <N> [save-path]` |
-| Specific stream prompt/output | `ev.py prompt <N> <stream> [--system] [--field FIELD] [save-path]` |
-| All JSON outputs for a turn | `ev.py turn <N> --json [save-path]` |
+| One-line overview | `ev.py summary --save-dir DIR` |
+| Full timing + tokens | `ev.py timing --save-dir DIR` |
+| Full dump of one turn | `ev.py turn <N> --save-dir DIR` |
+| Specific stream prompt/output | `ev.py prompt <N> <stream> [--system] [--field FIELD] --save-dir DIR` |
+| All JSON outputs for a turn | `ev.py turn <N> --json --save-dir DIR` |
 
 **Stream names:** `ruling` (or `rules`), `narrate`, `scene`, `state`, `storytell` (or `progress`).
 
@@ -45,27 +46,27 @@ Every session directory can contain an `ev.yaml`. Resolution: CLI flags > `ev.ya
 | If you want... | Command |
 |---|---|
 | Current game state | `ev.py state --save-dir DIR [--format compact\|pc\|inventory\|...]` |
-| What mutated on a turn | `ev.py deltas <N> [save-path]` |
-| Compare two turns' state | `ev.py diff [turnA] [turnB] [--section npcs\|...] [save-path]` |
-| Track one field across turns | `ev.py trace <field.path> [--from N] [--to N] [save-path]` |
-| Find turns matching a pattern | `ev.py search <pattern> [save-path]` |
-| Mechanics + beats + pacing | `ev.py mechanics <N> [--pacing] [--dice] [--sanitize] [save-path]` |
+| What mutated on a turn | `ev.py deltas <N> --save-dir DIR` |
+| Compare two turns' state | `ev.py diff [turnA] [turnB] [--section npcs\|...] --save-dir DIR` |
+| Track one field across turns | `ev.py trace <field.path> [--from N] [--to N] --save-dir DIR` |
+| Find turns matching a pattern | `ev.py search <field>:<value> [--or <field>:<value>] --save-dir DIR` |
+| Mechanics + beats + pacing | `ev.py mechanics <N> [--pacing] [--dice] [--sanitize] --save-dir DIR` |
 
 ## Thread, beat, and phase analysis
 
 | If you want... | Command |
 |---|---|
-| Thread lifecycle | `ev.py threads [save-path]` |
-| Thread resolution summary | `ev.py threads --summary [save-path]` |
-| Beat type + surface | `ev.py beats [save-path]` |
-| Roll bands per turn | `ev.py rolls [save-path]` |
-| Roll distribution | `ev.py rolls --summary [save-path]` |
-| Convergence score | `ev.py convergence [save-path]` |
-| Phase transitions | `ev.py phase-transitions [save-path]` |
-| Curtain Call compliance | `ev.py curtain-call [save-path]` |
-| Goal changes | `ev.py goals [save-path]` |
-| Beat TTL expiration | `ev.py beat-ttl [save-path]` |
-| Scene effective age | `ev.py effective-age [save-path]` |
+| Thread lifecycle | `ev.py threads --save-dir DIR` |
+| Thread resolution summary | `ev.py threads --summary --save-dir DIR` |
+| Beat type + surface | `ev.py beats --save-dir DIR` |
+| Roll bands per turn | `ev.py rolls --save-dir DIR` |
+| Roll distribution | `ev.py rolls --summary --save-dir DIR` |
+| Convergence score | `ev.py convergence --save-dir DIR` |
+| Phase transitions | `ev.py phase-transitions --save-dir DIR` |
+| Curtain Call compliance | `ev.py curtain-call --save-dir DIR` |
+| Goal changes | `ev.py goals --save-dir DIR` |
+| Beat TTL expiration | `ev.py beat-ttl --save-dir DIR` |
+| Scene effective age | `ev.py effective-age --save-dir DIR` |
 
 All tabular commands filter compaction events by default. Use `--include-compaction` to include them.
 
@@ -84,6 +85,7 @@ All tabular commands filter compaction events by default. Use `--include-compact
 | `--until-error` | Stop LLM mode on first error |
 | `--turns N` | Max turns for `--llm` mode (default 20) |
 | `--eval` | Run checkers after session ends |
+| `--auto-report` | Generate `report.md` after session (requires `--eval` or runs checkers for report) |
 
 ```bash
 ev.py play "I search the room." --pack noir-1930s
@@ -97,7 +99,6 @@ ev.py play --llm --personality aggressive --pack noir-1930s --eval
 
 ```bash
 ev.py init --pack noir-1930s --personality cautious
-ev.py status
 ev.py status --save-dir evals/runs/latest
 ```
 
@@ -119,7 +120,7 @@ ev.py eval compare evals/runs/baseline evals/runs/current
 ## Warnings
 
 ```bash
-ev.py warnings [save-path]
+ev.py warnings --save-dir DIR
 ```
 
 Signals: `extract.retries`, `retry_errors`, `rejected`, `reconcile_warnings`.
@@ -127,7 +128,7 @@ Signals: `extract.retries`, `retry_errors`, `rejected`, `reconcile_warnings`.
 ## Prompt size analysis
 
 ```bash
-ev.py prompt-sizes [save-path]
+ev.py prompt-sizes --save-dir DIR
 ```
 
 Stages: ruling, narrate, scene, state, storytell.
@@ -162,20 +163,20 @@ ev.py prompt-eval call <scenario.yaml> --from-events
 
 **"The phase isn't transitioning — why?"**
 ```bash
-ev.py trace pacing_context.scene_phase [save-path]
-ev.py mechanics 12 --pacing --dice [save-path]
+ev.py trace pacing_context.scene_phase --save-dir DIR
+ev.py mechanics 12 --pacing --dice --save-dir DIR
 ```
 
 **"The storyteller generated a wrong action"**
 ```bash
-ev.py prompt 8 storytell user [save-path]   # what the LLM saw
-ev.py prompt 8 storytell output [save-path]  # what it returned
+ev.py prompt 8 storytell user --save-dir DIR   # what the LLM saw
+ev.py prompt 8 storytell output --save-dir DIR  # what it returned
 ```
 
 **"An NPC disappeared from the compendium"**
 ```bash
-ev.py diff 5 10 --section npcs [save-path]
-ev.py deltas 7 [save-path]
+ev.py diff 5 10 --section npcs --save-dir DIR
+ev.py deltas 7 --save-dir DIR
 ```
 
 ---
