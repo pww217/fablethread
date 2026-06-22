@@ -51,6 +51,8 @@ def _filter_evicted_threads(texts: list[str], evicted_ids: set[str]) -> list[str
 def _context_meta(rendered_system: str, rendered_user: str, was_trimmed: bool, trimmed_chars: int) -> dict[str, Any]:
     """Compute context size signals for telemetry."""
     return {
+        "system_text": rendered_system,
+        "user_text": rendered_user,
         "system_chars": len(rendered_system),
         "user_chars": len(rendered_user),
         "total_chars": len(rendered_system) + len(rendered_user),

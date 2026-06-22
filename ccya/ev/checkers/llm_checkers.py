@@ -91,18 +91,21 @@ register_prompt_template(
 declared type. Given:
 1. The GM beat type (pressure, escalation, complication, etc.)
 2. The beat's effect (concrete sentence describing what's happening)
-3. The narration text where the beat was generated
-4. The narration text of the following turn
+3. The NPC driving the beat (if any)
+4. The narration text where the beat was generated
+5. The narration text of the following turn
 
-Determine if the narrative consequence plausibly follows from the beat type.
-A "pressure" beat should create urgency. A "complication" should introduce
-an obstacle. An "escalation" should raise existing stakes.
+Determine if the narrative consequence plausibly follows from the beat type
+and NPC involvement. A "pressure" beat should create urgency. A "complication"
+should introduce an obstacle. An "escalation" should raise existing stakes.
 
 Return JSON:
 {"passed": bool, "score": 0.0-1.0, "reasoning": str, "finding": str}""",
     """GM Beat:
   Type: {beat_type}
   Effect: {effect}
+  NPC: {npc_id}
+  Driver: {driver}
 
 Narration where beat was generated:
 {beat_narrate}
@@ -130,6 +133,8 @@ def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
     pending_beat = meta.get("pending_gm_beat") or {}
     beat_type = pending_beat.get("type", "")
     effect = pending_beat.get("effect", "")
+    npc_id = pending_beat.get("npc_id", "")
+    driver = pending_beat.get("driver", "")
     narrate = extract_field(ev, "narrate.prose") or ""
 
     # Look for next turn's narration if available
@@ -140,6 +145,8 @@ def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
     user_prompt = f"""GM Beat:
   Type: {beat_type}
   Effect: {effect}
+  NPC: {npc_id}
+  Driver: {driver}
 
 Narration where beat was generated:
 {narrate}"""

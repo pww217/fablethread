@@ -16,6 +16,9 @@ Checkers are organized by domain:
 - **Threads & arcs**: `thread_lifecycle`, `arc_goal_updates`, `thread_resolution_validity`, `new_thread_validity`, `arc_resolution_validity`, `goal_update_validity`
 - **NPCs**: `npc_presence`, `compendium_lifecycle`
 - **Sanitizer**: `sanitizer_lifecycle`
+- **Ruling**: `ruling_reason_quality`, `ruling_band_distribution`, `ruling_intent_match`
+- **Convergence**: `convergence_components`
+- **State**: `location_description_consistency`, `world_state_facts`
 - **LLM-based**: `directive_tone_match`, `beat_narrative_chain`, `state_fidelity`
 - **Scenario assertions**: `turn_assert` (called programmatically by eval runner, not in default registry)
 
@@ -200,6 +203,54 @@ When inspecting a game, check one area at a time rather than running all checker
 - **What it checks:** State extraction matches what narration describes — no missing or unsupported changes
 - **CLI:** `ev.py check TURN state_fidelity --llm`
 - **Caveats:** Uses the configured checker model. Evaluates first event only. Narration must explicitly mention or strongly imply each state change. Missing changes described in narration are failures. Extra changes not supported by narration are also failures. Note: `extraction_context` is NOT stored in events; the LLM checker receives state_snapshot as context instead.
+
+### ruling_reason_quality
+
+- **Type:** deterministic
+- **Fields:** `ruling.reason`
+- **What it checks:** Reason is non-empty, substantive (not single word), contains causal keywords
+- **CLI:** `ev.py check TURN ruling_reason_quality`
+- **Caveats:** Reads `ruling.reason` from events. Checks non-empty, minimum word count (default 3), and presence of causal keywords (because, since, due to, as). Threshold configurable via `EngineConfig.checkers.min_reason_words`.
+
+### ruling_band_distribution
+
+- **Type:** deterministic
+- **Fields:** `ruling.band`
+- **What it checks:** Dice band distribution is not extremely skewed over a session
+- **CLI:** `ev.py check TURN ruling_band_distribution`
+- **Caveats:** Computes band distribution across all turns. Fails if any single band exceeds `band_skew_ratio` (default 0.8) of total rolls. Threshold configurable via `EngineConfig.checkers.band_skew_ratio`.
+
+### ruling_intent_match
+
+- **Type:** llm
+- **Fields:** `ruling.intent`, `ruling.impossible`, player input text
+- **What it checks:** Ruling's `impossible` flag matches player input semantics
+- **CLI:** `ev.py check TURN ruling_intent_match --llm`
+- **Caveats:** Uses the configured checker model. Evaluates whether the `impossible` flag on a ruling aligns with the player's stated intent. Only runs when `--llm-checkers` flag is passed (not mid-eval).
+
+### convergence_components
+
+- **Type:** deterministic
+- **Fields:** `pacing_context.convergence_components`, `pacing_context.convergence_score`, `state_snapshot.arc.threads`, `state_snapshot.meta.recent_beats`, `state_snapshot.scene.scene_phase`, `ruling.band`, `ruling.rolled`
+- **What it checks:** 5-component convergence score matches formula, phase transitions respect threshold
+- **CLI:** `ev.py check TURN convergence_components --save-dir saves/my-game`
+- **Caveats:** Remaps old component names (`thread_weight`, `urgency_depth`) to new names. Validates each component (urgent_thread, threat_thread, scene_age, beat_streak, dice_weight) is correctly computed. Checks `convergence_score` matches sum of components. Checks RISING→CLIMAX only happens when score >= threshold. Requires `--save-dir` for state access.
+
+### location_description_consistency
+
+- **Type:** deterministic
+- **Fields:** `state_snapshot.location.description`
+- **What it checks:** Location description is non-empty and substantive
+- **CLI:** `ev.py check TURN location_description_consistency --save-dir saves/my-game`
+- **Caveats:** Reads post-turn state (location_description stripped from event blobs via `_SKIP_FIELDS`). Checks non-empty, minimum sentences (default 2) and minimum words (default 30). Requires `--save-dir` for state access.
+
+### world_state_facts
+
+- **Type:** deterministic
+- **Fields:** `state_snapshot.scene.world_state`
+- **What it checks:** World state facts are non-empty strings with content
+- **CLI:** `ev.py check TURN world_state_facts --save-dir saves/my-game`
+- **Caveats:** Reads post-turn state. Validates string format (non-empty) or dict format (non-empty `text` field). World state supports both formats — string for legacy, dict with `text`+`tier` for structured facts. Requires `--save-dir` for state access.
 
 ### turn_assert
 

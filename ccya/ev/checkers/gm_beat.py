@@ -3,20 +3,25 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from ccya.engine.config import _build_jinja_env, _render
 from ccya.ev.checkers import CheckerResult, register_checker
 from ccya.ev.events import extract_field
+from ccya.ev.prompt_context import build_prompt_context
 
 _log = logging.getLogger(__name__)
+
+_TEMPLATE_DIR = "ccya/prompts"
 
 
 @register_checker(
     "gm_beat_lifecycle", "deterministic",
-    requires_fields=["state_snapshot", "ruling", "narrate_prompt"],
+    requires_fields=["state_snapshot", "ruling"],
     description="Verify pending_gm_beat is consumed and binding present on roll",
 )
 def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
+    env = _build_jinja_env(_TEMPLATE_DIR)
 
     for i, ev in enumerate(events):
         prev_ev = events[i - 1] if i > 0 else None
@@ -60,8 +65,12 @@ def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
         # rolled implies binding
         ruling = extract_field(ev, "ruling") or {}
         if ruling.get("rolled"):
-            narrate_prompt = extract_field(ev, "narrate_prompt") or {}
-            nu = narrate_prompt.get("rendered_user") or ""
+            turn = ev.get("turn")
+            if turn is not None:
+                ctx = build_prompt_context(events, turn, "narrate")
+                nu = _render(env, "narrate_user.j2", ctx)
+            else:
+                nu = ""
             if "rules_outcome (BINDING" not in nu:
                 findings.append({
                     "turn": ev.get("turn"),

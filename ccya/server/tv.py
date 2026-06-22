@@ -7,7 +7,6 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from ccya.engine.markers import strip_trace_markers
 from ccya.state import load_state
 from .metrics import _fmt_tokens_exact
 from .tv_mirror import _STREAMS, STREAM_BY_KEY, _get_nested
@@ -495,38 +494,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             + (extract_ev.get("total_ms") or 0)
         )
 
-        # Step 2.3: Prompts dict
-        prompts: dict[str, dict[str, str]] = {}
-        for sd in _STREAMS:
-            p_path = sd.prompt_path or sd.metrics_path
-            p_blob = _get_nested(ev, p_path) or {}
-            if not isinstance(p_blob, dict):
-                p_blob = {}
-            raw_out = p_blob.get(sd.output_subkey) if sd.output_subkey else None
-
-            # Normalize output to a display string
-            if streams[sd.key]["skipped"] and sd.skip_token_display:
-                out_str = ""
-            elif sd.is_text_output:
-                out_str = str(raw_out or "")
-            elif sd.output_is_json_string and isinstance(raw_out, str):
-                try:
-                    parsed = _json.loads(raw_out)
-                    out_str = _json.dumps(parsed, indent=2)
-                except Exception as e:
-                    _log.warning("Prompts output JSON parse failed for stream: %s", e)
-                    out_str = raw_out
-            elif isinstance(raw_out, dict):
-                out_str = _json.dumps(raw_out, indent=2)
-            else:
-                out_str = str(raw_out or "")
-
-            prompts[sd.key] = {
-                "system": p_blob.get("rendered_system") or "",
-                "user": strip_trace_markers(p_blob.get("rendered_user") or ""),
-                "output": out_str,
-            }
-
         # Step 2.4: Connector generation from sd.inputs
         connectors: list[dict[str, Any]] = []
         for sd in _STREAMS:
@@ -579,7 +546,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         convergence_score = ev.get("convergence_score")
 
         # ruling_intent for template (parsed from ruling_prompt.output)
-        ruling_intent = _tv_parse_json_blob(prompts["ruling"]["output"])
+        ruling_intent = _tv_parse_json_blob((ev.get("ruling_prompt") or {}).get("output"))
 
         tid = str(ev.get("trace_id") or "")
         tid_short = tid[:8] if len(tid) >= 8 else tid
@@ -619,7 +586,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "inputs_snapshot": inputs_snapshot,
                 "state_diff": state_diff,
                 "failures": row_failures,
-                "prompts": prompts,
                 "row_kind": "turn",
             }
         )

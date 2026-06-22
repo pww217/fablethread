@@ -169,7 +169,7 @@
                                 <div class="tv-stage-body" x-show="expandedKey(t.turn, stage)">
                                     <div x-show="t.streams[stage].skipped" class="tv-skipped">Skipped</div>
                                     <div x-show="!t.streams[stage].skipped">
-                                        <div x-show="t.prompts[stage] && (t.prompts[stage].system || t.prompts[stage].user || t.prompts[stage].output)">
+                                        <div x-show="getPrompt(t.turn, stage) && (getPrompt(t.turn, stage).system || getPrompt(t.turn, stage).user)">
                                             <div class="tv-prompt-output-tabs">
                                                 <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) === 'output' }" @click="setTab(t.turn, stage, 'output')">Output</button>
                                                 <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) !== 'output' }" @click="setTab(t.turn, stage, 'prompt')">Prompt</button>
@@ -180,28 +180,28 @@
                                                     <div class="tv-output-text markdown" x-html="mdNarrative(t)"></div>
                                                 </template>
                                                 <template x-if="stage !== 'narrate'">
-                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.prompts[stage] ? (t.prompts[stage].output || '') : '')"></code></pre>
+                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.streams[stage] ? (t.streams[stage].output || '') : '')"></code></pre>
                                                 </template>
-                                                <div class="tv-no-prompt" x-show="!t.prompts[stage].output">No output data available</div>
+                                                <div class="tv-no-prompt" x-show="!t.streams[stage].output">No output data available</div>
                                             </div>
 
                                             <div class="tv-content-panel" x-show="tabKey(t.turn, stage) !== 'output'">
-                                                <div class="tv-prompt-block" x-show="t.prompts[stage].system">
+                                                <div class="tv-prompt-block" x-show="getPrompt(t.turn, stage).system">
                                                     <div class="tv-prompt-label-row">
                                                         <span class="tv-prompt-label">System</span>
-                                                        <button type="button" class="tv-sys-toggle" @click.stop="toggleSystem(t.turn, stage)" x-text="systemOpen(t.turn, stage) ? 'Collapse' : ('Expand (~' + approxTokens(t.prompts[stage].system) + ' tok)')"></button>
+                                                        <button type="button" class="tv-sys-toggle" @click.stop="toggleSystem(t.turn, stage)" x-text="systemOpen(t.turn, stage) ? 'Collapse' : ('Expand (~' + approxTokens(getPrompt(t.turn, stage).system) + ' tok)')"></button>
                                                     </div>
-                                                    <div class="tv-prompt-text markdown" x-show="systemOpen(t.turn, stage)" x-html="mdText(t.prompts[stage].system)"></div>
+                                                    <div class="tv-prompt-text markdown" x-show="systemOpen(t.turn, stage)" x-html="mdText(getPrompt(t.turn, stage).system)"></div>
                                                 </div>
-                                                <div class="tv-prompt-block" x-show="t.prompts[stage].user">
+                                                <div class="tv-prompt-block" x-show="getPrompt(t.turn, stage).user">
                                                     <div class="tv-prompt-label">User</div>
-                                                    <div class="tv-prompt-text markdown" x-html="mdText(t.prompts[stage].user)"></div>
+                                                    <div class="tv-prompt-text markdown" x-html="mdText(getPrompt(t.turn, stage).user)"></div>
                                                 </div>
-                                                <div class="tv-no-prompt" x-show="!t.prompts[stage].system && !t.prompts[stage].user">No prompt data available</div>
+                                                <div class="tv-no-prompt" x-show="!getPrompt(t.turn, stage).system && !getPrompt(t.turn, stage).user">No prompt data available</div>
                                             </div>
                                         </div>
 
-                                        <div class="tv-no-prompt" x-show="!t.prompts[stage] || (!t.prompts[stage].system && !t.prompts[stage].user && !t.prompts[stage].output)">
+                                        <div class="tv-no-prompt" x-show="!getPrompt(t.turn, stage) && !t.streams[stage].output">
                                             No data for this stage
                                         </div>
                                     </div>
@@ -417,6 +417,7 @@ function tvRoot() {
         focusedTurnIdx: 0,
         liveConnected: false,
         _es: null,
+        promptCache: {},
         stages: ['ruling', 'narrate', 'scene', 'state', 'storytell'],
         init() {
             var self = this;
@@ -451,7 +452,11 @@ function tvRoot() {
         },
         toggleStage(turn, stage) {
             var k = 't' + turn + '-' + stage;
+            var willExpand = !this.expanded[k];
             this.expanded[k] = !this.expanded[k];
+            if (willExpand) {
+                this.loadPrompts(turn);
+            }
         },
         toggleExpandAllForTurn(turn) {
             var on = !this.allExpandedForTurn(turn);
@@ -482,6 +487,32 @@ function tvRoot() {
         toggleSystem(turn, stage) {
             var k = turn + '-' + stage;
             this.systemOpenMap[k] = !this.systemOpenMap[k];
+        },
+        getPrompt(turn, stage) {
+            var cache = this.promptCache[turn];
+            if (!cache) return null;
+            return cache[stage] || null;
+        },
+        loadPrompts(turn) {
+            var self = this;
+            if (this.promptCache[turn]) return;
+            var url = '/turn_viewer/prompts?turn=' + encodeURIComponent(turn);
+            fetch(url)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data && data.prompts) {
+                        var cache = {};
+                        data.prompts.forEach(function(p) {
+                            cache[p.stream] = {
+                                system: p.rendered_system || '',
+                                user: p.rendered_user || '',
+                                context_meta: p.context_meta || {}
+                            };
+                        });
+                        self.promptCache[turn] = cache;
+                    }
+                })
+                .catch(function() {});
         },
         isTurnCollapsed(turn) {
             return !!this.turnCollapsed[turn];
@@ -564,7 +595,7 @@ function tvRoot() {
             setTimeout(function() { el.classList.remove('tv-flash'); }, 900);
         },
         mdNarrative(t) {
-            var raw = (t.prompts && t.prompts.narrate && t.prompts.narrate.output) ? String(t.prompts.narrate.output) : '';
+            var raw = (t.streams && t.streams.narrate && t.streams.narrate.output) ? String(t.streams.narrate.output) : '';
             return this.mdText(raw);
         },
         mdText(s) {

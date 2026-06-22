@@ -8,13 +8,13 @@ This document defines the target state for the CCYA eval system: checkers, CLI t
 
 ## Problem Statement
 
-The checker system has 21 checkers covering 14 engine mechanics, but coverage is uneven. Five major systems have no checker coverage (ruling engine, convergence scoring, narration quality, compaction, location/world-state content). Five checkers were removed as obsolete or redundant. The CLI tooling lacks automated baseline comparison and warning storage. Reports are manually written despite an existing Jinja2 template.
+The checker system has 22 checkers covering 14 engine mechanics, but coverage is uneven. Four major systems have no checker coverage (ruling engine, convergence scoring, narration quality, location/world-state content). Five checkers were removed as obsolete or redundant, plus one orphaned checker deleted (`turn_assert`). The CLI tooling lacks automated baseline comparison and warning storage. Reports are manually written despite an existing Jinja2 template.
 
 ## Constraints
 
 - Checkers must be deterministic or LLM-based; no external dependencies beyond the running LLM backend.
 - Checkers read from `events.jsonl` and `state.yaml` — they cannot call the engine directly.
-- LLM checkers are expensive (~30s each); limit to 3.
+- LLM checkers are expensive (~30s each); limit to 4 with `ruling_intent_match`.
 - Checkers must use `EngineConfig` or pack-level config for thresholds, not hardcoded values.
 - The checker framework uses `@register_checker` decorator with `CheckerResult` return type.
 
@@ -35,18 +35,26 @@ The checker system has 21 checkers covering 14 engine mechanics, but coverage is
 | Remove `recent_beats` | DONE | Delete this checker | It only validates list structure (non-empty, max 5 entries). No semantic checking. |
 | Remove `scene_age_tracking` | DONE | Delete this checker | `turn_entered` and `location_entered_turn` were removed from state during scene consolidation. The checker validates trivially true properties (turn numbers increment). |
 | Add ruling engine checkers | PENDING | `ruling_reason_quality`, `ruling_band_distribution`, `ruling_intent_match` | Ruling is the first pipeline step with zero checker coverage. Biggest gap. |
-| Add convergence checker | PENDING | `convergence_components` | Convergence drives CLIMAX transitions but has no checker. Second biggest gap. |
+| Add convergence checker | PENDING | `convergence_components` | Convergence drives CLIMAX transitions but has no checker. Second biggest gap. Bug found: stored component names (`urgency_depth`, `thread_weight`) differed from actual score formula (`threat_thread`, `urgent_thread`) — fixed in narrate.py. |
 | Add thread sanitizer quality checkers | DEFERRED | `sanitizer_dedup_threshold`, `sanitizer_abandon_rate` | Engine does not emit dedup similarity scores or abandonment data. Cannot implement until engine tracks these. |
-| Add state application checkers | PENDING | `location_description_consistency`, `world_state_facts` | State mutations (location, world_state facts) have no checker coverage. |
+| Add state application checkers | PENDING | `location_description_consistency`, `world_state_facts` | State mutations (location, world_state facts) have no checker coverage. Note: `location_description` is stripped from event blobs. Checker must read from `state_snapshot.location.description`. |
 | Store all warnings in events | DONE | `kind="warning"` events for all warning types | Thread dedup, compendium dedup, seed soft-checks now stored. |
 | Use `eval compare` for baseline comparison | DONE | `ev.py eval compare <baseline> <current>` | Implemented. Replaces manual report comparison. |
 | Report both LLM and deterministic totals | DONE | "N/N deterministic (100%) + N/N LLM (100%) = N/N (100%)" | Prevents denominator confusion across runs. |
+| LLM `beat_narrative_chain` should include `npc_id` and `driver` in prompt | DONE | Add `npc_id` and `driver` to the LLM prompt context | The checker already has access via `pending_gm_beat`; including them gives richer beat context for narrative chain evaluation. |
+| Report template `personality` source | DONE | Add `personality` field to `Scenario` dataclass and YAML schema | Template expects `{{ personality }}`; eval scenarios must specify which personality they're testing. |
+| Report prev-run comparison | DONE | Scan `evals/runs/` for most recent matching pack run with non-null `pass_rate` | Template has a comparison section; without logic it always renders "No previous run to compare." |
+| LLM checkers in eval run | DONE | Add `--llm-checkers` flag to `ev.py eval run`; run LLM checkers only when flag is set | RUBRIC_AREAS includes LLM checkers; they're expensive so opt-in. |
+| Report duration tracking | DONE | Wrap turn loop with `time.perf_counter()` | Template expects `{{ duration_ms }}`. |
+| Report template broken HTML entity | DONE | Fix `&#26A0;` to `⚠` | Invalid HTML/XML entity. |
+| Add EngineConfig.checkers with cascade | DONE | Add `CheckerConfig` dataclass to `EngineConfig`; defaults → pack.yaml → config.yaml | Single source of truth for checker thresholds. |
 
 ## Resolved Questions
 
 - [RESOLVED: `ruling_intent_match` should be LLM-based. Rationale: semantic intent matching requires LLM; this runs selectively at end-of-session via `--llm-checkers`, not mid-eval. No limit concerns.]
-- [RESOLVED: Checker count is not a hard limit. Checkers run piecemeal post-facto with `--checker` filtering. 21 deterministic + 4 LLM is fine.]
+- [RESOLVED: Checker count is not a hard limit. Checkers run piecemeal post-facto with `--checker` filtering. 22 deterministic + 4 LLM is fine.]
 - [RESOLVED: Direct import of `EngineConfig` — checkers import it directly, no framework injection needed.]
+- [RESOLVED: Convergence component names differed from score formula (`urgency_depth` vs `threat_thread`). Fixed in narrate.py June 2026. Stored component keys changed from `thread_weight`/`urgency_depth` to `urgent_thread`/`threat_thread`. Checkers should handle both key sets for historical compatibility.]
 
 ## Open Questions
 
@@ -58,11 +66,11 @@ The checker system has 21 checkers covering 14 engine mechanics, but coverage is
 
 The checker framework lives in `ccya/ev/checkers/`. Checkers are registered via `@register_checker` decorator with metadata (id, type, requires_fields, description). The framework loads checkers lazily, filters events, validates required fields exist, and runs checkers against event lists.
 
-**21 registered checkers (after removals):**
+**22 registered checkers (after removals):**
 
 | ID | Type | What it checks | Fields read |
 |---|---|---|---|
-| `gm_beat_lifecycle` | deterministic | Pending beat consumed, binding present | `extraction.storytell.output.gm_beat`, `meta.pending_gm_beat` |
+| `gm_beat_lifecycle` | deterministic | Pending beat consumed across turns; storytell type matches state; BINDING block present on roll | `extraction.storytell.output.gm_beat`, `meta.pending_gm_beat` |
 | `location_change` | deterministic | Location ID changes applied correctly | `extraction.storytell.output.location_change`, `state_snapshot.location` |
 | `inventory_integrity` | deterministic | No overdraw, no negative amounts, remove existence | `applied.inventory_remove`, `state_snapshot.inventory` |
 | `conditions_lifecycle` | deterministic | Condition dedup | `applied.pc_condition_add`, `state_snapshot.pc.conditions` |
@@ -85,31 +93,32 @@ The checker framework lives in `ccya/ev/checkers/`. Checkers are registered via 
 | `beat_narrative_chain` | llm | GM beat produces observable narrative consequence | Full event |
 | `state_fidelity` | llm | Extraction matches what narration describes | Full event |
 
-**Removed checkers (5):**
+**Removed checkers (6):**
 - `action_quality` — too thin (duplicate detection only)
 - `phase_persistence` — regression guard; `phase_transition` covers state machine
 - `recent_beats` — structure-only (non-empty, max 5); no semantic value
 - `scene_age_tracking` — `turn_entered`/`location_entered_turn` removed from state during scene consolidation; validated trivially true properties
 - `pacing_directives` phase_constraint — redundant with `beat_phase_validity`
+- `turn_assert` — orphaned file; registered on disk but never imported in `__init__.py` (file deleted)
 
 ### Engine Mechanics
 
 | Mechanic | Module | State mutated | Checker coverage |
-|---|---|---|---|
+|---|---|---|---|---|
 | **Ruling** | `engine/ruling.py` | `ruling` event (band, outcome, reason, intent) | **NONE** |
 | **Narration** | `engine/narrate.py` | `narrate_prompt`, `pacing_context` | LLM only (3 checkers) |
 | **Phase engine** | `engine/_pacing.py` | `pacing_context.scene_phase`, `convergence_score` | `phase_transition`, `climax_turn_counting`, `breather_enforcement` |
-| **Convergence** | `engine/_pacing.py` | `pacing_context.convergence_score`, `convergence_components` | **NONE** |
-| **GM Beats** | `engine/_pacing.py`, `engine/turn.py` | `meta.pending_gm_beat`, `pacing_context.recent_beats` | `gm_beat_lifecycle`, `beat_phase_validity` |
-| **Threads** | `engine/thread_sanitizer.py` | `arc.threads`, `arc.completed_threads` | `thread_lifecycle`, `thread_resolution_validity`, `new_thread_validity`, `sanitizer_lifecycle` |
+| **Convergence** | `engine/_pacing.py` | `pacing_context.convergence_score`, `convergence_components` | **NONE** (planned: `convergence_components`) |
+| **GM Beats** | `engine/_pacing.py`, `engine/extraction/storytell.py`, `engine/turn.py` | `meta.pending_gm_beat`, `extraction.storytell.output.gm_beat` (type, effect, npc_id, driver) | `gm_beat_lifecycle`, `beat_phase_validity` |
+| **Threads** | `engine/thread_sanitizer.py` | `arc.threads` (type, dormant), `arc.completed_threads` | `thread_lifecycle`, `thread_resolution_validity`, `new_thread_validity`, `sanitizer_lifecycle` |
 | **Arcs** | `engine/turn.py` | `arc.visible_goal`, `arc.threads`, `resolved_arcs` | `arc_goal_updates`, `arc_resolution_validity`, `goal_update_validity` |
 | **Inventory** | `engine/turn_state.py` | `state.inventory` | `inventory_integrity` |
 | **Conditions** | `engine/turn_state.py` | `state.pc.conditions` | `conditions_lifecycle` |
-| **NPCs** | `engine/extraction/pipeline.py` | `state.compendium.npcs` | `npc_presence`, `compendium_lifecycle` |
-| **Location** | `engine/extraction/pipeline.py` | `state.location` | `location_change` |
+| **NPCs** | `engine/extraction/pipeline.py` | `state.compendium.npcs` (presence, party) | `npc_presence`, `compendium_lifecycle` |
+| **Location** | `engine/extraction/pipeline.py` | `state.location` (id, description) | `location_change` |
 | **Rolls** | `engine/ruling.py` | `ruling.band`, `ruling.rolled` | `roll_band_consistency` |
 | **Sanitizer** | `engine/thread_sanitizer.py` | `arc.threads` (dedup, abandon) | `sanitizer_lifecycle` |
-| **Compaction** | `engine/turn.py` | `events.jsonl` (compaction entries) | **NONE** |
+| **Compaction** | N/A | N/A — engine does not perform event-journal compaction; only thread sanitizer runs | **N/A** |
 
 ### CLI Tooling
 
@@ -136,13 +145,13 @@ The checker framework lives in `ccya/ev/checkers/`. Checkers are registered via 
 
 3. **Narration quality relies solely on LLM checkers.** Three LLM checkers cover narration, but they are expensive (~30s each) and non-deterministic. No deterministic fallback exists. Mitigation: LLM checkers run selectively at end-of-session via `--llm-checkers`, not mid-eval.
 
-4. **Compaction is completely unchecked.** No checker verifies compaction happens at right intervals or preserves data.
+4. **Compaction gap.** The engine does not perform event-journal compaction (only the thread sanitizer runs). No checker needed — there is no compaction mechanic to verify. Remove this item from gap analysis.
 
 5. **State application gaps.** `location_description`, `world_state` facts, `pc.stats` changes have no checkers.
 
 6. **Thread sanitizer quality unchecked.** `sanitizer_lifecycle` checks validity but not quality (dedup similarity thresholds, abandonment rates).
 
-7. **Five obsolete checkers removed.** `action_quality` (too thin), `phase_persistence` (regression guard), `recent_beats` (structure-only), `scene_age_tracking` (trivially true post-consolidation), `pacing_directives` phase_constraint (redundant with `beat_phase_validity`). Net: 26→21 checkers.
+7. **Six obsolete checkers removed.** `action_quality` (too thin), `phase_persistence` (regression guard), `recent_beats` (structure-only), `scene_age_tracking` (trivially true post-consolidation), `pacing_directives` phase_constraint (redundant with `beat_phase_validity`), `turn_assert` (orphaned — registered but never imported). Net: 26→22 checkers (was 21; `turn_assert` was never reachable).
 
 8. **Warning storage gaps.** Three warning types (`generate_seed soft-check`, thread dedup, compendium dedup) are now stored in events. This was fixed in the June 20 runs.
 
@@ -169,15 +178,17 @@ The checker framework lives in `ccya/ev/checkers/`. Checkers are registered via 
 - Threshold: configurable via `EngineConfig.ruling.band_skew_threshold` (default: no more than 80% of rolls in a single band)
 
 **`ruling_intent_match`** (LLM)
-- Checks ruling's `possible`/`impossible` classification matches player input semantics
-- Reads: `ruling.intent`, `ruling.possible`, player input text
+- Checks ruling's `impossible` flag matches player input semantics
+- Reads: `ruling.intent`, `ruling.impossible`, player input text
 - Runs selectively at end-of-session via `--llm-checkers`, not mid-eval (existing LLM checkers use the same mechanism)
 
 **`convergence_components`** (deterministic)
-- Verifies the 5-component convergence score matches the documented formula
-- Reads: `pacing_context.convergence_components`, `pacing_context.convergence_score`, `state_snapshot.arc.threads`, `pacing_context.scene_age`, `pacing_context.recent_beats`, `ruling.band`
-- Checks: each component (thread_weight, urgency_depth, scene_age, beat_streak, dice_weight) is correctly computed from state
-- Also checks: RISING→CLIMAX only happens when score >= threshold
+- Verifies the 5-component convergence score matches the formula in `_pacing.py compute_convergence_score()`
+- Reads: `pacing_context.convergence_components`, `pacing_context.convergence_score`, `state_snapshot.arc.threads`, `state_snapshot.meta.recent_beats`, `state_snapshot.scene.scene_phase`, `ruling.band`, `ruling.rolled`
+- Checks: each component (urgent_thread, threat_thread, scene_age, beat_streak, dice_weight) is correctly computed from state thread data
+- Checks: `convergence_score` matches sum of components (both use same 5 formula)
+- Checks: RISING→CLIMAX only happens when score >= convergence_threshold
+- **Note:** Prior to June 2026, stored component names were `thread_weight`/`urgency_depth` (old formula). Fixed in narrate.py to match `_pacing.py`. The checker should handle both old and new component key names gracefully.
 
 **`sanitizer_dedup_threshold`** (deterministic) — **DEFERRED**
 - Verifies thread dedup similarity is reasonable (not deduping unrelated threads)
@@ -193,13 +204,26 @@ The checker framework lives in `ccya/ev/checkers/`. Checkers are registered via 
 
 **`location_description_consistency`** (deterministic)
 - Checks extracted location description is non-empty and substantive
-- Reads: `extraction.scene.output.location_description`
+- Reads: `state_snapshot.location.description` (post-turn state — `location_description` is stripped from event blobs via `_SKIP_FIELDS`)
 - Threshold: minimum 2 sentences or 30 words
 
 **`world_state_facts`** (deterministic)
 - Checks world_state facts are non-empty strings with content
 - Reads: `state_snapshot.scene.world_state`
-- Threshold: facts should have non-empty `text` field
+- Threshold: facts should be non-empty strings OR dicts with non-empty `text` field (world_state supports both formats — string for legacy, dict with `text`+`tier` for structured facts)
+
+**`party_npc_location_exemption`** (deterministic) — **FUTURE**
+- Verifies NPCs with `party: true` are not auto-demoted on location change
+- Reads: `state_snapshot.compendium.npcs` (before and after location change), `applied.location_change`
+- Checks: on turns with location change, all `party: true` NPCs retain their presence (not set to `departed`)
+- Complexity: moderate — requires comparing NPC entries across adjacent snapshots
+
+**`gm_beat_field_coverage`** (deterministic) — **FUTURE**
+- Verifies GM beat fields are complete when a beat is emitted
+- Reads: `extraction.storytell.output.gm_beat`
+- Checks: when `gm_beat.type` is present, `effect` must be non-empty; `npc_id` and `driver` should be present for NPC-driven beats (type != callback, breathing_room)
+- Note: The existing `gm_beat_lifecycle` checker does NOT verify these fields — it verifies beat consumption and BINDING block only. This checker fills the gap.
+- Complexity: low — straightforward field presence checks
 
 #### 2. Checkers to Remove
 
@@ -222,8 +246,15 @@ All checkers should read thresholds from `EngineConfig` instead of hardcoding th
 #### 4. Report Automation
 
 - Use the existing `report.md.j2` template for automated report generation
-- `ev.py eval run` should generate reports automatically with `--report auto`
-- `ev.py eval compare` output should be saved to `COMPARISON.md` in the run directory
+- `ev.py eval run` should generate reports automatically with `--auto-report` flag
+- `ev.py eval run` should accept `--llm-checkers` flag to include LLM checkers in results (opt-in due to ~30s per checker cost)
+- `Scenario` YAML schema gains a `personality` field (default `"custom"`) so the report can render `{{ personality }}`
+- Duration tracking: `time.perf_counter()` around the turn loop, stored as `duration_ms`
+- Prev-run comparison: scan `evals/runs/` for the most recent `run-meta.yaml` with matching pack and non-null `pass_rate`; compute `pass_rate_delta`
+- LLM checkers in RUBRIC_AREAS: `ruling_intent_match`, `directive_tone_match`, `beat_narrative_chain`, `state_fidelity` — only included when `--llm-checkers` is passed
+- Report output: `<session_dir>/CONSOLIDATED-REPORT.md` in auto mode, or explicit `--report <path>`
+- Git metadata: `git_sha` (7 chars), `git_branch` — fetched via subprocess, fallback to `"unknown"` if not in a git repo
+- Template fix: broken HTML entity `&#26A0;` corrected to `⚠`
 
 #### 5. Warning Storage
 
@@ -245,7 +276,7 @@ All warning types should be stored as events with `kind="warning"`. This was par
 
 ## Failure Modes and Risks
 
-1. **Checker bloat.** Adding 6 checkers while removing 5 results in a net +1 (21→22). The checker system stays lean. Deterministic checkers are fast (~ms each); LLM checkers run selectively at end-of-session.
+1. **Checker bloat.** Adding 6 checkers while removing 0 results in net +6 change (22→28). The checker system stays lean. Deterministic checkers are fast (~ms each); LLM checkers run selectively at end-of-session.
 
 2. **Config drift.** If `EngineConfig` thresholds change but checkers are not updated, checkers will produce false positives. Mitigation: document the relationship between engine config and checker thresholds.
 
@@ -268,6 +299,7 @@ All warning types should be stored as events with `kind="warning"`. This was par
 | `recent_beats.py` (file) | `ccya/ev/checkers/recent_beats.py` | Full file deleted |
 | `scene_age_tracking.py` (file) | `ccya/ev/checkers/scene_age_tracking.py` | Full file deleted |
 | Stale `archived` from `VALID_PRESENCE` | `ccya/ev/checkers/npc_presence.py` | Not a valid `NpcPresence` enum value |
+| `turn_assert.py` file | `ccya/ev/checkers/turn_assert.py` | Orphaned — registered with `@register_checker` but never imported in `__init__.py` |
 
 ## What Is Unchanged
 
@@ -281,10 +313,21 @@ All warning types should be stored as events with `kind="warning"`. This was par
 - `ev.py warnings` — warning display (already updated with thread/compendium dedup columns)
 - LLM checkers (`directive_tone_match`, `beat_narrative_chain`, `state_fidelity`) — unchanged
 - Event schema — checkers read from existing fields; no schema changes required
+- `location_description` stripped from event blobs via `_SKIP_FIELDS` in `events.py` and `tv.py` — unchanged
 
-## New Model Shapes
+## New Data Shapes
 
-No new data models required. New checkers use existing event fields and `CheckerResult`.
+| Shape | Location | Type | Event-visible? |
+|---|---|---|---|
+| `SceneExtractResult.candidate_npcs` | `ccya/models/extraction.py:123` | `list[dict]` per-NPC beat candidates: id, type, effect | **No** — internal to extraction pipeline, consumed by storytell prompt. Checkers cannot inspect this field. |
+| `CompendiumNpcUpdate.party` | `ccya/models/extraction.py:34` | `bool \| None` — companion flag exempting from location-change auto-demotion | **Yes** — visible in `state_snapshot.compendium.npcs.{id}.party` |
+| `GMBeat.effect` | `ccya/models/extraction.py` | `str` — replaces former `surface_as` | **Yes** — `extraction.storytell.output.gm_beat.effect` |
+| `GMBeat.npc_id` | `ccya/models/extraction.py` | `str \| None` — NPC driving the beat | **Yes** — `extraction.storytell.output.gm_beat.npc_id` |
+| `GMBeat.driver` | `ccya/models/extraction.py` | one of motivation/fear/leverage/bond/personality | **Yes** — `extraction.storytell.output.gm_beat.driver` |
+| ArcThread.type | `ccya/models/state.py` | `str` — thread type (threat, opportunity, etc.) | **Yes** — `state_snapshot.arc.threads[].type` |
+| ArcThread.dormant | `ccya/models/state.py` | `bool` — replaces former `active` field | **Yes** — `state_snapshot.arc.threads[].dormant` |
+
+These shapes are consumed by existing or proposed checkers but do not require new Pydantic models — they are existing fields on existing models.
 
 ## Context for Implementation
 
@@ -295,8 +338,9 @@ No new data models required. New checkers use existing event fields and `Checker
 | `ccya/ev/events.py` | `extract_field()` — dotpath field access from events | How checkers read event data |
 | `ccya/ev/checkers/_llm.py` | `_call_llm_checker()`, `_result_from_llm_output()` | Shared utilities for LLM checkers |
 | `ccya/ev/checkers/llm_checkers.py` | Existing LLM checkers + `set_checker_config()` | Pattern to follow for new LLM checkers |
-| `ccya/engine/_pacing.py` | `compute_convergence_score()` — 5-component formula | Source for convergence checker logic |
+| `ccya/engine/_pacing.py` | `compute_convergence_score()` — 5-component formula (urgent_thread, threat_thread, scene_age, beat_streak, dice_weight) | Source for convergence checker logic |
 | `ccya/engine/ruling.py` | Ruling LLM call, band determination, intent classification | Source for ruling checker logic |
+| `ccya/engine/narrate.py` | Convergence component display — fixed June 2026 to match `_pacing.py` formula | Reference for what events store in `convergence_components` |
 | `ccya/engine/config.py` | `EngineConfig` — configuration schema | Where checker thresholds would be added |
 | `docs/ev/CHECKERS.md` | Checker documentation | Context for existing checker behavior |
 | `docs/ev/RUBRIC.md` | Full rubric with checker recommendations | Context for what should be checked |

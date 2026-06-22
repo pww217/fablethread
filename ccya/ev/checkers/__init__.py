@@ -84,18 +84,18 @@ def run_checker(checker_id: str, events: list[dict[str, Any]], save_dir: Path | 
                 detail=f"required field '{field_dotpath}' not found in any event",
             )
 
-    state: dict[str, Any] | None = None
+    _state: dict[str, Any] | None = None
     if meta.get("needs_state", False):
         if save_dir is None:
             return CheckerResult(
                 checker_id=checker_id, passed=None, score=None,
                 detail="checker requires state but no save_dir provided",
             )
-        state = load_current_state(save_dir)
+        _state = load_current_state(save_dir)
 
     t0 = time.perf_counter()
     if meta.get("needs_state", False):
-        raw = fn(filtered, state)
+        raw = fn(filtered, _state)
     else:
         raw = fn(filtered)
     result = cast(CheckerResult, raw)
@@ -121,4 +121,4 @@ def list_checkers(checker_type: str | None = None) -> list[CheckerMeta]:
     return results
 
 
-from . import gm_beat, inventory, conditions, threads, arc_goals, npc_presence, pacing, sanitizer, llm_checkers, phase_transition, climax_turn_counting, breather_enforcement, roll_band_consistency, thread_resolution_validity, new_thread_validity, compendium_lifecycle, beat_phase_validity, arc_resolution_validity, goal_update_validity  # noqa: E402, F401
+from . import gm_beat, inventory, conditions, threads, arc_goals, npc_presence, pacing, sanitizer, llm_checkers, phase_transition, climax_turn_counting, breather_enforcement, roll_band_consistency, thread_resolution_validity, new_thread_validity, compendium_lifecycle, beat_phase_validity, arc_resolution_validity, goal_update_validity, ruling, convergence, state  # noqa: E402, F401

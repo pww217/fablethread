@@ -10,6 +10,7 @@ from ccya.engine.config import _render
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine._pacing import (
+    BEAT_BUCKETS,
     _compute_pacing_context,
     _compute_scene_phase,
     compute_convergence_score,
@@ -235,15 +236,21 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     _pc.spiral_detected = ctx._spiral_detected
     _pc.convergence_score = convergence_score
 
-    # 5 convergence component booleans
+    # 5 convergence component booleans — MUST match _pacing.py compute_convergence_score()
     components: dict[str, int] = {}
-    components["thread_weight"] = 1 if thread_urgency_count >= 1 else 0
-    components["urgency_depth"] = 1 if thread_urgency_count >= 2 else 0
+    components["urgent_thread"] = 1 if any(
+        t.get("urgency") == "urgent" and not t.get("dormant", False)
+        for t in _raw_thread_dicts
+    ) else 0
+    components["threat_thread"] = 1 if any(
+        t.get("type") == "threat" and not t.get("dormant", False)
+        for t in _raw_thread_dicts
+    ) else 0
     scene_age = ctx._ages.get("scene_age", 0)
     components["scene_age"] = 1 if scene_age >= config.scene_pressure_threshold else 0
     recent_beats = state.get("meta", {}).get("recent_beats", [])
     if recent_beats:
-        pressure_types = {"pressure", "complication", "escalation", "setback"}
+        pressure_types = set(BEAT_BUCKETS["pressure"])
         n = len(recent_beats)
         window = recent_beats[: min(n, 5)]
         pressure_count = sum(1 for b in window if b.get("type") in pressure_types)

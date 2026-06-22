@@ -4,7 +4,34 @@ Use this rubric when inspecting a game session with `ev.py`. Check one area at a
 
 ## Priority Order
 
-### 1. Phase Engine
+### 1. Ruling Engine
+
+**What it validates:** Intent classification, band determination, reason quality, dice distribution
+
+**What to look for:**
+- `ruling.reason` is non-empty and substantive (not just "ok", "yes", "no", or single word)
+- Reason contains causal keywords (because, since, due to, as) or meets minimum word count
+- Dice band distribution is not extremely skewed (no single band >80% of rolls)
+- `ruling.impossible` flag aligns with player input semantics (LLM check)
+
+**Commands:**
+```bash
+ev.py check 5 ruling_reason_quality --save-dir saves/my-game
+ev.py check 5 ruling_band_distribution --save-dir saves/my-game
+ev.py check 5 ruling_intent_match --llm --save-dir saves/my-game
+ev.py rolls saves/my-game/events.jsonl                      # band distribution
+ev.py rolls --summary saves/my-game/events.jsonl            # band summary
+```
+
+**Red flags:**
+- Reasons are single words or empty
+- One dice band dominates (>80% of rolls)
+- `impossible` flag contradicts player intent
+- Roll band doesn't match dice roll (caught by `roll_band_consistency`)
+
+---
+
+### 2. Phase Engine
 
 **What it validates:** Scene phase transitions, convergence-driven CLIMAX entry, Curtain Call soft-close, breather backstops, thread urgency integration
 
@@ -43,7 +70,38 @@ ev.py curtain-call --by-scene saves/my-game/events.jsonl
 **What it validates:** The 5-component composite score that drives CLIMAX entry
 
 **What to look for:**
-- Score computed fresh each turn from 5 components (thread_weight, urgency_depth, scene_age, beat_streak, dice_weight)
+- Score computed fresh each turn from 5 components (urgent_thread, threat_thread, scene_age, beat_streak, dice_weight)
+- Each component worth +1; threshold 3 triggers RISING→CLIMAX
+- CLIMAX entry always implies at least one urgent thread (score invariant)
+- Score 0-2 in RISING should not enter CLIMAX
+- `convergence_components` recorded in `pacing_context` on every turn
+- Dice weight (+1) only fires when `band in (crit_fail, fail)` AND urgent thread exists
+- Beat streak counts pressure-bucket beats (including `setback`) in last 5, uses proportional quorum for <5 entries
+- Stored component names match formula (old names `thread_weight`/`urgency_depth` remapped)
+
+**Commands:**
+```bash
+ev.py convergence saves/my-game/events.jsonl
+ev.py convergence --estimate saves/my-game/events.jsonl     # retro-compute for saves missing components
+ev.py convergence --by-scene saves/my-game/events.jsonl     # grouped by scene
+ev.py phase-transitions saves/my-game/events.jsonl
+ev.py beats saves/my-game/events.jsonl                      # beat type context
+ev.py check 5 beat_phase_validity --save-dir saves/my-game
+ev.py check 5 convergence_components --save-dir saves/my-game
+```
+
+**Red flags:**
+- Score ≥3 in RISING but CLIMAX never fires (phase machine bug)
+- Score ≥3 in non-RISING phases irrelevant (score only used for RISING→CLIMAX)
+- Components all zero but score >0 (data corruption or pre-convergence save)
+- Dice weight fires but no urgent thread active (violates invariant)
+- Beat streak includes pending beat (should be history-only)
+- Component names don't match formula (old `thread_weight`/`urgency_depth` not remapped)
+
+**What it validates:** The 5-component composite score that drives CLIMAX entry
+
+**What to look for:**
+- Score computed fresh each turn from 5 components (urgent_thread, threat_thread, scene_age, beat_streak, dice_weight)
 - Each component worth +1; threshold 3 triggers RISING→CLIMAX
 - CLIMAX entry always implies at least one urgent thread (score invariant)
 - Score 0-2 in RISING should not enter CLIMAX
@@ -177,7 +235,7 @@ ev.py deltas 7 saves/my-game/events.jsonl                   # find thread mutati
 ```bash
 ev.py check 5 pacing_directives --save-dir saves/my-game
 ev.py check 5 beat_phase_validity --save-dir saves/my-game
-ev.py beats saves/my-game/events.jsonl                      # beat type + surface
+ev.py beats saves/my-game/events.jsonl                      # beat type + effect
 ev.py convergence saves/my-game/events.jsonl                # convergence score context
 ```
 
@@ -224,7 +282,7 @@ ev.py deltas 11 saves/my-game/events.jsonl                  # find inventory/con
 
 **What to look for:**
 - NPCs introduced in scene stay present (no sudden disappearance)
-- Valid presence values: `present`, `nearby`, `known`, `departed`, `archived`
+- Valid presence values: `present`, `nearby`, `known`, `departed`
 - Departed NPCs have `departed_reason` field
 - Compendium updates (`applied.compendium_npc_update`) track NPC state changes correctly
 - NPC notes evolve logically across turns
@@ -256,10 +314,12 @@ ev.py npc-ghosting saves/my-game/events.jsonl               # detect NPC ghostin
 - Scene tags evolve logically (no sudden scene jumps without transition)
 - Environmental shifts tracked in scene state
 - Location descriptions match scene context
+- Location description is substantive (non-empty, minimum sentences/words)
 
 **Commands:**
 ```bash
 ev.py check 5 location_change --save-dir saves/my-game
+ev.py check 5 location_description_consistency --save-dir saves/my-game
 ev.py state --save-dir saves/my-game --format location      # current location
 ev.py state --save-dir saves/my-game --format scene         # current scene tags
 ev.py diff 5 10 --section location saves/my-game/events.jsonl
@@ -269,8 +329,29 @@ ev.py diff 5 10 --section location saves/my-game/events.jsonl
 - Location changes without transition narration
 - Scene tags jumping between unrelated locations
 - `applied.location_change` present but location ID unchanged from previous turn
+- Location description empty or too short (<2 sentences, <30 words)
 
 **Known bug (TICK-26):** `applied.location_change` doesn't exist in events — field is `applied.location_description`. Checker returns "required field not found" for every turn.
+
+---
+
+### 10.5. World State Facts
+
+**What it validates:** World state facts are non-empty and substantive
+
+**What to look for:**
+- World state facts are non-empty strings (legacy format) or dicts with non-empty `text` field (structured format)
+- Facts contain meaningful content (minimum character count)
+
+**Commands:**
+```bash
+ev.py check 5 world_state_facts --save-dir saves/my-game
+ev.py state --save-dir saves/my-game --format scene         # scene/world_state context
+```
+
+**Red flags:**
+- World state facts empty or too short (<10 chars)
+- Structured facts missing `text` field
 
 ---
 
@@ -352,24 +433,27 @@ ev.py prompt-sizes saves/my-game/events.jsonl
 
 ### 14. LLM-Based Quality Checks (optional, slower)
 
-**What they validate:** Narrative alignment, beat consequences, extraction fidelity
+**What they validate:** Narrative alignment, beat consequences, extraction fidelity, ruling intent
 
 **What to look for:**
 - **directive_tone_match:** Narration tone aligns with roll band (success→positive, fail→tense, crit_fail→severe)
 - **beat_narrative_chain:** GM beat produces observable narrative consequence in current and next turn narration (pressure→urgency, complication→obstacle, escalation→raised stakes)
 - **state_fidelity:** State extraction matches what narration describes — no missing or unsupported changes
+- **ruling_intent_match:** Ruling's `impossible` flag matches player input semantics
 
 **Commands:**
 ```bash
 ev.py check 5 directive_tone_match --llm --save-dir saves/my-game
 ev.py check 5 beat_narrative_chain --llm --save-dir saves/my-game
 ev.py check 5 state_fidelity --llm --save-dir saves/my-game
+ev.py check 5 ruling_intent_match --llm --save-dir saves/my-game
 ```
 
 **Red flags:**
 - Success narration reads like a failure (tone mismatch)
 - GM beat emitted but no narrative trace of it in subsequent turns
 - Narration describes state changes not captured in extraction (or vice versa)
+- `impossible` flag contradicts player intent
 
 ---
 

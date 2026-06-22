@@ -6,18 +6,18 @@ Save directories for automated/CI evals live in `evals/runs/`. (Web UI saves rem
 
 ```
 evals/runs/
-├── 2026-06-16--fix-pack-loading--a1b2c3d4/
-│   ├── 0930--noir-1930s--aggressive--10t/
+├── 2026-06-16_fix-pack-loading_a1b2c3d4/
+│   ├── 0930_noir-1930s_aggressive_10t/
 │   │   ├── events.jsonl
 │   │   ├── state.yaml
 │   │   ├── ev.yaml
 │   │   └── run-meta.yaml
-│   └── 0945--zombie-survival--explorer--5t/
+│   └── 0945_zombie-survival_explorer_5t/
 │       ├── events.jsonl
 │       └── ...
-├── 2026-06-17--arc-refactor--e5f6g7h8/
+├── 2026-06-17_arc-refactor_e5f6g7h8/
 │   └── ...
-└── latest -> 2026-06-17--arc-refactor--e5f6g7h8/0930--.../
+└── latest -> 2026-06-17_arc-refactor_e5f6g7h8/0930_noir-1930s_aggressive_10t/
 ```
 
 ## Run metadata (`run-meta.yaml`)
@@ -94,7 +94,7 @@ for pack in noir-1930s zombie-survival fantasy-quest; do
       --pack "$pack" --personality "$persona"
     .venv/bin/python scripts/debug/ev.py check --all \
       --save-dir evals/runs/latest --report \
-      "evals/reports/${pack}--${persona}.md"
+      "evals/reports/${run_dir_name}.md"
   done
 done
 
@@ -107,7 +107,7 @@ done
 | Aspect | `saves/` | `evals/runs/` |
 |--------|----------|---------------|
 | Created by | Web UI gameplay | CLI/ev.py play/prompt-eval |
-| Naming | User chooses | Auto: `{timestamp}--{tag}--{sha:8}` |
+| Naming | User chooses | Auto: `{timestamp}_{tag}_{sha:8}` (run: `{HHMM}_{pack}_{persona}_{turns}t`) |
 | Metadata | No | `run-meta.yaml` |
 | Turn count | Unlimited | Fixed (`--turns N`) |
 | Checkers | Manual | Auto with `--eval` flag |

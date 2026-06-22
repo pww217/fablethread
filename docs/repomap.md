@@ -9,7 +9,7 @@
 | `ccya/models/` | Pydantic models: state, extraction, rules, config, compactor |
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
-| `ccya/engine/config.py` | EngineConfig dataclass; turn lock management; Jinja env setup |
+| `ccya/engine/config.py` | EngineConfig dataclass; CheckerConfig threshold fields; turn lock management; Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() orchestrator; arc/thread state machine; pacing computation |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
 | `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, NPC lifecycle |
@@ -53,9 +53,12 @@
 | `ccya/ev/prompt_eval.py` | Fast prompt testing: dump (render only), call (render + LLM + check) |
 | `ccya/ev/scenario.py` | YAML scenario loader: Scenario, TurnAssert dataclasses |
 | `ccya/ev/__init__.py` | CLI dispatch: lazy import of subcommands |
-| `ccya/ev/checkers/` | Checker framework: @register_checker, 27 deterministic + 3 LLM checkers |
+| `ccya/ev/checkers/` | Checker framework: @register_checker, 28 deterministic + 3 LLM checkers |
+| `ccya/ev/checkers/ruling.py` | Ruling checkers: `ruling_reason_quality`, `ruling_band_distribution`, `ruling_intent_match` |
+| `ccya/ev/checkers/convergence.py` | Convergence checker: `convergence_components` |
+| `ccya/ev/checkers/state.py` | State checkers: `location_description_consistency`, `world_state_facts` |
 | `ccya/personality.py` | NpcPersonality dataclass; 12 archetype registry; assign_personality() |
-| `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed or scenario |
+| `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed or scenario; PackManifest.checkers for pack-level checker overrides |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band) |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() |
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter; StreamHandler |

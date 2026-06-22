@@ -34,4 +34,5 @@ packs/generated/
 
 # Eval harness outputs
 # evals/runs/ # Send them to Github for Perplexity reviews
+.run/
 .eval-tmp/

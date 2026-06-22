@@ -782,6 +782,35 @@ async def turn_viewer_stream():
     return EventSourceResponse(gen())
 
 
+@_app_mod.app.get("/turn_viewer/prompts")
+def turn_viewer_prompts(turn: int):
+    """Load prompts for a specific turn from prompts.jsonl."""
+    if err := _require_save():
+        return err
+    prompts_path = _app_mod.SAVE_DIR / "prompts.jsonl"
+    if not prompts_path.exists():
+        return JSONResponse({"prompts": []}, status_code=200)
+    text = prompts_path.read_text().strip()
+    if not text:
+        return JSONResponse({"prompts": []}, status_code=200)
+    all_prompts = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line:
+            try:
+                p = json.loads(line)
+                if isinstance(p, dict) and p.get("turn") == turn:
+                    all_prompts.append({
+                        "stream": p.get("stream"),
+                        "rendered_system": p.get("rendered_system", ""),
+                        "rendered_user": p.get("rendered_user", ""),
+                        "context_meta": p.get("context_meta"),
+                    })
+            except json.JSONDecodeError:
+                continue
+    return JSONResponse({"prompts": all_prompts}, status_code=200)
+
+
 @_app_mod.app.get("/opening")
 def opening():
     return HTMLResponse(_get_opening())
