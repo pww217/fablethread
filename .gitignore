@@ -33,6 +33,11 @@ ccya/static/app.css
 packs/generated/
 
 # Eval harness outputs
-# evals/runs/ # Send them to Github for Perplexity reviews
+# Run data (gitignored — reports are tracked)
+evals/runs/**/events.jsonl
+evals/runs/**/prompts.jsonl
+evals/runs/**/state.yaml
+evals/runs/**/chronicle.md
+evals/runs/**/run-meta.yaml
 .run/
 .eval-tmp/

@@ -11,8 +11,8 @@
 | Pattern | Command |
 |---------|---------|
 | Default (latest) | `ev.py turn 5` → reads from `evals/runs/latest` |
-| Specific run | `ev.py turn 5 evals/runs/YYYY-MM-DD/run-name/events.jsonl` |
-| State access | Add `--save-dir evals/runs/YYYY-MM-DD/run-name` |
+| Specific run | `ev.py turn 5 evals/runs/YYYY-MM-DD_{tag}_{sha}/run-name/` |
+| State access | Add `--save-dir evals/runs/YYYY-MM-DD_{tag}_{sha}/run-name` |
 
 ## Session config (ev.yaml)
 

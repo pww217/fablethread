@@ -613,7 +613,7 @@ def _llm_session(
         if auto_report:
             rubric_areas = _build_rubric_areas(checker_results)
             pass_rate = _compute_pass_rate(checker_results)
-            report_path = save_dir / "CONSOLIDATED-REPORT.md"
+            report_path = save_dir / "report.md"
             from jinja2 import Environment, FileSystemLoader
             from datetime import datetime, timezone
             template_dir = Path("evals/ev-tooling/templates")
