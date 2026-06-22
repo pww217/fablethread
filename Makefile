@@ -1,4 +1,4 @@
-.PHONY: install run dev fmt lint test test-v test-x typecheck check deadcode css clean new-game vendor llama-swap kill eval eval-fast eval-judge-only eval-pack eval-all full-eval clean-pycache
+.PHONY: install run dev fmt lint test test-v test-x typecheck check deadcode css clean new-game roadmap vendor llama-swap kill eval eval-fast eval-judge-only eval-pack eval-all full-eval clean-pycache
 
 install:
 	uv sync
@@ -57,6 +57,9 @@ css:
 
 new-game:
 	uv run python -m ccya --new-game
+
+roadmap:
+	uv run python scripts/generate-roadmap.py
 
 vendor:
 	mkdir -p ccya/static/vendor

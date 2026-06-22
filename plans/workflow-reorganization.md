@@ -150,7 +150,7 @@ roadmap/
 
 If `roadmap/` already exists, skip creation but verify subdirectories exist.
 
-**Why:** The design doc requires `roadmap/bugs/<slug>.md` for bugs, `roadmap/features/<slug>.md` for features/improvements, and `roadmap/archive/` for completed/abandoned items.
+**Why:** The design doc requires `roadmap/bugs/<slug>.md` for bugs, `roadmap/features/<slug>.md` for features/improvements, and `roadmap/archive/` for completed items.
 
 **Validation:** `ls roadmap/bugs/ roadmap/features/ roadmap/archive/` — all three exist.
 
@@ -159,9 +159,9 @@ If `roadmap/` already exists, skip creation but verify subdirectories exist.
 **File:** `/Users/pwilson/Repos/ccya/scripts/generate-roadmap.py`
 
 **What:** Create a Python script that:
-1. Scans `roadmap/bugs/` and `roadmap/features/` for `*.md` files
+1. Scans `roadmap/bugs/`, `roadmap/features/`, and `roadmap/archive/` for `*.md` files
 2. Parses YAML frontmatter from each file (using `yaml` library, or if not available, use a simple regex; prefer `yaml` if `PyYAML` is in the project's dependencies — check with `uv run python -c "import yaml"`)
-3. Groups entries by status (scoping, up-next, in-progress, validating, completed, abandoned, backlog, blocked)
+3. Groups entries by status (scoping, up-next, validated, done, canceled)
 4. Within each group, lists entries with: title, slug (filename), type (bug/feature), urgency, size, labels, created date
 5. Writes `roadmap/index.md` with: grouped by status, each group as a table, archive items listed separately under "Archive"
 
@@ -169,20 +169,28 @@ Frontmatter schema:
 ```yaml
 ---
 title: Descriptive title
-type: bug | feature
-status: scoping | up-next | in-progress | validating | completed | abandoned | backlog | blocked
+status: new | validated | done | canceled  (bugs)
+           idea | scoping | up-next | done | canceled  (features)
 urgency: 1 | 2 | 3 | 4  (1=highest)
-size: small | medium | large | unknown
+size: small | medium | large | xlarge
 created: YYYY-MM-DD
-completed: YYYY-MM-DD  # optional, only for completed/abandoned
+completed: YYYY-MM-DD  # optional, only for done
 labels:
-  - type: improvement | moonshot | balancing | ui | extraction | etc.
-  - <other labels>
+  - <label>
 design: docs/design/<slug>-design.md  # optional
-plan: plans/<slug>.md  # optional
-linear: TICK-NNN  # optional
+plan: plans/<slug>-plan.md  # optional
 ---
 ```
+
+Design docs use a separate status lifecycle:
+```yaml
+---
+status: scoping
+created: YYYY-MM-DD
+---
+```
+- `scoping` → `reviewed` → `implemented`
+- Set by: create-design (scoping), review-design (reviewed), plan (implemented)
 
 The script should:
 - Handle missing frontmatter gracefully (skip file with warning to stderr)
@@ -241,7 +249,6 @@ The roadmap file should contain:
 ```yaml
 ---
 title: <human-readable title from design doc>
-type: <bug|feature>
 status: scoping
 urgency: 3
 size: unknown
@@ -251,6 +258,8 @@ labels:
   - <from design doc>
 ---
 ```
+
+Also write a YAML frontmatter to the design doc with `status: scoping` and `created: YYYY-MM-DD`.
 
 After creating the file, run `make roadmap` from the repo root to regenerate the index.
 
@@ -264,10 +273,12 @@ After creating the file, run `make roadmap` from the repo root to regenerate the
 
 **What:** Add a step at the end of the review process that locates the roadmap file (check `roadmap/features/<slug>.md` first, then `roadmap/bugs/<slug>.md`; use whichever exists) and updates its `status`:
 - If the review verdict approves the design (no fatal blockers), set status to `up-next`
-- If the review recommends rejection (fatal found), set status to `abandoned`
+- If the review recommends rejection (fatal found), set status to `canceled`
 - After updating, run `make roadmap` from the repo root
 
-**Why:** The design doc requires review-design to update roadmap status: approved → up-next, rejected → abandoned.
+Also update the design doc's YAML frontmatter status field to `reviewed`.
+
+**Why:** The design doc requires review-design to update roadmap status: approved → up-next, rejected → canceled. Also requires updating design doc status to `reviewed`.
 
 **Validation:** Read the file and confirm the roadmap status update step exists.
 
@@ -277,29 +288,28 @@ After creating the file, run `make roadmap` from the repo root to regenerate the
 
 **What:** Add a step at the end of the planning process that locates the roadmap file (check `roadmap/features/<slug>.md` first, then `roadmap/bugs/<slug>.md`; use whichever exists) and updates its `status` field to `up-next`. After updating, run `make roadmap` from the repo root.
 
-**Why:** The design doc requires plan to update roadmap status to up-next.
+Also update the design doc's YAML frontmatter status field to `implemented`.
+
+**Why:** The design doc requires plan to update roadmap status to up-next. Also requires updating design doc status to `implemented`.
 
 **Validation:** Read the file and confirm the roadmap status update step exists.
 
-#### Step 3.4 — Add roadmap status update to execute
+#### Step 3.4 — No roadmap status update in execute
 
 **File:** `~/.config/opencode/skills/execute/SKILL.md`
 
-**What:** Add a step at the beginning of execution (after worktree verification) that locates the roadmap file (check `roadmap/features/<slug>.md` first, then `roadmap/bugs/<slug>.md`; use whichever exists) and updates its `status` to `in-progress`. Add a step at the end (after lint passes, before commit) that moves the plan to `plans/completed/`, locates the roadmap file, and updates its `status` to `validating`. After each update, run `make roadmap` from the repo root.
+**What:** Do NOT add a roadmap status update step to execute. The executor does not set roadmap status. The human merges PRs and sets `done`.
 
-The plan file move is already in execute (step "### 4. Mark complete" at lines 71-73). Just add the roadmap status update alongside it.
+**Why:** The executor doesn't know when work is truly done (PR may need review). Human sets `done` after merge.
 
-**Why:** The design doc requires execute to update roadmap status to in-progress, and eventually to validating. Also requires moving the plan to completed/.
+**Validation:** Confirm no roadmap status update step exists in execute.
 
-**Validation:** Read the file and confirm both roadmap status update steps exist.
-
-#### Step 3.5 — Add roadmap + Linear references to review-code PR body
+#### Step 3.5 — Update review-code PR body and roadmap status
 
 **File:** `~/.config/opencode/skills/review-code/SKILL.md`
 
 **What:** Update the PR body template in step 9 to include:
 1. A link to the roadmap entry. Determine the path by checking `roadmap/features/<slug>.md` first, then `roadmap/bugs/<slug>.md` — use whichever exists. If neither exists, skip the Roadmap section.
-2. If the roadmap file's frontmatter has a `linear:` field, include: `Linear: TICK-NNN`. If no `linear:` field, omit the Linear section.
 
 The PR body should become:
 ```
@@ -307,18 +317,15 @@ The PR body should become:
 docs/design/<slug>-design.md
 
 ## Plan
-plans/<slug>.md
+plans/<slug>-plan.md
 
 ## Roadmap
 roadmap/features/<slug>.md  (or roadmap/bugs/<slug>.md if that path exists)
-
-## Linear
-TICK-NNN  (only if present in roadmap frontmatter)
 ```
 
-Also add a step before PR creation that locates the roadmap file (same features/bugs check), updates its `status` to `validating`, and runs `make roadmap` from the repo root.
+Also add a step before PR creation that locates the roadmap file (same features/bugs check), updates its `status` to `validated`, and runs `make roadmap` from the repo root.
 
-**Why:** The design doc requires the PR body to link the roadmap entry and optionally ticket ref. Also requires updating status to validating.
+**Why:** The design doc requires the PR body to link the roadmap entry. Also requires updating status to `validated`.
 
 **Validation:** Read the file and confirm the updated PR body template and the status update step.
 
@@ -343,9 +350,11 @@ None. These are config file edits.
 **What:** Add a new "Roadmap" section (before or after the "Plan lifecycle" section) documenting:
 - `roadmap/bugs/<slug>.md` — one file per bug
 - `roadmap/features/<slug>.md` — one file per feature/improvement/moonshot
-- `roadmap/archive/` — completed/abandoned items
+- `roadmap/archive/` — completed items
 - `roadmap/index.md` — auto-generated TOC (via `make roadmap`)
-- Status lifecycle: scoping → up-next → in-progress → validating → completed (or abandoned at any point)
+- Status lifecycle (bugs): `new` → `validated` → `done` (or `canceled` at any point)
+- Status lifecycle (features): `idea` → `scoping` → `up-next` → `done` (or `canceled` at any point)
+- Design doc lifecycle: `scoping` → `reviewed` → `implemented`
 - YAML frontmatter schema reference
 
 #### Step 4.2 — Add branch workflow and worktree rules
@@ -412,13 +421,20 @@ Map Linear priority to urgency:
 - Low → 4
 
 Map Linear status to roadmap status:
-- `New`, `Backlog`, `Idea`, `Scoping` → `backlog`
-- `Up Next`, `Accepted` → `up-next`
-- `In Progress` → `in-progress`
-- `Validating` → `validating`
-- `Completed` → `completed`
-- `Canceled` → `abandoned`
-- `Blocked` → `blocked`
+- Bugs: `New`, `Backlog`, `Idea`, `Scoping` → `new`
+- Bugs: `Up Next`, `Accepted` → `validated`
+- Bugs: `In Progress` → `validated` (executor doesn't set status)
+- Bugs: `Validating` → `validated`
+- Bugs: `Completed` → `done`
+- Bugs: `Canceled` → `canceled`
+- Features: `New`, `Backlog`, `Idea`, `Scoping` → `scoping`
+- Features: `Up Next`, `Accepted` → `up-next`
+- Features: `In Progress` → `up-next` (executor doesn't set status)
+- Features: `Validating` → `up-next`
+- Features: `Completed` → `done`
+- Features: `Canceled` → `canceled`
+
+Infer bug vs feature from Linear label (e.g., `bug` → `roadmap/bugs/`, otherwise `roadmap/features/`).
 
 Bulk create the files. After all are created, run `make roadmap` to regenerate the index.
 
