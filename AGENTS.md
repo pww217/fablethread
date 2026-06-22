@@ -164,7 +164,9 @@ Defined in full in global AGENTS.md. Key rules:
 - **execute** → execute a plan exactly as written, review changes, commit; creates worktree+branch, uses `[<slug>]` commit prefix
 - **review-design** → review a design doc against source, update and refine it (single mode); outputs key blockers, ambiguities, improvements
 - **review-code** → review a diff or PR for ccya (correctness, contracts, quality); creates PR after review passes
-- **ev** → inspect turn data from events.jsonl using ev.py (debug pipeline turns)
+- **ev-run** → launch a full 5-pack eval, run sequentially, produce consolidated report with regression detection
+- **ev-review** → inspect existing eval runs or player saves, run full rubric, extract candidate bugs as `new`
+- **bug-triage** → validate bug candidates, reproduce, assess severity, set `validated` or `canceled`
 - **customize-opencode** → editing opencode's own config/agents/skills/plugins only (not user app code)
 
 ---
