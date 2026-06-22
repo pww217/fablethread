@@ -20,7 +20,7 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module index, entry poin
 
 **Plan selection:** If multiple plans are open in `plans/review/` or `plans/`, the user specifies which to execute. If not specified, ask before proceeding.
 
-> **Completed plans:** Live in `plans/completed/`. Before loading any doc from there, verify its status line matches implementation state — `open` means implemented but needs status update; `abandoned` means no longer relevant.
+> **Completed plans:** Live in `plans/completed/`. Before loading any doc from there, verify its status line matches implementation state — `open` means implemented but needs status update; `canceled` means no longer relevant.
 
 **Source vs. plan conflicts:** If source code contradicts a plan doc, trust the source. Note the discrepancy in your commit message and proceed with what source shows.
 
@@ -73,6 +73,42 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 
 ---
 
+## Roadmap
+
+`roadmap/` is the canonical ticket tracker. Supersedes Linear as primary
+source of truth.
+
+- `roadmap/bugs/<slug>.md` — one file per bug
+- `roadmap/features/<slug>.md` — one file per feature/improvement/moonshot
+- `roadmap/archive/` — completed or canceled items
+- `roadmap/index.md` — auto-generated TOC (via `make roadmap`)
+
+Status lifecycles (different for bugs vs features):
+- **Bugs:** `new` → `validated` → `done` (or `canceled` at any point)
+- **Features:** `idea` → `scoping` → `up-next` → `done` (or `canceled` at any point)
+
+YAML frontmatter schema:
+```yaml
+---
+title: Descriptive title
+status: scoping | up-next | validated | done | canceled | idea
+urgency: 1 | 2 | 3 | 4  (1=highest)
+size: small | medium | large | xlarge
+created: YYYY-MM-DD
+completed: YYYY-MM-DD  # optional, only for done
+labels:
+  - <label>
+design: docs/design/<slug>-design.md  # optional
+plan: plans/<slug>.md  # optional
+---
+```
+
+Design docs use a separate status lifecycle:
+- `scoping` → `reviewed` → `implemented`
+- Set by: create-design (scoping), review-design (reviewed), plan (implemented)
+
+---
+
 ## Plan lifecycle
 
 - Active plans pending review are in `plans/review/`.
@@ -80,6 +116,15 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 - Completed plans are in `plans/completed/` (organized by category).
 - Move completed plans to `plans/completed/` when done.
 - Split large jobs into phases. Aim for at most **3500 lines of code read per phase** to stay within context budget.
+
+## Branch workflow and worktree rules
+
+- Branch slug is canonical key (from design doc).
+- Worktrees: `git worktree add -b <slug> ../ccya-<slug> main`
+- Worktree cleanup after PR merge.
+- `git branch --show-current` verification at start of every skill.
+- Commit prefix: `[<slug>]`
+- Authority hierarchy: design doc > plan > source
 
 ---
 
@@ -100,23 +145,13 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 
 ---
 
-## Linear issue tracking
+## Cross-skill rules
 
-Project: CCYA | Team: PW (Peter) | Ticket IDs: TICK- (e.g., TICK-52)
-
-Labels: type (`Bug`, `Feature`, `Improvement`) + bucket (`World Building`, `Extraction`, `UI`, `Balancing`, `Tooling`, `Tech Debt`)
-Priority: 1=urgent, 2=high, 3=medium, 4=low
-
-Status lifecycle:
-- Bugs: `New` → `Accepted` → `In Progress` → `Validating` → `Completed`
-- Non-bugs: `Idea` → `Backlog` → `Scoping` → `Up Next` → `In Progress` → `Validating` → `Completed`
-- Validating is mandatory unless explicitly overridden
-- All: Can be canceled at any stage
-- All: Can be blocked at any stage (e.g., `In Progress` → `Blocked` → `In Progress` when unblocked)
-
-Tickets live under bucket parent issues. Use title prefixes to disambiguate subsystem: `[Scene]`, `[State]`, `[Storytell]`, `[Narrator]`, `[Ruling]`, `[NPC]`, `[Conditions]`, `[Prompt]`, `[EV]`, `[Infra]`. See `plans/completed/linear-reorganization.md` for the full table.
-
-`linearis` is installed globally at `/opt/homebrew/bin/linearis` — available in PATH, not in the venv. Use it (not `linear`) for all CLI operations. Load the `linear` skill for commands and workflow guidance. Always search for existing tickets before creating new ones. Always associate tickets with the CCYA project.
+Defined in full in global AGENTS.md. Key rules:
+- Stay in your lane — only touch files the plan or design explicitly names.
+- Assume parallel work — never revert code you did not write.
+- Authority hierarchy — design doc > plan > source.
+- Question tool with recommendation — use `question` tool when ambiguous, recommended option first.
 
 ---
 
