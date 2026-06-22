@@ -2,12 +2,28 @@
 
 from __future__ import annotations
 
+import sys
+
 from pathlib import Path
 from typing import Any
 
 
 def cmd_init(flags: dict[str, str], args: list[str]) -> None:
     """Create a new session: save dir + ev.yaml."""
+    if "help" in flags:
+        print("Usage: ev.py init [--pack PACK] [--personality NAME] [--model MODEL] [--temp N] [--save-dir DIR]")
+        print()
+        print("Create a new session directory with ev.yaml config.")
+        print()
+        print("Flags:")
+        print("  --pack NAME           Start with a pack (generates state.yaml)")
+        print("  --personality NAME    Preset: aggressive, cautious, absurd, explorer, driven, custom")
+        print("  --model NAME          Default LLM model")
+        print("  --temp N              Default temperature")
+        print("  --save-dir DIR        Custom save directory path")
+        print("  --help                Show this help")
+        sys.exit(0)
+
     import yaml
 
     pack = flags.get("pack")

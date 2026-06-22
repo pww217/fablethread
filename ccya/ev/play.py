@@ -17,7 +17,7 @@ from ccya.pack import load_pack, list_packs
 from ccya.state.io import _default_state, init_save_dir, load_state
 
 from ccya.ev.personality import resolve_personality
-from ccya.ev.session_config import load_session_config, resolve_player_config
+from ccya.ev.session_config import load_session_config, resolve_auto_report, resolve_player_config
 
 _log = logging.getLogger(__name__)
 
@@ -610,6 +610,25 @@ def _llm_session(
 
         _store_checker_warnings(checker_results, events, save_dir)
 
+    if auto_report and turns_played > 0:
+        print()
+        print("Running checkers for auto-report...")
+        from ccya.ev.events import load_events
+        from ccya.ev.checkers import CheckerResult, list_checkers, run_checkers
+        from ccya.ev.eval import _store_checker_warnings, _build_rubric_areas, _compute_pass_rate
+
+        events = load_events(save_dir / "events.jsonl")
+
+        runner_checkers = [m["id"] for m in list_checkers(checker_type="deterministic")]
+        checker_results: dict[str, CheckerResult] = run_checkers(runner_checkers, events, save_dir=save_dir)
+
+        if llm_checkers:
+            llm_checker_ids = [m["id"] for m in list_checkers(checker_type="llm")]
+            llm_results = run_checkers(llm_checker_ids, events, save_dir=save_dir)
+            checker_results.update(llm_results)
+
+        _store_checker_warnings(checker_results, events, save_dir)
+
         if auto_report:
             rubric_areas = _build_rubric_areas(checker_results)
             pass_rate = _compute_pass_rate(checker_results)
@@ -663,6 +682,31 @@ def _print_missing_pack_error(flags: dict[str, str]) -> None:
 
 
 def cmd_play(flags: dict[str, str], args: list[str]) -> None:
+    if "help" in flags:
+        print("Usage: ev.py play <input> [--save-dir DIR] [--no-sanitize] [--model MODEL] [--temp TEMP] [--pack PACK]")
+        print("       ev.py play --llm [--turns N] [--pack PACK] [--personality NAME] [--custom-persona TEXT]")
+        print("       ev.py play --interactive [--pack PACK]")
+        print("       ev.py play --resume [--save-dir DIR]")
+        print()
+        print("Flags:")
+        print("  --save-dir DIR          Use existing save")
+        print("  --no-sanitize           Skip thread sanitizer (~5-10s faster)")
+        print("  --model NAME            Override LLM model")
+        print("  --temp N                Override temperature")
+        print("  --pack NAME             Start with a pack (required for new sessions)")
+        print("  --personality NAME      Preset: aggressive, cautious, absurd, explorer, driven, custom")
+        print("  --custom-persona TEXT   Custom persona text (use with --personality custom)")
+        print("  --resume                Resume latest or --save-dir session")
+        print("  --until-error           Stop LLM mode on first error")
+        print("  --turns N               Max turns for --llm mode (default 20)")
+        print("  --eval                  Run checkers after session ends")
+        print("  --auto-report           Generate report.md after session")
+        print("  --llm-checkers          Include LLM-based checkers with --eval")
+        print("  --llm                   LLM-controlled player")
+        print("  --interactive           Interactive text-based player")
+        print("  --help                  Show this help")
+        sys.exit(0)
+
     if "interactive" in flags:
         if "resume" in flags:
             print("--resume is not supported with --interactive mode", file=sys.stderr)
@@ -710,6 +754,8 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
             session_config = None
             player_cfg = {"personality": "custom", "custom_persona": None}
 
+        auto_report = resolve_auto_report(flags, session_config)
+
         _llm_session(
             config,
             max_turns=max_turns,
@@ -719,7 +765,7 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
             eval_="eval" in flags,
             until_error="until-error" in flags,
             save_dir=save_dir if "resume" in flags else None,
-            auto_report="auto-report" in flags,
+            auto_report=auto_report,
             llm_checkers="llm-checkers" in flags,
         )
         sys.exit(0)

@@ -344,6 +344,27 @@ def _run_extraction_format(output: str, stream: str) -> CheckerResult:
 
 def cmd_prompt_eval(flags: dict[str, str], args: list[str]) -> None:
     """Main entry point for ev.py prompt-eval command."""
+    if "help" in flags or len(args) < 1:
+        print("Usage: ev.py prompt-eval <dump|call> [args...]")
+        print()
+        print("Subcommands:")
+        print("  dump <save-dir> --turn N --stream STREAM [--from-events]")
+        print("    Re-render a prompt from a saved session for inspection.")
+        print()
+        print("    Flags:")
+        print("      --turn N          Turn number to render")
+        print("      --stream STREAM   Stream name: ruling, narrate, scene, state, storytell")
+        print("      --from-events     Render from events.jsonl (no LLM call)")
+        print("      --all             Render all streams")
+        print("      --user-only       Show only user prompts")
+        print()
+        print("  call <scenario.yaml> [--from-events]")
+        print("    Render prompts from a scenario, optionally call LLM and check results.")
+        print()
+        print("    Flags:")
+        print("      --from-events     Use stored output instead of calling LLM")
+        sys.exit(0)
+
     if len(args) < 2:
         print("Usage: ev.py prompt-eval <dump|call> [args...]", file=sys.stderr)
         print("\nSubcommands:")

@@ -169,6 +169,16 @@ class ThreadUpdate(BaseModel):
     progress: str | None = None
     progress_kind: Literal["advancement", "setback", "shift"] | None = None
 
+    @field_validator("type", mode="before")
+    @classmethod
+    def _coerce_thread_type(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            v = v.lower()
+        valid_types = {"threat", "opportunity", "complication", "revelation"}
+        if isinstance(v, str) and v not in valid_types:
+            return None
+        return v
+
 
 class ArcResolution(BaseModel):
     resolution: str

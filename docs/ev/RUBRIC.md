@@ -19,8 +19,8 @@ Use this rubric when inspecting a game session with `ev.py`. Check one area at a
 ev.py check 5 ruling_reason_quality --save-dir saves/my-game
 ev.py check 5 ruling_band_distribution --save-dir saves/my-game
 ev.py check 5 ruling_intent_match --llm --save-dir saves/my-game
-ev.py rolls saves/my-game/events.jsonl                      # band distribution
-ev.py rolls --summary saves/my-game/events.jsonl            # band summary
+ev.py rolls --save-dir saves/my-game                      # band distribution
+ev.py rolls --summary --save-dir saves/my-game            # band summary
 ```
 
 **Red flags:**
@@ -48,12 +48,12 @@ ev.py rolls --summary saves/my-game/events.jsonl            # band summary
 ```bash
 ev.py check 5 phase_transition --save-dir saves/my-game
 ev.py check 5 pacing_directives --save-dir saves/my-game
-ev.py convergence saves/my-game/events.jsonl
-ev.py convergence --by-scene saves/my-game/events.jsonl     # grouped by scene
-ev.py phase-transitions saves/my-game/events.jsonl
-ev.py phase-transitions --by-scene saves/my-game/events.jsonl
-ev.py curtain-call saves/my-game/events.jsonl
-ev.py curtain-call --by-scene saves/my-game/events.jsonl
+ev.py convergence --save-dir saves/my-game
+ev.py convergence --by-scene --save-dir saves/my-game     # grouped by scene
+ev.py phase-transitions --save-dir saves/my-game
+ev.py phase-transitions --by-scene --save-dir saves/my-game
+ev.py curtain-call --save-dir saves/my-game
+ev.py curtain-call --by-scene --save-dir saves/my-game
 ```
 
 **Red flags:**
@@ -81,11 +81,11 @@ ev.py curtain-call --by-scene saves/my-game/events.jsonl
 
 **Commands:**
 ```bash
-ev.py convergence saves/my-game/events.jsonl
-ev.py convergence --estimate saves/my-game/events.jsonl     # retro-compute for saves missing components
-ev.py convergence --by-scene saves/my-game/events.jsonl     # grouped by scene
-ev.py phase-transitions saves/my-game/events.jsonl
-ev.py beats saves/my-game/events.jsonl                      # beat type context
+ev.py convergence --save-dir saves/my-game
+ev.py convergence --estimate --save-dir saves/my-game     # retro-compute for saves missing components
+ev.py convergence --by-scene --save-dir saves/my-game     # grouped by scene
+ev.py phase-transitions --save-dir saves/my-game
+ev.py beats --save-dir saves/my-game                      # beat type context
 ev.py check 5 beat_phase_validity --save-dir saves/my-game
 ev.py check 5 convergence_components --save-dir saves/my-game
 ```
@@ -111,11 +111,11 @@ ev.py check 5 convergence_components --save-dir saves/my-game
 
 **Commands:**
 ```bash
-ev.py convergence saves/my-game/events.jsonl
-ev.py convergence --estimate saves/my-game/events.jsonl     # retro-compute for saves missing components
-ev.py convergence --by-scene saves/my-game/events.jsonl     # grouped by scene
-ev.py phase-transitions saves/my-game/events.jsonl
-ev.py beats saves/my-game/events.jsonl                      # beat type context
+ev.py convergence --save-dir saves/my-game
+ev.py convergence --estimate --save-dir saves/my-game     # retro-compute for saves missing components
+ev.py convergence --by-scene --save-dir saves/my-game     # grouped by scene
+ev.py phase-transitions --save-dir saves/my-game
+ev.py beats --save-dir saves/my-game                      # beat type context
 ev.py check 5 beat_phase_validity --save-dir saves/my-game
 ```
 
@@ -141,10 +141,10 @@ ev.py check 5 beat_phase_validity --save-dir saves/my-game
 
 **Commands:**
 ```bash
-ev.py curtain-call saves/my-game/events.jsonl
-ev.py curtain-call --by-scene saves/my-game/events.jsonl    # grouped by scene
-ev.py convergence saves/my-game/events.jsonl
-ev.py beats saves/my-game/events.jsonl
+ev.py curtain-call --save-dir saves/my-game
+ev.py curtain-call --by-scene --save-dir saves/my-game    # grouped by scene
+ev.py convergence --save-dir saves/my-game
+ev.py beats --save-dir saves/my-game
 ev.py check 5 beat_phase_validity --save-dir saves/my-game
 ```
 
@@ -174,8 +174,8 @@ ev.py check 5 beat_phase_validity --save-dir saves/my-game
 ```bash
 ev.py check 5 gm_beat_lifecycle --save-dir saves/my-game
 ev.py check 5 beat_phase_validity --save-dir saves/my-game
-ev.py beats saves/my-game/events.jsonl
-ev.py trace meta.pending_gm_beat saves/my-game/events.jsonl
+ev.py beats --save-dir saves/my-game
+ev.py trace meta.pending_gm_beat --save-dir saves/my-game
 ```
 
 **Red flags:**
@@ -201,9 +201,9 @@ ev.py trace meta.pending_gm_beat saves/my-game/events.jsonl
 **Commands:**
 ```bash
 ev.py check 5 thread_lifecycle arc_goal_updates --save-dir saves/my-game
-ev.py threads saves/my-game/events.jsonl                    # thread state over time
-ev.py threads --summary saves/my-game/events.jsonl          # resolution rate, hallucinated threads
-ev.py deltas 7 saves/my-game/events.jsonl                   # find thread mutations
+ev.py threads --save-dir saves/my-game                    # thread state over time
+ev.py threads --summary --save-dir saves/my-game          # resolution rate, hallucinated threads
+ev.py deltas 7 --save-dir saves/my-game                   # find thread mutations
 ```
 
 **Red flags:**
@@ -235,8 +235,8 @@ ev.py deltas 7 saves/my-game/events.jsonl                   # find thread mutati
 ```bash
 ev.py check 5 pacing_directives --save-dir saves/my-game
 ev.py check 5 beat_phase_validity --save-dir saves/my-game
-ev.py beats saves/my-game/events.jsonl                      # beat type + effect
-ev.py convergence saves/my-game/events.jsonl                # convergence score context
+ev.py beats --save-dir saves/my-game                      # beat type + effect
+ev.py convergence --save-dir saves/my-game                # convergence score context
 ```
 
 > **Note:** `outcome_hint` is rendered in both `narrate_prompt.rendered_user` and `storytell.rendered_user` (in extraction). The `narrate_prompt` is saved at the event level, not in the `extraction` dict. To verify `pacing_context` rendering, check `storytell.rendered_user` in extraction events or `narrate_prompt.rendered_user` at the event level.
@@ -265,7 +265,7 @@ ev.py convergence saves/my-game/events.jsonl                # convergence score 
 ev.py check 5 inventory_integrity conditions_lifecycle --save-dir saves/my-game
 ev.py state --save-dir saves/my-game --format inventory     # current inventory
 ev.py state --save-dir saves/my-game --format conditions    # current conditions
-ev.py deltas 11 saves/my-game/events.jsonl                  # find inventory/condition changes
+ev.py deltas 11 --save-dir saves/my-game                  # find inventory/condition changes
 ```
 
 **Red flags:**
@@ -291,10 +291,10 @@ ev.py deltas 11 saves/my-game/events.jsonl                  # find inventory/con
 ```bash
 ev.py check 5 npc_presence --save-dir saves/my-game
 ev.py check 5 compendium_lifecycle --save-dir saves/my-game
-ev.py diff 3 10 --section npcs saves/my-game/events.jsonl   # NPC changes between turns
-ev.py deltas 8 saves/my-game/events.jsonl                   # find NPC mutations
-ev.py trace compendium.npcs.<name>.notes --show-unchanged saves/my-game/events.jsonl
-ev.py npc-ghosting saves/my-game/events.jsonl               # detect NPC ghosting
+ev.py diff 3 10 --section npcs --save-dir saves/my-game   # NPC changes between turns
+ev.py deltas 8 --save-dir saves/my-game                   # find NPC mutations
+ev.py trace compendium.npcs.<name>.notes --show-unchanged --save-dir saves/my-game
+ev.py npc-ghosting --save-dir saves/my-game               # detect NPC ghosting
 ```
 
 **Red flags:**
@@ -322,7 +322,7 @@ ev.py check 5 location_change --save-dir saves/my-game
 ev.py check 5 location_description_consistency --save-dir saves/my-game
 ev.py state --save-dir saves/my-game --format location      # current location
 ev.py state --save-dir saves/my-game --format scene         # current scene tags
-ev.py diff 5 10 --section location saves/my-game/events.jsonl
+ev.py diff 5 10 --section location --save-dir saves/my-game
 ```
 
 **Red flags:**
@@ -371,8 +371,8 @@ ev.py state --save-dir saves/my-game --format scene         # scene/world_state 
 **Commands:**
 ```bash
 ev.py check 5 sanitizer_lifecycle --save-dir saves/my-game
-ev.py turn 12 saves/my-game/events.jsonl                    # full dump, look for sanitizer events
-ev.py goals saves/my-game/events.jsonl                      # goal changes over time (extraction fallback labeled)
+ev.py turn 12 --save-dir saves/my-game                    # full dump, look for sanitizer events
+ev.py goals --save-dir saves/my-game                      # goal changes over time (extraction fallback labeled)
 ```
 
 **Red flags:**
@@ -395,7 +395,7 @@ ev.py goals saves/my-game/events.jsonl                      # goal changes over 
 
 **Commands:**
 ```bash
-ev.py warnings saves/my-game/events.jsonl
+ev.py warnings --save-dir saves/my-game
 ```
 
 **Red flags:**
@@ -421,7 +421,7 @@ ev.py warnings saves/my-game/events.jsonl
 
 **Commands:**
 ```bash
-ev.py prompt-sizes saves/my-game/events.jsonl
+ev.py prompt-sizes --save-dir saves/my-game
 ```
 
 **Red flags:**
@@ -461,26 +461,26 @@ ev.py check 5 ruling_intent_match --llm --save-dir saves/my-game
 
 | If you want... | Command |
 |---|---|
-| Phase trajectory | `ev.py trace scene_phase saves/my-game/events.jsonl` |
-| Convergence score + components | `ev.py convergence saves/my-game/events.jsonl` |
-| Convergence score (retro-computed) | `ev.py convergence --estimate saves/my-game/events.jsonl` |
-| Convergence by scene | `ev.py convergence --by-scene saves/my-game/events.jsonl` |
-| Phase transitions with triggers | `ev.py phase-transitions saves/my-game/events.jsonl` |
-| Phase transitions by scene | `ev.py phase-transitions --by-scene saves/my-game/events.jsonl` |
-| Curtain Call compliance | `ev.py curtain-call saves/my-game/events.jsonl` |
-| Curtain Call by scene | `ev.py curtain-call --by-scene saves/my-game/events.jsonl` |
-| Beat type over time | `ev.py beats saves/my-game/events.jsonl` |
-| Roll bands per turn | `ev.py rolls saves/my-game/events.jsonl` |
-| Roll band distribution | `ev.py rolls --summary saves/my-game/events.jsonl` |
-| Thread mutations | `ev.py deltas <N> saves/my-game/events.jsonl` |
-| Thread resolution summary | `ev.py threads --summary saves/my-game/events.jsonl` |
-| NPC changes between turns | `ev.py diff 3 10 --section npcs saves/my-game/events.jsonl` |
+| Phase trajectory | `ev.py trace scene_phase --save-dir saves/my-game` |
+| Convergence score + components | `ev.py convergence --save-dir saves/my-game` |
+| Convergence score (retro-computed) | `ev.py convergence --estimate --save-dir saves/my-game` |
+| Convergence by scene | `ev.py convergence --by-scene --save-dir saves/my-game` |
+| Phase transitions with triggers | `ev.py phase-transitions --save-dir saves/my-game` |
+| Phase transitions by scene | `ev.py phase-transitions --by-scene --save-dir saves/my-game` |
+| Curtain Call compliance | `ev.py curtain-call --save-dir saves/my-game` |
+| Curtain Call by scene | `ev.py curtain-call --by-scene --save-dir saves/my-game` |
+| Beat type over time | `ev.py beats --save-dir saves/my-game` |
+| Roll bands per turn | `ev.py rolls --save-dir saves/my-game` |
+| Roll band distribution | `ev.py rolls --summary --save-dir saves/my-game` |
+| Thread mutations | `ev.py deltas <N> --save-dir saves/my-game` |
+| Thread resolution summary | `ev.py threads --summary --save-dir saves/my-game` |
+| NPC changes between turns | `ev.py diff 3 10 --section npcs --save-dir saves/my-game` |
 | Inventory snapshot | `ev.py state --save-dir saves/my-game --format inventory` |
-| Full mechanics breakdown | `ev.py mechanics 12 --pacing --dice saves/my-game/events.jsonl` |
-| Warning signals | `ev.py warnings saves/my-game/events.jsonl` |
-| Token size analysis | `ev.py prompt-sizes saves/my-game/events.jsonl` |
+| Full mechanics breakdown | `ev.py mechanics 12 --pacing --dice --save-dir saves/my-game` |
+| Warning signals | `ev.py warnings --save-dir saves/my-game` |
+| Token size analysis | `ev.py prompt-sizes --save-dir saves/my-game` |
 | All checkers (summary) | `ev.py check --all --save-dir saves/my-game` |
 | All checkers (detailed) | `ev.py check --all --verbose --save-dir saves/my-game` |
 | List checkers (no events) | `ev.py check --list` |
 | Single checker on single turn | `ev.py check 5 gm_beat_lifecycle --save-dir saves/my-game` |
-| Goal changes over time | `ev.py goals saves/my-game/events.jsonl` |
+| Goal changes over time | `ev.py goals --save-dir saves/my-game` |

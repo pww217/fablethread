@@ -70,9 +70,8 @@ run:
 .venv/bin/python scripts/debug/ev.py check --all \
     --save-dir evals/runs/latest
 
-# Generate eval report
-.venv/bin/python scripts/debug/ev.py check --all \
-    --save-dir evals/runs/latest --report results.md
+# Generate report from eval run (not from check)
+.venv/bin/python scripts/debug/ev.py eval run <scenario.yaml> --auto-report
 ```
 
 ## Generating reports
