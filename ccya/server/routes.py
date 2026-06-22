@@ -150,9 +150,11 @@ def _list_saves() -> list[dict[str, Any]]:
                     for line in f:
                         line = line.strip()
                         if line:
-                            turn_count += 1
                             try:
                                 evt = json.loads(line)
+                                if evt.get("kind") == "sanitizer":
+                                    continue
+                                turn_count += 1
                                 if evt.get("ts"):
                                     last_modified = evt.get("ts")
                             except json.JSONDecodeError:

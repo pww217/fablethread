@@ -96,7 +96,7 @@ def load_last_narration(
 
 
 def remove_last_event(save_dir: Path) -> bool:
-    """Remove the last line from events.jsonl. Returns True if a line was removed."""
+    """Remove the last turn's events from events.jsonl (including sanitizer events for that turn)."""
     path = save_dir / "events.jsonl"
     if not path.exists():
         _log.debug("remove_last_event path=%s not found", path)
@@ -105,7 +105,31 @@ def remove_last_event(save_dir: Path) -> bool:
     lines = [line for line in lines if line.strip()]
     if not lines:
         return False
-    lines = lines[:-1]
+    # Parse the last event to get its turn number
+    import json
+    try:
+        last_event = json.loads(lines[-1])
+    except json.JSONDecodeError:
+        # If we can't parse it, fall back to removing just the last line
+        lines = lines[:-1]
+        path.write_text("\n".join(lines) + "\n" if lines else "")
+        _log.debug("remove_last_event path=%s removed=True (fallback)", path)
+        return True
+    last_turn = last_event.get("turn")
+    # Remove all events matching the last turn number
+    if last_turn is not None:
+        kept = []
+        for line in lines:
+            try:
+                ev = json.loads(line)
+                if ev.get("turn") == last_turn:
+                    continue
+            except json.JSONDecodeError:
+                pass
+            kept.append(line)
+        lines = kept
+    else:
+        lines = lines[:-1]
     path.write_text("\n".join(lines) + "\n" if lines else "")
     _log.debug("remove_last_event path=%s removed=True", path)
     return True

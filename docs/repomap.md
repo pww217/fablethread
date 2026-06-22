@@ -29,7 +29,7 @@
 | `ccya/state/delta.py` | apply_delta(), reconcile_delta() — condition/inventory dedup |
 | `ccya/state/inventory.py` | Inventory ID normalization + fuzzy matching |
 | `ccya/state/npcs.py` | NPC alias map, compendium LRU, scene management |
-| `ccya/state/chronicle.py` | Append events.jsonl, chronicle.md, load_last_narration() |
+| `ccya/state/chronicle.py` | Append events.jsonl, chronicle.md, load_last_narration(), remove_last_event() (removes all events for last turn number including sanitizer events) |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR |
 | `ccya/server/app.py` | FastAPI bootstrap, Jinja env, startup event, error persistence |
 | `ccya/server/routes.py` | All @app.get / @app.post route handlers; panel builders; save switching |
