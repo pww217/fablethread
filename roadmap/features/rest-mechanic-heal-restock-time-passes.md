@@ -2,7 +2,7 @@
 title: "[Storytell] Rest mechanic (heal, restock, time passes)"
 status: idea
 urgency: 3
-size: unknown
+size: medium
 created: 2026-06-11
 labels:
   - Feature

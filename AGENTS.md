@@ -81,7 +81,8 @@ source of truth.
 - `roadmap/bugs/<slug>.md` — one file per bug
 - `roadmap/features/<slug>.md` — one file per feature/improvement/moonshot
 - `roadmap/archive/` — completed or canceled items
-- `roadmap/index.md` — auto-generated TOC (via `make roadmap`)
+- `roadmap/index.md` — auto-generated active TOC (via `make roadmap`)
+- `roadmap/archive-index.md` — auto-generated archive TOC (via `make roadmap`)
 
 Status lifecycles (different for bugs vs features):
 - **Bugs:** `new` → `validated` → `done` (or `canceled` at any point)

@@ -2,7 +2,7 @@
 title: "[Tech Debt] Stale documentation sweep"
 status: scoping
 urgency: 4
-size: unknown
+size: small
 created: 2026-06-14
 labels:
   - Feature

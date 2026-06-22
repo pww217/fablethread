@@ -2,7 +2,7 @@
 title: "[Storytell] Karma system for player reputation"
 status: idea
 urgency: 4
-size: unknown
+size: large
 created: 2026-06-11
 labels:
   - Feature
