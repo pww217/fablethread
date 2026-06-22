@@ -29,6 +29,17 @@ class ArcThread(BaseModel):
     dormant: bool = False
     urgency: Literal["background", "normal", "urgent"] = "normal"
     type: Literal["threat", "opportunity", "complication", "revelation"] | None = None
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def _coerce_arc_thread_type(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            v = v.lower()
+        valid_types = {"threat", "opportunity", "complication", "revelation"}
+        if isinstance(v, str) and v not in valid_types:
+            return None
+        return v
+
     progress: list[ProgressEntry] = Field(default_factory=list)
     resolution_state: str | None = None
     outcome: str | None = None
