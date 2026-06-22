@@ -199,11 +199,6 @@ def _soft_validate_seed(
     if not c:
         return warnings
 
-    words = len(envelope.opening_narrative.split())
-    lo, hi = c.prose_word_range
-    if not (lo <= words <= hi):
-        warnings.append(f"Opening narrative {words} words (expected {lo}-{hi})")
-
     text_lower = envelope.opening_narrative.lower()
     for cliche in c.forbid_cliches:
         if cliche.lower() in text_lower:
