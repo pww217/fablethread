@@ -2,7 +2,7 @@
 title: "Threads as fact sheet + objectives, multiple arcs"
 status: idea
 urgency: 4
-size: unknown
+size: large
 created: 2026-06-14
 labels:
   - Feature

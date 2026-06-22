@@ -2,7 +2,7 @@
 title: "[NPC] Party designation"
 status: idea
 urgency: 4
-size: unknown
+size: medium
 created: 2026-06-14
 labels:
   - Improvement

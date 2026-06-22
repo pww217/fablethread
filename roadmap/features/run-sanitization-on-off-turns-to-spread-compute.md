@@ -2,7 +2,7 @@
 title: "[Storytell] Run sanitization on off turns to spread compute"
 status: idea
 urgency: 3
-size: unknown
+size: small
 created: 2026-06-12
 labels:
   - Improvement

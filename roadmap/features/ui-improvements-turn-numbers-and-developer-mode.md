@@ -2,7 +2,7 @@
 title: "[UI] UI improvements turn numbers and developer mode"
 status: scoping
 urgency: 4
-size: unknown
+size: medium
 created: 2026-06-11
 labels:
   - Improvement

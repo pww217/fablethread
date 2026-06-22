@@ -2,7 +2,7 @@
 title: "[Storytell] Proactive NPC agency + GM beats redesign"
 status: idea
 urgency: 4
-size: unknown
+size: xlarge
 created: 2026-06-11
 labels:
   - Feature

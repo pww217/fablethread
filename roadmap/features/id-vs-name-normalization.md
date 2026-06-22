@@ -2,7 +2,7 @@
 title: "[State] ID vs name normalization"
 status: scoping
 urgency: 4
-size: unknown
+size: medium
 created: 2026-06-14
 labels:
   - Feature

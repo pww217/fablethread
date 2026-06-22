@@ -2,7 +2,7 @@
 title: "[Infra] Better names and location names"
 status: idea
 urgency: 3
-size: unknown
+size: small
 created: 2026-06-14
 labels:
   - Improvement

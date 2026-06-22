@@ -2,7 +2,7 @@
 title: "[Balancing] Charisma bias in rulings — analyze ratio"
 status: scoping
 urgency: 3
-size: unknown
+size: small
 created: 2026-06-12
 labels:
   - Improvement

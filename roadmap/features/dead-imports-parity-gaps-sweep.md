@@ -2,7 +2,7 @@
 title: "[Tech Debt] Dead imports / parity gaps sweep"
 status: scoping
 urgency: 4
-size: unknown
+size: medium
 created: 2026-06-14
 labels:
   - Improvement
