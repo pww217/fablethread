@@ -25,4 +25,4 @@ Key modules:
 
 **prompt-eval:** Two subcommands — `dump` renders prompts from event data (no LLM), `call` renders + LLM + check. LLM calls take ~65s for full storytell prompts. Use `dump` for template iteration.
 
-**Reports:** Eval reports (from `ev.py eval run` with `--auto-report` or `--report`) go into `evals/reports/`. The report filename must match the run directory name exactly (e.g., run `evals/runs/2026-06-21_noir-1930s_a1b2c3d4/0930_noir-1930s_aggressive_10t/` → report `evals/reports/0930_noir-1930s_aggressive_10t.md`).
+**Reports:** Per-run reports (`report.md`) are written inside each run directory (`evals/runs/<group>/<run>/report.md`) when `--auto-report` or `--report` is used. Group-level consolidated reports (`REPORT.md`) are written at the group directory level (`evals/runs/<group>/REPORT.md`). Only reports are gittracked; run data (events, state, chronicle, metadata) is gitignored.

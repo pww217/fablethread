@@ -2,27 +2,41 @@
 
 Save directories for automated/CI evals live in `evals/runs/`. (Web UI saves remain in `saves/`.)
 
+Run data (events, state, chronicle, metadata) is gitignored. Reports (group-level `REPORT.md` and per-run `report.md`) are gittracked.
+
 ## Directory layout
 
 ```
 evals/runs/
+├── .gitkeep
 ├── 2026-06-16_fix-pack-loading_a1b2c3d4/
+│   ├── .gitkeep
+│   ├── REPORT.md                          ← group-level consolidated report (gittracked)
 │   ├── 0930_noir-1930s_aggressive_10t/
-│   │   ├── events.jsonl
-│   │   ├── state.yaml
-│   │   ├── ev.yaml
-│   │   └── run-meta.yaml
+│   │   ├── .gitkeep
+│   │   ├── report.md                      ← per-run report (gittracked, optional)
+│   │   ├── events.jsonl                   ← gitignored
+│   │   ├── prompts.jsonl                  ← gitignored
+│   │   ├── state.yaml                     ← gitignored
+│   │   ├── chronicle.md                   ← gitignored
+│   │   └── run-meta.yaml                  ← gitignored
 │   └── 0945_zombie-survival_explorer_5t/
-│       ├── events.jsonl
+│       ├── .gitkeep
+│       ├── report.md
 │       └── ...
 ├── 2026-06-17_arc-refactor_e5f6g7h8/
 │   └── ...
 └── latest -> 2026-06-17_arc-refactor_e5f6g7h8/0930_noir-1930s_aggressive_10t/
 ```
 
+## Report files
+
+- **`REPORT.md`** (group-level): Written at the group directory level (`evals/runs/<group>/REPORT.md`). Contains a consolidated report for all runs in the group.
+- **`report.md`** (per-run): Written inside each run directory (`evals/runs/<group>/<run>/report.md`). Optional — only generated if the user requests a per-run report (via `--auto-report` or `--report`).
+
 ## Run metadata (`run-meta.yaml`)
 
-Auto-generated on `play --llm` or `play` with a pack:
+Auto-generated on `play --llm` or `play` with a pack (gitignored):
 
 ```yaml
 run:
@@ -63,13 +77,18 @@ run:
 
 ## Generating reports
 
-Eval reports are rendered from `evals/ev-tooling/templates/report.md.j2`. The template groups checkers by rubric area. Rubric section numbers map to the corresponding checker lists for focused evals.
-
 ```bash
-# Focused eval: only rubric area 3 (Inventory)
-.venv/bin/python scripts/debug/ev.py check --rubric 3 \
-    --save-dir evals/runs/latest
+# Per-run report (auto after eval run)
+.venv/bin/python scripts/debug/ev.py eval run <scenario.yaml> --auto-report
+
+# Per-run report (explicit path)
+.venv/bin/python scripts/debug/ev.py eval run <scenario.yaml> --report report.md
+
+# Per-run report (play mode)
+.venv/bin/python scripts/debug/ev.py play --llm --turns 10 --pack noir-1930s --auto-report
 ```
+
+Reports are rendered from `evals/ev-tooling/templates/report.md.j2`. The template groups checkers by rubric area. Rubric section numbers map to the corresponding checker lists for focused evals.
 
 ## Viewing in web UI
 
@@ -93,26 +112,33 @@ for pack in noir-1930s zombie-survival fantasy-quest; do
     .venv/bin/python scripts/debug/ev.py play --llm --turns 10 \
       --pack "$pack" --personality "$persona"
     .venv/bin/python scripts/debug/ev.py check --all \
-      --save-dir evals/runs/latest --report \
-      "evals/reports/${run_dir_name}.md"
+      --save-dir evals/runs/latest
   done
 done
-
-# Load a run in the UI
-# → localhost:8765, check "Show eval runs", select from dropdown
 ```
+
+## Git tracking
+
+Only reports are gittracked:
+- `evals/runs/.gitkeep` (directory placeholder)
+- `evals/runs/<group>/.gitkeep` (directory placeholder)
+- `evals/runs/<group>/REPORT.md` (group-level consolidated report)
+- `evals/runs/<group>/<run>/.gitkeep` (directory placeholder)
+- `evals/runs/<group>/<run>/report.md` (per-run report, optional)
+
+Everything else (events.jsonl, prompts.jsonl, state.yaml, chronicle.md, run-meta.yaml) is gitignored.
 
 ## Comparison with saves/
 
 | Aspect | `saves/` | `evals/runs/` |
 |--------|----------|---------------|
 | Created by | Web UI gameplay | CLI/ev.py play/prompt-eval |
-| Naming | User chooses | Auto: `{timestamp}_{tag}_{sha:8}` (run: `{HHMM}_{pack}_{persona}_{turns}t`) |
-| Metadata | No | `run-meta.yaml` |
+| Naming | User chooses | Auto: `{YYYY-MM-DD}_{tag}_{sha:8}` (run: `{HHMM}_{pack}_{persona}_{turns}t`) |
+| Metadata | No | `run-meta.yaml` (gitignored) |
 | Turn count | Unlimited | Fixed (`--turns N`) |
 | Checkers | Manual | Auto with `--eval` flag |
 | Web UI visibility | Always | Only with "Show eval runs" checked |
-| Git-tracked | No (gitignored) | `ev-tooling/` tracked, `runs/` not |
+| Git-tracked | No (gitignored) | Reports only (`.gitkeep`, `REPORT.md`, `report.md`) |
 
 ## Future work
 

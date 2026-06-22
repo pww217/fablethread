@@ -398,7 +398,7 @@ def cmd_eval_run(
         report_text = template.render(**report_ctx)
 
         if auto_report:
-            report_path = session_dir / "CONSOLIDATED-REPORT.md"
+            report_path = session_dir / "report.md"
             report_path.write_text(report_text)
             _log.info("eval: auto report written to %s", report_path)
             print(f"Report written to {report_path}")
