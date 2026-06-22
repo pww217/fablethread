@@ -28,6 +28,22 @@ def append_event(save_dir: Path, event: dict[str, Any]) -> None:
         )
 
 
+def append_prompts(save_dir: Path, prompts: list[dict[str, Any]]) -> None:
+    path = save_dir / "prompts.jsonl"
+    _log.debug("append_prompts path=%s count=%d", path, len(prompts))
+    try:
+        save_dir.mkdir(parents=True, exist_ok=True)
+        with open(path, "a") as f:
+            for p in prompts:
+                f.write(json.dumps(p, default=str) + "\n")
+    except Exception as e:
+        _log.error(
+            "PROMPTS_APPEND_FAILED path=%s error=%s",
+            path, e,
+            extra={"error_kind": "PROMPTS_APPEND_FAILED"},
+        )
+
+
 def append_chronicle(save_dir: Path, text: str) -> None:
     path = save_dir / "chronicle.md"
     _log.debug("append_chronicle path=%s chars=%d", path, len(text))

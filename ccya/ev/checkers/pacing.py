@@ -4,20 +4,25 @@ import logging
 import re
 from typing import Any
 
+from ccya.engine.config import _build_jinja_env, _render
 from ccya.ev.checkers import CheckerResult, register_checker
 from ccya.ev.events import extract_field
+from ccya.ev.prompt_context import build_prompt_context
 
 _log = logging.getLogger(__name__)
+
+_TEMPLATE_DIR = "ccya/prompts"
 
 
 @register_checker(
     "pacing_directives", "deterministic",
-    requires_fields=["ruling", "narrate_prompt"],
+    requires_fields=["ruling", "pacing_context"],
     description="Directive rendering, known values",
 )
 def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
+    env = _build_jinja_env(_TEMPLATE_DIR)
 
     for ev in events:
         # outcome_hint rendered
@@ -25,20 +30,27 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
         outcome_hint = pacing_ctx.get("outcome_hint")
 
         if outcome_hint:
-            narr_user = (extract_field(ev, "narrate_prompt") or {}).get("rendered_user") or ""
+            turn = ev.get("turn")
+            if turn is None:
+                continue
+            ctx = build_prompt_context(events, turn, "narrate")
+            narr_user = _render(env, "narrate_user.j2", ctx)
             if f"**Outcome:** {outcome_hint}" not in narr_user:
                 findings.append({
-                    "turn": ev.get("turn"),
+                    "turn": turn,
                     "check": "outcome_hint_rendered",
                     "detail": f"outcome_hint '{outcome_hint}' not found in narrate user prompt",
                 })
                 all_passed = False
 
         # directive rendered storytell
-        storytell_level = (extract_field(ev, "extraction") or {}).get("storytell") or {}
         directive_value = pacing_ctx.get("directive", "")
         if directive_value:
-            storytell_rendered = storytell_level.get("rendered_user") or ""
+            turn = ev.get("turn")
+            if turn is None:
+                continue
+            ctx = build_prompt_context(events, turn, "storytell")
+            storytell_rendered = _render(env, "storytell_user.j2", ctx)
             if not storytell_rendered:
                 # extraction failed — can't validate rendering
                 pass
@@ -48,15 +60,20 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
                 )
                 if not _directive_re.search(storytell_rendered):
                     findings.append({
-                        "turn": ev.get("turn"),
+                        "turn": turn,
                         "check": "directive_rendered",
                         "detail": f"computed directive '{directive_value}' not found in storytell user prompt",
                     })
                     all_passed = False
 
         # no removed directives
-        narr_user = (extract_field(ev, "narrate_prompt") or {}).get("rendered_user") or ""
-        storytell_rendered = storytell_level.get("rendered_user") or ""
+        turn = ev.get("turn")
+        if turn is None:
+            continue
+        ctx_narr = build_prompt_context(events, turn, "narrate")
+        ctx_storytell = build_prompt_context(events, turn, "storytell")
+        narr_user = _render(env, "narrate_user.j2", ctx_narr)
+        storytell_rendered = _render(env, "storytell_user.j2", ctx_storytell)
 
         removed_directives = [
             (r"\bOverwhelm\b", "Overwhelm"),
@@ -72,7 +89,7 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
                 found_removed.append(f"{name} (storytell)")
         if found_removed:
             findings.append({
-                "turn": ev.get("turn"),
+                "turn": turn,
                 "check": "no_removed_directives",
                 "detail": f"Removed directives found: {'; '.join(found_removed)}",
             })

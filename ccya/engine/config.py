@@ -95,6 +95,15 @@ async def await_turn_done(save_dir: str, timeout: float = 30.0) -> bool:
 
 
 @dataclass
+class CheckerConfig:
+    min_reason_words: int = 3
+    band_skew_ratio: float = 0.8
+    location_min_sentences: int = 1
+    location_min_words: int = 15
+    world_state_fact_min_chars: int = 10
+
+
+@dataclass
 class EngineConfig:
     # DURABILITY PATTERNS — how each field is consumed at runtime:
     #
@@ -184,6 +193,9 @@ class EngineConfig:
     departed_archive_ttl: int = 3  # turns as "departed" before → archived
 
     debug_mode: bool = False
+
+    # Checker thresholds
+    checkers: CheckerConfig = field(default_factory=CheckerConfig)
 
     def _resolve_difficulty_modifiers(self) -> dict[str, int]:
         curves = {
@@ -296,6 +308,21 @@ def build_engine_config(
         ),
 
         debug_mode=bool(game.get("debug", {}).get("enabled", False)),
+
+        checkers=_build_checkers_config(cfg),
+    )
+
+
+def _build_checkers_config(cfg: dict[str, Any]) -> CheckerConfig:
+    checkers_raw = cfg.get("checkers") or {}
+    if not isinstance(checkers_raw, dict):
+        checkers_raw = {}
+    return CheckerConfig(
+        min_reason_words=int(checkers_raw.get("min_reason_words", 3)),
+        band_skew_ratio=float(checkers_raw.get("band_skew_ratio", 0.8)),
+        location_min_sentences=int(checkers_raw.get("location_min_sentences", 1)),
+        location_min_words=int(checkers_raw.get("location_min_words", 15)),
+        world_state_fact_min_chars=int(checkers_raw.get("world_state_fact_min_chars", 10)),
     )
 
 

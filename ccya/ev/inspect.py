@@ -14,7 +14,20 @@ from ccya.ev.events import (
 )
 
 
-def extract_prompt(ev: dict[str, Any], stream: str) -> dict[str, str]:
+def extract_prompt(
+    ev: dict[str, Any],
+    stream: str,
+    prompts: list[dict[str, Any]] | None = None,
+) -> dict[str, str]:
+    turn = ev.get("turn")
+    if prompts is not None and turn is not None:
+        for p in prompts:
+            if p.get("turn") == turn and p.get("stream") == stream:
+                return {
+                    "system": p.get("rendered_system") or "",
+                    "user": p.get("rendered_user") or "",
+                    "output": "",
+                }
     if stream == "ruling":
         blob = ev.get("ruling_prompt") or {}
     elif stream == "narrate":

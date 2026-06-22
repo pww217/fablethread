@@ -32,6 +32,26 @@ def load_events(path: Path) -> list[dict[str, Any]]:
     return events
 
 
+def load_prompts(save_dir: Path) -> list[dict[str, Any]]:
+    path = save_dir / "prompts.jsonl"
+    if not path.exists():
+        return []
+    text = path.read_text().strip()
+    if not text:
+        return []
+    prompts = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line:
+            try:
+                parsed = json.loads(line)
+                if isinstance(parsed, dict):
+                    prompts.append(parsed)
+            except json.JSONDecodeError:
+                continue
+    return prompts
+
+
 def filter_turn_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [ev for ev in events if ev.get("kind", "turn") == "turn"]
 

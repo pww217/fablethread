@@ -210,9 +210,12 @@ Both checkers will need access to the Jinja2 environment. This can be done by im
 ```
 Engine (turn.py + pipeline.py)
       │
-      ├── append_event(save_dir, event) ──────► events.jsonl  (no rendered prompts)
-      │
-      └── append_event(save_dir, prompt_entry) ──► prompts.jsonl  (rendered prompts only)
+      └── append_event(save_dir, event, prompts=None)
+          │
+          ├── writes event to events.jsonl  (no rendered prompts)
+          │
+          └── if prompts is not None:
+              writes prompt_entry to prompts.jsonl
 
 EV Tooling / Checkers
       │
@@ -327,9 +330,9 @@ Turn Viewer
 
 ## Context for Implementation
 
-- `ccya/engine/turn.py` — Lines 215-222 (extraction_event narrate), 409-421 (ruling_prompt, narrate_prompt). Primary write path for ruling and narrate prompts, plus duplicate narrate storage in extraction_event.
-- `ccya/engine/extraction/pipeline.py` — Lines 88, 133, 260. Write paths for scene/state/storytell prompts in extraction_event.
-- `ccya/state/chronicle.py` — `append_event()` function. Needs a second call path for `prompts.jsonl`, or a new `append_prompt_event()` function.
+- `ccya/engine/turn.py` — Lines 215-222 (extraction_event narrate with rendered_system/rendered_user), 409-421 (ruling_prompt at 409-415, narrate_prompt at 416-421). Primary write path for ruling and narrate prompts, plus duplicate narrate storage in extraction_event.
+- `ccya/engine/extraction/pipeline.py` — Lines 88-89 (scene rendered_system/rendered_user), 133-134 (state rendered_system/rendered_user), 258-259 (storytell rendered_system/rendered_user). Write paths for scene/state/storytell prompts in extraction_event.
+- `ccya/state/chronicle.py` — `append_event()` function. Add an optional `prompts: list[dict] | None` parameter. When provided, write prompt entries to `prompts.jsonl` in the same file-handle session.
 - `ccya/ev/prompt_eval.py` — Lines 332-343 (`cmd_prompt_eval_dump`), 396-405 (`cmd_prompt_eval_call`). Reads `rendered_system`/`rendered_user` from events when `--from-events` is set. Needs to be changed to read from `prompts.jsonl` instead.
 - `ccya/ev/inspect.py` — Lines 36-37. `extract_prompt()` reads `rendered_system`/`rendered_user` from event blobs. Needs a `prompts.jsonl` load path.
 - `ccya/server/tv.py` — Lines 525-526. Turn Viewer reads `rendered_system`/`rendered_user` from event prompt blobs. Needs a `prompts.jsonl` load path.

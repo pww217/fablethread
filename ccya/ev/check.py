@@ -14,11 +14,12 @@ _log = logging.getLogger(__name__)
 
 # Checker domain groupings for summary output
 _CHECKER_DOMAINS: dict[str, list[str]] = {
-    "Pacing": ["pacing_directives", "phase_transition", "phase_persistence", "scene_age_tracking", "climax_turn_counting", "breather_enforcement", "roll_band_consistency"],
+    "Pacing": ["pacing_directives", "phase_transition", "climax_turn_counting", "breather_enforcement", "roll_band_consistency", "convergence_components"],
     "Threads": ["thread_lifecycle", "sanitizer_lifecycle", "thread_resolution_validity", "new_thread_validity", "arc_resolution_validity"],
-    "Beats": ["gm_beat_lifecycle", "beat_phase_validity", "recent_beats"],
+    "Beats": ["gm_beat_lifecycle", "beat_phase_validity"],
     "Goals": ["arc_goal_updates", "goal_update_validity"],
-    "State": ["location_change", "inventory_integrity", "conditions_lifecycle", "npc_presence", "compendium_lifecycle", "action_quality"],
+    "State": ["location_change", "inventory_integrity", "conditions_lifecycle", "npc_presence", "compendium_lifecycle", "location_description_consistency", "world_state_facts"],
+    "Ruling": ["ruling_reason_quality", "ruling_band_distribution", "ruling_intent_match"],
 }
 
 def _get_domain(checker_id: str) -> str:
@@ -38,6 +39,7 @@ def cmd_check(
     checker_model: str | None = None,
     list_only: bool = False,
     verbose: bool = False,
+    pack_dir: Path | None = None,
 ) -> None:
     if list_only:
         _print_checker_list()
@@ -65,6 +67,11 @@ def cmd_check(
             user_cfg = load_user_config()
             if user_cfg.ev.checker_model:
                 raw_cfg.setdefault("llm", {})["model"] = user_cfg.ev.checker_model
+        if pack_dir is not None:
+            from ccya.pack import load_pack
+            pack = load_pack(str(pack_dir.name), pack_dir.parent)
+            if pack.manifest.checkers:
+                raw_cfg.setdefault("checkers", {}).update(pack.manifest.checkers)
         config = build_engine_config(raw_cfg)
         set_checker_config(config)
         try:

@@ -336,16 +336,16 @@ def _create_play_session(
 ) -> Path:
     now = datetime.now()
 
-    # Build grouping dir: YYYY-MM-DD--{tag}--{sha8}
+    # Build grouping dir: YYYY-MM-DD_{tag}_{sha8}
     git = _get_git_info()
     tag = str(git["git_tag"])
     sha = str(git["git_sha"])
-    group_name = now.strftime("%Y-%m-%d") + f"--{tag}--{sha}"
+    group_name = now.strftime("%Y-%m-%d") + f"_{tag}_{sha}"
 
-    # Build run dir: HHMM--{pack}--{persona}--{max_turns}t
+    # Build run dir: HHMM_{pack}_{persona}_{max_turns}t
     pack_label = pack or "unknown"
     persona_label = personality or "unknown"
-    run_name = now.strftime("%H%M") + f"--{pack_label}--{persona_label}--{max_turns}t"
+    run_name = now.strftime("%H%M") + f"_{pack_label}_{persona_label}_{max_turns}t"
 
     group_dir = EV_SAVES_DIR / group_name
     session_dir = group_dir / run_name
@@ -485,6 +485,8 @@ def _llm_session(
     eval_: bool = False,
     until_error: bool = False,
     save_dir: Path | None = None,
+    auto_report: bool = False,
+    llm_checkers: bool = False,
 ) -> None:
     _, name_locales, narrator_rules, world_rules, factions, _, style = _load_pack_params(pack)
 
@@ -593,10 +595,59 @@ def _llm_session(
         print()
         print("Running checkers on all turns...")
         from ccya.ev.events import load_events
-        from ccya.ev.check import cmd_check
+        from ccya.ev.checkers import CheckerResult, list_checkers, run_checkers
+        from ccya.ev.eval import _store_checker_warnings, _build_rubric_areas, _compute_pass_rate
 
         events = load_events(save_dir / "events.jsonl")
-        cmd_check(events, all_checkers=True, save_dir=save_dir)
+
+        runner_checkers = [m["id"] for m in list_checkers(checker_type="deterministic")]
+        checker_results: dict[str, CheckerResult] = run_checkers(runner_checkers, events, save_dir=save_dir)
+
+        if llm_checkers:
+            llm_checker_ids = [m["id"] for m in list_checkers(checker_type="llm")]
+            llm_results = run_checkers(llm_checker_ids, events, save_dir=save_dir)
+            checker_results.update(llm_results)
+
+        _store_checker_warnings(checker_results, events, save_dir)
+
+        if auto_report:
+            rubric_areas = _build_rubric_areas(checker_results)
+            pass_rate = _compute_pass_rate(checker_results)
+            report_path = save_dir / "CONSOLIDATED-REPORT.md"
+            from jinja2 import Environment, FileSystemLoader
+            from datetime import datetime, timezone
+            template_dir = Path("evals/ev-tooling/templates")
+            env = Environment(loader=FileSystemLoader(str(template_dir)), keep_trailing_newline=True)
+            template = env.get_template("report.md.j2")
+            git_sha = "unknown"
+            git_branch = "unknown"
+            try:
+                import subprocess
+                git_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()[:7]
+            except Exception:
+                pass
+            try:
+                import subprocess
+                git_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()
+            except Exception:
+                pass
+            report_ctx = {
+                "pack": pack or "unknown",
+                "personality": personality or "unknown",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "git_sha": git_sha,
+                "git_branch": git_branch,
+                "actual_turns": turns_played,
+                "max_turns": max_turns,
+                "duration_ms": 0,
+                "pass_rate": pass_rate,
+                "rubric_areas": rubric_areas,
+                "prev_run": None,
+                "pass_rate_delta": 0.0,
+            }
+            report_content = template.render(**report_ctx)
+            report_path.write_text(report_content)
+            print(f"Report written to {report_path}")
 
 
 def _print_missing_pack_error(flags: dict[str, str]) -> None:
@@ -668,6 +719,8 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
             eval_="eval" in flags,
             until_error="until-error" in flags,
             save_dir=save_dir if "resume" in flags else None,
+            auto_report="auto-report" in flags,
+            llm_checkers="llm-checkers" in flags,
         )
         sys.exit(0)
 

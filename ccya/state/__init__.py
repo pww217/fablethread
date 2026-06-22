@@ -3,6 +3,7 @@
 from ccya.state.chronicle import (
     append_chronicle,
     append_event,
+    append_prompts,
     load_last_narration,
     load_recent_turns,
     remove_last_chronicle_turn,
@@ -29,6 +30,7 @@ from ccya.state.npcs import (
 __all__ = [
     "append_chronicle",
     "append_event",
+    "append_prompts",
     "apply_delta",
     "build_npc_alias_map",
     "init_save_dir",

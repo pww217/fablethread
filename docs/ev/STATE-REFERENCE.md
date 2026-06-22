@@ -61,7 +61,7 @@ for ev in events:
     "climax_turn_count": int,      # Turns spent in CLIMAX
     "breather_turn_count": int,    # Turns spent in BREATHER
     "convergence_score": int,      # 0-5, for RISING→CLIMAX transition
-    "convergence_components": dict, # Breakdown of convergence score
+    "convergence_components": dict, # 5 sub-keys: urgent_thread, threat_thread, scene_age, beat_streak, dice_weight
 }
 ```
 

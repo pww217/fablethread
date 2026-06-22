@@ -39,7 +39,7 @@ def _resolve_stream(name: str) -> str:
 
 def _strip_flags(args: list[str]) -> tuple[dict[str, str], list[str]]:
     # Boolean flags that don't take values
-    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact", "list", "verbose", "summary", "estimate", "include-compaction", "user-only"}
+    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact", "list", "verbose", "summary", "estimate", "include-compaction", "user-only", "auto-report", "llm-checkers"}
     flags: dict[str, str] = {}
     positional: list[str] = []
     i = 0
@@ -294,7 +294,7 @@ def main() -> None:
             from ccya.ev.checkers import list_checkers
 
             if "help" in flags:
-                print("Usage: ev.py check TURN [CHECKER_ID ...] [--all] [--llm] [--checker-model MODEL] [--save-dir PATH]")
+                print("Usage: ev.py check TURN [CHECKER_ID ...] [--all] [--llm] [--checker-model MODEL] [--save-dir PATH] [--pack PATH]")
                 print("       ev.py check --list")
                 print("\nRun checkers against existing events.")
                 print("\nFlags:")
@@ -302,6 +302,7 @@ def main() -> None:
                 print("  --llm              Include LLM-based checkers")
                 print("  --checker-model    Override checker model name")
                 print("  --save-dir         Path to save directory (needed for sanitizer_lifecycle)")
+                print("  --pack             Path to pack directory for checker config overrides")
                 print("  --list             List all registered checkers (no events loaded)")
                 print("  --verbose          Show per-checker detail in summary mode")
                 print("\nRegistered checkers:")
@@ -327,7 +328,8 @@ def main() -> None:
 
             check_save_dir: Path | None = Path(flags["save-dir"]) if "save-dir" in flags else None
             checker_model = flags.get("checker-model")
-            cmd_check(events, turn=check_turn, checker_ids=check_ids, all_checkers=check_all, include_llm=check_llm, save_dir=check_save_dir, checker_model=checker_model, list_only=check_list, verbose=check_verbose)
+            pack_dir: Path | None = Path(flags["pack"]) if "pack" in flags else None
+            cmd_check(events, turn=check_turn, checker_ids=check_ids, all_checkers=check_all, include_llm=check_llm, save_dir=check_save_dir, checker_model=checker_model, list_only=check_list, verbose=check_verbose, pack_dir=pack_dir)
         case "init":
             from ccya.ev.init import cmd_init
             cmd_init(flags, args)
@@ -355,7 +357,15 @@ def main() -> None:
                 if checker_list is not None:
                     checker_list = [c.strip() for c in checker_list if c.strip()]
                 report_path = Path(flags["report"]) if "report" in flags else None
-                cmd_eval_run(scenario_path, model=model, temp=temp, checkers=checker_list, report=report_path)
+                cmd_eval_run(
+                    scenario_path,
+                    model=model,
+                    temp=temp,
+                    checkers=checker_list,
+                    report=report_path,
+                    auto_report="auto-report" in flags,
+                    llm_checkers="llm-checkers" in flags,
+                )
             elif subcmd == "list":
                 cmd_eval_list()
             elif subcmd == "compare":

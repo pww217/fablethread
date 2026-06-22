@@ -85,8 +85,6 @@ async def _run_extraction_pipeline(
             scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
         )
         extraction_event["scene"] = {
-            "rendered_system": rendered_scene_system,
-            "rendered_user": rendered_scene_user,
             "output": scene_result.model_dump(exclude_none=True),
             "skipped": False,
             "attempts": scene_attempts,
@@ -130,8 +128,6 @@ async def _run_extraction_pipeline(
             StateExtractResult, strip_keys=("_reasoning",),
         )
         extraction_event["state"] = {
-            "rendered_system": rendered_state_system,
-            "rendered_user": rendered_state_user,
             "output": state_result.model_dump(exclude_none=True),
             "skipped": False,
             "attempts": state_attempts,
@@ -255,9 +251,7 @@ async def _run_extraction_pipeline(
                 actions.append("Decide what matters most and pursue it.")
             storytell_result = storytell_result.model_copy(update={"actions": actions})
         extraction_event["storytell"] = {
-            "rendered_system": rendered_storytell_system,
-            "rendered_user": rendered_storytell_user,
-                "output": storytell_result.model_dump(exclude_none=True),
+            "output": storytell_result.model_dump(exclude_none=True),
             "skipped": False,
             "attempts": storytell_attempts,
             "retry_errors": storytell_retry_errors,

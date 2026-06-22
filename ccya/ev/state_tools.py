@@ -327,7 +327,7 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
         beat_entry = {
             "turn": t,
             "type": "",
-            "surface": "",
+            "effect": "",
             "directive": "",
             "phase": "",
         }
@@ -376,12 +376,12 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
         return
 
     # Print table
-    print(f"{'Turn':>5} | {'Phase':<10} | {'Beat Type':<14} | {'Surface':<14} | {'Directive'}")
+    print(f"{'Turn':>5} | {'Phase':<10} | {'Beat Type':<14} | {'Effect':<14} | {'Directive'}")
     print("\u2500" * 74)
     for bd in beat_data:
         directive = bd.get("directive", "")
         phase = bd.get("phase", "")
-        print(f"{bd['turn']:>5} | {phase:<10} | {bd.get('type', ''):<14} | {bd.get('surface', ''):<14} | {directive}")
+        print(f"{bd['turn']:>5} | {phase:<10} | {bd.get('type', ''):<14} | {bd.get('effect', ''):<14} | {directive}")
 
     # Streak analysis — consecutive same-type beats
     streaks: list[dict[str, Any]] = []
@@ -607,18 +607,16 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
             had_components = True
 
         if estimate and not comps:
-            thread_weight = 0
-            urgency_depth = 0
+            urgent_thread = 0
+            threat_thread = 0
             ss = ev.get("state_snapshot") or {}
             arc = ss.get("arc") or {}
             for th in (arc.get("threads") or []):
-                if isinstance(th, dict) and th.get("urgency") == "high" and not _thread_is_dormant(th):
-                    thread_weight = 1
-                    urgency_depth += 1
-            if urgency_depth >= 2:
-                urgency_depth = 1
-            else:
-                urgency_depth = 0
+                if isinstance(th, dict) and not _thread_is_dormant(th):
+                    if th.get("urgency") == "urgent":
+                        urgent_thread = 1
+                    if th.get("type") == "threat":
+                        threat_thread = 1
 
             extraction = ev.get("extraction") or {}
             scene = extraction.get("scene") or {}
@@ -633,12 +631,12 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
 
             ruling = ev.get("ruling") or {}
             band = ruling.get("band", "")
-            dice_weight = 1 if band in ("crit_fail", "fail") and thread_weight else 0
+            dice_weight = 1 if band in ("crit_fail", "fail") and urgent_thread else 0
 
-            est_score = thread_weight + urgency_depth + scene_age_component + beat_streak + dice_weight
+            est_score = urgent_thread + threat_thread + scene_age_component + beat_streak + dice_weight
             comps = {
-                "thread_weight": thread_weight,
-                "urgency_depth": urgency_depth,
+                "urgent_thread": urgent_thread,
+                "threat_thread": threat_thread,
                 "scene_age": scene_age_component,
                 "beat_streak": beat_streak,
                 "dice_weight": dice_weight,
@@ -648,8 +646,8 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
         rows.append({
             "turn": t,
             "phase": phase,
-            "thread": comps.get("thread_weight", "?"),
-            "depth": comps.get("urgency_depth", "?"),
+            "thread": comps.get("urgent_thread", "?"),
+            "depth": comps.get("threat_thread", "?"),
             "age": comps.get("scene_age", "?"),
             "beat": comps.get("beat_streak", "?"),
             "dice": comps.get("dice_weight", "?"),

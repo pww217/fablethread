@@ -46,6 +46,7 @@ from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
 from ccya.state import (
     append_chronicle,
     append_event,
+    append_prompts,
     load_last_narration,
     load_state,
     save_state,
@@ -213,8 +214,6 @@ async def run_turn(
 
         # Save narrate extraction to events for verification
         extraction_event["narrate"] = {
-            "rendered_system": rendered_narr_system,
-            "rendered_user": rendered_narr_user,
             "output": narrative,
             "tokens_in": narr_metrics.get("tokens_in", 0),
             "tokens_out": narr_metrics.get("tokens_out", 0),
@@ -407,15 +406,11 @@ async def run_turn(
             "reconcile_warnings": reconcile_warnings,
             # Prompt logging (for turn viewer)
             "ruling_prompt": {
-                "rendered_system": rendered_ruling_system,
-                "rendered_user": rendered_ruling_user,
                 "output": ruling_raw_response,
                 "parse_error": ruling_parse_error,
                 "context_meta": _context_meta(rendered_ruling_system, rendered_ruling_user, ruling_trimmed, ruling_trimmed_chars),
             },
             "narrate_prompt": {
-                "rendered_system": rendered_narr_system,
-                "rendered_user": rendered_narr_user,
                 "output": narrative,
                 "context_meta": _context_meta(rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars),
             },
@@ -425,6 +420,44 @@ async def run_turn(
         save_state(save_dir, state)
         event["state_snapshot"] = load_state(save_dir)
         append_event(save_dir, event)
+
+        # Write stripped prompts to prompts.jsonl
+        prompts_list = [
+            {
+                "ts": _ts,
+                "trace_id": trace_id,
+                "turn": state["meta"]["turn"],
+                "stream": "ruling",
+                "rendered_system": rendered_ruling_system,
+                "rendered_user": rendered_ruling_user,
+                "context_meta": _context_meta(rendered_ruling_system, rendered_ruling_user, ruling_trimmed, ruling_trimmed_chars),
+            },
+            {
+                "ts": _ts,
+                "trace_id": trace_id,
+                "turn": state["meta"]["turn"],
+                "stream": "narrate",
+                "rendered_system": rendered_narr_system,
+                "rendered_user": rendered_narr_user,
+                "context_meta": _context_meta(rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars),
+            },
+        ]
+        # Add extraction stream prompts from context_meta
+        for stream_name in ("scene", "state", "storytell"):
+            stream_data = extraction_event.get(stream_name) or {}
+            ctx_meta: dict[str, Any] | None = stream_data.get("context_meta")
+            if ctx_meta:
+                prompts_list.append({
+                    "ts": _ts,
+                    "trace_id": trace_id,
+                    "turn": state["meta"]["turn"],
+                    "stream": stream_name,
+                    "rendered_system": ctx_meta.get("system_text", ""),
+                    "rendered_user": ctx_meta.get("user_text", ""),
+                    "context_meta": ctx_meta,
+                })
+        append_prompts(save_dir, prompts_list)
+
         append_chronicle(
             save_dir,
             f"\n\n## Turn {state['meta']['turn']} — {user_input}\n\n{narrative.strip()}",

@@ -67,5 +67,4 @@ def cmd_compat(events: list[dict[str, Any]]) -> None:
         print("  - inventory (needs extraction_context.inventory_this_turn, location_this_turn)")
         print("  - npc_presence (needs extraction_context)")
         print("  - pacing (needs extraction_context)")
-        print("  - turn_assert (needs extraction_context)")
         print("  - llm_checkers (needs extraction_context)")

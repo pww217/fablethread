@@ -17,7 +17,7 @@
   - {{ checker.name }}: {{ checker.status }}{% if checker.detail %} — {{ checker.detail }}{% endif %}
 {% endfor %}
 {% if area.red_flags %}
-  &#26A0; Red flags: {{ area.red_flags | join("; ") }}
+  ⚠ Red flags: {{ area.red_flags | join("; ") }}
 {% endif %}
 {% endfor %}
 
