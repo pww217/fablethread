@@ -116,18 +116,16 @@ Arc lifecycle, thread→world state promotion, storyteller prompt updates, and T
 
 **Validation:** Context builder's `completed_threads` list only includes threads resolved within the last 3 turns. `_arc.j2` renders no `[:15]` cap.
 
-## Phase 07 [VALIDATION]: Verify arc_resolve guidance in storyteller prompt
+## Phase 07: Remove stale `drop_threads` prohibition from storyteller prompt
 
 **Files:**
-- `ccya/prompts/storytell_system.j2:66` — read arc resolution guidance section
-- `ccya/prompts/storytell_system.j2:68` — read stale `drop_threads` prohibition
-- `ccya/prompts/storytell_system.j2:72` — read contrasting example
+- `ccya/prompts/storytell_system.j2:68` — remove or rewrite the prohibition text that references `drop_threads`. `drop_threads` no longer exists in the model. A prompt warning referencing a nonexistent field will confuse the LLM. Replace with guidance consistent with the new model: arc_resolve carries all threads forward automatically, no thread management needed in arc_resolve.
 
-**What:** [VALIDATION] Confirm arc resolution guidance uses "Emit **only** when:" language, the contrasting example uses `long_term_objective` (not `visible_goal`), and the stale `drop_threads` prohibition at line 68 is removed or updated.
+**What:** Remove the stale `drop_threads` prohibition line from the storyteller prompt. Rewrite to reflect the current contract: `arc_resolve` contains only `resolution` and `long_term_objective`; thread lifecycle is fully decoupled.
 
-**Why:** "Emit **only** when:" language already exists at line 66. Primitives renames `visible_goal` → `long_term_objective` in the example and removes `chapter_end` reference. Line 68's "Using `arc_resolve` with `drop_threads`" warning references a field that no longer exists — must be removed or reworded to avoid confusing the LLM.
+**Why:** `drop_threads` was removed from `ArcResolution` in primitives Phase 01. A prompt warning referencing a removed field is dead instruction that adds confusion.
 
-**Validation:** Line 66: "Emit **only** when the narrative chapter genuinely ends..." Line 72: "WRONG: `arc_resolve` with unchanged `long_term_objective` (no-op). RIGHT: `arc_resolve` introduces a new goal." Line 68: no reference to `drop_threads` or `visible_goal` in the prohibition text.
+**Validation:** `grep -n "drop_threads" ccya/prompts/storytell_system.j2` returns zero matches. Arc_resolve guidance at lines 66–72 references only `resolution` and `long_term_objective`. No mention of `visible_goal`, `drop_threads`, `new_threads`, or `goal_context`.
 
 ## Phase 08 [VALIDATION]: Verify thread type in schema examples
 

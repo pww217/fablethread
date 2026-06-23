@@ -162,6 +162,8 @@ Seed funnel ordering, pc.situation, arc_origin, key locations, world state lifec
 
 **What:** Add `SanitizedWorldStateFact` model for sanitizer output.
 
+> **Note:** `SanitizedWorldStateFact` has identical fields to `WorldStateFact`. Before adding a second class, check whether the sanitizer output can reuse `WorldStateFact` directly or use a type alias (`SanitizedWorldStateFact = WorldStateFact`). Only add a separate class if the sanitizer output schema diverges from `WorldStateFact` in a meaningful way.
+
 **Why:** Sanitizer returns a complete replacement array. The model defines the output schema.
 
 **Validation:** `SanitizedWorldStateFact` model exists with same fields as `WorldStateFact`.
@@ -229,7 +231,7 @@ Seed funnel ordering, pc.situation, arc_origin, key locations, world state lifec
 - `ccya/templates/_state_left.html:64,109` — render `arc_origin` in UI sidebar for initial arc display
 - `ccya/templates/_save_picker.html:29` — render `arc_origin` in save picker UI
 
-**[QUESTION: arc_origin placement — see findings above.]** If `arc_origin` lives on `SeedState` (top-level state dict), the UI renders it via `state.arc_origin`, not `_arc.arc_origin`. The primitives plan's rename of `_arc.get('goal_context')` → `_arc.get('arc_origin')` would be incorrect. Confirm intent before executing Phase 13.
+**Prerequisite check before executing this phase:** `arc_origin` lives on the seed state model (`SeedState`), not on the arc object (`LongTermObjective`). The UI must read it as `state.arc_origin` (or equivalent top-level path), not `current_arc.arc_origin` or `_arc.get('arc_origin')`. Before making any template changes, verify how `SeedState` fields are exposed to `_state_left.html` and `_save_picker.html` — check whether seed state fields are merged into the template context dict, accessed via a dedicated `seed` key, or accessed some other way. The primitives plan intentionally left `_state_left.html:64,109` untouched pending this verification. Implement the render path based on what you find, not on the assumption that it mirrors the arc object access pattern.
 
 **What:** Render `arc_origin` in UI sidebar and save picker.
 

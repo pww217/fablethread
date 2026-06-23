@@ -96,8 +96,8 @@ All shared primitives from Phase 01-05 and pc.situation primitive from the maste
 - `ccya/prompts/sections/_arc.j2` — rename `current_arc` to `current_objective`, rename `visible_goal` to `long_term_objective`
 - `ccya/prompts/storytell_system.j2` — rename `visible_goal` to `long_term_objective`
 - `ccya/prompts/generate_seed_system.j2` — rename `visible_goal` to `long_term_objective`, `goal_context` to `arc_origin`
-- `ccya/templates/_state_left.html:63-64` — rename `visible_goal` to `long_term_objective`, rename `goal_context` to `arc_origin`
-- `ccya/templates/_save_picker.html:29` — [QUESTION: rename `visible_goal` to `long_term_objective` (shows goal) or render `arc_origin` (shows origin story)? Design doc says arc_origin, but code references `visible_goal` not `goal_context`.]
+- `ccya/templates/_state_left.html` — rename `visible_goal` → `long_term_objective` only. Do NOT rename `goal_context` → `arc_origin` here. `arc_origin` no longer lives on the arc object — it lives on the seed state model. The `arc_origin` UI render is handled in seed worldbuilding Phase 13, which must first verify how `SeedState` fields are exposed to templates.
+- `ccya/templates/_save_picker.html:29` — rename `visible_goal` to `long_term_objective`. The save picker shows the current goal to help users identify their save. `arc_origin` is sidebar-only and lives on the seed state model, not the arc object — it is not rendered here.
 - `ccya/ev/checkers/goal_update_validity.py` — update to `long_term_objective`
 - `ccya/ev/checkers/arc_goals.py` — update to `long_term_objective`
 
@@ -114,7 +114,7 @@ All shared primitives from Phase 01-05 and pc.situation primitive from the maste
 - `ccya/models/state.py:170` — add `reason: str | None` to ThreadUpdate
 - `ccya/models/state.py:156-161` — add `resolved_turn: int | None` and `world_state_candidate: str | None` to ThreadResolution (remove `promote_to_world_state` in Phase 01)
 - `ccya/models/state.py:183-188` — final ArcResolution model: `resolution: str`, `long_term_objective: str`
-- `ccya/state/io.py:93` — add initialization in `_default_state()`
+- `ccya/state/io.py` — `started_turn` has a model default of `None` and does not need explicit initialization in `_default_state()`. The only new `_default_state()` entry needed here is `world_state_candidates: []` (already listed separately in this phase).
 - `ccya/state/io.py` — add `world_state_candidates: []` to `_default_state()`
 
 **What:** Add new fields to models.
@@ -218,6 +218,8 @@ All shared primitives from Phase 01-05 and pc.situation primitive from the maste
 **Why:** Ruling needs situational facts about what the PC owns and can access. Without it, ruling may incorrectly deny actions that depend on established situational facts.
 
 **Validation:** Ruling prompt includes `pc.situation` section.
+
+> **Ordering dependency:** `pc.situation` is added to the state model and `_default_state()` in seed worldbuilding Phase 02. Until that plan runs, `pc.situation` will not exist in state. This phase should implement the ruling context addition defensively — if `state["pc"]["situation"]` is missing or empty, the ruling context builder must handle it gracefully rather than raising a KeyError. The seed worldbuilding plan Phase 02 is the prerequisite for this phase to be meaningful in practice.
 
 ## Phase 11: Bump NPC roster limit
 
