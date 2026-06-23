@@ -595,13 +595,13 @@ def _llm_session(
         print()
         print("Running checkers on all turns...")
         from ccya.ev.events import load_events
-        from ccya.ev.checkers import CheckerResult, list_checkers, run_checkers
+        from ccya.ev.checkers import list_checkers, run_checkers
         from ccya.ev.eval import _store_checker_warnings, _build_rubric_areas, _compute_pass_rate
 
         events = load_events(save_dir / "events.jsonl")
 
         runner_checkers = [m["id"] for m in list_checkers(checker_type="deterministic")]
-        checker_results: dict[str, CheckerResult] = run_checkers(runner_checkers, events, save_dir=save_dir)
+        checker_results = run_checkers(runner_checkers, events, save_dir=save_dir)
 
         if llm_checkers:
             llm_checker_ids = [m["id"] for m in list_checkers(checker_type="llm")]
@@ -614,13 +614,13 @@ def _llm_session(
         print()
         print("Running checkers for auto-report...")
         from ccya.ev.events import load_events
-        from ccya.ev.checkers import CheckerResult, list_checkers, run_checkers
+        from ccya.ev.checkers import list_checkers, run_checkers
         from ccya.ev.eval import _store_checker_warnings, _build_rubric_areas, _compute_pass_rate
 
         events = load_events(save_dir / "events.jsonl")
 
         runner_checkers = [m["id"] for m in list_checkers(checker_type="deterministic")]
-        checker_results: dict[str, CheckerResult] = run_checkers(runner_checkers, events, save_dir=save_dir)
+        checker_results = run_checkers(runner_checkers, events, save_dir=save_dir)
 
         if llm_checkers:
             llm_checker_ids = [m["id"] for m in list_checkers(checker_type="llm")]
