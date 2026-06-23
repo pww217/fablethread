@@ -111,6 +111,22 @@ the tiered hint system rather than a hard gate. See [Primitives](./01-primitives
 - Update `turn_state.py:229` — change `if turns_since < 5` to `if turns_since < 8`
   (or remove the warning entirely, since pressure score hints replace hard gates)
 
+### `arc_resolve` field contract — RESOLVED
+
+`arc_resolve` remains a top-level field on `StorytellerResult` and is the sole authority on arc resolution. Its contract is scoped to arc lifecycle only — it does not touch threads.
+
+**Final `ArcResolution` model:**
+- `resolution: str` — narrative description of how the arc concluded
+- `long_term_objective: str` — goal statement for the successor arc
+
+**Removed fields:**
+- `drop_threads` — removed. All threads carry forward automatically.
+- `new_threads` — removed. Thread creation is fully decoupled from arc resolution.
+- `goal_context` — removed. Replaced by `arc_origin` on the seed state model (initial arc only).
+- `visible_goal` — renamed to `long_term_objective`.
+
+When `arc_resolve` fires, `_apply_arc_resolve()` constructs a new `LongTermObjective` with all existing threads carried forward, `started_turn` set to current turn, and `completed_threads` reset to `[]`. Successor arcs do not receive an `arc_origin` — the preceding narration serves that function.
+
 ### TTL filtering in prompts
 
 Completed/abandoned threads surface in prompts for 3 turns after resolution, then are
@@ -159,12 +175,9 @@ passive NPCs (which are apparently doing better now) and NPCs not getting their
 personalities correctly due to a misconfiguration. See bug ticket:
 `roadmap/bugs/convergence-starvation.md`.
 
-### Arc auto-resolve when all threads resolved/failed/abandoned
+### Arc auto-resolve when all threads resolved/failed/abandoned — CLOSED
 
-This case is unlikely in practice (arcs rarely reach zero threads). The pressure score
-system handles the realistic cases. If it becomes a real failure mode in evals, revisit.
-If it is implemented, it must require a minimum arc age guard (≥ 8 turns) to prevent
-auto-resolve of a brand-new successor arc.
+Not implemented and not being implemented. Confirmed via codebase search — arc resolution is entirely storyteller-driven. The hint tier system handles arc completion pressure.
 
 ### Pack-level threshold tuning
 
@@ -179,6 +192,11 @@ See [Primitives](./01-primitives.md#out-of-scope).
 system's duration weight partially addresses this by making age matter, but the urgency
 labels in prompts remain 3-state. Defer to a future design pass. See
 [Primitives](./01-primitives.md#out-of-scope).
+
+### `turns_since` warning guard — CLOSED
+
+The warning-only guard at `turn_state.py:225-233` is deleted entirely. Consistent with
+the no-hard-floors principle. Hint tiers handle arc resolution frequency.
 
 ## Scope
 

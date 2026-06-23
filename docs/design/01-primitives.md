@@ -38,8 +38,10 @@ system are already defined.
 | Old Field | New Field | Scope | Rationale |
 |-----------|-----------|-------|-----------|
 | `progress` | `major_updates` | ArcThread model, prompts, packs | "Major" signals "only when something worth noting happens." Not a running play-by-play. |
-| `visible_goal` | `long_term_objective` | CampaignArc model, prompts, packs | "Long-term" signals update frequency and duration. "Objective" avoids immediate-completion trigger. |
-| `goal_context` | `arc_origin` | CampaignArc model, prompts, packs, UI | "How did the PC end up here?" Past tense, 2–3 sentences. UI-only + seed opening narration. |
+| `visible_goal` | `long_term_objective` | CampaignArc model, ArcResolution, StorytellerResult, prompts, packs | "Long-term" signals update frequency and duration. "Objective" avoids immediate-completion trigger. |
+| `arc` (state key) | `long_term_objective` (state key) | `state/io.py _default_state()`, all engine code reading `state["arc"]`, all prompt context builders, all Jinja2 templates referencing `current_arc` | Consistent with LLM-naming principle; the state key should match the model name and signal duration to the LLM. |
+| `CampaignArc` (model name) | `LongTermObjective` (model name) | `state.py:79-85`, all imports, `turn_state.py`, `thread_sanitizer.py`, `seed.py`, `extraction.py`, `narrate.py`, `ruling.py` | Same rationale as state key rename. UI displays as "Objective." |
+| `goal_context` | `arc_origin` | Seed state model, prompts, UI | "How did the PC end up here?" Past tense, 2–3 sentences. Seed-time field only, never regenerated. |
 | `progress_kind` | `major_update_signal` | ProgressEntry in ArcThread | "Signal" is more descriptive. Values: `advancement` / `setback` only. |
 
 ### Deletions
@@ -49,6 +51,9 @@ system are already defined.
 | `chapter_end` | CampaignArc, prompts, packs, engine | No behavioral effect. Added as patch for arc_resolve misuse. Adds cognitive load. |
 | `promote_to_world_state` | ThreadResolution model | Replaced by two-step candidate system. Currently active in turn_state.py:341-349 (applies to `state["scene"]["world_state"]`), to be removed. |
 | `goal_context` (all references) | CampaignArc, _default_state(), StorytellerResult, sanitizer schema, turn_state.py, audit.py, eval checkers, Jinja2 templates, PC UI panel | Replaced by `arc_origin`. No backward compatibility. |
+| `ArcResolution.drop_threads` | `state.py:185`, `turn_state.py:235-243`, `storytell_system.j2:14` | Threads carry forward automatically on arc resolution. Arc and thread lifecycles are fully decoupled. Explicit dropping removed. |
+| `ArcResolution.new_threads` | `state.py:186`, `turn_state.py:264-270`, `storytell_system.j2:14` | Thread creation is decoupled from arc resolution. Storyteller emits `thread_add` independently on any turn. No special thread-creation moment tied to arc resolution. |
+| `turns_since` warning guard | `turn_state.py:225-233` | Soft warning block deleted entirely. No replacement. Consistent with no-hard-floors principle; hint tiers handle arc resolution frequency. |
 
 ### Kept (previously proposed for deletion)
 
@@ -123,20 +128,17 @@ no `major_updates` entry should be emitted — the field name already enforces t
 
 ## Age Tracking
 
-### CampaignArc: `created_turn` and `started_turn`
+### `LongTermObjective`: `started_turn`
 
-Both fields are added to CampaignArc. They track different moments in the arc's lifecycle.
+One field is added to `LongTermObjective`: `started_turn: int | None = None`.
 
-- **`created_turn`** — When the arc object is instantiated in the engine (usually during
-  seed/worldbuilding phase, before the game starts narrating). This is the "birth" of
-  the arc in the data model.
-- **`started_turn`** — When the narrator first renders the arc in prompts (usually turn
-  1, or later if the arc is seeded but not surfaced immediately). This is when the arc
-  becomes "active" in gameplay.
+`created_turn` is not added. In practice arcs are constructed and immediately surfaced — the seed arc is built and rendered on turn 1; successor arcs are built and rendered on the same turn `arc_resolve` fires. The two fields would always have the same value. `started_turn` is the single source of truth for arc age.
 
-Both are needed for the pressure score system's duration weight calculation. If they end
-up the same value, that's fine — they diverge only if an arc is created but not
-immediately surfaced.
+**Set points:**
+- Seed pipeline: set when the seed arc object is written to state
+- Successor arc: set in `_apply_arc_resolve()` at `turn_state.py:264-270` when `LongTermObjective` is constructed
+
+The pressure score system uses `started_turn` for duration weight calculation.
 
 ## TTL Strategy
 
@@ -284,11 +286,27 @@ Example: "home settlement" persists (the PC still has a home). "Crew member X" d
 need surfacing — if that crew member matters, they exist as an NPC in the compendium.
 But "vessel condition: damaged" might persist if the vessel itself is a persistent entity.
 
+**`persist` flag — TBD.** The mechanism for marking keys as persistent is not yet defined.
+Pack authors will mark certain keys using a `persist: true` flag (or equivalent) on each
+`pc_situation_schema` entry. The exact flag name and schema shape are deferred to the
+implementation pass. `pc_situation_schema` does not exist in the codebase and will be
+built from scratch — there is no existing structure to extend.
+
 ### Relationship to External Inventory
 
 pc.situation is related to the idea of "external inventory" — things that belong to the
 PC but aren't on their person (ship, home, base of operations). This needs more
 fleshing out and may warrant a separate field or extension of pc.situation. Deferred.
+
+### Prompt Surfacing Across the Engine
+
+`pc.situation` (persistent fields only) surfaces in the narrator, storyteller, and ruling
+prompts throughout gameplay. The ruling prompt in particular needs it to avoid ruling
+impossible actions that depend on established situational facts — if the PC owns a
+vehicle, ruling must know this or it will incorrectly deny movement actions.
+
+Full `pc.situation` feeds the seed prompt and opening narration only. Ongoing prompts
+receive only fields marked `persist: true`.
 
 ## Resolved Design Decisions
 
@@ -330,6 +348,53 @@ fleshing out and may warrant a separate field or extension of pc.situation. Defe
 - Storyteller prompt — instruct storyteller to provide reason when changing thread type
 - Sanitizer prompt — instruct sanitizer to provide reason when changing thread type
 
+### D5. `drop_threads` and `new_threads` removed from `ArcResolution` — RESOLVED
+
+**Decision:** `ArcResolution` no longer contains `drop_threads` or `new_threads`. Arc and thread lifecycles are fully decoupled. All threads carry forward to the successor arc automatically on `arc_resolve`. The storyteller emits `thread_add` independently — there is no special thread-creation moment tied to arc resolution. Threads that predate the arc age out naturally via the pressure score / hint tier system.
+
+**Mechanical corrections:**
+- `state.py:185-186` — remove `drop_threads` and `new_threads` from `ArcResolution`
+- `turn_state.py:235-243` — remove `drop_threads` filtering logic; all threads carry forward
+- `turn_state.py:264-270` — remove `new_threads` from successor arc construction
+- `storytell_system.j2:14` — update `arc_resolve` schema example to remove `drop_threads` and `new_threads`
+
+### D6. `arc_origin` placement — RESOLVED
+
+**Decision:** `arc_origin` is a field on the seed state model only. It is generated once by the seed LLM at turn 0 and never again. It is not a field on `LongTermObjective` and not a field on `ArcResolution`.
+
+Successor arcs do not receive an `arc_origin`. The preceding narration serves as the origin for any arc that begins after turn 0 — the player lived through it and it is already in context. A dedicated field is only meaningful at turn 0 when the player has no prior context.
+
+`arc_origin` surfaces in the opening narration and the UI sidebar for the initial arc only. It is never injected into narrate, storytell, or ruling prompts during gameplay.
+
+**Mechanical corrections:**
+- Seed state model — add `arc_origin: str` field
+- `generate_seed_system.j2` — instruct seed LLM to generate `arc_origin` (2–3 sentences, past tense, "how did the PC end up here?")
+- `_save_picker.html` and `_state_left.html` — render `arc_origin` in UI sidebar for initial arc display
+- `ArcResolution` — no `arc_origin` field; do not add one
+
+### D7. Ruling context extended — RESOLVED
+
+**Decision:** The ruling prompt context is extended to include `pc.situation` (persistent fields only). No arc fields are added to ruling. Ruling does not need narrative goal context — it needs situational facts about what the PC owns and can access.
+
+**Mechanical corrections:**
+- `engine/ruling.py` — add `pc_situation` (persistent fields only) to ruling context
+- `ruling_user.j2` — add `pc.situation` section to ruling prompt
+
+### D8. `LongTermObjective` / `long_term_objective` rename — RESOLVED
+
+**Decision:** `CampaignArc` is renamed to `LongTermObjective` throughout. The state key `state["arc"]` is renamed to `state["long_term_objective"]`. The UI displays this as "Objective." This rename follows the same principle as `progress → major_updates` and `visible_goal → long_term_objective`: field names are prompts, and the name must signal duration and scope to the LLM.
+
+**Mechanical corrections:**
+- `state.py:79-85` — rename class `CampaignArc` to `LongTermObjective`; update all imports
+- `state/io.py` — rename `state["arc"]` key to `state["long_term_objective"]` in `_default_state()`
+- All engine files reading `state["arc"]` — update key reference
+- All prompt context builders — update variable name passed to templates
+- All Jinja2 templates using `current_arc` — rename variable to `current_objective` (or equivalent consistent name)
+
+### D9. No auto-arc-resolve — RESOLVED
+
+**Decision:** Arc resolution is entirely storyteller-driven. No auto-resolve logic is implemented and none will be. Confirmed via codebase search — no such logic exists. The hint tier system handles arc completion pressure. No mechanical corrections needed.
+
 ## Mechanical Corrections (from design review 2026-06-23)
 
 This section lists all CRITICAL findings from the design review that require mechanical
@@ -344,6 +409,8 @@ code/prompt/model changes. Each finding maps to specific files that must be upda
 | C19 | `progress` → `major_updates` | state.py:43, all code references (100+ matches in grep) |
 | C20 | `progress_kind` → `major_update_signal` | state.py:170, all code references |
 | C30 | `goal_context` → `arc_origin` in prompts | generate_seed_system.j2:37,64 |
+| — | `arc` (state key) → `long_term_objective` | state/io.py _default_state(), all engine code reading state["arc"] |
+| — | `CampaignArc` → `LongTermObjective` | state.py:79-85 and all imports throughout codebase |
 
 ### Field Deletions
 
@@ -355,6 +422,9 @@ code/prompt/model changes. Each finding maps to specific files that must be upda
 | C27 | `chapter_end` in prompts | storytell_system.j2:16,72,74 |
 | C7 | "Past Resolutions" in narrate_user.j2 | narrate_user.j2:59-61 |
 | C8 | `[:15]` hard cap in _arc.j2 | _arc.j2:21 |
+| — | `ArcResolution.drop_threads` | state.py:185, turn_state.py:235-243, storytell_system.j2:14 |
+| — | `ArcResolution.new_threads` | state.py:186, turn_state.py:264-270, storytell_system.j2:14 |
+| — | `turns_since` warning guard | turn_state.py:225-233 |
 
 ### Model Updates
 
@@ -368,6 +438,8 @@ code/prompt/model changes. Each finding maps to specific files that must be upda
 | C55, C56, C57 | ThreadResolution | Add `resolved_turn` marker |
 | C17 | CampaignArc | Add `created_turn: int | None` and `started_turn: int | None` (state.py:80-81) |
 | — | `StorytellerResult.goal_update` | `str | None` → `dict | None` with `long_term_objective` key (extraction.py:231) |
+| — | `LongTermObjective` (renamed from CampaignArc) | Add `started_turn: int | None = None` (state.py:79-85); set in seed pipeline and turn_state.py:264-270 |
+| — | Seed state model | Add `arc_origin: str` field |
 
 ### Threshold Updates
 
@@ -398,6 +470,9 @@ code/prompt/model changes. Each finding maps to specific files that must be upda
 | C82 | _world_state.j2, storytell_user.j2 | Render tier and valence as paired badges: `[global/threat]`, `[local/boon]` |
 | — | _world_state.j2:6 | Replace `fact.tier == "permanent"` check with `fact.permanent` boolean field (new schema) |
 | — | thread_sanitizer.py:238-240 | Remove "shift" from progress_kind coercion check: `if pk not in ("advancement", "setback", "shift")` → `if pk not in ("advancement", "setback")` |
+| — | ruling_user.j2 | Add `pc.situation` section to ruling prompt |
+| — | Add `world_state_candidates: []` to `_default_state()` | `state/io.py` |
+| — | Bump NPC roster limit 10 → 12 | `prompt_context.py:25-53` (`_build_npc_roster()`) |
 
 ### World State Model Replacement (C83)
 
