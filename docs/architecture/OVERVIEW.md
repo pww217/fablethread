@@ -93,6 +93,7 @@ The pipeline produces several state objects at different points. Understanding w
 | `state_snapshot` | End of turn (after all processing) | Yes (`event["state_snapshot"]`) | Full persisted state at turn end; used by checkers |
 | `changes` | After sanitizer | Yes (`event["changes"]`) | What the sanitizer actually changed |
 | `extraction.*.output` | After each extraction stream | Yes (`event["extraction"]`) | LLM extraction results |
+| `sanitizer event` | After sanitizer (every N turns) | Yes (`kind=sanitizer`, `turn=N`) | Separate event on sanitizer turns; must be filtered by UI panels to avoid duplicates |
 
 See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for full details on each state type, checker usage, and common pitfalls.
 

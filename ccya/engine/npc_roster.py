@@ -11,11 +11,39 @@ from ccya.models import NpcPresence
 _log = logging.getLogger(__name__)
 
 
+def _compute_npc_score(entry: dict[str, Any], comp: dict[str, Any], turn_no: int) -> int:
+    raw = comp.get(entry.get("id", ""), {})
+    if raw.get("party") is True:
+        return 6
+    name = entry.get("name") or ""
+    aliases = raw.get("aliases") or []
+    if name and aliases and name.lower().strip() in {a.lower().strip() for a in aliases}:
+        return 0
+    last_turn = entry.get("last_presence_turn")
+    if last_turn is not None and turn_no > 0:
+        turns_ago = turn_no - last_turn
+        if turns_ago < 5:
+            recency = 2
+        elif turns_ago < 10:
+            recency = 1
+        else:
+            recency = 0
+    else:
+        recency = 0
+    richness = 0
+    for field in ("motivation", "fear", "leverage", "bond"):
+        val = entry.get(field)
+        if val and val != "unknown":
+            richness += 1
+    return recency + richness
+
+
 def build_npc_roster(
     comp: dict[str, Any],
     *,
+    turn_no: int = 0,
     presence_filter: str | None = None,
-    max_entries: int = 10,
+    max_entries: int = 12,
     sort_by_lru: bool = False,
     lru_order: list[str] | None = None,
     personality_registry: dict[str, Any] | None = None,
@@ -82,10 +110,10 @@ def build_npc_roster(
         lru_idx = {nid: i for i, nid in enumerate(reversed(lru_order))}
         result = sorted(
             seen.values(),
-            key=lambda e: (order.get(str(e.get("presence") or ""), 3), lru_idx.get(e["id"], 9999)),
+            key=lambda e: (order.get(str(e.get("presence") or ""), 3), lru_idx.get(e["id"], 9999), -_compute_npc_score(e, comp, turn_no)),
         )
     else:
-        result = sorted(seen.values(), key=lambda e: (order.get(str(e.get("presence") or ""), 3), e["name"]))
+        result = sorted(seen.values(), key=lambda e: (order.get(str(e.get("presence") or ""), 3), -_compute_npc_score(e, comp, turn_no), -(e.get("last_presence_turn") or 0), e["name"]))
 
     result = result[:max_entries]
     _log.debug("build_npc_roster roster=%d", len(result))
