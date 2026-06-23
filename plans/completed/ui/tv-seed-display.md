@@ -40,9 +40,9 @@ When turn_viewer detects zero turns/events, load `state.yaml` to display the ful
 ## Implementation — Phase 1: Persist seed metadata in state.yaml
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/ccya/server/routes.py` — new_game handler, _apply_seed_to_save_dir()
-- `/Users/pwilson/Repos/ccya/ccya/state/io.py` — init_save_dir(), save_state(), _default_state()
-- `/Users/pwilson/Repos/ccya/ccya/models.py` — existing state shape definitions
+- `/Users/pwilson/repos/ccya/ccya/server/routes.py` — new_game handler, _apply_seed_to_save_dir()
+- `/Users/pwilson/repos/ccya/ccya/state/io.py` — init_save_dir(), save_state(), _default_state()
+- `/Users/pwilson/repos/ccya/ccya/models.py` — existing state shape definitions
 
 ### Detailed steps
 
@@ -94,9 +94,9 @@ N/A (tests temporarily removed during refactor per AGENTS.md)
 ## Implementation — Phase 2: Render seed data in turn_viewer when no turns exist
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/ccya/server/tv.py` — _turn_viewer_data() function, return value structure
-- `/Users/pwilson/Repos/ccya/ccya/templates/_turn_viewer.html` — Alpine.js template, existing rendering logic
-- `/Users/pwilson/Repos/ccya/ccya/static/app.src.css` — Existing turn-viewer CSS classes for styling reference
+- `/Users/pwilson/repos/ccya/ccya/server/tv.py` — _turn_viewer_data() function, return value structure
+- `/Users/pwilson/repos/ccya/ccya/templates/_turn_viewer.html` — Alpine.js template, existing rendering logic
+- `/Users/pwilson/repos/ccya/ccya/static/app.src.css` — Existing turn-viewer CSS classes for styling reference
 
 ### Detailed steps
 

@@ -44,8 +44,8 @@ Expected outcome: One age signal replaces three, new directives fire at appropri
 ## Implementation — Phase 3: Pacing System Overhaul
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/ccya/engine/turn.py` (~lines 506-647 for _compute_narration_directive and _compute_pacing_context; ~line 890 for _narrate_setup effective_scene_age pre-computation point; ~1320-1360 for pacing_ctx directive storage point; ~1149/1198-1200 for pending_gm_beat unconditional clears to remove; ~lines 1475-1490 for end-of-turn consecutive_pressure_turns update point)
-- `/Users/pwilson/Repos/ccya/ccya/prompts/narrate_system.j2` (~line 109-113, directives section to rewrite: remove Location Pressure/Imperative and Combat Fatigue; add Scene Pressure/Scene Imperative with new thresholds)
+- `/Users/pwilson/repos/ccya/ccya/engine/turn.py` (~lines 506-647 for _compute_narration_directive and _compute_pacing_context; ~line 890 for _narrate_setup effective_scene_age pre-computation point; ~1320-1360 for pacing_ctx directive storage point; ~1149/1198-1200 for pending_gm_beat unconditional clears to remove; ~lines 1475-1490 for end-of-turn consecutive_pressure_turns update point)
+- `/Users/pwilson/repos/ccya/ccya/prompts/narrate_system.j2` (~line 109-113, directives section to rewrite: remove Location Pressure/Imperative and Combat Fatigue; add Scene Pressure/Scene Imperative with new thresholds)
 
 ### Detailed steps
 

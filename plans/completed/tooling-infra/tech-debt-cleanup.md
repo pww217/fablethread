@@ -40,10 +40,10 @@ Phase 01 removes `follow_imports = "skip"` from `[tool.mypy]`, then systematical
 
 ### Context files to load
 - `/Users/pwilson/Repos/ccya/pyproject.toml` (mypy config)
-- `/Users/pwilson/Repos/ccya/ccya/server/app.py` (FastAPI app, middleware)
-- `/Users/pwilson/Repos/ccya/ccya/server/routes.py` (route handlers)
-- `/Users/pwilson/Repos/ccya/ccya/llm_client.py` (OpenAI client usage)
-- `/Users/pwilson/Repos/ccya/ccya/engine/names.py` (Faker/Kakasi usage)
+- `/Users/pwilson/repos/ccya/ccya/server/app.py` (FastAPI app, middleware)
+- `/Users/pwilson/repos/ccya/ccya/server/routes.py` (route handlers)
+- `/Users/pwilson/repos/ccya/ccya/llm_client.py` (OpenAI client usage)
+- `/Users/pwilson/repos/ccya/ccya/engine/names.py` (Faker/Kakasi usage)
 
 ### Detailed steps
 
@@ -131,7 +131,7 @@ No changes needed. This is a config-only change with no impact on module boundar
 
 **File:** `ccya/.venv/` (entire directory)
 
-**What:** Remove the nested virtualenv at `/Users/pwilson/Repos/ccya/ccya/.venv/`. The root-level `.gitignore` already ignores all `.venv/` directories, so this nested one was never tracked in git. It is an accidental artifact from running `uv venv` or similar inside the package directory.
+**What:** Remove the nested virtualenv at `/Users/pwilson/repos/ccya/ccya/.venv/`. The root-level `.gitignore` already ignores all `.venv/` directories, so this nested one was never tracked in git. It is an accidental artifact from running `uv venv` or similar inside the package directory.
 
 **Why:** Having two virtualenvs (one at project root, one nested) causes confusion about which Python environment tools use. The nested one serves no purpose — all tooling runs from the project-level `.venv/`. Removing it also cleans up ~256 bytes of filesystem noise and prevents future developers from accidentally activating the wrong env.
 

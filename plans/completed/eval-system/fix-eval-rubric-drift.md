@@ -134,7 +134,7 @@ None for this phase — repomap doesn't reference rubric content directly (it re
 
 ### Context files to load
 - `/Users/pwilson/Repos/ccya/docs/ARCHITECTURE.md` (lines ~458-460, Delta Merge → Validate → Apply section)
-- `/Users/pwilson/Repos/ccya/ccya/models.py` (StateDelta class definition for reference)
+- `/Users/pwilson/repos/ccya/ccya/models.py` (StateDelta class definition for reference)
 
 ### Detailed steps
 
@@ -183,8 +183,8 @@ Verify that `docs/repomap.md` "Extraction field routing" section (line 114) alre
 
 ### Context files to load
 - `/Users/pwilson/Repos/ccya/docs/repomap.md` (line 99)
-- `/Users/pwilson/Repos/ccya/ccya/engine/config.py` (EngineConfig defaults for reference)
-- `/Users/pwilson/Repos/ccya/ccya/engine/pressure.py` (_expire_scene_pressures function for reference)
+- `/Users/pwilson/repos/ccya/ccya/engine/config.py` (EngineConfig defaults for reference)
+- `/Users/pwilson/repos/ccya/ccya/engine/pressure.py` (_expire_scene_pressures function for reference)
 
 ### Detailed steps
 
