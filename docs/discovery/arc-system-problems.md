@@ -1,6 +1,10 @@
 # Arc System — Discovery
 
-> **Related:** [Arc System Redesign](../design/arc-system-redesign.md)
+> **Related:**
+> - [01-Primitives](../design/01-primitives.md) — Shared building blocks
+> - [02-Arc System Redesign](../design/02-arc-system-redesign.md)
+> - [03-Seed Worldbuilding Redesign](../design/03-seed-worldbuilding-redesign.md)
+>
 > **Status:** Evidence collected, decisions recorded, awaiting design phase
 
 Problems identified through eval analysis (outer-rim saves, noir/ww2/piracy runs), prompt inspection, code review, and prompt evolution tracing across 7 eval cycles (June 17–22, 2026).
@@ -171,7 +175,7 @@ But the storyteller does the opposite — unchanged goal + thread drops + new th
 - Arc frequency warning fires (turn_state.py:226-233) but only logs, doesn't prevent
 - Outer-rim: 4 arc_resolves in 34 turns (avg 8.5 turns), but all are no-op goals — effectively zero real arc progress
 
-**Design decision:** `arc_resolve` should only do arc-ending. Thread operations should be independent fields (`thread_resolve`, `thread_add`) that the engine applies regardless of arc state. The prompt patch (chapter_end) is removed — see [Arc System Redesign](../design/arc-system-redesign.md#decisions).
+**Design decision:** `arc_resolve` should only do arc-ending. Thread operations should be independent fields (`thread_resolve`, `thread_add`) that the engine applies regardless of arc state. The prompt patch (chapter_end) is removed — see [02-Arc System Redesign](../design/02-arc-system-redesign.md#decisions).
 
 ### 2. `arc_resolve` vs `chapter_end: true` — Indistinguishable Semantics
 
@@ -190,7 +194,7 @@ The storyteller consistently picks the WRONG one. The schema shows both fields i
 
 All three are top-level keys in the same object. The storyteller interprets `arc_resolve` as "something happened, here's the result" and `chapter_end` as "but the arc continues." This is the opposite of the intended semantics.
 
-**Design decision:** `chapter_end` is removed entirely. See [Arc System Redesign](../design/arc-system-redesign.md#chapter_end).
+**Design decision:** `chapter_end` is removed entirely. See [02-Arc System Redesign](../design/02-arc-system-redesign.md#chapter_end).
 
 ### 7. Arc Model Schema — Confusing Structure
 
@@ -213,7 +217,7 @@ class ArcResolution(BaseModel):
     new_threads: list[ArcThread]
 ```
 
-**Design decision:** Decouple `arc_resolve` from thread operations. `arc_resolve` should only contain arc-ending fields. Thread operations become independent top-level fields. See [Arc System Redesign](../design/arc-system-redesign.md#decisions).
+**Design decision:** Decouple `arc_resolve` from thread operations. `arc_resolve` should only contain arc-ending fields. Thread operations become independent top-level fields. See [02-Arc System Redesign](../design/02-arc-system-redesign.md#decisions).
 
 ### 11. Goal Update — Mid-Arc Pivot vs Arc Resolve Confusion
 
@@ -228,7 +232,7 @@ The storyteller conflates these. It uses `arc_resolve` with unchanged visible_go
 
 But the goals checker (outer-rim) shows goal_update firing on turns 4, 6, 15, 31 — all with the same goal. These are arc_resolves, not goal_updates.
 
-**Design decision:** Rename `visible_goal` to something that signals "medium-to-long-term objective" (not a one-turn thing). See [Arc System Redesign](../design/arc-system-redesign.md#decisions).
+**Design decision:** Rename `visible_goal` to something that signals "medium-to-long-term objective" (not a one-turn thing). See [02-Arc System Redesign](../design/02-arc-system-redesign.md#decisions).
 
 ---
 
@@ -258,7 +262,7 @@ But the goals checker (outer-rim) shows goal_update firing on turns 4, 6, 15, 31
 
 **Outer-rim evidence:** 21 threads created, 19 still pending after 34 turns. Only 2 resolved (9.5%). Threads accumulate and never decay naturally.
 
-**Design decision:** Auto-dormant threshold moves from 4 to 8 turns. Urgency decay (stepwise demotion) at 8 turns means threads can develop before decaying. See [Arc System Redesign](../design/arc-system-redesign.md#decisions).
+**Design decision:** Auto-dormant threshold moves from 4 to 8 turns. Urgency decay (stepwise demotion) at 8 turns means threads can develop before decaying. See [02-Arc System Redesign](../design/02-arc-system-redesign.md#decisions).
 
 ### 12. Thread Progress Kinds — Vague Classifications (Undecided)
 
@@ -271,7 +275,7 @@ But the goals checker (outer-rim) shows goal_update firing on turns 4, 6, 15, 31
 - (b) Tie to mechanics — numeric ticker (advancement ticks up, setback ticks down, threshold triggers hints to narrator)
 - (c) Replace with signal categories — e.g., "near_resolution", "stalled", "escalating"
 
-**Status:** Undecided. Needs more thought. See [Arc System Redesign](../design/arc-system-redesign.md#open-questions).
+**Status:** Undecided. Needs more thought. See [02-Arc System Redesign](../design/02-arc-system-redesign.md#open-questions).
 
 ---
 
@@ -288,7 +292,7 @@ But the goals checker (outer-rim) shows goal_update firing on turns 4, 6, 15, 31
 
 **Consequence:** Storyteller must generate `goal_context` every time it emits `arc_resolve` — even though it has no mechanical purpose. This wastes LLM context/tokens and creates "emotional whiplash" — the storyteller generates a brand new context string with no connection to the previous arc's context (it never sees the old context).
 
-**Design decision:** `goal_context` is removed entirely. Replaced by `arc_origin` (2–3 sentences, past tense, "how did the PC end up here?"). Placement: UI (sidebar tooltip) and seed opening narration only. NOT in narrate/storytell prompts. See [Seed Worldbuilding Redesign](./seed-worldbuilding-redesign.md#new-field-arcarc_origin) and [Arc System Redesign](../design/arc-system-redesign.md#decisions).
+**Design decision:** `goal_context` is removed entirely. Replaced by `arc_origin` (2–3 sentences, past tense, "how did the PC end up here?"). Placement: UI (sidebar tooltip) and seed opening narration only. NOT in narrate/storytell prompts. See [03-Seed Worldbuilding Redesign](./03-seed-worldbuilding-redesign.md#new-field-arcarc_origin) and [02-Arc System Redesign](../design/02-arc-system-redesign.md#decisions).
 
 ### 13. Arc Thread Urgency Set Turn — Deprecated
 
@@ -300,7 +304,7 @@ But the goals checker (outer-rim) shows goal_update firing on turns 4, 6, 15, 31
 
 **Problem:** `thread_resolve.promote_to_world_state` (bool) exists in the schema but is never read by the engine. It's dead state.
 
-**Design decision:** Replaced by two-step candidate system: storyteller flags `world_state_candidate`, sanitizer confirms every 5 turns. See [Arc System Redesign](../design/arc-system-redesign.md#decisions).
+**Design decision:** Replaced by two-step candidate system: storyteller flags `world_state_candidate`, sanitizer confirms every 5 turns. See [02-Arc System Redesign](../design/02-arc-system-redesign.md#decisions).
 
 ### 14. Sanitizer and Storyteller — Different `goal_update` Formats
 
@@ -342,7 +346,7 @@ When >= 3 dormant threads exist, the oldest (by `last_updated_turn`) is culled: 
 
 Threads untouched for >= 4 turns get `dormant=True` (turn_state.py:112-133). This is too aggressive for a game running 25-34 turns — threads get dormant before they've had a chance to develop.
 
-**Design decision:** Auto-dormant threshold moves from 4 to 8 turns (configurable). See [Arc System Redesign](../design/arc-system-redesign.md#decisions).
+**Design decision:** Auto-dormant threshold moves from 4 to 8 turns (configurable). See [02-Arc System Redesign](../design/02-arc-system-redesign.md#decisions).
 
 ### Urgency Decay — Stepwise Demotion
 
@@ -354,7 +358,7 @@ With auto-dormant at 8 turns, urgency decay and auto-dormant are aligned — thr
 
 The engine auto-resolves threads when progress entries >= threshold (default 3, `thread_completion_threshold`). This is a hard TTL on active threads.
 
-**Design decision:** Remove auto-thread completion. Hard TTL on active threads is a terrible idea. Threads should be resolved by the storyteller via `thread_resolve`. See [Arc System Redesign](../design/arc-system-redesign.md#decisions).
+**Design decision:** Remove auto-thread completion. Hard TTL on active threads is a terrible idea. Threads should be resolved by the storyteller via `thread_resolve`. See [02-Arc System Redesign](../design/02-arc-system-redesign.md#decisions).
 
 ---
 
@@ -366,7 +370,7 @@ The engine auto-resolves threads when progress entries >= threshold (default 3, 
 
 **Related:** `GMBeat.type` has coercion (returns `None` for invalid → silently nullifies beat). `GMBeat.driver` has no coercion — invalid value `"environment"` fails validation → beat nullified.
 
-**Design decision:** Type is stable by default. Can change via storyteller or sanitizer, but requires a `reason` field. See [Arc System Redesign](../design/arc-system-redesign.md#decisions).
+**Design decision:** Type is stable by default. Can change via storyteller or sanitizer, but requires a `reason` field. See [02-Arc System Redesign](../design/02-arc-system-redesign.md#decisions).
 
 ### 5 (cont.) Empty `arc_resolve` Crashes Validation
 
@@ -551,7 +555,7 @@ A separate prompt plumbing audit is planned to verify that every variable meant 
 
 ### Decisions Recorded
 
-See [Arc System Redesign](../design/arc-system-redesign.md#decisions) for all decisions. Key decisions:
+See [01-Primitives](../design/01-primitives.md) for canonical definitions of field renames, TTL strategy, pressure score system, and age tracking. See [02-Arc System Redesign](../design/02-arc-system-redesign.md#decisions) for arc-specific decisions. Key decisions:
 - `progress` → `major_updates`
 - `goal_context` → `arc_origin` (UI-only + opening narration)
 - `visible_goal` → `long_term_objective` (settled)
