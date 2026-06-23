@@ -35,8 +35,8 @@ def _load_checker_model(config: EngineConfig) -> tuple[Any, Any]:
     _log.info("Loading checker model: %s", model_name)
 
     try:
-        from mlx_lm import load as mlx_load
-        model, tokenizer, _ = mlx_load(model_name)  # type: ignore[misc]
+        from mlx_lm import load as mlx_load  # type: ignore[import-not-found]
+        model, tokenizer, _ = mlx_load(model_name)
         _checker_model = (model, tokenizer)
         return _checker_model
     except Exception as exc:
