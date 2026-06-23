@@ -19,7 +19,7 @@ def _extract_scene_messages(
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 1 (NPC presence)."""
     comp = (state.get("compendium") or {}).get("npcs") or {}
-    npc_roster = build_npc_roster(comp, personality_registry=ARCHETYPES)
+    npc_roster = build_npc_roster(comp, turn_no=turn_no, personality_registry=ARCHETYPES)
 
     system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(

@@ -165,7 +165,7 @@ class EngineConfig:
     # Scene phase thresholds
     climax_turn_limit: int = 4          # max turns in CLIMAX before forced RESOLUTION
     breather_max_turns: int = 3         # max turns in BREATHER before forced RISING transition
-    convergence_threshold: int = 3
+    convergence_threshold: int = 2
     # Near-miss softening: whether near-fails get softer narration directive text
     near_miss_softening: bool = True
     # TTL for completed threads and resolved arcs in narration context (turns)
@@ -292,7 +292,7 @@ def build_engine_config(
         scene_imperative_threshold=int(game.get("scene_imperative_threshold", 5)),
         climax_turn_limit=int(game.get("climax_turn_limit", 4)),
         breather_max_turns=int(game.get("breather_max_turns", 3)),
-        convergence_threshold=int(game.get("convergence_threshold", 3)),
+        convergence_threshold=int(game.get("convergence_threshold", 2)),
         near_miss_softening=bool(game.get("near_miss_softening", True)),
         thread_memory_ttl=int(game.get("thread_memory_ttl", 3)),
         arc_memory_ttl=int(game.get("arc_memory_ttl", 3)),

@@ -342,7 +342,7 @@ T6:  normal climax rhythm continues
 
 | Config key | Default | System | Effect |
 |------------|---------|--------|--------|
-| `convergence_threshold` | 3 | Phase Engine | Convergence score needed for CLIMAX transition |
+| `convergence_threshold` | 2 | Phase Engine | Convergence score needed for CLIMAX transition |
 | `climax_turn_limit` | 4 | Phase Engine | Max turns in CLIMAX before RESOLUTION |
 | `breather_max_turns` | 3 | Phase Engine | Max turns in BREATHER before forced RISING |
 | `scene_pressure_threshold` | 3 | Pacing Context | Scene Pressure secondary directive threshold |

@@ -22,14 +22,14 @@
 | `ccya/engine/thread_sanitizer.py` | Batch arc/thread cleanup every N turns |
 | `ccya/engine/seed.py` | Dynamic pack seed generation; personality fallback |
 | `ccya/engine/changes.py` | State diff → emoji display lines for UI |
-| `ccya/engine/npc_roster.py` | NPC roster builder with presence tags + personality resolution |
+| `ccya/engine/npc_roster.py` | NPC roster builder: presence filter, recency+richness scoring, top-12 selection |
 | `ccya/engine/generate_pack.py` | SSE-driven ephemeral pack generation from world brief |
 | `ccya/state/__init__.py` | Re-exports all state symbols |
 | `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir |
 | `ccya/state/delta.py` | apply_delta(), reconcile_delta() — condition/inventory dedup |
 | `ccya/state/inventory.py` | Inventory ID normalization + fuzzy matching |
 | `ccya/state/npcs.py` | NPC alias map, compendium LRU, scene management |
-| `ccya/state/chronicle.py` | Append events.jsonl, chronicle.md, load_last_narration() |
+| `ccya/state/chronicle.py` | Append events.jsonl, chronicle.md, load_last_narration(), remove_last_event() (removes all events for last turn number including sanitizer events) |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR |
 | `ccya/server/app.py` | FastAPI bootstrap, Jinja env, startup event, error persistence |
 | `ccya/server/routes.py` | All @app.get / @app.post route handlers; panel builders; save switching |
