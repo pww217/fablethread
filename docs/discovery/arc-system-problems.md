@@ -554,8 +554,8 @@ A separate prompt plumbing audit is planned to verify that every variable meant 
 See [Arc System Redesign](../design/arc-system-redesign.md#decisions) for all decisions. Key decisions:
 - `progress` → `major_updates`
 - `goal_context` → `arc_origin` (UI-only + opening narration)
-- `visible_goal` → rename (candidates: `long_term_objective`, `active_objective`, `objective`)
-- `chapter_end` → removed
+- `visible_goal` → `long_term_objective` (settled)
+- `chapter_end` → firm removal
 - Auto-dormant: 4 → 8 turns
 - Archival TTL: 13 turns
 - Thread type: stable by default, changes require `reason` field
@@ -564,13 +564,21 @@ See [Arc System Redesign](../design/arc-system-redesign.md#decisions) for all de
 - Auto-thread completion: remove if present
 - `urgency_set_turn`: delete
 - `promote_to_world_state`: delete (replaced by two-step candidate system)
-- Progress kind categories: undecided (drop / numeric ticker / signal categories)
+- Progress kind categories → `major_update_signal`: settled, `advancement` and `setback` only; `shift` removed
+- Hard floor on `arc_resolve` removed; replaced by tiered pressure score hint system
+- Pressure score system — threads (advancement +1, setback −1, duration weight) and arcs (resolved threads +2, duration weight); hint tiers drive LLM nudges, not hard resolves; thresholds are tunable
+- Completed/abandoned threads: keep in data forever, TTL-filter in prompts (3 turns), no hard cap
+- "Past Resolutions" in narrate_user.j2: removed (unfiltered, causes bloat)
+- Thread archival resurfacing: no (LLMs are bad at ignoring things)
+- Arc → world state: out of scope for this redesign
+- Thread urgency graduated states: deferred
+- Execution order: primitives → arc system → seed worldbuilding
 
 ### Skeptical Items (Question These)
 
 These findings may not actually be problems. They need to be questioned before committing to design changes.
 
-**Thread TTL disconnect.** The narrator's 3-turn TTL on completed threads and the storyteller's access to them via `all_threads` may be by design, not a bug. The narrator's context window is limited, and completed threads are low-priority context. The storyteller has a wider context. If the storyteller has access to completed threads via `all_threads` in the prompt, then the narrator forgetting them isn't a bug — it's a feature. The real problem is orphaned threads (not explicitly dropped by arc_resolve), not that completed threads expire.
+**Thread TTL disconnect.** The narrator's 3-turn TTL on completed threads and the storyteller's access to them via `all_threads` may be by design, not a bug. The narrator's context window is limited, and completed threads are low-priority context. The storyteller has a wider context. If the storyteller has access to completed threads via `all_threads` in the prompt, then the narrator forgetting them isn't a bug — it's a feature. The real problem is orphaned threads (not explicitly dropped by arc_resolve), not that completed threads expire. **Settled:** Completed/abandoned threads are kept in data forever, TTL-filtered in prompts (3 turns), no hard cap. "Past Resolutions" in narrate_user.j2 is removed (unfiltered, causes bloat).
 
 **NPC roster limited to 10.** This is a context management decision, not a bug. Bumping to 12 (user preference) or 15 adds cognitive load to the storyteller prompt. Whether the value of seeing 11-20 NPCs outweighs the cost of a larger prompt is an open question.
 
