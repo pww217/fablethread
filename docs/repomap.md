@@ -22,7 +22,7 @@
 | `ccya/engine/thread_sanitizer.py` | Batch arc/thread cleanup every N turns |
 | `ccya/engine/seed.py` | Dynamic pack seed generation; personality fallback |
 | `ccya/engine/changes.py` | State diff → emoji display lines for UI |
-| `ccya/engine/npc_roster.py` | NPC roster builder with presence tags + personality resolution |
+| `ccya/engine/npc_roster.py` | NPC roster builder: presence filter, recency+richness scoring, top-12 selection |
 | `ccya/engine/generate_pack.py` | SSE-driven ephemeral pack generation from world brief |
 | `ccya/state/__init__.py` | Re-exports all state symbols |
 | `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir |
