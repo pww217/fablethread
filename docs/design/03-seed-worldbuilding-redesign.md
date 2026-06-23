@@ -83,40 +83,40 @@ is rewritten to be unconditional and to cover the new fields below.
 
 ```
 1. WORLD FACTS — global tier
-   Immutable or slow-changing backdrop. True everywhere, affects everyone.
-   Examples: ongoing war, economic conditions, a faction's collapse.
-   Count: 1–2. Valence: mixed (not all threats).
+    Immutable or slow-changing backdrop. True everywhere, affects everyone.
+    Examples: ongoing war, economic conditions, a faction's collapse.
+    Count: 1–2. Valence: mixed (not all threats).
 
 2. WORLD FACTS — local tier
-   True in the area the PC currently operates. More likely to decay.
-   Examples: curfew in effect, patrols increased, market fair in town.
-   Count: 1–2. Valence: mixed.
+    True in the area the PC currently operates. More likely to decay.
+    Examples: curfew in effect, patrols increased, market fair in town.
+    Count: 1–2. Valence: mixed.
 
 3. KEY LOCATIONS (→ world.locations)
-   4–5 named places that exist in the world at game start.
-   Ordered from most accessible to least known.
-   Status: accessible | restricted | unknown_location | rumored
-   Includes 1–2 breadcrumb locations that give the PC a reason to move.
-   Geographic and institutional variety required — do not cluster around
-   a single obvious theme.
-   Note: Status values are metadata only (no gameplay effect).
-   Defer to future location overhaul for narrator integration.
+    4–5 named places that exist in the world at game start.
+    Ordered from most accessible to least known.
+    Status: accessible | restricted | unknown_location | rumored
+    Includes 1–2 breadcrumb locations that give the PC a reason to move.
+    Geographic and institutional variety required — do not cluster around
+    a single obvious theme.
+    Note: Status values are metadata only (no gameplay effect).
+    Defer to future location overhaul for narrator integration.
 
 4. PC SITUATION (→ pc.situation)
-   What the player would want to know before sitting down.
-   Pack-specific schema defines which axes to populate.
-   Generated after world context so it reflects that context.
-   This is the "entry vector" — genre-specific context answering
-   "who am I, what do I have, where am I, who are the people around me."
-   **Important:** pc.situation is updatable during gameplay. If the PC's
-    vessel is destroyed, home is burned down, or crew is lost, these facts
-    should be reflected in state. See [Primitives](./01-primitives.md#pcsituation-primitive).
-    Full pc.situation feeds seed prompt and early turns; stripped-down
-    version (persist: true fields) surfaces in ongoing narrate prompts.
+    What the player would want to know before sitting down.
+    Pack-specific schema defines which axes to populate.
+    Generated after world context so it reflects that context.
+    This is the "entry vector" — genre-specific context answering
+    "who am I, what do I have, where am I, who are the people around me."
+    **Important:** pc.situation is updatable during gameplay. If the PC's
+     vessel is destroyed, home is burned down, or crew is lost, these facts
+     should be reflected in state. See [Primitives](./01-primitives.md#pcsituation-primitive).
+     Full pc.situation feeds seed prompt and early turns; stripped-down
+     version (persist: true fields) surfaces in ongoing narrate prompts.
 
 5. NPC BONDS + COMPENDIUM
-   Drawn from npc_bonds pool. Grounded in pc_situation where applicable
-   (crewmates if vessel exists; settlement contacts if home_base exists).
+    Drawn from npc_bonds pool. Grounded in pc_situation where applicable
+    (crewmates if vessel exists; settlement contacts if home_base exists).
 
 6. ARC
     `long_term_objective` (renamed from `visible_goal`, see [02-Arc System Redesign](./02-arc-system-redesign.md)), arc_origin (replaces goal_context, see [Primitives](./01-primitives.md#field-renames-and-deletions)).
@@ -125,15 +125,15 @@ is rewritten to be unconditional and to cover the new fields below.
     arc_origin and long_term_objective are placeholders until arc redesign is complete.
 
 7. PC BIO + INVENTORY
-   Last step. Bio distills global context + situation + stats into a person.
-   Stats inform bio: high strength → physical survival history; high charisma →
-   negotiation or social leverage background. The link need not be direct
-   occupation but some connection should exist.
-   The opening narration generated at seed time must establish pc.situation
-   in enough detail that both the player and the narrator can treat it as
-   ground truth — vessel name and condition, home port, crew, whatever the
-   pack's situation schema produced. This is the only place pc.situation is
-   surfaced narratively; it does not feed into the narrate system prompt.
+    Last step. Bio distills global context + situation + stats into a person.
+    Stats inform bio: high strength → physical survival history; high charisma →
+    negotiation or social leverage background. The link need not be direct
+    occupation but some connection should exist.
+    The opening narration generated at seed time must establish pc.situation
+    in enough detail that both the player and the narrator can treat it as
+    ground truth — vessel name and condition, home port, crew, whatever the
+    pack's situation schema produced. This is the only place pc.situation is
+    surfaced narratively; it does not feed into the narrate system prompt.
 ```
 
 ***
@@ -355,10 +355,10 @@ continuity — the narrator can reference it later when relevant events occur.
 
 **Two-step system (from [02-Arc System Redesign](./02-arc-system-redesign.md#thread--world-state-promotion)):**
 1. **Storyteller flags** — When resolving a thread, the storyteller can emit a
-   `world_state_candidate` field with the proposed fact.
+    `world_state_candidate` field with the proposed fact.
 2. **Sanitizer confirms** — The sanitizer (every 5 turns) evaluates the candidate. It
-   has 0–5 turns after resolution to decide if the fact is still relevant. The resolved
-   thread needs a `resolved_turn` marker so the sanitizer knows the timing.
+    has 0–5 turns after resolution to decide if the fact is still relevant. The resolved
+    thread needs a `resolved_turn` marker so the sanitizer knows the timing.
 
 The sanitizer has full authority to:
 - Promote the candidate to world state
@@ -375,6 +375,13 @@ At the start of each turn, before any LLM call, the turn pipeline iterates `worl
 and hard-deletes any fact where `current_turn >= expires_turn`. No LLM involved. No
 archive. The fact remains visible in `events.jsonl` at the turn it was added, which is
 sufficient for eval audit purposes.
+
+**Mechanical corrections:**
+- Add TTL expiry pass to turn pipeline start (before narrate and storyteller calls)
+- Iterate `state["scene"]["world_state"]` and filter out facts where `fact.expires_turn`
+  is not None and `current_turn >= fact.expires_turn`
+- Hard-delete filtered facts from state (no archive list)
+- Record removals in `events.jsonl` for audit purposes
 
 ### Sanitizer World State Authority
 
@@ -393,6 +400,18 @@ the sanitizer to treat them as foundational and remove them only when something 
 arc or recent events unambiguously supersedes them.
 
 All removals are hard deletes. No archive list in state. `events.jsonl` is the record.
+
+**Sanitizer world state output model (Pydantic):**
+
+```python
+class SanitizedWorldStateFact(BaseModel):
+    id: str
+    text: str
+    tier: Literal["global", "local"]
+    permanent: bool = False
+    valence: Literal["threat", "complication", "neutral", "boon"] = "neutral"
+    expires_turn: int | None = None
+```
 
 **Extended sanitizer output schema (additions only):**
 
@@ -414,33 +433,73 @@ All removals are hard deletes. No archive list in state. `events.jsonl` is the r
 The returned array is the complete replacement. Any fact not present in the returned
 array is considered removed.
 
-***
+**Mechanical corrections:**
+- Add `SanitizedWorldStateFact` model to `state.py` (or `thread_sanitizer.py`)
+- Add `world_state: list[SanitizedWorldStateFact]` to sanitizer output
+- Add `world_state` to sanitizer input context in `thread_sanitizer.py`
+- Update `sanitize_thread.j2` to include world state in prompt context
+- Engine applies atomic swap: `state["scene"]["world_state"] = sanitizer_output.world_state`
+- Add `world_state_candidates` list to state (new field in `_default_state()`)
+- Collect `world_state_candidate` from `ThreadResolution` into `world_state_candidates`
+- Pass `world_state_candidates` to sanitizer for evaluation
+
+### Sanitizer Input Context
+
+The sanitizer receives the following additional context for world state maintenance:
+
+- **`world_state`** — Current list of `WorldStateFact` objects
+- **`world_state_candidates`** — List of candidates from recently resolved threads
+  (with `resolved_turn` marker for TTL evaluation)
+- **`completed_threads`** — TTL-filtered completed threads (3-turn TTL)
+- **`current_turn`** — Current turn number (for TTL expiry evaluation)
+
+### Sanitizer Prompt Updates
+
+Update `sanitize_thread.j2` to include world state instructions:
+
+- Instruct sanitizer to evaluate `world_state_candidates` within 0–5 turns of resolution
+- Instruct sanitizer to promote, reject, consolidate, modify, or replace world state
+- Instruct sanitizer to treat `permanent: true` facts with higher removal bar
+- Instruct sanitizer to return complete replacement array (not diff)
+
+### Dormant Thread Guidance Alignment
+
+The sanitizer's dormant thread guidance in `sanitize_thread.j2:51` references "4+ turns"
+but the auto-dormant threshold is now 8 turns.
+
+**Mechanical corrections:**
+- `sanitize_thread.j2:51` — "If a thread has no activity in 4+ turns, consider setting
+  dormant: True" → "If a thread has no activity in 8+ turns, consider setting
+  dormant: True"
+- `sanitize_thread.j2:48` — Review abandonment criteria ("no narrative mention in 5+
+  turns AND no activity in 3+ turns") and align with TTL strategy (8 dormant + 5
+  archival = 13 turns total)
 
 ## Implementation Order
 
 1. **Primitives clearing pass.** Delete all removed fields from schema, all default pack
-   YAML files, all engine code, and all prompt templates that reference them. See
-   [Primitives](./01-primitives.md#field-renames-and-deletions).
+    YAML files, all engine code, and all prompt templates that reference them. See
+    [Primitives](./01-primitives.md#field-renames-and-deletions).
 2. **`WorldStateFact` replacement.** New schema, rewrite all code branching on old tier
-   values. Update `_world_state.j2` and `storytell_user.j2` to render `[tier/valence]`
-   badges.
+    values. Update `_world_state.j2` and `storytell_user.j2` to render `[tier/valence]`
+    badges.
 3. **TTL expiry.** Add hard-delete pass to the turn pipeline start.
 4. **Sanitizer extension.** Add `world_state` input and full replacement array output to
-   the sanitizer schema and prompt. Add two-step world state candidate system
-   (storyteller flags → sanitizer confirms).
+    the sanitizer schema and prompt. Add two-step world state candidate system
+    (storyteller flags → sanitizer confirms).
 5. **Seed prompt rewrite.** Funnel ordering, new field generation, deleted fields removed.
 6. **`arc_origin`.** Add to `CampaignArc` and `_default_state()`. Remove `goal_context`
-   from all callsites simultaneously.
-   > **Note:** Arc system redesign is deferred (not yet written). `arc_origin` and
-   > `long_term_objective` are placeholders until that redesign is complete.
+    from all callsites simultaneously.
+    > **Note:** Arc system redesign is deferred (not yet written). `arc_origin` and
+    > `long_term_objective` are placeholders until that redesign is complete.
 7. **`pc.situation`.** Add to `_default_state()` and `SeedPC`. Add
-   `pc_situation_schema` to `ScenarioBrief`. Update seed prompt.
-   > **Note:** This section needs expansion and better authoring guidance.
-   > pc.situation should be updatable during gameplay.
+    `pc_situation_schema` to `ScenarioBrief`. Update seed prompt.
+    > **Note:** This section needs expansion and better authoring guidance.
+    > pc.situation should be updatable during gameplay.
 8. **Pack update.** Update golden-piracy: add `pc_situation_schema`, remove all deleted
-   fields, expand `scene_detail_bundles`, audit archetype pools.
-   > **Note:** Pack parity (default packs vs generated packs) is deferred (see
-   > [Pack Parity](./pack-parity-redesign.md)).
+    fields, expand `scene_detail_bundles`, audit archetype pools.
+    > **Note:** Pack parity (default packs vs generated packs) is deferred (see
+    > [Pack Parity](./pack-parity-redesign.md)).
 
 ### NPC Roster Limit
 

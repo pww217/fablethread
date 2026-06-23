@@ -54,6 +54,10 @@ change. The storyteller and sanitizer can change it, but they must provide a `re
 field explaining why. Not every threat that's neutralized becomes an opportunity — it
 needs a good narrative reason.
 
+**Model change:** Add `reason: str | None` to `ThreadUpdate` in `state.py:170`.
+When the storyteller or sanitizer changes a thread's type, the `reason` field must
+explain the narrative justification. If no reason is needed, set to `null`.
+
 ### Thread → world state promotion
 
 **Two-step: storyteller flags, sanitizer confirms.** When a thread resolves or an arc
@@ -62,8 +66,26 @@ resolves, the storyteller can flag it as a `world_state_candidate`. The sanitize
 This gives the resolved thread 0–5 turns for the sanitizer to evaluate. The resolved
 thread needs a `resolved_turn` marker so the sanitizer knows how many turns it's been.
 
-The sanitizer also has full authority to consolidate, remove, update, or fold multiple
-world state facts into one. It is the ultimate authority on world state.
+**`resolved_turn` marker specification:**
+- Add `resolved_turn: int | None` to `ThreadResolution` in `state.py:161`
+- Set `resolved_turn` in `turn_state.py:334-338` when a thread is resolved (already set on the ArcThread copy, but must also be on ThreadResolution)
+- Pass `resolved_turn` to sanitizer's `completed_threads` context in `thread_sanitizer.py:146`
+- Sanitizer uses `resolved_turn` to evaluate "0–5 turns after resolution" window
+
+**`world_state_candidate` field specification:**
+- Add `world_state_candidate: str | None` to `ThreadResolution` in `state.py:161`
+- Set in storyteller extraction when the storyteller determines a resolved thread should
+  feed into world state
+- Collect candidates in a `world_state_candidates` list in state (new field)
+- Pass to sanitizer for evaluation every 5 turns
+- Sanitizer has full authority to promote, reject, consolidate, modify, or replace
+- If rejected, the candidate is discarded (no partial promotion)
+- If approved, the candidate text is used to create a new `WorldStateFact` with
+  appropriate tier, valence, and expires_turn
+
+**Sanitizer authority:** The sanitizer also has full authority to consolidate, remove,
+update, or fold multiple world state facts into one. It is the ultimate authority on
+world state.
 
 ### Auto-thread completion
 
@@ -71,6 +93,10 @@ world state facts into one. It is the ultimate authority on world state.
 >= threshold) is a terrible idea. Threads should be resolved by the storyteller via
 `thread_resolve`, not auto-completed by the engine. A TTL on resolved threads to move
 them to archived is acceptable. See [Primitives](./01-primitives.md#ttl-strategy).
+
+**Mechanical corrections:**
+- Delete auto-completion block in `turn_state.py:161-182`
+- Remove `thread_completion_threshold: int = 3` from `EngineConfig` in `config.py:184`
 
 ### arc_resolve — hard floor removed
 
@@ -81,10 +107,32 @@ on turn 5) and force either artificial narrative padding or premature goal chang
 engine enforces no minimum. The 8–15 turn cadence remains a target, now achieved through
 the tiered hint system rather than a hard gate. See [Primitives](./01-primitives.md#pressure-score-system).
 
+**Mechanical corrections:**
+- Update `turn_state.py:229` — change `if turns_since < 5` to `if turns_since < 8`
+  (or remove the warning entirely, since pressure score hints replace hard gates)
+
+### TTL filtering in prompts
+
+Completed/abandoned threads surface in prompts for 3 turns after resolution, then are
+removed from all prompt rendering. This applies to both `_arc.j2` and `narrate_user.j2`.
+
+**Mechanical corrections:**
+- `_arc.j2:21` — replace `current_arc.completed_threads[:15]` with TTL-filtered
+  `completed_threads` from context builder (3-turn TTL)
+- `_arc.j2:18-24` — remove `[:15]` hard cap, render all TTL-filtered threads
+- `_arc.j2:12-16` — rename "Previously Resolved Arcs" to "Recently Resolved Arcs"
+- Context builder in `prompts/context.py` — add TTL filtering for completed_threads
+  (3-turn TTL), following the same pattern as `_get_resolved_arcs()` in narrate.py:139
+- `narrate_user.j2:59-61` — remove "Past Resolutions" section entirely (it renders
+  unfiltered completed threads, causing context bloat)
+
 ### Dead state
 
-- **`urgency_set_turn`** — Deprecated. Never read or written. Delete. See [Primitives](./01-primitives.md#deletions).
-- **`promote_to_world_state`** — Replaced by two-step candidate system above. Delete. See [Primitives](./01-primitives.md#deletions).
+- **`urgency_set_turn`** — KEPT. Actively read and written in turn_state.py:140,153,595
+  and seed.py:371-384. Used for urgency decay (stepwise demotion: urgent → normal →
+  background). See [Primitives](./01-primitives.md#kept).
+- **`promote_to_world_state`** — Replaced by two-step candidate system above. Delete.
+  See [Primitives](./01-primitives.md#deletions).
 
 ## Open Questions
 
