@@ -452,6 +452,14 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             )
             tok_in_display = "\u2014" if (skipped and sd.skip_token_display) else _fmt_tokens_exact(t_in)
             tok_out_display = "\u2014" if (skipped and sd.skip_token_display) else _fmt_tokens_exact(t_out)
+            
+            # Extract output from prompt_path
+            prompt_blob = _get_nested(ev, sd.prompt_path) if sd.prompt_path else None
+            if prompt_blob and isinstance(prompt_blob, dict):
+                output = prompt_blob.get(sd.output_subkey) if sd.output_subkey else prompt_blob
+            else:
+                output = None
+            
             streams[sd.key] = {
                 "tt": "\u2014" if (skipped and sd.skip_token_display) else _fmt_ms(ms_val),
                 "tokens_in": t_in,
@@ -466,6 +474,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "status_class": _STATUS_CSS.get(status, "tv-sts-ok"),
                 "stage_class": _STAGE_CSS.get(sd.stage_css, ""),
                 "ms_raw": int(ms_val) if ms_val is not None else 0,
+                "output": output,
             }
 
         # Step 2.2: Token bar calculation from _STREAMS

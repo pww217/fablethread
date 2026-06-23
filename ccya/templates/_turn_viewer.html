@@ -19,7 +19,7 @@
     id="tv-root"
     x-data="tvRoot()"
     x-init="init()"
-    @keydown.escape.window="onlyRejected = false; onlyRetried = false; onlyErrors = false; onlySkipped = false"
+        @keydown.escape.window="onlyRejected = false; onlyRetried = false; onlyErrors = false; onlySkipped = false; onlySanitizer = false"
     @keydown.j.window="if (event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') navToIdx(focusedTurnIdx + 1)"
     @keydown.k.window="if (event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') navToIdx(focusedTurnIdx - 1)"
 >
@@ -44,6 +44,10 @@
         <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyRetried"> retries</label>
         <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyErrors"> errors</label>
         <label class="tv-filter-toggle"><input type="checkbox" x-model="onlySkipped"> skipped</label>
+        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlySanitizer"> sanitizer</label>
+        <button type="button" class="tv-expand-all-btn" @click="toggleExpandAllTurns" style="margin-left:auto;">
+            <span x-text="allTurnsExpanded() ? 'Collapse all turns' : 'Expand all turns'"></span>
+        </button>
     </div>
     <div class="turn-viewer-body" id="tv-body">
         <template x-if="visibleTurns().length === 0">
@@ -180,7 +184,7 @@
                                                     <div class="tv-output-text markdown" x-html="mdNarrative(t)"></div>
                                                 </template>
                                                 <template x-if="stage !== 'narrate'">
-                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.streams[stage] ? (t.streams[stage].output || '') : '')"></code></pre>
+                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.streams[stage] && t.streams[stage].output ? (typeof t.streams[stage].output === 'string' ? t.streams[stage].output : JSON.stringify(t.streams[stage].output, null, 2)) : '')"></code></pre>
                                                 </template>
                                                 <div class="tv-no-prompt" x-show="!t.streams[stage].output">No output data available</div>
                                             </div>
@@ -411,6 +415,7 @@ function tvRoot() {
         onlyRetried: false,
         onlyErrors: false,
         onlySkipped: false,
+        onlySanitizer: false,
         expanded: {},
         stageTabs: {},
         systemOpenMap: {},
@@ -479,6 +484,29 @@ function tvRoot() {
             var self = this;
             this.stages.forEach(function(st) {
                 self.expanded['t' + turn + '-' + st] = on;
+            });
+            if (on) {
+                this.loadPrompts(turn);
+            }
+            this.$nextTick(function() { self.hlAllVisibleJson(); });
+        },
+        allTurnsExpanded() {
+            var self = this;
+            return this.turns.every(function(t) {
+                if (t.row_kind === 'seed' || t.row_kind === 'sanitizer') return true;
+                if (self.turnCollapsed[t.turn]) return false;
+                return self.stages.every(function(st) { return self.expanded['t' + t.turn + '-' + st]; });
+            });
+        },
+        toggleExpandAllTurns() {
+            var on = !this.allTurnsExpanded();
+            var self = this;
+            this.turns.forEach(function(t) {
+                if (t.row_kind === 'seed' || t.row_kind === 'sanitizer') return;
+                self.stages.forEach(function(st) {
+                    self.expanded['t' + t.turn + '-' + st] = on;
+                });
+                self.turnCollapsed[t.turn] = !on;
             });
             this.$nextTick(function() { self.hlAllVisibleJson(); });
         },
@@ -626,8 +654,16 @@ function tvRoot() {
             var onlyRe = this.onlyRetried;
             var onlyE = this.onlyErrors;
             var onlyS = this.onlySkipped;
+            var onlySan = this.onlySanitizer;
+            var anyOtherFilter = onlyR || onlyRe || onlyE || onlyS;
             return this.turns.filter(function(t) {
-                if (t.row_kind === 'seed' || t.row_kind === 'sanitizer') return true;
+                if (t.row_kind === 'seed') return true;
+                if (onlySan) {
+                    return t.row_kind === 'sanitizer';
+                }
+                if (t.row_kind === 'sanitizer') {
+                    return !anyOtherFilter;
+                }
                 if (onlyR && !t.has_rejections) return false;
                 if (onlyRe && !t.has_retries) return false;
                 if (onlyE && !t.has_errors) return false;
