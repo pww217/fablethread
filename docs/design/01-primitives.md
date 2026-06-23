@@ -329,15 +329,15 @@ receive only fields marked `persist: true`.
 - Context builder in `prompts/context.py` — add TTL filtering for completed_threads (3-turn TTL)
 - `_arc.j2:18-24` — remove `[:15]` hard cap, render all TTL-filtered threads
 
-### D3. `created_turn` / `started_turn` initialization points — RESOLVED
+### D3. `started_turn` initialization point — RESOLVED
 
-**Decision:** `created_turn` set in seed pipeline when arc object is instantiated. `started_turn` set in turn pipeline when narrator first renders the arc in prompts (typically turn 1, or later if the arc is seeded but not surfaced immediately).
+**Decision:** `started_turn` only. `created_turn` is not added — arcs are constructed and immediately surfaced in practice, so the two fields would always have the same value. `started_turn` is the single source of truth for arc age. Set at arc construction time: in the seed pipeline when the seed arc object is written to state, and in `_apply_arc_resolve()` at `turn_state.py:264-270` when a successor `LongTermObjective` is constructed.
 
 **Mechanical corrections:**
-- `state.py:80-81` — add `created_turn: int | None = None` and `started_turn: int | None = None` to CampaignArc
+- `state.py:80-81` — add `started_turn: int | None = None` to LongTermObjective (no `created_turn`)
 - `state/io.py:93` — add initialization in `_default_state()`
-- Seed pipeline — set `created_turn` when arc is created
-- Narrate pipeline — set `started_turn` when arc is first rendered in prompts
+- Seed pipeline — set `started_turn` when arc is created
+- `_apply_arc_resolve()` in `turn_state.py:264-270` — set `started_turn` when successor arc is constructed
 
 ### D4. Thread type change `reason` field — RESOLVED
 
