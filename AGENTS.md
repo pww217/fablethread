@@ -33,14 +33,7 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module index, entry poin
 
 ### Template disambiguation
 
-Two entirely separate template systems exist — do not conflate them:
-
-| System | Location | Purpose | Engine |
-|---|---|---|---|
-| **Prompt templates** | `ccya/prompts/` (`.j2`) | Render LLM messages (system/user prompts) | Jinja2 via `_render()` in `narrate.py` / `extraction.py` |
-| **UI templates** | `ccya/templates/` (`.html`) | Render browser HTML (sidebars, modals, character sheets) | Jinja2 via FastAPI `_render()` in `server/routes.py` |
-
-NPC routing: see `docs/architecture/cross-module-contracts.md`.
+Two template systems exist — see `docs/architecture/cross-module-contracts.md` for locations and routing.
 
 ---
 
@@ -75,8 +68,7 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 
 ## Roadmap
 
-`roadmap/` is the canonical ticket tracker. Supersedes Linear as primary
-source of truth.
+`roadmap/` is the canonical ticket tracker. Supersedes Linear as primary source of truth.
 
 - `roadmap/bugs/<slug>.md` — one file per bug
 - `roadmap/features/<slug>.md` — one file per feature/improvement/moonshot
@@ -84,25 +76,7 @@ source of truth.
 - `roadmap/index.md` — auto-generated active TOC (via `make roadmap`)
 - `roadmap/archive-index.md` — auto-generated archive TOC (via `make roadmap`)
 
-Status lifecycles (different for bugs vs features):
-- **Bugs:** `new` → `validated` → `done` (or `canceled` at any point)
-- **Features:** `idea` → `scoping` → `up-next` → `done` (or `canceled` at any point)
-
-YAML frontmatter schema:
-```yaml
----
-title: Descriptive title
-status: scoping | up-next | validated | done | canceled | idea
-urgency: 1 | 2 | 3 | 4  (1=highest)
-size: small | medium | large | xlarge
-created: YYYY-MM-DD
-completed: YYYY-MM-DD  # optional, only for done
-labels:
-  - <label>
-design: docs/design/<slug>-design.md  # optional
-plan: plans/<slug>.md  # optional
----
-```
+Status lifecycles and YAML frontmatter schema: see `roadmap/README.md`.
 
 Design docs use a separate status lifecycle:
 - `scoping` → `reviewed` → `implemented`
@@ -118,12 +92,13 @@ Design docs use a separate status lifecycle:
 - Move completed plans to `plans/completed/` when done.
 - Split large jobs into phases. Aim for at most **3500 lines of code read per phase** to stay within context budget.
 
-## Branch workflow and worktree rules
+## Branch workflow
+
+Only `execute` (code/prompt changes) and `review-code` (PR creation) create branches or worktrees. `create-design`, `plan`, and all review skills work on `main`.
 
 - Branch slug is canonical key (from design doc).
-- Worktrees: `git worktree add -b <slug> ../ccya-<slug> main`
-- Worktree cleanup after PR merge.
-- `git branch --show-current` verification at start of every skill.
+- `execute` creates: `git worktree add -b <slug> ../ccya-<slug> main`
+- `review-code` opens PR to merge back to `main`.
 - Commit prefix: `[<slug>]`
 - Authority hierarchy: design doc > plan > source
 
@@ -158,7 +133,7 @@ Defined in full in global AGENTS.md. Key rules:
 
 ## Skills — when to load each
 
-- **create-design** → produce a design doc for a CCYA feature/refactor/problem (no plan/code); creates worktree+branch if slug is set
+- **create-design** → produce a design doc for a CCYA feature/refactor/problem (no plan/code); lives on `main`
 - **plan** → write a complete plan document for a CCYA feature/fix (no execution); includes Design Reference field
 - **review-plan** → review a plan doc for correctness before execution; enhanced chat output with plan summary
 - **execute** → execute a plan exactly as written, review changes, commit; creates worktree+branch, uses `[<slug>]` commit prefix
