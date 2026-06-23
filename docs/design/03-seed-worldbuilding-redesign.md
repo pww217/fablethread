@@ -1,6 +1,6 @@
 # 03-Seed Worldbuilding Redesign
 
-> **Status:** scoping
+> **Status:** implemented
 > **Related designs:**
 > - [01-Primitives](./01-primitives.md) — Shared building blocks (field renames, TTL, pressure score, pc.situation)
 > - [02-Arc System Redesign](./02-arc-system-redesign.md)

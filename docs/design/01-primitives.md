@@ -1,6 +1,6 @@
 # Primitives Document
 
-> **Status:** scoping
+> **Status:** implemented
 > **Related designs:**
 > - [02-Arc System Redesign](./02-arc-system-redesign.md)
 > - [03-Seed Worldbuilding Redesign](./03-seed-worldbuilding-redesign.md)
