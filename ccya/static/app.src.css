@@ -4276,3 +4276,183 @@ body {
 .entity-item   { color: var(--accent-item, #61afef); }
 .entity-pc     { color: var(--accent-pc, #98c379); }
 .entity-location { color: var(--accent-location, #d19a66); }
+
+/* =========================================================
+   LANDING PAGE — no-save state
+   ========================================================= */
+
+.landing-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  gap: 32px;
+  padding: 48px 24px;
+}
+
+.landing-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.landing-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.landing-subtitle {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.landing-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.landing-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 40px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s;
+  min-width: 220px;
+}
+
+.landing-btn--primary {
+  background: var(--accent);
+  color: #000;
+}
+
+.landing-btn--primary:hover {
+  background: var(--accent-hover);
+}
+
+.landing-btn--secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+
+.landing-btn--secondary:hover {
+  background: var(--bg-highlight);
+}
+
+/* =========================================================
+   TURN VIEWER — no-save state
+   ========================================================= */
+
+.turn-viewer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 30vh;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.turn-viewer-empty p {
+  margin: 0;
+}
+
+.turn-viewer-empty-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.turn-viewer-empty-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  background: var(--accent);
+  color: #000;
+}
+
+.turn-viewer-empty-btn:hover {
+  background: var(--accent-hover);
+}
+
+.turn-viewer-empty-btn--secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+
+.turn-viewer-empty-btn--secondary:hover {
+  background: var(--bg-highlight);
+}
+
+.turn-viewer-save-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 380px;
+  margin-top: 8px;
+}
+
+.turn-viewer-save-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.turn-viewer-save-card:hover {
+  background: var(--bg-highlight);
+}
+
+.turn-viewer-save-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.turn-viewer-save-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.save-picker-loading {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  margin-top: 8px;
+}
+
+.save-picker-empty {
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  margin-top: 8px;
+}

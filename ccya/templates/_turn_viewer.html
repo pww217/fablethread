@@ -359,18 +359,34 @@
         <span class="turn-viewer-title">Turn Viewer</span>
         <span class="turn-viewer-meta">{{ turn_count }} turns loaded</span>
         <div class="turn-viewer-actions">
-            <button type="button" class="turn-viewer-refresh-btn" id="tv-refresh" title="Reload from events.jsonl">↻</button>
             <a href="/" class="turn-viewer-back-btn">← Game</a>
         </div>
     </div>
     <div class="turn-viewer-body" id="tv-body">
-        {% if no_events %}
+        {% if no_save %}
+        <div class="turn-viewer-empty">
+            <p>No game loaded.</p>
+            <div class="turn-viewer-empty-actions">
+                <a href="/" class="turn-viewer-empty-btn">Go to Game →</a>
+                <button type="button" class="turn-viewer-empty-btn turn-viewer-empty-btn--secondary" id="tv-load-save-btn">
+                    Load Save
+                </button>
+            </div>
+        </div>
+        {% elif no_events %}
         <div class="turn-viewer-no-events">No events found. Start a game to generate turn data.</div>
         {% else %}
         <div class="turn-viewer-empty">No turns recorded yet.</div>
         {% endif %}
     </div>
 </div>
+{% include "_save_picker.html" %}
+<script>
+document.getElementById('tv-load-save-btn')?.addEventListener('click', () => {
+    const el = document.getElementById('save-picker-shell');
+    if (el) Alpine.$data(el).open('');
+});
+</script>
 {% endif %}
 
 <script>

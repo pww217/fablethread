@@ -197,6 +197,16 @@ def _get_opening_actions() -> list[str]:
 
 def _debug_context() -> dict[str, Any]:
     mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
+    if _app.SAVE_DIR is None:
+        return {
+            "errors": [],
+            "turns": [],
+            "mock_mode": mock_mode,
+            "state": {"meta": {}},
+            "log_llm_io": _app.engine_config.log_llm_io,
+            "log_prompts": _app.engine_config.log_prompts,
+            "log_file": "logs/game.log",
+        }
     state = _load_current_state()
     _log.debug("_debug_context state_keys=%s mock=%s", list(state.keys()), mock_mode)
     return {
