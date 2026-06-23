@@ -1,6 +1,6 @@
 # Plan: Primitives — Shared Building Blocks
 
-**Derived from:** [01-Primitives](../design/01-primitives.md)
+**Derived from:** [01-Primitives](../docs/design/01-primitives.md)
 **Date:** 2026-06-23
 
 ---
@@ -75,7 +75,7 @@ All shared primitives from Phase 01-05 and pc.situation primitive from the maste
 **Files:**
 - `ccya/models/state.py:79-85` — rename class `CampaignArc` to `LongTermObjective`
 - `ccya/models/state.py:80` — rename `visible_goal` to `long_term_objective` in LongTermObjective
-- `ccya/models/state.py:43` — rename `progress: list[ProgressEntry]` to `major_updates: list[MajorUpdateEntry]` in ArcThread
+- `ccya/models/state.py:43` — rename `progress: list[ProgressEntry]` to `major_updates: list[ProgressEntry]` in ArcThread
 - `ccya/models/state.py:170` — rename `progress_kind` to `major_update_signal` in ThreadUpdate
 - `ccya/models/state.py:22` — change `Literal["advancement", "setback", "shift"]` to `Literal["advancement", "setback"]` in ProgressEntry
 - `ccya/models/extraction.py:231` — change `goal_update: str | None` to `goal_update: dict | None` in StorytellerResult
@@ -96,8 +96,8 @@ All shared primitives from Phase 01-05 and pc.situation primitive from the maste
 - `ccya/prompts/sections/_arc.j2` — rename `current_arc` to `current_objective`, rename `visible_goal` to `long_term_objective`
 - `ccya/prompts/storytell_system.j2` — rename `visible_goal` to `long_term_objective`
 - `ccya/prompts/generate_seed_system.j2` — rename `visible_goal` to `long_term_objective`, `goal_context` to `arc_origin`
-- `ccya/templates/_state_left.html` — rename `goal_context` to `arc_origin`
-- `ccya/templates/_save_picker.html` — rename `goal_context` to `arc_origin`
+- `ccya/templates/_state_left.html:63-64` — rename `visible_goal` to `long_term_objective`, rename `goal_context` to `arc_origin`
+- `ccya/templates/_save_picker.html:29` — [QUESTION: rename `visible_goal` to `long_term_objective` (shows goal) or render `arc_origin` (shows origin story)? Design doc says arc_origin, but code references `visible_goal` not `goal_context`.]
 - `ccya/ev/checkers/goal_update_validity.py` — update to `long_term_objective`
 - `ccya/ev/checkers/arc_goals.py` — update to `long_term_objective`
 
@@ -142,8 +142,7 @@ All shared primitives from Phase 01-05 and pc.situation primitive from the maste
 **Files:**
 - `ccya/models/extraction.py:231` — change `goal_update: str | None` to `goal_update: dict | None` in StorytellerResult
 - `ccya/engine/thread_sanitizer.py:219-222` — update `_apply_goal_update` to use `long_term_objective` key only
-- `ccya/engine/thread_sanitizer.py:340-345` — remove `goal_context` application (deleted in Phase 01)
-- `ccya/engine/turn_state.py:534-536` — update to apply dict to `long_term_objective` field only
+- `ccya/engine/turn_state.py:534-536` — update to apply dict to `long_term_objective` field only (Phase 01 already removed `goal_context` from these lines)
 
 **What:** Change `goal_update` from `str | None` to `dict | None` with `long_term_objective` key.
 
@@ -155,7 +154,6 @@ All shared primitives from Phase 01-05 and pc.situation primitive from the maste
 
 **Files:**
 - `ccya/engine/turn_state.py:116` — change `dormant_threshold = 4` to `dormant_threshold = 8`
-- `ccya/engine/turn_state.py:229` — change `if turns_since < 5` to `if turns_since < 8` (or remove entirely in Phase 01)
 - `ccya/prompts/sanitize_thread.j2:51` — "If a thread has no activity in 4+ turns" → "If a thread has no activity in 8+ turns"
 - `ccya/prompts/sanitize_thread.j2:48` — align abandonment criteria with TTL strategy (8 dormant + 5 archival = 13 turns total)
 
@@ -168,9 +166,9 @@ All shared primitives from Phase 01-05 and pc.situation primitive from the maste
 ## Phase 07: Implement TTL filtering in context builder
 
 **Files:**
-- `ccya/prompts/context.py` — add TTL filtering for completed_threads (3-turn TTL), following the same pattern as `_get_resolved_arcs()` in narrate.py:139
-- Pass pre-filtered `completed_threads` to templates
-- `ccya/prompts/sections/_arc.j2:21` — replace `current_arc.completed_threads[:15]` with TTL-filtered `completed_threads` from context builder
+- `ccya/engine/extraction/storytell.py` — add TTL filtering for `completed_threads` (3-turn TTL) before passing `current_arc` to template, following the same pattern as `_filter_completed_threads()` in narrate.py:128-136
+- Narrator path (`narrate.py:80`) already TTL-filters via `_filter_completed_threads()` — no change needed there
+- `ccya/prompts/sections/_arc.j2:21` — replace `current_arc.completed_threads[:15]` with TTL-filtered `current_arc.completed_threads` from context builder (no `[:15]`)
 - `ccya/prompts/sections/_arc.j2:18-24` — remove `[:15]` hard cap, render all TTL-filtered threads
 - `ccya/prompts/sections/_arc.j2:12-16` — rename "Previously Resolved Arcs" to "Recently Resolved Arcs"
 
