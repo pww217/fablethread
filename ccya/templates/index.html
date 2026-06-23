@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if state.meta.session_name %}CCYA: {{ state.meta.session_name }}{% elif state.location.id %}{{ state.pc.get('name') or 'Player' }} @ {{ state.location.get('name') or state.location.get('id', '') }}{% else %}Choose Your Own Adventure{% endif %}</title>
+    <title>{% if no_save %}Choose Your Own Adventure{% elif state.meta.session_name %}CCYA: {{ state.meta.session_name }}{% elif state.location.id %}{{ state.pc.get('name') or 'Player' }} @ {{ state.location.get('name') or state.location.get('id', '') }}{% else %}Choose Your Own Adventure{% endif %}</title>
     <script src="/static/vendor/htmx.min.js" defer></script>
     <script src="/static/vendor/alpine.min.js" defer></script>
     <script src="/static/vendor/marked.min.js"></script>
@@ -16,7 +16,7 @@
 
     <!-- Header -->
     <header class="header-bar">
-        <span class="header-logo" id="header-logo">{{ state.meta.get('session_name') or ((state.pc.get('name') or 'Player') + ' @ ' + (state.location.get('name') or state.location.get('id', '')) if state.location.id else '') or 'Choose Your Own Adventure' }}</span>
+        <span class="header-logo" id="header-logo">{% if no_save %}Choose Your Own Adventure{% else %}{{ state.meta.get('session_name') or ((state.pc.get('name') or 'Player') + ' @ ' + (state.location.get('name') or state.location.get('id', '')) if state.location.id else '') or 'Choose Your Own Adventure' }}{% endif %}</span>
         <button class="sidebar-toggle sidebar-toggle--right"
                 @click="toggleDrawer('right')"
                 :aria-expanded="rightDrawerOpen"
@@ -97,6 +97,7 @@
     <!-- Body: left sidebar | narrative | right sidebar -->
     <div class="app-body">
 
+        {% if not no_save %}
         <aside class="sidebar sidebar-left" :style="leftStyle" :class="{ 'sidebar--open': leftDrawerOpen }" @click.self="onSidebarClick('left', $event)">
             <button class="sidebar-close"
                     @click="closeDrawer('left')"
@@ -108,6 +109,7 @@
                 {% endwith %}
             </div>
         </aside>
+        {% endif %}
 
         <div class="gutter gutter-left"></div>
 
@@ -135,12 +137,28 @@
             <!-- Scrollable narrative area — seeded with server-rendered history on load -->
             <div id="narrative-panel" class="narrative-panel">
 
-                {% if not history and not opening and not state.location.id %}
+                {% if no_save %}
+                <div class="landing-page">
+                    <div class="landing-hero">
+                        <h1 class="landing-title">Choose Your Own Adventure</h1>
+                        <p class="landing-subtitle">A text-based adventure engine powered by AI.</p>
+                    </div>
+                    <div class="landing-actions">
+                        <button type="button" class="landing-btn landing-btn--primary" @click="openPackPicker()">
+                            New Game
+                        </button>
+                        <button type="button" class="landing-btn landing-btn--secondary" id="landing-load-save-btn">
+                            Load Save
+                        </button>
+                    </div>
+                </div>
+                {% elif not history and not opening and not state.location.id %}
                 <p class="empty-state" id="empty-prompt" style="padding: 8px 0;">
                     No game loaded yet. Click <strong style="color: var(--text-primary)">New Game</strong> to begin.
                 </p>
                 {% endif %}
 
+                {% if not no_save %}
                 {% if opening %}
                 <div class="narrative-block" id="opening-block">
                     <div class="narrative-text" data-raw>{{ opening }}</div>
@@ -262,9 +280,11 @@
                     <i x-show="submitting" class="send-spinner send-spinner--stop"></i>
                 </button>
             </div>
+            {% endif %}
 
         </main>
 
+        {% if not no_save %}
         <div class="gutter gutter-right"></div>
 
         <!-- Right sidebar -->
@@ -279,6 +299,7 @@
                 {% endwith %}
             </div>
         </aside>
+        {% endif %}
 
     </div><!-- .app-body -->
 
@@ -431,73 +452,7 @@
     </div>
 
     <!-- Save Picker Modal -->
-    <div id="save-picker-shell" class="pack-picker-backdrop hidden" aria-hidden="true"></div>
-    <div id="save-picker-modal" class="pack-picker-modal hidden">
-            <div class="pack-picker-head">
-                <span id="save-picker-title" class="pack-picker-title">Load Save</span>
-                <button type="button" class="pack-picker-close" aria-label="Close">×</button>
-            </div>
-            <div id="save-picker-body" class="pack-picker-body">
-                <div class="save-picker-loading" x-show="savePicker.loading">Loading saves…</div>
-                <div class="save-picker-empty" x-show="!savePicker.loading && filteredSaves().length === 0">
-                    No saves found.
-                </div>
-                <label class="save-picker-toggle" x-show="!savePicker.loading">
-                    <input type="checkbox" x-model="savePicker.showEvGames">
-                    <span>Show eval runs</span>
-                </label>
-                <div class="save-picker-list">
-                    <template x-for="save in filteredSaves()" :key="save.name">
-                        <div class="pack-card-wrapper">
-                            <div class="pack-card" 
-                                 @click="selectSave(save.name)"
-                                 :class="{ 'pack-card--active': savePicker.selectedId === save.name, 'pack-card--current': save.name === activeSaveName }">
-                                <div class="pack-card-header">
-                                    <span class="pack-card-name" x-text="save.visible_goal || save.display_name || save.name"></span>
-                                    <span class="save-card-current-badge" x-show="save.name === activeSaveName">active</span>
-                                </div>
-                                <div class="pack-card-dir" x-show="save.display_name && save.display_name !== save.name" x-text="save.name"></div>
-                                <div class="pack-card-tags">
-                                    <span class="pack-card-tag" x-show="save.turn_count > 0">Turn <span x-text="save.turn_count"></span></span>
-                                    <span class="pack-card-tag" x-show="save.pack" x-text="save.pack"></span>
-                                    <span class="pack-card-tag" x-show="save.pc_name" x-text="save.pc_name"></span>
-                                    <span class="pack-card-tag" x-show="save.location_name" x-text="save.location_name"></span>
-                                </div>
-                                <div class="pack-card-modified" x-show="save.last_modified" x-text="formatTimestamp(save.last_modified)"></div>
-                            </div>
-                            <button type="button"
-                                    class="pack-card-delete"
-                                    title="Delete this save"
-                                    x-show="save.name !== activeSaveName"
-                                    @click.stop="deleteSave(save.name)">
-                                &times;
-                            </button>
-                        </div>
-                    </template>
-                </div>
-            </div>
-            <div class="pack-picker-foot">
-                <button type="button" 
-                        @click="closeSavePicker(); openPackPicker()" 
-                        class="save-picker-new-game-btn">
-                    + New Game
-                </button>
-                <div class="pack-picker-foot-actions">
-                    <button type="button" 
-                            @click="closeSavePicker()" 
-                            class="pack-picker-cancel-btn">
-                        Cancel
-                    </button>
-                    <button type="button" 
-                            @click="confirmSwitchSave()" 
-                            :disabled="!savePicker.selectedId || savePicker.loading"
-                            class="pack-picker-confirm-btn">
-                        <span x-show="!savePicker.loading">Switch</span>
-                        <span x-show="savePicker.loading">Switching…</span>
-                    </button>
-                </div>
-            </div>
-        </div>
+    {% include "_save_picker.html" %}
 
 
 </div><!-- .app-shell -->
@@ -1077,11 +1032,12 @@ function game() {
         input: '',
         submitting: false,
         starting: false,
-        gameStarted: {{ 'true' if state.location.id else 'false' }},
-        turnNum: {{ state.meta.turn | default(0) }},
+        gameStarted: {{ 'false' if no_save else ('true' if state.location.id else 'false') }},
+        turnNum: {{ 0 if no_save else (state.meta.turn | default(0)) }},
         hasNarrative: {{ 'true' if has_narrative else 'false' }},
         characterCreationEnabled: {{ 'true' if character_creation_enabled else 'false' }},
         activeSaveName: '{{ active_save_name }}',
+        noSave: {{ 'true' if no_save else 'false' }},
 
         // Width state (px or null for collapsed/using default).
         leftW: (() => {
@@ -1260,7 +1216,7 @@ function game() {
             window._gameInstance = this;
             this.initReroll();
             _bindTooltips(document);
-            if (!this.hasNarrative) {
+            if (!this.hasNarrative && !this.noSave) {
                 this.$nextTick(() => this.openPackPicker());
             }
             // Close drawers when crossing the 768px boundary (orientation change, etc.)
@@ -2094,132 +2050,14 @@ function game() {
             document.getElementById('settings-modal').classList.add('hidden');
         },
 
-        // Save picker state
-        savePicker: {
-            loading: false,
-            selectedId: null,
-            saves: [],
-            showEvGames: false,
-        },
-
         openSavePicker() {
-            this.savePicker.loading = true;
-            this.savePicker.selectedId = null;
-            this.savePicker.saves = [];
-            const shell = document.getElementById('save-picker-shell');
-            const modal = document.getElementById('save-picker-modal');
-            shell.classList.remove('hidden');
-            modal.classList.remove('hidden');
-            this._fetchSaves();
-        },
-
-        closeSavePicker() {
-            const shell = document.getElementById('save-picker-shell');
-            const modal = document.getElementById('save-picker-modal');
-            shell.classList.add('hidden');
-            modal.classList.add('hidden');
-            this.savePicker.loading = false;
-            this.savePicker.selectedId = null;
-            this.savePicker.saves = [];
-        },
-
-        async _fetchSaves() {
-            try {
-                const resp = await fetch('/api/saves');
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                const data = await resp.json();
-                this.savePicker.saves = data.saves || [];
-            } catch (e) {
-                console.error('Failed to fetch saves:', e);
-                this.savePicker.saves = [];
-            } finally {
-                this.savePicker.loading = false;
-            }
-        },
-
-        selectSave(id) {
-            this.savePicker.selectedId = id;
-        },
-
-        async confirmSwitchSave() {
-            if (!this.savePicker.selectedId) return;
-            this.savePicker.loading = true;
-            try {
-                const resp = await fetch('/api/switch-save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ save_name: this.savePicker.selectedId }),
-                });
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                const data = await resp.json();
-                if (data.ok) {
-                    this.closeSavePicker();
-                    // Reload the page to reflect the new save state
-                    window.location.reload();
-                } else {
-                    console.error('Switch save failed:', data);
-                }
-            } catch (e) {
-                console.error('Failed to switch save:', e);
-            } finally {
-                this.savePicker.loading = false;
-            }
-        },
-
-        async deleteSave(name) {
-            if (!confirm(`Delete save "${name}"? This cannot be undone.`)) return;
-            this.savePicker.loading = true;
-            try {
-                const resp = await fetch('/api/delete-save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ save_name: name }),
-                });
-                if (!resp.ok) {
-                    const data = await resp.json();
-                    alert(data.error || 'Failed to delete save');
-                    return;
-                }
-                // Re-fetch to update the list
-                await this._fetchSaves();
-                // Clear selection if the deleted save was selected
-                if (this.savePicker.selectedId === name) {
-                    this.savePicker.selectedId = null;
-                }
-            } catch (e) {
-                console.error('Failed to delete save:', e);
-                alert('Failed to delete save');
-            } finally {
-                this.savePicker.loading = false;
-            }
-        },
-
-        formatTimestamp(ts) {
-            if (!ts) return '';
-            const d = new Date(ts);
-            if (isNaN(d.getTime())) return ts;
-            const now = new Date();
-            const diffMs = now - d;
-            const diffMins = Math.floor(diffMs / 60000);
-            const diffHrs = Math.floor(diffMs / 3600000);
-            const diffDays = Math.floor(diffMs / 86400000);
-            if (diffMins < 1) return 'just now';
-            if (diffMins < 60) return `${diffMins}m ago`;
-            if (diffHrs < 24) return `${diffHrs}h ago`;
-            if (diffDays < 7) return `${diffDays}d ago`;
-            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-        },
-
-        filteredSaves() {
-            const saves = this.savePicker.saves;
-            if (this.savePicker.showEvGames) return saves;
-            return saves.filter(s => s.kind !== 'eval');
+            const el = document.getElementById('save-picker-shell');
+            if (el) Alpine.$data(el).open(this.activeSaveName);
         },
     };
 }
 
 // Settings panel: escape key closes it; backdrop click closes it
-// Save picker: escape key closes it; backdrop click closes it; close button
 document.addEventListener('DOMContentLoaded', () => {
     // Settings panel
     const settingsBackdrop = document.getElementById('settings-backdrop');
@@ -2239,28 +2077,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Save picker
-    const savePickerBackdrop = document.getElementById('save-picker-shell');
-    const savePickerModal = document.getElementById('save-picker-modal');
-    const savePickerClose = savePickerModal?.querySelector('.pack-picker-close');
-    
-    if (savePickerBackdrop && savePickerModal) {
-        savePickerBackdrop.addEventListener('click', (e) => {
-            if (e.target === savePickerBackdrop) {
-                window._gameInstance?.closeSavePicker();
-            }
-        });
-    }
-    if (savePickerClose) {
-        savePickerClose.addEventListener('click', () => {
-            window._gameInstance?.closeSavePicker();
-        });
-    }
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && savePickerModal && !savePickerModal.classList.contains('hidden')) {
-            e.preventDefault();
-            window._gameInstance?.closeSavePicker();
-        }
+    // Save picker "New Game" event
+    document.addEventListener('savepicker:new-game', () => {
+        window._gameInstance?.openPackPicker();
+    });
+
+    // Landing page "Load Save" button
+    document.getElementById('landing-load-save-btn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const el = document.getElementById('save-picker-shell');
+        if (el) Alpine.$data(el).open(window._gameInstance?.activeSaveName || '');
     });
 });
 
@@ -2766,7 +2593,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <div id="hint-right" class="gutter-hint gutter-hint--right"></div>
 
 <!-- Initial game state for client-side entity highlighting -->
-<script id="initial-state" type="application/json">{{ state | tojson | safe }}</script>
+<script id="initial-state" type="application/json">{{ state if state else {} | tojson | safe }}</script>
 
 </body>
 </html>

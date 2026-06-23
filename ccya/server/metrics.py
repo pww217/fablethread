@@ -46,8 +46,10 @@ def _fmt_tokens_exact(n: Any) -> str:
         return "\u2014"
 
 
-def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
+def _recent_turn_metrics(save_dir: Path | None, n: int = 10) -> list[dict[str, Any]]:
     """Last n turns from events.jsonl, newest first, for the Debug panel."""
+    if save_dir is None:
+        return []
     path = save_dir / "events.jsonl"
     if not path.exists():
         return []
@@ -146,8 +148,10 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
     return rows
 
 
-def _turn_log_entries(save_dir: Path, limit: int = 50) -> list[dict[str, Any]]:
+def _turn_log_entries(save_dir: Path | None, limit: int = 50) -> list[dict[str, Any]]:
     """Build rows for _turn_log.html from events.jsonl (newest first)."""
+    if save_dir is None:
+        return []
     path = save_dir / "events.jsonl"
     if not path.exists():
         return []

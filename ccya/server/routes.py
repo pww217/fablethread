@@ -730,10 +730,13 @@ def panel_turn_log(limit: int = 50):
 
 @_app_mod.app.get("/turn_viewer", response_class=HTMLResponse)
 def turn_viewer():
-    if err := _require_save():
-        return err
     css_path = _app_mod.BASE_DIR / "static" / "app.css"
     css_v = int(css_path.stat().st_mtime) if css_path.exists() else 0
+    if _app_mod.SAVE_DIR is None:
+        return _app_mod._render(
+            "_turn_viewer.html",
+            {"turns": [], "turn_count": 0, "no_events": True, "css_v": css_v, "no_save": True},
+        )
     turns, no_events = _turn_viewer_data(_app_mod.SAVE_DIR)
     return _app_mod._render(
         "_turn_viewer.html",
