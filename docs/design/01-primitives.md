@@ -47,9 +47,66 @@ system are already defined.
 | Field | Scope | Reason |
 |-------|-------|--------|
 | `chapter_end` | CampaignArc, prompts, packs, engine | No behavioral effect. Added as patch for arc_resolve misuse. Adds cognitive load. |
-| `urgency_set_turn` | ArcThread model | Dead state. Never read or written. |
-| `promote_to_world_state` | ThreadResolution model | Dead state. Never read by engine. Replaced by two-step candidate system. |
+| `promote_to_world_state` | ThreadResolution model | Replaced by two-step candidate system. Currently active in turn_state.py:341-349 (applies to `state["scene"]["world_state"]`), to be removed. |
 | `goal_context` (all references) | CampaignArc, _default_state(), StorytellerResult, sanitizer schema, turn_state.py, audit.py, eval checkers, Jinja2 templates, PC UI panel | Replaced by `arc_origin`. No backward compatibility. |
+
+### Kept (previously proposed for deletion)
+
+| Field | Scope | Reason |
+|-------|-------|--------|
+| `urgency_set_turn` | ArcThread model | Actively read and written in turn_state.py:140,153,595 and seed.py:371-384. Used for urgency decay (stepwise demotion: urgent → normal → background). Deleting it breaks urgency decay. |
+
+### `goal_context` Deletion Cascade
+
+`goal_context` exists in 28+ locations. All callsites must be deleted simultaneously. Partial deletion breaks the engine.
+
+**Models (state.py):**
+- `state.py:81` — CampaignArc field
+- `state.py:186` — ArcResolution field
+
+**Engine (turn_state.py):**
+- `turn_state.py:249` — stored in resolved_arcs entry (must be removed)
+- `turn_state.py:266` — new successor arc construction (must be removed)
+- `turn_state.py:534-541` — goal_update path (must be updated to use `long_term_objective`)
+
+**Engine (thread_sanitizer.py):**
+- `thread_sanitizer.py:143,150` — pass `goal_context` to template (must be removed)
+- `thread_sanitizer.py:219-222` — `_apply_goal_update` validates dict with `goal_context` (must be removed)
+- `thread_sanitizer.py:340-345` — `_apply_goal_update` applies `goal_context` to `arc.goal_context` (must be removed)
+- `thread_sanitizer.py:238-240` — coerces unknown `progress_kind` to "advancement" including "shift" (must remove "shift" from valid set)
+
+**State init (state/io.py):**
+- `state/io.py:93` — `_default_state()` initialization (must be removed)
+
+**Prompts (Jinja2):**
+- `storytell_system.j2:14` — arc_resolve example (must be removed)
+- `sanitize_thread.j2:15,86` — sanitizer prompt (must be removed)
+- `generate_seed_system.j2:37,64` — seed prompt (must be updated to `arc_origin`)
+
+**Templates (Jinja2):**
+- `_state_left.html:64,109` — PC UI panel (must be updated to `arc_origin`)
+
+**Checkers (ev/checkers/):**
+- `ev/checkers/arc_resolution_validity.py:64-69` — validates goal_context present (must be removed)
+- `ev/checkers/goal_update_validity.py:56,58` — validates visible_goal (must be updated to long_term_objective)
+- `ev/checkers/arc_goals.py:38,40` — validates visible_goal (must be updated to long_term_objective)
+
+**Ev tools:**
+- `ev/audit.py:312,321,325` — audit references (must be removed/updated)
+- `ev/state_tools.py:472,1029,1111` — state tools (must be updated to long_term_objective)
+- `ev/prompt_context.py:217` — prompt context (must be updated to long_term_objective)
+
+**Changes/delta/narrate/extraction:**
+- `engine/changes.py:285-286` — change detection (must be updated to long_term_objective)
+- `state/delta_builder.py:53-55` — delta builder (must be updated to long_term_objective)
+- `engine/narrate.py:65` — narrate context (must be updated to long_term_objective)
+- `engine/extraction/pipeline.py:227` — extraction pipeline (must be updated to long_term_objective)
+
+**Other callsites:**
+- `ev/play.py:503,525` — turn context (must be updated to long_term_objective)
+- `server/tv.py:408` — server TV (must be updated to long_term_objective)
+- `_save_picker.html:29` — save picker UI (must be updated to arc_origin)
+- `_state_left.html:63,109` — PC UI panel (must be updated to arc_origin)
 
 ### `major_update_signal` Values
 
@@ -59,6 +116,10 @@ Rationale: the only information the engine needs is whether the thread moved for
 backward. `shift` described dimensional change, not directional progress, and had no
 distinguishing value from a low-signal `advancement`. If nothing significant happened,
 no `major_updates` entry should be emitted — the field name already enforces this.
+
+**Model locations to update:**
+- `state.py:22` — `ProgressEntry.kind: Literal["advancement", "setback", "shift"]` → `Literal["advancement", "setback"]`
+- `state.py:170` — `ThreadUpdate.progress_kind` → renamed to `major_update_signal` with `Literal["advancement", "setback"]`
 
 ## Age Tracking
 
@@ -228,6 +289,190 @@ But "vessel condition: damaged" might persist if the vessel itself is a persiste
 pc.situation is related to the idea of "external inventory" — things that belong to the
 PC but aren't on their person (ship, home, base of operations). This needs more
 fleshing out and may warrant a separate field or extension of pc.situation. Deferred.
+
+## Resolved Design Decisions
+
+### D1. `goal_update` format mismatch — RESOLVED
+
+**Decision:** `goal_update` becomes a dict with `long_term_objective` key only. `arc_origin` is a seed-time field set once and never changes — the storyteller should not be generating it mid-game.
+
+**Mechanical corrections:**
+- `StorytellerResult.goal_update` in `extraction.py:231` — change from `str | None` to `dict | None`
+- `thread_sanitizer.py:219-222` — `_apply_goal_update` already expects a dict; update to use `long_term_objective` key only (remove `goal_context`)
+- `thread_sanitizer.py:340-345` — `_apply_goal_update` applies `goal_context` to `arc.goal_context`; remove this line (field deleted)
+- `turn_state.py:534-536` — update to apply dict to `long_term_objective` field only
+
+### D2. TTL filtering in `_arc.j2` — RESOLVED
+
+**Decision:** TTL filtering in the context builder, not the template. Pass pre-filtered `completed_threads` to the template, following the same pattern as `_get_resolved_arcs()` in narrate.py:139.
+
+**Mechanical corrections:**
+- `_arc.j2:21` — replace `current_arc.completed_threads[:15]` with TTL-filtered `completed_threads` from context builder
+- Context builder in `prompts/context.py` — add TTL filtering for completed_threads (3-turn TTL)
+- `_arc.j2:18-24` — remove `[:15]` hard cap, render all TTL-filtered threads
+
+### D3. `created_turn` / `started_turn` initialization points — RESOLVED
+
+**Decision:** `created_turn` set in seed pipeline when arc object is instantiated. `started_turn` set in turn pipeline when narrator first renders the arc in prompts (typically turn 1, or later if the arc is seeded but not surfaced immediately).
+
+**Mechanical corrections:**
+- `state.py:80-81` — add `created_turn: int | None = None` and `started_turn: int | None = None` to CampaignArc
+- `state/io.py:93` — add initialization in `_default_state()`
+- Seed pipeline — set `created_turn` when arc is created
+- Narrate pipeline — set `started_turn` when arc is first rendered in prompts
+
+### D4. Thread type change `reason` field — RESOLVED
+
+**Decision:** Add `reason: str | None` to `ThreadUpdate` model.
+
+**Mechanical corrections:**
+- `state.py:170` — add `reason: str | None` to ThreadUpdate model
+- Storyteller prompt — instruct storyteller to provide reason when changing thread type
+- Sanitizer prompt — instruct sanitizer to provide reason when changing thread type
+
+## Mechanical Corrections (from design review 2026-06-23)
+
+This section lists all CRITICAL findings from the design review that require mechanical
+code/prompt/model changes. Each finding maps to specific files that must be updated.
+
+### Field Renames
+
+| CRITICAL | Old → New | Files to Update |
+|----------|-----------|-----------------|
+| C18, C35, C36, C37, C39, C40, C41, C42, C43, C47, C48, C49, C50 | `visible_goal` → `long_term_objective` | state.py:80, turn_state.py:247,265,534, thread_sanitizer.py:142,149, prompts/context.py:110,149, engine/narrate.py:65, engine/extraction/pipeline.py:227, ev/prompt_context.py:217, ev/state_tools.py:472,1029,1111, ev/play.py:503,525, server/tv.py:408, engine/changes.py:285-286, state/delta_builder.py:53-55, _arc.j2:3,6,9, storytell_system.j2:72,76, generate_seed_system.j2:63-64 |
+| — | `goal_update` format | `str | None` → `dict | None` with `long_term_objective` key (extraction.py:231, thread_sanitizer.py:219-222,340-345, turn_state.py:534-536) |
+| C19 | `progress` → `major_updates` | state.py:43, all code references (100+ matches in grep) |
+| C20 | `progress_kind` → `major_update_signal` | state.py:170, all code references |
+| C30 | `goal_context` → `arc_origin` in prompts | generate_seed_system.j2:37,64 |
+
+### Field Deletions
+
+| CRITICAL | Field | Files to Update |
+|----------|-------|-----------------|
+| C15 | `ThreadResolution.promote_to_world_state` | state.py:161, storytell_system.j2:11, turn_state.py:341,343 |
+| C16 | `ArcResolution.goal_context` | state.py:186 |
+| C17 | `CampaignArc.goal_context` | state.py:81, turn_state.py:249,266, state/io.py:93 |
+| C27 | `chapter_end` in prompts | storytell_system.j2:16,72,74 |
+| C7 | "Past Resolutions" in narrate_user.j2 | narrate_user.j2:59-61 |
+| C8 | `[:15]` hard cap in _arc.j2 | _arc.j2:21 |
+
+### Model Updates
+
+| CRITICAL | Model | Old → New |
+|----------|-------|-----------|
+| C14 | `ProgressEntry.kind` | `Literal["advancement", "setback", "shift"]` → `Literal["advancement", "setback"]` (state.py:22) |
+| C14 | `ThreadUpdate.progress_kind` | Renamed to `major_update_signal` with `Literal["advancement", "setback"]` (state.py:170) |
+| C83 | `WorldStateFact` | Full replacement: old `tier: Literal["permanent", "persistent"]` → new `tier: Literal["global", "local"]` + `permanent: bool` + `valence: Literal["threat", "complication", "neutral", "boon"]` + `expires_turn: int | None` (state.py:150-154) |
+| C6 | `ThreadUpdate` | Add `reason: str | None` (state.py:170) |
+| C58, C59 | ThreadResolution | Add `world_state_candidate` field or add `world_state_candidates` list to state |
+| C55, C56, C57 | ThreadResolution | Add `resolved_turn` marker |
+| C17 | CampaignArc | Add `created_turn: int | None` and `started_turn: int | None` (state.py:80-81) |
+| — | `StorytellerResult.goal_update` | `str | None` → `dict | None` with `long_term_objective` key (extraction.py:231) |
+
+### Threshold Updates
+
+| CRITICAL | Location | Old → New |
+|----------|----------|-----------|
+| C9 | turn_state.py:116 | `dormant_threshold = 4` → `dormant_threshold = 8` |
+| C13 | turn_state.py:229 | `if turns_since < 5` → `if turns_since < 8` |
+| C12 | config.py:184 | Remove `thread_completion_threshold: int = 3` |
+
+### Template/Prompt Updates
+
+| CRITICAL | Location | Change |
+|----------|----------|--------|
+| C10 | sanitize_thread.j2:51 | "4+ turns" → "8+ turns" (dormant guidance) |
+| C11 | sanitize_thread.j2:48 | Align abandonment criteria with TTL strategy (5+ turns no mention, 3+ turns no activity → review and align) |
+| C24 | sanitize_thread.j2:15 | Remove `{% if goal_context %}**Context:** {{ goal_context }}{% endif %}` |
+| C25 | sanitize_thread.j2:86 | Remove `goal_context` from JSON schema example |
+| C26 | storytell_system.j2:14 | Remove `goal_context` from arc_resolve example |
+| C27 | storytell_system.j2:16,72,74 | Remove `chapter_end` references |
+| C28 | storytell_system.j2:72 | `visible_goal` → `long_term_objective` |
+| C29 | storytell_system.j2:76 | `visible_goal` → `long_term_objective` |
+| C30 | generate_seed_system.j2:37,63-64 | `goal_context` → `arc_origin`, `visible_goal` → `long_term_objective` |
+| C31 | _arc.j2:3,6,9 | `visible_goal` → `long_term_objective` |
+| C32 | _arc.j2:18-24 | Remove `[:15]` hard cap, add TTL filtering |
+| C33 | _arc.j2:12-16 | Rename "Previously Resolved Arcs" to "Recently Resolved Arcs" |
+| C34 | _arc.j2:18-24 | Add TTL filtering to completed_threads |
+| C7 | narrate_user.j2:59-61 | Remove "Past Resolutions" section |
+| C82 | _world_state.j2, storytell_user.j2 | Render tier and valence as paired badges: `[global/threat]`, `[local/boon]` |
+| — | _world_state.j2:6 | Replace `fact.tier == "permanent"` check with `fact.permanent` boolean field (new schema) |
+| — | thread_sanitizer.py:238-240 | Remove "shift" from progress_kind coercion check: `if pk not in ("advancement", "setback", "shift")` → `if pk not in ("advancement", "setback")` |
+
+### World State Model Replacement (C83)
+
+The entire `WorldStateFact` model in `state.py:150-154` is replaced:
+
+**Old schema:**
+```python
+class WorldStateFact(BaseModel):
+    id: str
+    text: str
+    tier: Literal["permanent", "persistent"]
+```
+
+**New schema:**
+```python
+class WorldStateFact(BaseModel):
+    id: str
+    text: str
+    tier: Literal["global", "local"]
+    permanent: bool = False
+    valence: Literal["threat", "complication", "neutral", "boon"] = "neutral"
+    expires_turn: int | None = None
+```
+
+**Files to update for tier values:**
+- `turn_state.py:346,348` — `tier: "persistent"` → `tier: "local"` (or `"global"`)
+- All code that branches on `"permanent"` or `"persistent"` in world state context
+- `pack.py:56` — `SeedScene.world_state: list[WorldStateFact | str]`
+
+### Two-Step World State Candidate System (C52-C82)
+
+The current code in `turn_state.py:341-349` does direct one-step promotion. This must be replaced with a two-step system:
+
+1. **Storyteller flags** — `ThreadResolution` gets a `world_state_candidate` field
+2. **Sanitizer confirms** — Every 5 turns, sanitizer evaluates candidates within 0–5 turns of resolution
+3. **Sanitizer has full authority** — promote, reject, consolidate, modify, or replace the entire world state array
+
+**State changes needed:**
+- Add `world_state_candidates` list to state (populated by storyteller, consumed by sanitizer)
+- Add `resolved_turn` marker to ThreadResolution (for TTL evaluation)
+- Add TTL to candidate evaluation (0–5 turns after resolution)
+- Engine swaps old world state array for new one atomically (sanitizer returns complete replacement)
+- TTL expiry pass at start of each turn: hard-delete facts where `current_turn >= expires_turn`
+- All removals are hard deletes. No archive list in state. `events.jsonl` is the record.
+
+### Sanitizer World State Output Model
+
+The sanitizer is extended to maintain world state. It receives the full `world_state` list as context and returns a complete replacement array:
+
+```json
+{
+  "world_state": [
+    {
+      "id": "fact_id",
+      "text": "current or revised text",
+      "tier": "global | local",
+      "permanent": false,
+      "valence": "threat | complication | neutral | boon",
+      "expires_turn": null
+    }
+  ]
+}
+```
+
+**Files to update:**
+- `thread_sanitizer.py` — add world state to input context and output schema
+- `sanitize_thread.j2` — add world state to prompt context
+- `config.py` — ensure `sanitize_every` applies to world state sanitization
+
+### Seed-Time Valence Requirement
+
+The seed prompt must produce at least one `neutral` or `boon` fact across the combined global + local world state.
+
+**File to update:**
+- `generate_seed_system.j2` — add valence requirement to seed prompt instructions
 
 ## Out of Scope
 
