@@ -37,7 +37,7 @@ Cross-reference mapping every user template to its section includes and context 
 
 ### `_extract_scene_messages()` → `extract_scene_user.j2`
 
-**Context vars passed:** `narration`, `location`, `npc_roster`, `pc_name`, `turn_no`, `show_all_fields`
+**Context vars passed:** `narration`, `npc_roster`, `turn_no`, `pc_name`, `show_all_fields`
 
 **Section includes:** `_npc_roster.j2`
 
@@ -45,7 +45,7 @@ Cross-reference mapping every user template to its section includes and context 
 
 ### `_extract_state_messages()` → `extract_state_user.j2`
 
-**Context vars passed:** `narration`, `conditions`, `inventory`, `intent`, `turn_no`, `pc_name`
+**Context vars passed:** `narration`, `conditions`, `inventory`, `location`, `intent`, `turn_no`, `pc_name`
 
 **Section includes:** `_conditions.j2`, `_inventory.j2`
 
@@ -53,7 +53,7 @@ Cross-reference mapping every user template to its section includes and context 
 
 ### `_storytell_messages()` → `storytell_user.j2`
 
-**Context vars passed:** `narration`, `npc_roster`, `candidate_npcs`, `location`, `inventory`, `conditions`, `current_arc`, `all_threads`, `world_state`, `resolved_arcs`, `intent`, `pacing_context`, `recent_turns`, `prior_history`, `pending_beat`, `recent_beats`, `turn_no`, `band`, `scene_phase`, `curtain_call`, `allowed_beat_types`, `pc_name`
+**Context vars passed:** `narration`, `npc_roster`, `candidate_npcs`, `comp_this_turn`, `location`, `inventory`, `conditions`, `current_arc`, `all_threads`, `world_state`, `resolved_arcs`, `intent`, `pacing_context`, `recent_turns`, `prior_history`, `pending_beat`, `recent_beats`, `turn_no`, `band`, `scene_phase`, `curtain_call`, `allowed_beat_types`, `pc_name`
 
 **Section includes:** `_inventory.j2`, `_conditions.j2`, `_npc_roster.j2`, `_npc_names.j2`, `_location.j2`, `_arc.j2`, `_thread_list.j2`, `_recent_turns.j2`
 

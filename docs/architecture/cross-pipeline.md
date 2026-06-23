@@ -19,10 +19,13 @@ flowchart TD
     STATE -- "pc, inventory, compendium,<br>prior_history (state.yaml)" --> STEP1
     STEP0 -- "IntentEnvelope<br>RulesOutcome" --> STEP1
     STEP1 -- "narrative: str" --> STEP2A["Step 2a<br>Scene"]:::stageScene
-    STEP2A -- "location_change<br>npc_roster" --> STEP2B["Step 2b<br>State"]:::stageState
-    STEP1 -- "narrative" --> STEP2B
-    STEP2A -- "location_change<br>npc_roster" --> STEP2C["Step 2c<br>Storytell"]:::stageProgress
-    STEP1 -- "narrative" --> STEP2C
+    STEP1 -- "narrative" --> STEP2B["Step 2b<br>State"]:::stageState
+    STEP1 -- "narrative" --> STEP2C["Step 2c<br>Storytell"]:::stageProgress
+    STATE -- "pc, inventory, compendium" --> STEP2A
+    STATE -- "pc, inventory, conditions" --> STEP2B
+    STATE -- "arc.threads, compendium" --> STEP2C
+    STEP2A -- "compendium_npc_update, candidate_npcs" --> STEP2C
+    STEP2B -- "location_change" --> STEP2C
     STEP2A & STEP2B & STEP2C -- "merge" --> DELTA["StateDelta"]:::mergeNode
     DELTA -- "validate + apply" --> STATE
     DELTA -- "event record" --> EVENTS

@@ -3,6 +3,7 @@
 ## state.yaml — canonical live state
 
 ```yaml
+schema_version: int  # CURRENT_SCHEMA_VERSION = 1 in state/io.py; migration from v0 handled by _migrate_v0_to_v1()
 meta:
   session_name: str            # short evocative title for this game session (3-6 words)
   turn: int                    # source of truth — incremented only in engine/turn.py
@@ -55,12 +56,12 @@ world.factions: [str], world.locations: [str]
 
 ### Core result types (ccya/models/)
 
-- **IntentEnvelope**: `intent`, `intent_verb`, `target`, `check.required`, `check.skill`, `check.difficulty`, `impossible`, `reason`
+- **IntentEnvelope**: `intent`, `intent_verb`, `target`, `check` (RulesCheck), `impossible`, `reason`, `scene_motion: Literal["hold", "advance", "transition"]`
 - **RulesOutcome**: `rolled`, `skill`, `difficulty`, `stat_value`, `stat_mod`, `diff_mod`, `dice`, `raw_total`, `final_total`, `band`, `directive`, `intent`, `intent_verb`, `impossible`, `reason`
 - **SceneExtractResult**: `compendium_npc_update`, `candidate_npcs: list[dict]` (per-NPC beat candidates: [{id, type, effect}])
 - **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`, `location_change`, `location_description`
-- **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (str | None, applied directly to arc dict), `arc_resolve` (ArcResolution | None), `thread_resolve` (with outcome sentence + promote_to_world_state flag), `thread_add`, `gm_beat`, `actions`, `outcome_summary`
-- **SeedEnvelope**: `seed_state: GameState`, `opening_narrative`, `actions`, `arc: CampaignArc` (includes `goal_context` — UI-only, not rendered in prompts; unified `threads[]` with `progress: list[ProgressEntry]`, `completed_threads[]`)
+- **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (str | None, applied directly to arc dict), `arc_resolve` (ArcResolution | None), `thread_resolve` (with outcome sentence + promote_to_world_state flag), `thread_add`, `gm_beat`, `actions`, `outcome_summary`, `chapter_end: bool`
+- **SeedEnvelope**: `seed_state: SeedState`, `opening_narrative`, `actions`, `arc: CampaignArc | None` (includes `goal_context` — UI-only, not rendered in prompts; unified `threads[]` with `progress: list[ProgressEntry]`, `completed_threads[]`)
 
 ### State models (ccya/models/state.py)
 
@@ -73,15 +74,12 @@ world.factions: [str], world.locations: [str]
 - **ThreadResolution**: `id`, `resolution_state: Literal["resolved", "failed", "abandoned"]`, `outcome: str`
 - **ThreadUpdate**: `id`, `dormant`, `urgency`, `type`, `summary`, `progress`, `progress_kind`
 - **ArcResolution**: `resolution`, `visible_goal`, `goal_context`, `drop_threads: list[str]`, `new_threads: list[ArcThread]`
-- **CompendiumNpcUpdate**: NPC upsert data with `position` field for spatial positioning, `party` field for companion exemption from location-change auto-demotion
-- **StateDelta**: Merges all three extraction results; contains `location_change`, `location_description`, `compendium_npc_update`, `thread_update/arc_resolve/thread_resolve/thread_add`, `inventory_add/remove/update`, `pc_condition_add/remove`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`.
-- **GMBeat**: `type`, `effect`, `npc_id`, `driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None`, `beat_expires_turn`
 - **WorldStateFact**: `id: str`, `text: str`, `tier: Literal["permanent", "persistent"] = "persistent"`
 
 ### Extraction models (ccya/models/extraction.py)
 
 - **CompendiumNpcUpdate**: NPC identity changes (presence, notes, bio upserts, personality on creation, position, party companion flag)
-- **StateDelta**: See above
+- **StateDelta**: Merges scene, state, and storyteller extraction results; contains `location_change`, `location_description`, `compendium_npc_update`, `arc_update` (CampaignArc), `inventory_add/remove/update`, `pc_condition_add/remove`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`. Thread operations (`thread_update`, `thread_resolve`, `thread_add`, `arc_resolve`) are in `StorytellerResult`, not StateDelta.
 - **SceneExtractResult**: See above
 - **StateExtractResult**: See above
 - **GMBeat**: See above
@@ -103,7 +101,7 @@ world.factions: [str], world.locations: [str]
 
 ### Compactor models (ccya/models/compactor.py) — dormant
 
-- **CompactorSanitizationResult**: `inventory_remove`, `pressure_remove`, `condition_remove` — coerced by `_coerce_sanitization_actions` (field_validator): converts bare strings to `{id: str, confidence: "high", reason: None}` dicts. Currently unused.
+- **CompactorSanitizationResult**: `npc_merge`, `inventory_remove`, `pressure_remove`, `condition_remove` — coerced by `_coerce_sanitization_actions` (field_validator): converts bare strings to `{id: str, confidence: "high", reason: None}` dicts. Currently unused.
 
 ## Non-obvious model behavior
 

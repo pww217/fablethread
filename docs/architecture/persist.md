@@ -14,7 +14,7 @@ Atomic writes to disk. No LLM calls.
 
 ### state_snapshot timing
 
-`state_snapshot` is captured at `engine/turn.py:1423`, AFTER all turn processing (ruling, narrate, extract, sanitizer, apply_delta). This means:
+`state_snapshot` is captured at `engine/turn.py:421`, AFTER all turn processing (ruling, narrate, extract, sanitizer, apply_delta). This means:
 
 - Thread resolutions are already reflected (resolved threads moved to `completed_threads`)
 - Arc resolutions are already reflected (arc may be resolved with successor)

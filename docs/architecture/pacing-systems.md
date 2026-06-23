@@ -38,14 +38,14 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 | From | To | Condition |
 |------|-----|-----------|
 | SETUP | RISING | Urgent thread appears OR turns_in_phase ≥ 3 (3-turn TTL prevents stagnation) |
-| RISING | CLIMAX | convergence_score ≥ threshold (default 3) |
+| RISING | CLIMAX | convergence_score ≥ threshold (default 2) |
 | CLIMAX | RESOLUTION | climax_turn_count ≥ limit |
 | RESOLUTION | BREATHER | Always (1-turn transition) |
 | BREATHER | RISING | Urgent thread appears OR breather_max_turns elapsed |
 
 ### Convergence score
 
-`compute_convergence_score()` computes a 5-component score (0-5) each turn to drive RISING→CLIMAX transition. Components: (1) any urgent thread (dormant-aware, urgent threads with dormant=False) (+1), (2) any threat thread (dormant-aware, threads with type="threat" and dormant=False) (+1), (3) scene age ≥ threshold (+1), (4) beat streak: ≥60% pressure beats in recent window (+1), (5) dice weight: fail/crit_fail roll with urgent thread (+1). Threshold is `config.convergence_threshold` (default 3).
+`compute_convergence_score()` computes a 5-component score (0-5) each turn to drive RISING→CLIMAX transition. Components: (1) any urgent thread (dormant-aware, urgent threads with dormant=False) (+1), (2) any threat thread (dormant-aware, threads with type="threat" and dormant=False) (+1), (3) scene age ≥ threshold (+1), (4) beat streak: ≥60% pressure beats in recent window (+1), (5) dice weight: fail/crit_fail roll with urgent thread (+1). Threshold is `config.convergence_threshold` (default 2).
 
 ## 2.5. Curtain Call — CLIMAX phase soft close
 
@@ -121,10 +121,10 @@ flowchart LR
 
 | File | Line(s) | What |
 |------|---------|------|
-| `turn.py` | 68 | `PRESSURE_BEAT_TYPES` definition |
-| `turn.py` | 762-767 | Pre-narration expiry check |
-| `turn.py` | 1012-1019 | New beat replacement / null-clear |
-| `turn.py` | 1139-1150 | Beat history snapshot |
+| `turn.py` | 57 | `PRESSURE_BEAT_TYPES` definition |
+| `narrate.py` | 170-175 | Pre-narration expiry check |
+| `turn.py` | 255-262 | New beat replacement / null-clear |
+| `turn_state.py` | 472-480 | Beat history snapshot |
 | `changes.py` | 333-373 | General change summarization (conditions, facts, threads, inventory) |
 
 ## 4. Pacing Context
@@ -135,13 +135,15 @@ flowchart LR
 
 ### Struct fields
 
+Defined in `ccya/engine/turn_context.py`.
+
 ```
 PacingContext:
   directive: str           # "Scene Imperative" | "Scene Pressure" | ""
   outcome_hint: str | None # "hold" | "transition"
   summary: str             # Human-readable log, never sent to LLM
-  spiral_detected: bool    # Death spiral flag from recent rolls
-  convergence_score: int   # 0-5 score for RISING→CLIMAX transition
+  spiral_detected: bool    # Death spiral flag from recent rolls (set in narrate.py, not _compute_pacing_context)
+  convergence_score: int   # 0-5 score for RISING→CLIMAX transition (set in narrate.py, not _compute_pacing_context)
 ```
 
 ### How each field is computed
@@ -198,11 +200,11 @@ flowchart LR
 
 | File | Line(s) | What |
 |------|---------|------|
-| `turn.py` | 98-108 | `PacingContext` dataclass definition |
-| `turn.py` | 447-486 | `_compute_pacing_context()` |
-| `turn.py` | 408-444 | `_compute_narration_directive()` |
-
-| `turn.py` | 804-813 | `_narrate_setup()` calls `_compute_pacing_context` |
+| `turn_context.py` | 41-48 | `PacingContext` dataclass definition |
+| `_pacing.py` | 171-205 | `_compute_pacing_context()` |
+| `_pacing.py` | 145-168 | `_compute_narration_directive()` |
+| `turn.py` | 317 | `_apply_state_updates()` calls thread operations (via turn_state.py) |
+| `narrate.py` | 220-267 | `_narrate_setup()` calls `_compute_pacing_context()`, sets spiral_detected/convergence_score/convergence_components on PacingContext |
 | `narrate_user.j2` | 100-103 | `outcome_hint`, `pacing_context` |
 | `storytell_user.j2` | 27-28 | `directive`, `outcome_hint` |
 | `storytell_user.j2` | 30-31 | `scene_phase`, `allowed_beat_types` |
@@ -237,20 +239,20 @@ flowchart LR
 | Urgency decay | Thread at same urgency for 8 turns | `urgent→normal→background` |
 | Thread cap eviction | Active threads > 5 on `thread_add` | Evict oldest active |
 | Engine culling | ≥3 dormant threads | Oldest (by last_updated_turn) → completed_threads with resolution_state: "abandoned" |
-| Progress dedup | ≥50% overlap with last progress entry | Reject new entry |
+| Progress dedup | ≥70% overlap with last progress entry | Reject new entry |
+| Thread completion | ≥3 progress entries | Auto-resolve thread |
 
 ### Code locations
 
 | File | Line(s) | What |
 |------|---------|------|
-| `turn.py` | 113-238 | `_apply_thread_updates()` |
-| `turn.py` | 316-405 | `_apply_thread_resolutions()` |
-| `turn.py` | 243-313 | `_apply_arc_resolve()` |
-| `turn.py` | 1235-1272 | Thread add gate + cap eviction |
+| `turn_state.py` | 17-188 | `_apply_thread_updates()` |
+| `turn_state.py` | 278-367 | `_apply_thread_resolutions()` |
+| `turn_state.py` | 192-275 | `_apply_arc_resolve()` |
+| `turn_state.py` | 575-649 | Thread add gate + cap eviction (inside _apply_state_updates) |
 | `ccya/state/io.py` | 138 | `save_state()` |
 | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
-| `thread_sanitizer.py` | 20-34 | Wrapper for exception safety |
-| `turn.py` | 1387 | Invocation in `run_turn()` |
+| `turn_state.py` | 425 | Invocation in `_apply_state_updates()` |
 
 ## 6. Complete Interaction Map
 
@@ -351,6 +353,8 @@ T6:  normal climax rhythm continues
 | `thread_max_active` | 5 | Thread Lifecycle | Thread cap, oldest evicted on overflow |
 | `thread_urgency_max_age` | 8 | Thread Lifecycle | Urgency decay after N turns at same level |
 | `sanitize_every` | 5 | Sanitizer | Run sanitizer every N turns (0=disabled) |
+| `thread_completion_threshold` | 3 | Thread Lifecycle | Auto-complete thread after N progress entries |
+| `thread_creation_cooldown` | 3 | Thread Lifecycle | Minimum turns between new thread additions |
 
 ## 9. Code Locations Summary
 
@@ -358,33 +362,31 @@ T6:  normal climax rhythm continues
 
 | Function | File | Line(s) | Computes |
 |----------|------|---------|----------|
-| `_compute_scene_phase()` | `turn.py` | 497-569 | Phase transitions from convergence_score, scene age |
-| `_compute_narration_directive()` | `turn.py` | 403-433 | scene_age → directive (Scene Imperative purely age-based) |
-| `_compute_pacing_context()` | `turn.py` | 437-474 | scene_phase + urgency + age → PacingContext |
-| `_compute_ages()` | `turn.py` | 491-502 | Scene age computation |
-| `compute_convergence_score()` | `_pacing.py` | 83-126 | 5-component score (any_urgent from dormant-aware urgent threads, any_threat from dormant-aware threat threads, age, beat streak, dice) → int |
-| `derive_allowed_beat_types()` | `_pacing.py` | 30-55 | Phase + directive + spiral → allowed beat types |
-| `detect_spiral()` | `_pacing.py` | 25-46 | Recent roll bands → spiral flag (consecutive/ratio thresholds) |
+| `_compute_scene_phase()` | `_pacing.py` | 222-294 | Phase transitions from convergence_score, scene age |
+| `_compute_narration_directive()` | `_pacing.py` | 145-168 | scene_age → directive (Scene Imperative purely age-based) |
+| `_compute_pacing_context()` | `_pacing.py` | 171-205 | scene_phase + urgency + age → PacingContext |
+| `_compute_ages()` | `_pacing.py` | 208-219 | Scene age computation |
+| `compute_convergence_score()` | `_pacing.py` | 86-142 | 5-component score (any_urgent from dormant-aware urgent threads, any_threat from dormant-aware threat threads, age, beat streak, dice) → int |
+| `derive_allowed_beat_types()` | `_pacing.py` | 61-83 | Phase + directive + spiral → allowed beat types |
+| `detect_spiral()` | `_pacing.py` | 33-58 | Recent roll bands → spiral flag (consecutive/ratio thresholds) |
 | `sanitize_threads()` | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
 
 ### Beat lifecycle functions
 
 | Function | File | Line(s) | What |
 |----------|------|---------|------|
-| Pre-narration expiry | `turn.py` | 762-767 | Expire stale beats |
-| New beat replacement | `turn.py` | 1012-1019 | Store storyteller beat |
-| Floor relief injection | `turn.py` | 1021-1034 | Inject breathing_room |
-| Pressure counter | `turn.py` | 1036-1044 | Track pressure streaks |
-| Beat history snapshot | `turn.py` | 1139-1150 | Append to recent_beats |
+| Pre-narration expiry | `narrate.py` | 170-175 | Expire stale beats |
+| New beat replacement | `turn.py` | 255-262 | Store storyteller beat |
+| Beat history snapshot | `turn_state.py` | 472-480 | Append to recent_beats |
 
 ### Thread lifecycle functions
 
 | Function | File | Line(s) | What |
 |----------|------|---------|------|
-| `_apply_thread_updates()` | `turn.py` | 113-238 | Apply storyteller updates |
-| `_apply_thread_resolutions()` | `turn.py` | 316-405 | Move threads to completed |
-| `_apply_arc_resolve()` | `turn.py` | 243-313 | Resolve arc, create successor |
-| Thread add gate | `turn.py` | 1235-1272 | Gate check + cap eviction |
+| `_apply_thread_updates()` | `turn_state.py` | 17-188 | Apply storyteller updates |
+| `_apply_thread_resolutions()` | `turn_state.py` | 278-367 | Move threads to completed |
+| `_apply_arc_resolve()` | `turn_state.py` | 192-275 | Resolve arc, create successor |
+| Thread add gate | `turn_state.py` | 575-649 | Gate check + cap eviction (inside _apply_state_updates) |
 
 ### EV checkers
 
