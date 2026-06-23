@@ -107,13 +107,18 @@ is rewritten to be unconditional and to cover the new fields below.
    Generated after world context so it reflects that context.
    This is the "entry vector" — genre-specific context answering
    "who am I, what do I have, where am I, who are the people around me."
+   **Important:** pc.situation is updatable during gameplay. If the PC's
+    vessel is destroyed, home is burned down, or crew is lost, these facts
+    should be reflected in state. See decisions below.
+    Full pc.situation feeds seed prompt and early turns; stripped-down
+    version (persist: true fields) surfaces in ongoing narrate prompts.
 
 5. NPC BONDS + COMPENDIUM
    Drawn from npc_bonds pool. Grounded in pc_situation where applicable
    (crewmates if vessel exists; settlement contacts if home_base exists).
 
 6. ARC
-   visible_goal, arc_origin (replaces goal_context).
+   visible_goal (→ rename, see Arc System Redesign), arc_origin (replaces goal_context).
    Threads generated after arc.
    Note: Arc system redesign is deferred (not yet written).
    arc_origin and visible_goal are placeholders until arc redesign is complete.
@@ -153,6 +158,37 @@ as they pertain to the player, before anything is set in motion.
 
 All keys are `required: false` — the LLM may determine the PC has no vessel, no home
 port, no crew. It must state that explicitly rather than invent something false.
+
+**Updatable during gameplay.** pc.situation should be updatable when circumstances change:
+- Vessel destroyed or stolen → update vessel field
+- Home port burned down → update home_port field
+- Crew lost or gained → update crew field
+
+This is important for continuity at turn 15 and turn 25. The narrator needs to know
+where the PC's home is, whether they have a vehicle, what their situation looks like
+now — not just what it was at turn 0.
+
+**Relationship to external inventory.** pc.situation is related to the idea of "external
+inventory" — things that belong to the PC but aren't on their person (ship, home, base
+of operations). This needs more fleshing out and may warrant a separate field or
+extension of pc.situation.
+
+**Placement in prompts.** pc.situation is surfaced in prompts in a tiered fashion:
+
+- **Seed prompt + first 2-3 turns:** Full pc.situation is fed to the seed prompt and
+  early narration. This establishes the PC's baseline canon (home settlement, family,
+  vehicle, crew, etc.) and may generate NPCs, inventory items, or other persistent
+  state.
+- **Ongoing turns:** A stripped-down version surfaces in narrate prompts (and possibly
+  storytell/ruling). Only fields marked with `persist: true` (or equivalent) are
+  included. Items that generated their own persistent entities (NPCs, inventory)
+  don't need ongoing surfacing — those entities carry their own context.
+
+Example: "home settlement" persists (the PC still has a home). "Crew member X" doesn't
+need surfacing — if that crew member matters, they exist as an NPC in the compendium.
+But "vessel condition: damaged" might persist if the vessel itself is a persistent entity.
+
+This tiered approach avoids context bloat while ensuring ongoing situational awareness.
 
 Example — golden-piracy:
 
@@ -222,12 +258,17 @@ happened that made this goal personal? This replaces `goal_context`.
 
 **Placement:** `arc_origin` goes in the UI (sidebar tooltip, replacing goal_context's
 current placement) and in the seed opening narration. It does NOT go into the narrate
-system prompt (at least not permanently — may be considered for first N turns in a
-future iteration).
+system prompt or the storyteller prompt. It is UI-only.
 
 **Lifecycle:** Each arc gets its own `arc_origin` at creation time (seed or successor
 arc). When a new arc replaces the old one (arc resolution), the new arc gets a new
 `arc_origin`. The old one is not carried forward.
+
+**Design decisions (from Arc System Redesign):**
+- UI only + seed opening narration. NOT in narrate/storytell prompts.
+- If early-turn prompt context is needed, that's a future consideration (first N turns).
+- The opening narration should establish arc_origin in a way the narrator can use for
+  continuity.
 
 ***
 
@@ -336,7 +377,28 @@ valence as paired badges: `[global/threat]`, `[local/boon]`, etc. This gives the
 storyteller the signal it needs to self-correct toward balance without additional
 instruction.
 
-***
+### Thread/Arc → World State Promotion
+
+When a thread resolves or an arc resolves, it should be able to feed into world state
+as a persistent fact. Example: "the hospital was destroyed → medication shortage
+settlement-wide." This is continuity — the narrator can reference it later when
+relevant events occur.
+
+**Two-step system (from Arc System Redesign decisions):**
+1. **Storyteller flags** — When resolving a thread or arc, the storyteller can emit a
+   `world_state_candidate` field with the proposed fact.
+2. **Sanitizer confirms** — The sanitizer (every 5 turns) evaluates the candidate. It
+   has 0–5 turns after resolution to decide if the fact is still relevant. The resolved
+   thread needs a `resolved_turn` marker so the sanitizer knows the timing.
+
+The sanitizer has full authority to:
+- Promote the candidate to world state
+- Reject the candidate
+- Consolidate it with existing world state facts
+- Modify the text
+
+This two-step process prevents trivial additions (the same problem progress had) while
+allowing meaningful narrative consequences to persist.
 
 ### TTL Expiry (Engine-Handled)
 
@@ -344,8 +406,6 @@ At the start of each turn, before any LLM call, the turn pipeline iterates `worl
 and hard-deletes any fact where `current_turn >= expires_turn`. No LLM involved. No
 archive. The fact remains visible in `events.jsonl` at the turn it was added, which is
 sufficient for eval audit purposes.
-
-***
 
 ### Sanitizer World State Authority
 
@@ -390,25 +450,63 @@ array is considered removed.
 ## Implementation Order
 
 1. **Clearing pass.** Delete all removed fields from schema, all default pack YAML files,
-   all engine code, and all prompt templates that reference them.
+    all engine code, and all prompt templates that reference them.
 2. **`WorldStateFact` replacement.** New schema, rewrite all code branching on old tier
-   values. Update `_world_state.j2` and `storytell_user.j2` to render `[tier/valence]`
-   badges.
+    values. Update `_world_state.j2` and `storytell_user.j2` to render `[tier/valence]`
+    badges.
 3. **TTL expiry.** Add hard-delete pass to the turn pipeline start.
 4. **Sanitizer extension.** Add `world_state` input and full replacement array output to
-   the sanitizer schema and prompt.
+    the sanitizer schema and prompt. Add two-step world state candidate system
+    (storyteller flags → sanitizer confirms).
 5. **Seed prompt rewrite.** Funnel ordering, new field generation, deleted fields removed.
 6. **`arc_origin`.** Add to `CampaignArc` and `_default_state()`. Remove `goal_context`
-   from all callsites simultaneously.
-   > **Note:** Arc system redesign is deferred (not yet written). `arc_origin` and
-   > `visible_goal` are placeholders until that redesign is complete.
+    from all callsites simultaneously.
+    > **Note:** Arc system redesign is deferred (not yet written). `arc_origin` and
+    > `visible_goal` are placeholders until that redesign is complete.
 7. **`pc.situation`.** Add to `_default_state()` and `SeedPC`. Add
-   `pc_situation_schema` to `ScenarioBrief`. Update seed prompt.
-   > **Note:** This section needs expansion and better authoring guidance.
+    `pc_situation_schema` to `ScenarioBrief`. Update seed prompt.
+    > **Note:** This section needs expansion and better authoring guidance.
+    > pc.situation should be updatable during gameplay.
 8. **Pack update.** Update golden-piracy: add `pc_situation_schema`, remove all deleted
-   fields, expand `scene_detail_bundles`, audit archetype pools.
-   > **Note:** Pack parity (default packs vs generated packs) is deferred (see
-   > [Pack Parity](./pack-parity-redesign.md)).
+    fields, expand `scene_detail_bundles`, audit archetype pools.
+    > **Note:** Pack parity (default packs vs generated packs) is deferred (see
+    > [Pack Parity](./pack-parity-redesign.md)).
+
+### NPC Roster Limit
+
+Current limit is 10 NPCs in `_build_npc_roster()` (prompt_context.py:25-53). Bumping to **12** (user preference). If context issues arise, can move to 15 later.
+
+### Skeptical Items (Question These)
+
+**Null beat rate 34-57%.** All beats have a two-turn TTL, and a 30-50% null rate gives the narration room to breathe. Less than 50% null is acceptable. No checker needed to enforce a threshold.
+
+**NPC dialogue not tracked.** The NPC model has no dialogue or speech_history field. User preference: not needed. Personality fields (including speech) and previous turn outcomes should be sufficient to drive consistent NPC behavior.
+
+### Dependencies on Arc System Redesign
+
+The following items in this document depend on decisions from the [Arc System Redesign](./arc-system-redesign.md):
+
+- **`arc_origin` placement** — UI-only + opening narration (decided in arc redesign)
+- **`visible_goal` rename** — needs a short name denoting "not a one-turn objective"
+  (candidates: `long_term_objective`, `active_objective`, `objective`)
+- **Thread → world state promotion** — two-step system (decided in arc redesign)
+- **`pc.situation` updatable** — needs engine support for updating situational facts
+  during gameplay (not yet designed)
+- **External inventory** — related to pc.situation, needs separate design
+
+> **Note on execution order:** It's unclear whether this redesign or the arc system
+> redesign should run first. They have interdependencies (arc_origin, visible_goal
+> rename, thread→world state promotion). Options:
+> (a) Arc system first, seed worldbuilding second (arc_origin is defined first),
+> (b) Seed worldbuilding first, arc system second (pc.situation foundation first),
+> (c) Split into multiple plans with shared foundation steps.
+> This needs to be decided before planning begins.
+
+### Dependencies on Other Designs
+
+- **Dynamic Factions** — factions will feed into arc/thread generation and world state
+- **Pack Parity** — pc_situation_schema needs parity between generated and custom packs
+- **World Creator Seed Pack** — authoring guidance for pc_situation_schema
 
 ***
 
@@ -429,6 +527,8 @@ array is considered removed.
 - **World creator seed pack.** The step before seed generation (for users who want to
   make their own packs) needs separate design work (see
   [World Creator Seed Pack](./world-creator-seed-pack.md)).
+- **Multiple arcs.** Whether threads cleanly fit into multiple concurrent arcs (1–3) is
+  deferred. See [Arc System Redesign](./arc-system-redesign.md#decisions).
 
 ***
 
@@ -452,5 +552,12 @@ significant design work.
 
 ### [Arc System Redesign](./arc-system-redesign.md)
 The arc system is being redesigned separately. `arc_origin` and `visible_goal` in this
-design are placeholders until that redesign is complete. This document will coordinate
-with the arc system redesign for contract alignment.
+design are placeholders until that redesign is complete. This document coordinates with
+the arc system redesign for contract alignment.
+
+Key coordination points:
+- `arc_origin` replaces `goal_context` (UI-only + opening narration)
+- `visible_goal` needs renaming (see arc redesign decisions)
+- Thread → world state promotion uses two-step system (storyteller flags, sanitizer confirms)
+- `pc.situation` is updatable during gameplay (needs engine support)
+- Multiple arcs deferred (see arc redesign decisions)

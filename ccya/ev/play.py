@@ -752,7 +752,7 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
                 max_turns = state.get("meta", {}).get("turn", 0) + int(flags["turns"])
         else:
             session_config = None
-            player_cfg = {"personality": "custom", "custom_persona": None}
+            player_cfg = resolve_player_config(flags, session_config)
 
         auto_report = resolve_auto_report(flags, session_config)
 
