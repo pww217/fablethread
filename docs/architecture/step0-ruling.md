@@ -76,16 +76,21 @@ All pacing signals are collapsed into one Python-computed struct (`PacingContext
 
 ### Struct definition
 
+Defined in `ccya/engine/turn_context.py`.
+
 ```
 PacingContext:
   directive: str           # "" | "Scene Imperative" | "Scene Pressure"; used by Storytell pipeline (Scene Imperative now purely age-based, CLIMAX turn-limit removed)
   outcome_hint: str | None # "hold" | "advance" | "transition" — narrator's primary scene motion instruction
   summary: str             # human-readable log string, never sent to LLM
+  spiral_detected: bool    # death spiral flag from recent rolls (set by _apply_state_updates, not _compute_pacing_context)
+  convergence_score: int   # 5-component score for RISING→CLIMAX transition (set by _apply_state_updates, not _compute_pacing_context)
+  convergence_components: dict[str, int]  # breakdown of convergence score components
 ```
 
 ### Computation
 
-`_compute_pacing_context()` in `engine/turn.py` consolidates pacing computation. It takes inputs (`scene_phase`, `thread_urgency_count`, `effective_scene_age`) and returns a single struct with directive derived from a priority stack. It also computes `outcome_hint` from the ruling LLM's `scene_motion` and PacingContext escalation signals: ruling `scene_motion` takes priority (`transition` > `advance` > fallback), then `impossible=true` forces `advance`, then Python escalation signals produce `advance`, defaulting to `hold`.
+`_compute_pacing_context()` in `engine/_pacing.py` computes the base struct from inputs (`scene_phase`, `thread_urgency_count`, `effective_scene_age`, `scene_motion`, `scene_pressure_threshold`, `scene_imperative_threshold`). It returns a PacingContext with `directive` derived from a priority stack and `outcome_hint` from scene_motion (overridden to "transition" when Scene Imperative fires). Additional fields (`spiral_detected`, `convergence_score`, `convergence_components`) are set later in `_narrate_setup()` in `engine/narrate.py` after convergence score and spiral detection run.
 
 ```mermaid
 flowchart TD
@@ -130,16 +135,16 @@ flowchart LR
     classDef prompt fill:#0f172a,color:#7dd3fc,stroke:#1e40af
     classDef extractor fill:#500724,color:#fbcfe8,stroke:#ec4899
 
-    TURN["engine/turn.py<br>_compute_pacing_context()"]:::pyNode
+    NARRATE["engine/narrate.py<br>_narrate_setup() calls _compute_pacing_context()"]:::pyNode
     PIPELINE["_run_extraction_pipeline()<br>pass PacingContext struct"]:::pyNode
-    EXTRACT_FN["_storytell_messages()<br>extraction.py"]:::pyNode
+    EXTRACT_FN["_storytell_messages()<br>extraction/storytell.py"]:::pyNode
     USER_TMPL["storytell_user.j2<br>pacing_context.directive"]:::prompt
     SYS_TMPL["storytell_system.j2<br>PacingContext guidance"]:::prompt
     NARRATE_TMPL["narrate_user.j2<br>pacing_context.outcome_hint"]:::prompt
 
-    TURN --> PIPELINE --> EXTRACT_FN --> USER_TMPL
+    NARRATE --> PIPELINE --> EXTRACT_FN --> USER_TMPL
     USER_TMPL --> SYS_TMPL --> EXTRACTOR["Storytell LLM"]:::extractor
-    TURN -. "also passed to" .-> NARRATE_TMPL
+    NARRATE -. "also passed to" .-> NARRATE_TMPL
 ```
 
 1. **Computed** once in `run_turn()` via `_compute_pacing_context()`.

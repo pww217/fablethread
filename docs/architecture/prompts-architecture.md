@@ -42,14 +42,13 @@ Two entirely separate template systems exist — do not conflate them:
 
 ### Storyteller user prompt (`ccya/prompts/storytell_user.j2`)
 
-- Renders all threads in unified list with scope tags ([SCENE]/[ARC]), dormant markers for threads with dormant=True, urgency levels; completed_threads rendered as "## past resolutions" section after active threads loop (for continuity — do not re-open resolved tensions)
+- Renders all threads in unified list with scope tags ([SCENE]/[ARC]), dormant markers for threads with dormant=True, urgency levels; completed_threads rendered via `_arc.j2` include as "### Completed Threads" section (for continuity — do not re-open resolved tensions)
 - Sections reordered by recency: inventory → conditions → characters → location → arc/threads → past resolutions → world_state → pacing_context → scene_phase → rules_outcome → player_intent → CURRENT TURN NARRATION (most important signal last)
 - `pacing_context` section no longer renders `gate` field (always "allow" after Plan 2); `scene_phase` and `allowed_beat_types` rendered as separate section after pacing_context
 
 ### Seed system prompt (`ccya/prompts/generate_seed_system.j2`)
 
-- Generation order: PC → World state → Campaign arc → Opening scene/NPCs (inventory removed — PCs acquire items through gameplay)
-- Inventory rules section removed; schema comment updated to note inventory removal
+- Generation order: PC → World state → Campaign arc → Opening scene/NPCs → Inventory (5 steps)
 - Opening narrative instructions: weave world state facts naturally (show effect, not statement), show NPC personal ties through action/dialogue (not exposition), reference compendium NPCs naturally in narration (phone call, rumor, memory)
 - CompendiumEntry model has explicit motivation/fear/leverage/personality optional string fields alongside existing name/title/bio/bond/presence/notes; seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings; seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only) and a 12-archetype reference table
 - Scene ideal: 1–4 present NPCs; narrative pressure for exits above that (soft guidance only, engine does NOT track or enforce NPC count at runtime — hard cap removed per Phase 01)
@@ -63,7 +62,7 @@ Two entirely separate template systems exist — do not conflate them:
 
 ### Thread list include (`ccya/prompts/sections/_thread_list.j2`)
 
-- Shared include rendering thread entries with scope tag, latent marker, urgency, and summary
+- Shared include rendering thread entries with type label, urgency, dormant marker, and summary
 - Used by narrate_user.j2 Scene Context section (eliminates duplicated for-loop in if/elif branches)
 - Gate block (`**Gate: blocked** — new threads will not be added this turn`) removed — gate is always "allow" after Plan 2, phase-derived `allowed_beat_types` is the gating mechanism
 

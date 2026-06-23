@@ -67,7 +67,7 @@ flowchart TD
 ### Turn submission (Alpine.js + SSE)
 
 1. User types input, presses Enter → `game().submitTurn()`
-2. Opens `EventSource` to `GET /turn?input=<text>` — SSE endpoint in `routes.py:83`
+2. Opens `EventSource` to `GET /turn?input=<text>` — SSE endpoint in `routes.py:238`
 3. Server streams events as the 5-stage pipeline (`run_turn()`) executes:
    - `narrative_token` — token chunks streamed as they arrive from LLM
     - `phase` — pipeline phase progress (ruling_start, narrate_start, narrate_first_token, narrate_done, extract_start, extract_done, sanitize_start, sanitize_done, persist)
@@ -166,4 +166,4 @@ Grouped by category via emoji prefix:
 
 ## Server Entry Point
 
-`routes.py:57` — `GET /` handler assembles template context from `state.yaml`, `events.jsonl`, pack manifest, and engine config, then renders `ccya/templates/index.html`.
+`routes.py:195` — `GET /` handler assembles template context from `state.yaml`, `events.jsonl`, pack manifest, and engine config, then renders `ccya/templates/index.html`.

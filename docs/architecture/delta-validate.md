@@ -16,7 +16,7 @@ flowchart TD
     SR2["StateExtractResult<br>(Step 2b)"]:::stageState
     SR3["StorytellerResult<br>(Step 2c)"]:::stageProgress
 
-    MERGE["StateDelta<br>──────────────────<br>scene_tagline<br>location_change, location_description<br>compendium_npc_update (NPC changes)<br>arc_update (CampaignArc with threads[], completed_threads[])<br>inventory_add / remove / update<br>pc_condition_add / remove<br><br>(gm_beat NOT in StateDelta —<br>written directly to state.meta.pending_gm_beat)"]:::mergeNode
+    MERGE["StateDelta<br>──────────────────<br>inventory_change_reason, condition_change_reason<br>inventory_add / remove / update<br>pc_condition_add / remove<br>location_change, location_description<br>compendium_npc_update (NPC changes)<br>actions<br>arc_update (CampaignArc with threads[], completed_threads[])<br><br>(gm_beat NOT in StateDelta —<br>written directly to state.meta.pending_gm_beat)"]:::mergeNode
 
     VALIDATE["_validate()<br>Check inventory_remove IDs exist<br>→ rejections: list[dict]"]:::pyNode
 

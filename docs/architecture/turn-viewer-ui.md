@@ -184,9 +184,9 @@ Turn viewer styles live in **`app.src.css`** lines 2102–3101+:
 
 | Route | Handler | Returns |
 |-------|---------|---------|
-| `GET /turn_viewer` | `turn_viewer()` (line 466) | `_turn_viewer.html` with server-rendered `turns` JSON |
-| `GET /turn_viewer/data` | `turn_viewer_data()` (line 482) | `JSONResponse` of turn data |
-| `GET /turn_viewer/stream` | `turn_viewer_stream()` (line 497) | SSE — polls `events.jsonl` mtime every 1s, emits `updated` |
+| `GET /turn_viewer` | `turn_viewer()` (line 732) | `_turn_viewer.html` with server-rendered `turns` JSON |
+| `GET /turn_viewer/data` | `turn_viewer_data()` (line 753) | `JSONResponse` of turn data |
+| `GET /turn_viewer/stream` | `turn_viewer_stream()` (line 770) | SSE — polls `events.jsonl` mtime every 1s, emits `updated` |
 
 ## Dependencies
 

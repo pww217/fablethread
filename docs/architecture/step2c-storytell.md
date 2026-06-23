@@ -192,7 +192,7 @@ ArcThread
 
 ### Engine-Driven Arc
 
-Thread lifecycle runs in `engine/turn.py` during the extraction phase. Seven operations handle arc/thread state in strict order:
+Thread lifecycle runs in `engine/turn_state.py` during the extraction phase (called from `engine/turn.py` via `_apply_state_updates`). Seven operations handle arc/thread state in strict order:
 
 ```mermaid
 flowchart TD
@@ -202,7 +202,7 @@ flowchart TD
     PR["StorytellerResult<br>thread_update: list[ThreadUpdate]<br>goal_update: str | None<br>arc_resolve: ArcResolution | None<br>thread_resolve: list[ThreadResolution]"]:::pyNode
 
     subgraph UPDATES["_apply_thread_updates(config)"]
-        U1["For each ThreadUpdate:<br>Find thread by id → apply<br>dormant/urgency/type/summary/progress changes<br>progress is append-only (list[ProgressEntry])<br>Progress dedup via difflib (≥50% overlap → reject)<br>Sets last_updated_turn = current turn"]
+        U1["For each ThreadUpdate:<br>Find thread by id → apply<br>dormant/urgency/type/summary/progress changes<br>progress is append-only (list[ProgressEntry])<br>Progress dedup via difflib (≥70% overlap → reject)<br>Sets last_updated_turn = current turn"]
         U2["Auto-dormant:<br>threads untouched for 4 turns (urgent threads excluded)<br>→ dormant: True, urgency: background"]
         U3["Urgency decay pass:<br>for each active thread with urgency_set_turn,<br>If age >= thread_urgency_max_age:<br>  urgent → normal, then normal → background<br>Sets urgency_set_turn = current turn on demotion"]
     end
@@ -244,7 +244,7 @@ flowchart TD
   - **Auto-dormant:** Threads untouched for 4 turns (urgent threads excluded) are automatically set to `dormant: True` with `urgency: background`. This prevents stale threads from lingering as active prompts. Fires every turn after thread_updates loop completes (not gated on mutation).
   - **Thread cap eviction:** After thread_add, if active thread count exceeds `config.thread_max_active` (default 5), the oldest active thread (by `last_updated_turn`) is evicted to `dormant: True`. This prevents unbounded thread accumulation.
   - **Engine culling:** When ≥3 dormant threads exist, the oldest (by `last_updated_turn`) is moved to `completed_threads[]` with `resolution_state: "abandoned"`. This prevents context bloat from accumulated dormant threads.
-  - **Progress dedup:** New progress entries are compared against the last entry via `difflib.SequenceMatcher`. ≥50% textual overlap causes rejection with a WARNING log. This filters out near-duplicate LLM output.
+  -   **Progress dedup:** New progress entries are compared against the last entry via `difflib.SequenceMatcher`. ≥70% textual overlap causes rejection with a WARNING log. This filters out near-duplicate LLM output.
   - **Urgency decay (Python-side floor):** Threads that have been at their current urgency level for >= `thread_urgency_max_age` turns (default 8) are demoted stepwise: urgent → normal, then normal → background. Only applies to active threads with `urgency_set_turn` set. Does not send signals to the LLM — it is a structural floor preventing indefinite stagnation at any urgency level.
 - **goal_update:** A bare string applied directly to `state["arc"]["visible_goal"]` via dict assignment. Does NOT route through `_merge_arc_update` (which replaces `threads[]` unconditionally — passing a bare CampaignArc would wipe the thread list). Applied before arc_resolve; if both fire on the same turn, arc_resolve wins (ending the arc supersedes a mid-arc update).
 - **Same-turn conflict detection:** When the same thread id appears in both `thread_update` and `thread_resolve` in a single output, a WARNING is logged. The processing order (update before resolve) means resolution takes precedence — correct behavior, but this is always an LLM error worth monitoring.
@@ -276,7 +276,7 @@ flowchart TD
         E1["Storyteller emits<br>thread_update: list[ThreadUpdate],<br>goal_update: str | None,<br>arc_resolve: ArcResolution | None,<br>thread_resolve: list[ThreadResolution],<br>thread_add (gated by PacingContext.gate)"]:::pyNode
     end
 
-    subgraph ARC_ENGINE["Arc Engine (turn.py)"]
+    subgraph ARC_ENGINE["Arc Engine (turn_state.py, called from turn.py)"]
         A1["_apply_thread_updates()<br>apply storyteller's explicit state changes"]:::pyNode
         A2["goal_update → direct dict assignment<br>state['arc']['visible_goal'] = value"]:::pyNode
         A3["Same-turn conflict detection<br>update + resolve for same id → WARNING"]:::pyNode
@@ -296,16 +296,16 @@ flowchart TD
 
 #### Entry Points
 
-Seven call sites in `run_turn()` process arc/thread operations in order:
-1. **`_apply_thread_updates()`** — apply storyteller's explicit state changes; progress is append-only (`list[ProgressEntry]`); sets `last_updated_turn`; auto-dormant after 4 turns without activity (urgent threads excluded); urgency decay (stepwise urgent→normal→background after N turns at same level). Progress dedup via SequenceMatcher
+Seven call sites in `_apply_state_updates()` in `turn_state.py` (called from `run_turn()` in `turn.py`) process arc/thread operations in order:
+1. **`_apply_thread_updates()`** — apply storyteller's explicit state changes; progress is append-only (`list[ProgressEntry]`); sets `last_updated_turn`; auto-dormant after 4 turns without activity (urgent threads excluded); urgency decay (stepwise urgent→normal→background after N turns at same level). Progress dedup via SequenceMatcher (≥70% overlap)
 2. **`goal_update`** — direct dict assignment to `state["arc"]["visible_goal"]`
 3. **Same-turn conflict detection** — warn if same thread id in both update and resolve
 4. **`_apply_arc_resolve()`** — resolve arc, store in resolved_arcs, create successor
 5. **`_apply_thread_resolutions()`** — resolve/fail/abandon → completed
-6. **Thread add gate** — pacing gate + ID collision checks + thread cap eviction
+6. **Thread add gate** — cooldown check + ID collision checks + thread cap eviction
 7. **`_merge_arc_update()`** — apply the final CampaignArc delta to state
 
-All seven run after `apply_delta()` but before `save_state()`.
+All seven run inside `_apply_state_updates()` which is called from `run_turn()` in `turn.py`.
 
 #### Step-by-Step: `_apply_thread_updates(config)`
 
@@ -316,7 +316,7 @@ For each ThreadUpdate:
 2. If not found → log WARNING, skip
 3. If found:
    - Apply non-None fields (`dormant`, `urgency`, `type`, `summary`) via `model_copy`
-   - If `progress` is non-None: wrap in `ProgressEntry(kind=update.progress_kind or "advancement", text=update.progress)`. If thread already has progress, compare against last entry via `difflib.SequenceMatcher` — ≥50% overlap rejects with WARNING. Otherwise append.
+    - If `progress` is non-None: wrap in `ProgressEntry(kind=update.progress_kind or "advancement", text=update.progress)`. If thread already has progress, compare against last entry via `difflib.SequenceMatcher` — ≥70% overlap rejects with WARNING. Otherwise append.
     - Set `last_updated_turn` to current turn number
  4. Log applied changes at INFO level
  5. **Auto-dormant** (post-loop, after every thread_updates loop): For each active (dormant=False) thread whose `last_updated_turn` is ≥ 4 turns ago AND is not urgent, set `dormant: True` and `urgency: background`.
@@ -324,7 +324,7 @@ For each ThreadUpdate:
 
 **Progress model:** Every progress entry is a `ProgressEntry` with `kind` field (`"advancement"`, `"setback"`, or `"shift"`) and `text`. The `progress_kind` field on `ThreadUpdate` tags each emitted progress entry; default is `"advancement"`. Progress is rendered to prompts as `[KIND] text` by `_fmt_progress()` (module-level function in `ccya/prompts/context.py` — relocated from a static method on `ArcThreadBlock` and from `ccya/engine/narrate.py`).
 
-**Progress dedup:** Uses `difflib.SequenceMatcher.ratio()` against the last entry to reject near-duplicate progress (≥50% textual overlap). This filters out LLM outputs that rephrase the same progress update without advancing the narrative. A WARNING is logged on rejection.
+**Progress dedup:** Uses `difflib.SequenceMatcher.ratio()` against the last entry to reject near-duplicate progress (≥70% textual overlap). This filters out LLM outputs that rephrase the same progress update without advancing the narrative. A WARNING is logged on rejection.
 
 **Auto-dormant:** Prevents stale threads from accumulating as active prompts. Threads that haven't been touched by `thread_update` for 4 turns (urgent threads excluded) are automatically set to `dormant: True` with `urgency: background`. This is engine-enforced, not storyteller-managed — the storyteller can re-activate a thread by issuing a `thread_update` with `dormant: False`, but the engine will demote it again if it goes untouched. Fires every turn (not gated on mutation) so stale active threads reliably get `dormant=True` after 4 turns of no updates.
 
@@ -340,13 +340,13 @@ Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resol
 6. Create successor arc with new `visible_goal`, `goal_context`, and combined surviving + new threads
 7. Replace `state["arc"]` with successor
 
-#### Thread Creation (gated in `run_turn()` with cap eviction)
+#### Thread Creation (gated in `_apply_state_updates()` in turn_state.py with cap eviction)
 
 New threads (`storyteller_result.thread_add`) are gated by:
 
-1. **Pacing gate**: `PacingContext.gate == "allow"` — blocks escalation when pacing context says so. Gate status is rendered in the prompt (`_thread_list.j2`) so the storyteller has awareness instead of silent drops.
+1. **Cooldown gate**: `thread_creation_cooldown` (default 3) — only allow thread_add if cooldown satisfied. Checked against `state.meta.last_thread_creation_turn`.
 2. **ID collision**: thread `id` already exists in `arc.threads[]` or `arc.completed_threads[]` → reject with WARNING log. Id-based dedup only — no key field or fuzzy merge.
-3. **Thread cap eviction** (post-add, only if config provided): If active thread count exceeds `config.thread_max_active` (default 5), evict the oldest active thread (by `last_updated_turn`) — set `dormant: True`. This prevents unbounded thread accumulation while the storyteller can still add new threads when pacing context permits.
+3. **Thread cap eviction** (post-add, only if config provided): If active thread count exceeds `config.thread_max_active` (default 5), evict the oldest active thread (by `last_updated_turn`) — set `dormant: True`. This prevents unbounded thread accumulation while the storyteller can still add new threads when cooldown permits.
 
 **Thread creation via thread_update (ungoverned):** Threads can also be created implicitly by appearing in `thread_update` without a prior `thread_add`. This is the dominant creation path in practice — the LLM introduces new thread IDs directly via updates.
 
@@ -372,6 +372,8 @@ Processes `storyteller_result.thread_resolve` (list of `ThreadResolution` with `
 | `config.thread_max_active` | 5 | Max active threads; oldest evicted when exceeded on thread_add |
 | `config.thread_urgency_max_age` | 8 | Turns at same urgency level before Python-side stepwise decay (urgent→normal→background) |
 | `config.sanitize_every` | 5 | Run sanitizer every N turns (0=disabled) |
+| `config.thread_completion_threshold` | 3 | Number of progress entries that auto-completes a thread |
+| `config.thread_creation_cooldown` | 3 | Minimum turns between new thread additions |
 
 #### Validation Edge Cases
 
@@ -382,7 +384,7 @@ Processes `storyteller_result.thread_resolve` (list of `ThreadResolution` with `
 5. **Duplicate thread ID in creation** — Checked against existing + completed IDs
 6. **Same-turn update+resolve conflict** — Same thread id in both `thread_update` and `thread_resolve` → log WARNING, resolution wins (fires after update)
 7. **Progress type migration** — Old saves with `progress: "str"` or `progress: list[str]` are coerced via `field_validator("progress", mode="wrap")`: bare strings wrapped in `[{"text": v, "kind": "advancement"}]`; string lists converted to `[{"text": s, "kind": "advancement"} for s in list]`.
-8. **Progress dedup rejection** — New progress with ≥50% textual overlap against last entry → log WARNING, skip entry (does not block rest of update)
+8. **Progress dedup rejection** — New progress with ≥70% textual overlap against last entry → log WARNING, skip entry (does not block rest of update)
 9. **Thread cap eviction** — After thread_add, if active count > `thread_max_active`, oldest active thread evicted to `dormant: True` — log INFO with evicted thread id
 
 ### Progress Migration

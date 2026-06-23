@@ -12,28 +12,20 @@
 
 ## ErrorKind values
 
-| Kind | Module | Description |
+| Kind | Module | Used in |
 |---|---|---|
-| `INVENTORY_REMOVE_FAILED` | `delta_builder.py` | Inventory remove target not found |
-| `INVENTORY_UPDATE_FAILED` | `delta_builder.py` | Inventory update target not found |
-| `INVENTORY_ADD_FAILED` | `delta_builder.py` | Inventory add failed |
-| `DELTA_VALIDATION_FAILED` | `delta_builder.py` | Delta validation failed |
-| `LOCATION_CHANGE_INVALID` | `delta_builder.py` | Location change invalid |
-| `NPC_SCENE_MANAGEMENT_FAILED` | `npcs.py` | NPC scene management failed |
-| `THREAD_UPDATE_INVALID` | `turn.py` | Thread update invalid |
-| `ARC_RESOLVE_INVALID` | `turn.py` | Arc resolve invalid |
-| `THREAD_RESOLVE_INVALID` | `turn.py` | Thread resolve invalid |
-| `EXTRACTION_CONTEXT_BUILD_FAILED` | `extraction.py` | Extraction context build failed |
-| `EXTRACTION_COERCION_FAILED` | `extraction.py` | Scene JSON coercion failed |
-| `INVENTORY_NORMALIZE_FAILED` | `inventory.py` | Inventory ID normalization failed |
-| `FUZZY_MATCH_FAILED` | `inventory.py` | Fuzzy match failed |
-| `NPC_NAME_LOOKUP_FAILED` | `npcs.py` | NPC name lookup failed |
-| `STATE_LOAD_FAILED` | `io.py` | State load failed |
-| `STATE_SAVE_FAILED` | `io.py` | State save failed |
-| `EVENT_APPEND_FAILED` | `chronicle.py` | Event file append failed |
-| `CHRONICLE_APPEND_FAILED` | `chronicle.py` | Chronicle file append failed |
-| `RULING_PARSE_FAILED` | `ruling.py` | Ruling LLM parse failed after all retries |
-| `EXTRACTION_PARSE_FAILED` | `extraction.py` | Extraction LLM parse failed after all retries |
+| `LLM_TIMEOUT` | `pipeline.py`, `turn.py`, `seed.py` | `_log.warning` in extraction pipeline and turn processing |
+| `TURN_PROCESSING_FAILED` | `pipeline.py`, `turn.py` | `_log.warning` in extraction pipeline and turn processing |
+| `PACK_LOAD_FAILED` | `routes.py` | `_log.warning` in server startup |
+| `INVENTORY_REMOVE_FAILED` | `delta_builder.py` | `_log.warning` when inventory target not found |
+| `INVENTORY_UPDATE_FAILED` | `delta_builder.py` | `_log.warning` when inventory update target not found |
+| `INVENTORY_NORMALIZE_FAILED` | `inventory.py` | `_log.warning` when ID normalization fails |
+| `STATE_LOAD_FAILED` | `io.py` | `_log.warning` when state file cannot be loaded |
+| `SERVER_ERROR` | `app.py` | `_persist_server_error` in server middleware |
+| `LLM_RATE_LIMIT` | `app.py` | `_persist_server_error` in server middleware |
+| `LLM_API_ERROR` | `app.py` | `_persist_server_error` in server middleware |
+
+**Defined but unused in logging calls:** `INVENTORY_ADD_FAILED`, `DELTA_VALIDATION_FAILED`, `LOCATION_CHANGE_INVALID`, `NPC_SCENE_MANAGEMENT_FAILED`, `THREAD_UPDATE_INVALID`, `ARC_RESOLVE_INVALID`, `THREAD_RESOLVE_INVALID`, `EXTRACTION_CONTEXT_BUILD_FAILED`, `EXTRACTION_COERCION_FAILED`, `FUZZY_MATCH_FAILED`, `NPC_NAME_LOOKUP_FAILED`, `STATE_SAVE_FAILED`, `EVENT_APPEND_FAILED`, `CHRONICLE_APPEND_FAILED`, `RULING_PARSE_FAILED`, `EXTRACTION_PARSE_FAILED`, `PARSE_ERROR`, `VALIDATION_ERROR`, `SEED_GENERATION_FAILED`, `PACK_GENERATION_FAILED`. These are defined in `errors.py` but not referenced in any `_log.warning` or `_log.error` calls.
 
 ## SSE error events
 
@@ -42,4 +34,4 @@
 - `kind`: ErrorKind string constant
 - `trace_id`: Trace ID for correlation
 
-See `docs/design/complete/observability-design.md` for the full design authority on logging and error classification.
+See `docs/design/complete/tooling-infra/observability-design.md` for the full design authority on logging and error classification.
