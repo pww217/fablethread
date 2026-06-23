@@ -118,10 +118,10 @@ is rewritten to be unconditional and to cover the new fields below.
    (crewmates if vessel exists; settlement contacts if home_base exists).
 
 6. ARC
-   visible_goal (→ rename, see Arc System Redesign), arc_origin (replaces goal_context).
-   Threads generated after arc.
-   Note: Arc system redesign is deferred (not yet written).
-   arc_origin and visible_goal are placeholders until arc redesign is complete.
+    `long_term_objective` (renamed from `visible_goal`, see Arc System Redesign), arc_origin (replaces goal_context).
+    Threads generated after arc.
+    Note: Arc system redesign is deferred (not yet written).
+    arc_origin and long_term_objective are placeholders until arc redesign is complete.
 
 7. PC BIO + INVENTORY
    Last step. Bio distills global context + situation + stats into a person.
@@ -247,7 +247,7 @@ pc_situation_schema:
 
 > **Arc system redesign deferred.** The arc system is being redesigned separately
 > (see [Arc System Redesign](./arc-system-redesign.md), not yet written).
-> `arc_origin` and `visible_goal` are placeholders until that redesign is complete.
+> `arc_origin` and `long_term_objective` are placeholders until that redesign is complete.
 
 `goal_context` is removed entirely — from `CampaignArc`, `_default_state()`,
 `StorytellerResult`, the sanitizer schema, `turn_state.py`, `audit.py`, all eval
@@ -462,7 +462,7 @@ array is considered removed.
 6. **`arc_origin`.** Add to `CampaignArc` and `_default_state()`. Remove `goal_context`
     from all callsites simultaneously.
     > **Note:** Arc system redesign is deferred (not yet written). `arc_origin` and
-    > `visible_goal` are placeholders until that redesign is complete.
+    > `long_term_objective` are placeholders until that redesign is complete.
 7. **`pc.situation`.** Add to `_default_state()` and `SeedPC`. Add
     `pc_situation_schema` to `ScenarioBrief`. Update seed prompt.
     > **Note:** This section needs expansion and better authoring guidance.
@@ -487,23 +487,25 @@ Current limit is 10 NPCs in `_build_npc_roster()` (prompt_context.py:25-53). Bum
 The following items in this document depend on decisions from the [Arc System Redesign](./arc-system-redesign.md):
 
 - **`arc_origin` placement** — UI-only + opening narration (decided in arc redesign)
-- **`visible_goal` rename** — needs a short name denoting "not a one-turn objective"
-  (candidates: `long_term_objective`, `active_objective`, `objective`)
+- **`visible_goal` rename** — settled: renamed to `long_term_objective`
 - **Thread → world state promotion** — two-step system (decided in arc redesign)
 - **`pc.situation` updatable** — needs engine support for updating situational facts
-  during gameplay (not yet designed)
-- **External inventory** — related to pc.situation, needs separate design
+  during gameplay (scoped to primitives document)
+- **External inventory** — related to pc.situation, needs separate design (deferred)
+- **Arc → world state** — out of scope for this redesign. When an arc resolves, its
+  narrative weight does not directly feed into world state.
 
-> **Note on execution order:** It's unclear whether this redesign or the arc system
-> redesign should run first. They have interdependencies (arc_origin, visible_goal
-> rename, thread→world state promotion). Options:
-> (a) Arc system first, seed worldbuilding second (arc_origin is defined first),
-> (b) Seed worldbuilding first, arc system second (pc.situation foundation first),
-> (c) Split into multiple plans with shared foundation steps.
-> This needs to be decided before planning begins.
+> **Execution order:** Primitives first, then arc system redesign, then seed worldbuilding
+> redesign. The primitives document captures all shared building blocks that both designs
+> depend on. Arc system runs before seed worldbuilding because `arc_origin` and
+> `long_term_objective` are defined in the arc redesign, and thread→world state promotion
+> is an arc system decision.
 
 ### Dependencies on Other Designs
 
+- **Primitives Document** (deferred, to be written) — Shared building blocks that both
+  arc system and seed worldbuilding redesigns depend on. Includes `pc.situation` primitive
+  definition, TTL strategy, field renames/deletions.
 - **Dynamic Factions** — factions will feed into arc/thread generation and world state
 - **Pack Parity** — pc_situation_schema needs parity between generated and custom packs
 - **World Creator Seed Pack** — authoring guidance for pc_situation_schema
@@ -551,13 +553,20 @@ The step before seed generation — for users who want to make their own packs. 
 significant design work.
 
 ### [Arc System Redesign](./arc-system-redesign.md)
-The arc system is being redesigned separately. `arc_origin` and `visible_goal` in this
+The arc system is being redesigned separately. `arc_origin` and `long_term_objective` in this
 design are placeholders until that redesign is complete. This document coordinates with
 the arc system redesign for contract alignment.
 
 Key coordination points:
 - `arc_origin` replaces `goal_context` (UI-only + opening narration)
-- `visible_goal` needs renaming (see arc redesign decisions)
+- `long_term_objective` replaces `visible_goal` (see arc redesign decisions)
 - Thread → world state promotion uses two-step system (storyteller flags, sanitizer confirms)
-- `pc.situation` is updatable during gameplay (needs engine support)
+- `pc.situation` is updatable during gameplay (needs engine support, scoped to primitives)
 - Multiple arcs deferred (see arc redesign decisions)
+- Arc → world state: out of scope for this redesign
+
+### [Primitives Document](../design/primitives.md) (deferred, to be written)
+Shared building blocks that both arc system and seed worldbuilding redesigns depend on.
+Includes `pc.situation` primitive definition, TTL strategy, field renames/deletions,
+pressure score system, age tracking. This document should be written last, after all
+design decisions in the other docs are settled, to capture the canonical definitions.
