@@ -46,7 +46,7 @@ Remove `instruction` field entirely from GMBeat model and StorytellerResult vali
 ## Implementation — Phase 1: Model schema simplification
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/ccya/models.py` (lines 425-500)
+- `/Users/pwilson/repos/ccya/ccya/models.py` (lines 425-500)
 - `/Users/pwilson/Repos/ccya/docs/architecture/OVERVIEW.md` (state shape + GMBeat section)
 - `/Users/pwilson/Repos/ccya/docs/architecture/step2c-progress.md` (GMBeat schema + lifecycle sections)
 
@@ -95,9 +95,9 @@ if not self.gm_beat.type:
 ## Implementation — Phase 2: Prompt template updates
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/ccya/prompts/narrate_user.j2` (lines 75-82, full file)
-- `/Users/pwilson/Repos/ccya/ccya/prompts/storytell_system.j2` (full file, focus lines 67-130)
-- `/Users/pwilson/Repos/ccya/ccya/prompts/storytell_user.j2` (lines 47-52)
+- `/Users/pwilson/repos/ccya/ccya/prompts/narrate_user.j2` (lines 75-82, full file)
+- `/Users/pwilson/repos/ccya/ccya/prompts/storytell_system.j2` (full file, focus lines 67-130)
+- `/Users/pwilson/repos/ccya/ccya/prompts/storytell_user.j2` (lines 47-52)
 
 ### Detailed steps
 
@@ -169,8 +169,8 @@ No changes needed — prompt template file responsibilities are already document
 ## Implementation — Phase 3: Turn lifecycle simplification + extraction context
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/ccya/engine/turn.py` (lines 71-82, 500-543, 876-1109)
-- `/Users/pwilson/Repos/ccya/ccya/engine/extraction.py` (line 349)
+- `/Users/pwilson/repos/ccya/ccya/engine/turn.py` (lines 71-82, 500-543, 876-1109)
+- `/Users/pwilson/repos/ccya/ccya/engine/extraction.py` (line 349)
 
 ### Detailed steps
 

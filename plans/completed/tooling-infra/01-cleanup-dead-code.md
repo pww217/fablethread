@@ -35,16 +35,16 @@ Remove all dead code paths before adding new functionality to avoid executors tr
 ## Implementation — Phase 01: Cleanup Dead Code and Unused Features
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/ccya/state/npcs.py`
-- `/Users/pwilson/Repos/ccya/ccya/engine/turn.py`
-- `/Users/pwilson/Repos/ccya/ccya/engine/extraction.py`
-- `/Users/pwilson/Repos/ccya/ccya/engine/npc_roster.py`
-- `/Users/pwilson/Repos/ccya/ccya/models.py` (NpcPresence enum)
-- `/Users/pwilson/Repos/ccya/ccya/engine/narrate.py`
-- `/Users/pwilson/Repos/ccya/ccya/prompts/narrate_user.j2`
-- `/Users/pwilson/Repos/ccya/ccya/prompts/narrate_system.j2`
-- `/Users/pwilson/Repos/ccya/ccya/prompts/sections/_npc_roster.j2`
-- `/Users/pwilson/Repos/ccya/ccya/engine/config.py`
+- `/Users/pwilson/repos/ccya/ccya/state/npcs.py`
+- `/Users/pwilson/repos/ccya/ccya/engine/turn.py`
+- `/Users/pwilson/repos/ccya/ccya/engine/extraction.py`
+- `/Users/pwilson/repos/ccya/ccya/engine/npc_roster.py`
+- `/Users/pwilson/repos/ccya/ccya/models.py` (NpcPresence enum)
+- `/Users/pwilson/repos/ccya/ccya/engine/narrate.py`
+- `/Users/pwilson/repos/ccya/ccya/prompts/narrate_user.j2`
+- `/Users/pwilson/repos/ccya/ccya/prompts/narrate_system.j2`
+- `/Users/pwilson/repos/ccya/ccya/prompts/sections/_npc_roster.j2`
+- `/Users/pwilson/repos/ccya/ccya/engine/config.py`
 
 ### Detailed steps
 
