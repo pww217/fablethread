@@ -34,8 +34,8 @@
 {% if current_objective and current_objective.threads %}
 {% set threads = current_objective.threads %}
 {% include "sections/_thread_list.j2" %}
-{% elif state.arc and state.arc.threads %}
-{% set threads = state.arc.threads %}
+{% elif state.long_term_objective and state.long_term_objective.threads %}
+{% set threads = state.long_term_objective.threads %}
 {% include "sections/_thread_list.j2" %}
 {% endif %}
 {% if state and state.scene and state.scene.scene_phase %}

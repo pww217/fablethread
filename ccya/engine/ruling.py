@@ -47,7 +47,7 @@ def _ruling_messages(
             urgent_threads.append({
                 "id": t.get("id", ""),
                 "summary": t.get("summary", ""),
-                "progress": t.get("progress", []),
+                "progress": t.get("major_updates", []),
             })
     
     user_text = _render(

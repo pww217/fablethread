@@ -18,7 +18,7 @@ from ccya.engine._pacing import (
 )
 from ccya.models import ArcThread, RulesOutcome
 from ccya.engine.hints import compute_arc_pressure_score
-from ccya.prompts.context import _fmt_progress
+from ccya.prompts.context import _fmt_progress, _filter_completed_threads
 
 if TYPE_CHECKING:
     from ccya.engine.turn_context import PacingContext, TurnContext
@@ -133,17 +133,6 @@ def _narrate_messages(
         _log.debug("narrate complete turn=%d messages=%d", turn_no, len(msgs))
 
     return msgs
-
-
-def _filter_completed_threads(arc: dict[str, Any], turn_no: int, ttl: int = 3) -> list[dict[str, Any]]:
-    """Filter completed threads by TTL — only include recent ones."""
-    raw_threads = arc.get("completed_threads") or []
-    result: list[dict[str, Any]] = []
-    for t in raw_threads:
-        resolved_turn = t.get("resolved_turn") if isinstance(t, dict) else getattr(t, "resolved_turn", None)
-        if resolved_turn is not None and (turn_no - resolved_turn) <= ttl:
-            result.append(dict(t) if isinstance(t, dict) else t.model_dump())
-    return result
 
 
 def _get_resolved_arcs(state: dict[str, Any], turn_no: int, *, ttl: int = 3) -> list[dict[str, Any]]:

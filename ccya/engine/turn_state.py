@@ -85,10 +85,10 @@ def _apply_thread_updates(
                         })
                 else:
                     current_progress.append(entry)
-                    updates["progress"] = current_progress
+                    updates["major_updates"] = current_progress
             else:
                 current_progress.append(entry)
-                updates["progress"] = current_progress
+                updates["major_updates"] = current_progress
 
         # Enforce invariant: dormant threads cannot be urgent
         if updates.get("dormant") is True:

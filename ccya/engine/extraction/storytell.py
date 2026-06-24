@@ -15,20 +15,9 @@ from ccya.engine.npc_roster import build_npc_roster
 from ccya.models import IntentEnvelope
 from ccya.engine.hints import compute_arc_pressure_score
 from ccya.personality import ARCHETYPES
-from ccya.prompts.context import _fmt_progress
+from ccya.prompts.context import _fmt_progress, _filter_completed_threads
 
 _log = logging.getLogger(__name__)
-
-
-def _filter_completed_threads(arc: dict[str, Any], turn_no: int, ttl: int = 3) -> list[dict[str, Any]]:
-    """Filter completed threads by TTL — only include recent ones."""
-    raw_threads = arc.get("completed_threads") or []
-    result: list[dict[str, Any]] = []
-    for t in raw_threads:
-        resolved_turn = t.get("resolved_turn") if isinstance(t, dict) else getattr(t, "resolved_turn", None)
-        if resolved_turn is not None and (turn_no - resolved_turn) <= ttl:
-            result.append(dict(t) if isinstance(t, dict) else t.model_dump())
-    return result
 
 
 def _storytell_messages(
@@ -54,7 +43,7 @@ def _storytell_messages(
     for t in _raw_threads:
         if isinstance(t, dict):
             entry: dict[str, Any] = dict(t)
-            entry["progress"] = _fmt_progress(entry.get("progress"))
+            entry["progress"] = _fmt_progress(entry.get("major_updates"))
             entry.setdefault("last_updated_turn", t.get("last_updated_turn"))
             all_threads.append(entry)
         else:

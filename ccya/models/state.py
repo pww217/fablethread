@@ -62,19 +62,6 @@ class ArcThread(BaseModel):
             self.urgency = "background"
         return self
 
-    @field_validator("progress", mode="wrap")
-    @classmethod
-    def _coerce_progress(cls, v: Any, handler: Any) -> Any:
-        if isinstance(v, str):
-            return handler([{"text": v, "kind": "advancement"}])
-        if not v or (isinstance(v, int) and v == 0):
-            return []
-        if isinstance(v, list):
-            if v and all(isinstance(item, str) for item in v):
-                return handler([{"text": item, "kind": "advancement"} for item in v])
-            return handler(v)
-        return handler(v)
-
 
 class LongTermObjective(BaseModel):
     long_term_objective: str = ""

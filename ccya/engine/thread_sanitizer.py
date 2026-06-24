@@ -401,7 +401,7 @@ def _apply_sanitization(
             old_progress = [p.text for p in arc.threads[found_idx].major_updates]
             if prog_list != old_progress:
                 new_entries = [ProgressEntry(text=str(p), kind=kind) for p in prog_list]
-                updates_dict["progress"] = new_entries
+                updates_dict["major_updates"] = new_entries
                 delta["progress"] = {
                     "before": old_progress,
                     "after": prog_list,
