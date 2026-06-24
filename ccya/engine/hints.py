@@ -104,8 +104,8 @@ def compute_thread_pressure_score(thread: ArcThread, current_turn: int) -> tuple
 
     Returns (score, hint_text) where hint_text is None for None tier.
     """
-    last_updated = thread.last_updated_turn or 0
-    age_turns = current_turn - last_updated if last_updated > 0 else 0
+    added = thread.added_turn or 0
+    age_turns = current_turn - added if added > 0 else 0
     duration_w = _compute_duration_weight(age_turns)
     progress_s = _compute_thread_progress_signal(thread)
     score = duration_w + progress_s

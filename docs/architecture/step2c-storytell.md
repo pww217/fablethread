@@ -165,7 +165,6 @@ The campaign arc system tracks story threads across turns. Thread state is **sto
 ```
 LongTermObjective
   long_term_objective: str          — What the PC is trying to achieve
-  goal_context: str                  — 2–3 sentences explaining why long_term_objective matters (UI-only; not rendered in prompts)
   threads: list[ArcThread]           — Unified collection with dormant flag + type field
   completed_threads: list[ArcThread] — Resolved/failed/abandoned threads
   started_turn: int | None           — Turn when arc was created/resolved

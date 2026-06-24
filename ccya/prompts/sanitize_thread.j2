@@ -93,13 +93,13 @@ Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold
 - The arc has coasted 8+ turns without meaningful progress
 
 ### World state evaluation
-Thread resolutions may propose new world state facts via `world_state_candidate`. Evaluate each:
-- **Confirm**: The fact is a genuine, lasting change to the world. Include `id`, `text`, `tier` ("global" or "local"), `permanent` (boolean), `valence` ("threat"|"complication"|"neutral"|"boon"), and optionally `expires_turn` (turn number when it expires).
-- **Reject**: The fact is too specific, too temporary, or contradicts existing world state. Include `id` and `action: "reject"`.
-- **Modify**: The fact is mostly right but needs adjustment. Include the corrected version.
+Thread resolutions may propose new world state facts via `world_state_candidate`. Evaluate all candidates against current world state and return a complete replacement array:
+- **Include** confirmed facts with `id`, `text`, `tier` ("global" or "local"), `permanent` (boolean), `valence` ("threat"|"complication"|"neutral"|"boon"), and optionally `expires_turn` (turn number when it expires).
+- **Omit** rejected facts — they are simply not included in the returned array.
 - Global facts are immutable constraints affecting the whole world. Local facts are area-specific and may be temporary.
-- Never add world state facts that are just narrative flavor — they must be gameplay-affecting constraints.
-- If confirming a local fact, consider setting `expires_turn` to a future turn number (e.g., current_turn + 10).
+- Never include world state facts that are just narrative flavor — they must be gameplay-affecting constraints.
+- If including a local fact, consider setting `expires_turn` to a future turn number (e.g., current_turn + 10).
+- Any fact not in the returned array is removed from world state.
 
 ### Output JSON schema
 
@@ -132,16 +132,14 @@ Thread resolutions may propose new world state facts via `world_state_candidate`
       "dormant": false
     }
   ],
-  "world_state_actions": [
+  "world_state": [            // complete replacement array — omit rejected facts
     {
       "id": "unique_fact_id",
-      "action": "confirm|reject",
       "text": "The world state fact text",
       "tier": "global|local",
       "permanent": true,
       "valence": "threat|complication|neutral|boon",
-      "expires_turn": 42,
-      "source_thread": "thread_id"
+      "expires_turn": 42
     }
   ],
   "_checklist": {                // MANDATORY

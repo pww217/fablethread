@@ -68,7 +68,7 @@
         </div>
         {% endif %}
 
-        {% set _arc_origin = _arc.get('arc_origin', '') or state.get('arc_origin', '') %}
+        {% set _arc_origin = state.get('arc_origin', '') %}
         {% if _arc_origin %}
         <div class="arc-origin" data-md style="font-style: italic; color: var(--text-muted); margin-top: 8px; font-size: clamp(12px, 0.65rem, 14px);">
             {{ _arc_origin }}

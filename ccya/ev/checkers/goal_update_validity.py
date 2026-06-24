@@ -32,19 +32,21 @@ def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
         storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
         goal_update = storytell_output.get("goal_update")
 
-        if not goal_update or not isinstance(goal_update, str):
+        if not goal_update or not isinstance(goal_update, dict):
             continue
+
+        goal_lto = goal_update.get("long_term_objective", "")
 
         # If this turn also resolved the arc, arc_resolve.long_term_objective supersedes goal_update
         if storytell_output.get("arc_resolve"):
             continue
 
         # goal_update must be non-empty (already checked above)
-        if not goal_update.strip():
+        if not goal_lto.strip():
             findings.append({
                 "turn": ev.get("turn"),
                 "check": "goal_update_non_empty",
-                "detail": "goal_update is empty or whitespace-only",
+                "detail": "goal_update.long_term_objective is empty or whitespace-only",
             })
             all_passed = False
             continue
@@ -55,11 +57,11 @@ def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
         prev_arc = (prev_snap_for_this or {}).get("long_term_objective") or {}
         prev_long_term_objective = prev_arc.get("long_term_objective", "")
 
-        if goal_update == prev_long_term_objective:
+        if goal_lto == prev_long_term_objective:
             findings.append({
                 "turn": ev.get("turn"),
                 "check": "goal_update_differs",
-                "detail": f"goal_update='{goal_update}' equals previous turn's long_term_objective (no change)",
+                "detail": f"goal_update.long_term_objective='{goal_lto}' equals previous turn's long_term_objective (no change)",
             })
             all_passed = False
 

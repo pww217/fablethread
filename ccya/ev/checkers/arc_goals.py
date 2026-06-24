@@ -22,8 +22,10 @@ def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
         storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
         goal_update = storytell_output.get("goal_update")
 
-        if not goal_update or not isinstance(goal_update, str):
+        if not goal_update or not isinstance(goal_update, dict):
             continue
+
+        goal_lto = goal_update.get("long_term_objective", "")
 
         # If this turn also resolved the arc, arc_resolve.long_term_objective supersedes goal_update
         if storytell_output.get("arc_resolve"):
@@ -37,11 +39,11 @@ def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
         arc = snap.get("long_term_objective") or {}
         long_term_objective = arc.get("long_term_objective", "")
 
-        if goal_update != long_term_objective:
+        if goal_lto != long_term_objective:
             findings.append({
                 "turn": ev.get("turn"),
                 "check": "goal_update_applied",
-                "detail": f"storytell emitted goal_update='{goal_update}' at turn {ev.get('turn')}, but state's arc.long_term_objective='{long_term_objective}'",
+                "detail": f"storytell emitted goal_update.long_term_objective='{goal_lto}' at turn {ev.get('turn')}, but state's long_term_objective='{long_term_objective}'",
             })
             all_passed = False
 

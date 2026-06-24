@@ -167,7 +167,6 @@ class SanitizedWorldStateFact(BaseModel):
     permanent: bool = False
     valence: Valence | None = None
     expires_turn: int | None = None
-    source_thread: str | None = None
 
 
 class ThreadResolution(BaseModel):
