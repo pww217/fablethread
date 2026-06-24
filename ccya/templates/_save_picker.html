@@ -26,7 +26,7 @@
                              @click="selectSave(save.name)"
                              :class="{ 'pack-card--active': selectedId === save.name, 'pack-card--current': save.name === activeSaveName }">
                             <div class="pack-card-header">
-                                <span class="pack-card-name" x-text="save.visible_goal || save.display_name || save.name"></span>
+                                <span class="pack-card-name" x-text="save.long_term_objective || save.display_name || save.name"></span>
                                 <span class="save-card-current-badge" x-show="save.name === activeSaveName">active</span>
                             </div>
                             <div class="pack-card-dir" x-show="save.display_name && save.display_name !== save.name" x-text="save.name"></div>

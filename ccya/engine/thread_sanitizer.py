@@ -11,7 +11,7 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json
 from ccya.llm_client import chat as llm_chat
-from ccya.models import ArcThread, CampaignArc, ProgressEntry, ThreadResolution, ThreadUpdate
+from ccya.models import ArcThread, LongTermObjective, ProgressEntry, ThreadResolution, ThreadUpdate
 from ccya.state.chronicle import append_event, load_last_narration
 
 _log = logging.getLogger(__name__)
@@ -135,19 +135,17 @@ def _build_messages(
     turn_no: int,
 ) -> list[dict[str, str]]:
     """Build system + user messages for the sanitizer LLM call."""
-    arc = state.get("arc") or {}
+    arc = state.get("long_term_objective") or {}
 
     system_prompt = env.get_template("sanitize_thread.j2").render()
 
-    visible_goal = arc.get("visible_goal", "")
-    goal_context = arc.get("goal_context", "")
+    long_term_objective = arc.get("long_term_objective", "")
     resolution = arc.get("resolution")
     threads = [{**t, "last_updated_turn": t.get("last_updated_turn"), "progress": t.get("progress") or []} for t in (arc.get("threads") or [])]
-    completed_threads = [{**ct, "last_updated_turn": ct.get("last_updated_turn"), "progress": ct.get("progress") or []} for ct in (arc.get("completed_threads") or [])]
+    completed_threads = [{**ct, "last_updated_turn": ct.get("last_updated_turn"), "progress": ct.get("progress") or [], "resolved_turn": ct.get("resolved_turn")} for ct in (arc.get("completed_threads") or [])]
 
     user_prompt = env.get_template("sanitize_thread.j2").render(
-        visible_goal=visible_goal,
-        goal_context=goal_context,
+        long_term_objective=long_term_objective,
         resolution=resolution,
         threads=threads,
         completed_threads=completed_threads,
@@ -213,13 +211,12 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
 
     result: dict[str, Any] = {}
 
-    # goal_update — optional, must have visible_goal and/or goal_context if present
+    # goal_update — optional, must have long_term_objective if present
     gu = raw.get("goal_update")
     if gu is not None:
-        if isinstance(gu, dict) and (gu.get("visible_goal") or gu.get("goal_context")):
+        if isinstance(gu, dict) and gu.get("long_term_objective"):
             result["goal_update"] = {
-                "visible_goal": str(gu["visible_goal"]),
-                "goal_context": str(gu["goal_context"]) if gu.get("goal_context") else None,
+                "long_term_objective": str(gu["long_term_objective"]),
             }
 
     # thread_updates — validate each against ThreadUpdate model (with progress coercion)
@@ -234,10 +231,10 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
             if prog is not None and isinstance(prog, list):
                 tu_copy["progress"] = str(prog[0]) if prog else None
 
-            # Coerce unknown progress_kind values to "advancement"
-            pk = tu_copy.get("progress_kind")
-            if pk is not None and pk not in ("advancement", "setback", "shift"):
-                tu_copy["progress_kind"] = "advancement"
+            # Coerce unknown major_update_signal values to "advancement"
+            pk = tu_copy.get("major_update_signal")
+            if pk is not None and pk not in ("advancement", "setback"):
+                tu_copy["major_update_signal"] = "advancement"
 
             validated_tu = ThreadUpdate.model_validate(tu_copy)
             result_dict = validated_tu.model_dump(exclude_none=True)
@@ -297,19 +294,19 @@ def _apply_sanitization(
     ) -> tuple[bool, dict[str, Any]]:
     """Apply sanitization changes to arc state.
 
-    1. goal_update: replace visible_goal/goal_context if non-null
+    1. goal_update: replace long_term_objective if non-null
     2. thread_updates: find by ID in threads[], apply non-null fields
     3. resolved_threads: move from threads[] to completed_threads[]
     4. new_threads: validate as ArcThread, append to threads[]
 
     Returns (has_changes, changes_detail).
     """
-    arc_raw = state.get("arc")
+    arc_raw = state.get("long_term_objective")
     if not arc_raw:
         return False, {}
 
     try:
-        arc = CampaignArc.model_validate(arc_raw)
+        arc = LongTermObjective.model_validate(arc_raw)
     except Exception as exc:
         _log.warning("thread_sanitizer: failed to validate arc, skipping: %s", exc)
         return False, {}
@@ -334,17 +331,12 @@ def _apply_sanitization(
 
     # 1. goal_update
     gu = parsed.get("goal_update")
-    if gu and isinstance(gu, dict):
-        changes_detail["goal_before"] = changes_detail["goal"]["before"] = arc.visible_goal or None
-        new_goal = gu.get("visible_goal", arc.visible_goal)
-        new_context = gu.get("goal_context", arc.goal_context)
-        if new_goal != arc.visible_goal or (new_context is not None and new_context != arc.goal_context):
-            changes_detail["goal_after"] = changes_detail["goal"]["after"] = str(new_goal)
-            arc.visible_goal = str(new_goal)
-            if new_context is not None:
-                arc.goal_context = str(new_context)
-        else:
-            changes_detail["goal"]["after"] = changes_detail["goal_after"] = str(new_goal)
+    if gu and isinstance(gu, dict) and gu.get("long_term_objective"):
+        new_goal = str(gu["long_term_objective"])
+        if new_goal != arc.long_term_objective:
+            changes_detail["goal_before"] = changes_detail["goal"]["before"] = arc.long_term_objective or None
+            changes_detail["goal_after"] = changes_detail["goal"]["after"] = new_goal
+            arc.long_term_objective = new_goal
 
     # Build lookup maps for thread resolution by ID
     threads_by_id: dict[str, int] = {}
@@ -384,8 +376,8 @@ def _apply_sanitization(
         # duplicate-progress entries wasting output tokens in diffs.
         prog_list = _tu.get("progress")
         if isinstance(prog_list, list) and prog_list:
-            kind = _tu.get("progress_kind", "advancement") or "advancement"
-            old_progress = [p.text for p in arc.threads[found_idx].progress]
+            kind = _tu.get("major_update_signal", "advancement") or "advancement"
+            old_progress = [p.text for p in arc.threads[found_idx].major_updates]
             if prog_list != old_progress:
                 new_entries = [ProgressEntry(text=str(p), kind=kind) for p in prog_list]
                 updates_dict["progress"] = new_entries
@@ -486,11 +478,11 @@ def _apply_sanitization(
     has_changes = bool(updated_ids or resolved_ids or added_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])
 
     if has_changes:
-        state["arc"] = {**_dump_arc(arc), "threads": [t.model_dump() for t in arc.threads], "completed_threads": [t.model_dump() for t in arc.completed_threads]}
+        state["long_term_objective"] = {**_dump_arc(arc), "threads": [t.model_dump() for t in arc.threads], "completed_threads": [t.model_dump() for t in arc.completed_threads]}
 
     return has_changes, changes_detail
 
 
-def _dump_arc(arc: CampaignArc) -> dict[str, Any]:
-    """Dump CampaignArc to plain dict."""
+def _dump_arc(arc: LongTermObjective) -> dict[str, Any]:
+    """Dump LongTermObjective to plain dict."""
     return {**arc.model_dump(exclude={"threads", "completed_threads"})}

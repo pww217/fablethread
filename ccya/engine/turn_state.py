@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from ccya.engine.config import EngineConfig
-from ccya.models import ArcThread, CampaignArc, ProgressEntry, StorytellerResult, StateDelta
+from ccya.models import ArcThread, LongTermObjective, ProgressEntry, StorytellerResult, StateDelta
 from ccya.state import resolve_inventory_remove_target
 from ccya.state.delta_builder import _merge_arc_update
 
@@ -19,12 +19,12 @@ def _apply_thread_updates(
     storyteller_result: StorytellerResult,
     config: EngineConfig | None = None,
     dedup_rejections: list[dict[str, Any]] | None = None,
-) -> CampaignArc | None:
+) -> LongTermObjective | None:
     """Apply explicit thread updates from the storyteller."""
     if not storyteller_result.thread_update:
         return None
 
-    arc_raw = state.get("arc")
+    arc_raw = state.get("long_term_objective")
     turn_no = state.get("meta", {}).get("turn", 0) + 1
 
     if not arc_raw:
@@ -34,7 +34,7 @@ def _apply_thread_updates(
         return None
 
     try:
-        arc = CampaignArc.model_validate(arc_raw)
+        arc = LongTermObjective.model_validate(arc_raw)
     except Exception as exc:
         _log.warning(
             "thread_updates.validation_failed trace_id=%d: %s", turn_no, exc, extra={"turn": turn_no},
@@ -65,8 +65,8 @@ def _apply_thread_updates(
         if update.type is not None:
             updates["type"] = update.type
         if update.progress is not None:
-            current_progress = list(thread.progress)
-            kind = update.progress_kind or "advancement"
+            current_progress = list(thread.major_updates)
+            kind = update.major_update_signal or "advancement"
             entry = ProgressEntry(text=update.progress, kind=kind)
             if current_progress:
                 last_text = current_progress[-1].text if isinstance(current_progress[-1], ProgressEntry) else str(current_progress[-1])
@@ -113,7 +113,7 @@ def _apply_thread_updates(
     # Threads updated this turn already have last_updated_turn set to turn_no,
     # so they won't trigger the dormant threshold. Only untouched threads age.
     if config and remaining_threads:
-        dormant_threshold = 4  # turns without activity before auto-dormant
+        dormant_threshold = 8  # turns without activity before auto-dormant
         for i, t in enumerate(remaining_threads):
             if (
                 t.last_updated_turn is not None
@@ -165,7 +165,7 @@ def _apply_thread_updates(
         i = 0
         while i < len(remaining_threads):
             t = remaining_threads[i]
-            if not t.dormant and len(t.progress) >= threshold:
+            if not t.dormant and len(t.major_updates) >= threshold:
                 resolved = t.model_copy(update={
                     "resolution_state": "resolved",
                     "outcome": "Thread reached its natural conclusion.",
@@ -176,7 +176,7 @@ def _apply_thread_updates(
                 mutated = True
                 _log.info(
                     "thread_updates.completed trace_id=%d thread %s progress=%d threshold=%d",
-                    turn_no, t.id, len(t.progress), threshold, extra={"turn": turn_no},
+                    turn_no, t.id, len(t.major_updates), threshold, extra={"turn": turn_no},
                 )
             else:
                 i += 1
@@ -193,7 +193,7 @@ def _apply_arc_resolve(
     state: dict[str, Any],
     storyteller_result: StorytellerResult,
     config: EngineConfig,
-) -> CampaignArc | None:
+) -> LongTermObjective | None:
     """Process arc resolution from the storyteller.
 
     Resolves current arc, stores it in resolved_arcs with TTL tracking,
@@ -203,7 +203,7 @@ def _apply_arc_resolve(
     if not storyteller_result.arc_resolve:
         return None
 
-    arc_raw = state.get("arc")
+    arc_raw = state.get("long_term_objective")
     turn_no = state.get("meta", {}).get("turn", 0) + 1
 
     if not arc_raw:
@@ -213,7 +213,7 @@ def _apply_arc_resolve(
         return None
 
     try:
-        old_arc = CampaignArc.model_validate(arc_raw)
+        old_arc = LongTermObjective.model_validate(arc_raw)
     except Exception as exc:
         _log.warning(
             "arc_resolve.validation_failed trace_id=%d: %s", turn_no, exc, extra={"turn": turn_no},
@@ -222,31 +222,10 @@ def _apply_arc_resolve(
 
     resolution = storyteller_result.arc_resolve
 
-    # Warn if arc_resolve fires too frequently (< 5 turns since last resolution)
-    last_arc_resolve_turn = state.get("meta", {}).get("last_arc_resolve_turn", 0)
-    if last_arc_resolve_turn > 0:
-        turns_since = turn_no - last_arc_resolve_turn
-        if turns_since < 5:
-            _log.warning(
-                "arc_resolve.frequency trace_id=%d turns_since=%d — arc resolved too frequently (target: 8-15 turns)",
-                turn_no, turns_since, extra={"turn": turn_no},
-            )
-
-    # All threads carry forward; apply drop_threads filter
-    drop_ids = set(resolution.drop_threads)
-    surviving_threads = [t for t in old_arc.threads if t.id not in drop_ids]
-
-    # Warn about dropped threads
-    for tid in resolution.drop_threads:
-        _log.info(
-            "arc_resolve.drop trace_id=%d thread %s", turn_no, tid, extra={"turn": turn_no},
-        )
-
     # Store resolved arc entry in state's resolved_arcs list with TTL tracking
     resolved_arc_entry = {
-        "visible_goal": old_arc.visible_goal,
+        "long_term_objective": old_arc.long_term_objective,
         "resolution": resolution.resolution,
-        "goal_context": resolution.goal_context,
         "resolved_turn": turn_no,
         "closed_threads": [],
     }
@@ -254,22 +233,21 @@ def _apply_arc_resolve(
     state.setdefault("resolved_arcs", []).append(resolved_arc_entry)
 
     _log.info(
-        "arc_resolve.applied trace_id=%d goal='%s' surviving=%d drop_count=%d new_threads=%d",
-        turn_no, resolution.visible_goal, len(surviving_threads), len(resolution.drop_threads), len(resolution.new_threads),
+        "arc_resolve.applied trace_id=%d goal='%s'",
+        turn_no, resolution.long_term_objective,
         extra={"turn": turn_no},
     )
 
-    # Create new successor arc with surviving threads + new threads
-    all_thread = surviving_threads + list(resolution.new_threads)
-    new_arc = CampaignArc(
-        visible_goal=resolution.visible_goal,
-        goal_context=resolution.goal_context,
-        threads=all_thread,
-        completed_threads=[],
+    # Create new successor arc with all threads carried forward
+    new_arc = LongTermObjective(
+        long_term_objective=resolution.long_term_objective,
+        threads=list(old_arc.threads),
+        completed_threads=old_arc.completed_threads[:],
         last_thread_created_turn=turn_no,
+        started_turn=turn_no,
     )
 
-    state["arc"] = new_arc.model_dump()
+    state["long_term_objective"] = new_arc.model_dump()
     state.setdefault("meta", {})["last_arc_resolve_turn"] = turn_no
 
     return new_arc
@@ -278,7 +256,7 @@ def _apply_arc_resolve(
 def _apply_thread_resolutions(
     state: dict[str, Any],
     storyteller_result: StorytellerResult,
-) -> CampaignArc | None:
+) -> LongTermObjective | None:
     """Process thread_resolve from StorytellerResult.
 
     Moves resolved/failed/abandoned threads from arc.threads[] to
@@ -290,7 +268,7 @@ def _apply_thread_resolutions(
     if not storyteller_result.thread_resolve:
         return None
 
-    arc_raw = state.get("arc")
+    arc_raw = state.get("long_term_objective")
     turn_no = state.get("meta", {}).get("turn", 0) + 1
 
     if not arc_raw:
@@ -301,7 +279,7 @@ def _apply_thread_resolutions(
         return None
 
     try:
-        arc = CampaignArc.model_validate(arc_raw)
+        arc = LongTermObjective.model_validate(arc_raw)
     except Exception as exc:
         _log.warning(
             "thread_resolutions: failed to validate arc at T%d: %s",
@@ -336,17 +314,6 @@ def _apply_thread_resolutions(
             "outcome": res.outcome,
             "resolved_turn": turn_no,
         }))
-
-        # Promote to world state if requested (Step 3.1: D3 + D7)
-        if res.promote_to_world_state and res.outcome:
-            ws_list = state.setdefault("scene", {}).get("world_state") or []
-            existing = next((f for f in ws_list if isinstance(f, dict) and f.get("id") == res.id), None)
-            if existing:
-                existing["text"] = res.outcome
-                existing["tier"] = "persistent"
-            else:
-                ws_list.append({"id": res.id, "text": res.outcome, "tier": "persistent"})
-            state.setdefault("scene", {})["world_state"] = ws_list
 
     if not any_found:
         return None
@@ -512,7 +479,7 @@ def _apply_state_updates(
             entry["last_seen_location"] = location.get("name", "")
 
         # Arc director: process thread updates and arc resolution
-        if state.get("arc") and storyteller_result:
+        if state.get("long_term_objective") and storyteller_result:
             # Process chapter_end signal (separate from arc_resolve)
             if storyteller_result.chapter_end:
                 _log.info(
@@ -524,19 +491,19 @@ def _apply_state_updates(
             thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
             if thread_delta is not None:
                 _merge_arc_update(
-                    state.setdefault("arc", {}), thread_delta
+                    state.setdefault("long_term_objective", {}), thread_delta
                 )
                 if delta is not None:
                     delta = delta.model_copy(
                         update={"arc_update": thread_delta}
                     )
 
-            # Apply goal_update (mid-arc visible_goal change, separate from arc_resolve)
+            # Apply goal_update (mid-arc long_term_objective change, separate from arc_resolve)
             if storyteller_result.goal_update:
-                state.setdefault("arc", {})["visible_goal"] = storyteller_result.goal_update
+                state.setdefault("long_term_objective", {})["long_term_objective"] = storyteller_result.goal_update["long_term_objective"]
                 _log.info(
-                    "goal_update trace_id=%s visible_goal='%s'",
-                    trace_id, storyteller_result.goal_update,
+                    "goal_update trace_id=%s long_term_objective='%s'",
+                    trace_id, storyteller_result.goal_update["long_term_objective"],
                     extra={"trace_id": trace_id},
                 )
 
@@ -554,7 +521,7 @@ def _apply_state_updates(
             resolved_arc = _apply_arc_resolve(state, storyteller_result, config)
             if resolved_arc is not None:
                 _merge_arc_update(
-                    state.setdefault("arc", {}), resolved_arc
+                    state.setdefault("long_term_objective", {}), resolved_arc
                 )
                 if delta is not None:
                     delta = delta.model_copy(
@@ -565,7 +532,7 @@ def _apply_state_updates(
             resolved_arc = _apply_thread_resolutions(state, storyteller_result)
             if resolved_arc is not None:
                 _merge_arc_update(
-                    state.setdefault("arc", {}), resolved_arc
+                    state.setdefault("long_term_objective", {}), resolved_arc
                 )
                 if delta is not None:
                     delta = delta.model_copy(
@@ -584,10 +551,10 @@ def _apply_state_updates(
                 else:
                     _new_thread = storyteller_result.thread_add
                     turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
-                    arc_raw = state.get("arc")
+                    arc_raw = state.get("long_term_objective")
                     if arc_raw and delta is not None:
                         try:
-                            _existing_arc = CampaignArc.model_validate(arc_raw)
+                            _existing_arc = LongTermObjective.model_validate(arc_raw)
                             existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
                             if _new_thread.id not in existing_ids:
                                 _updated_t = _new_thread.model_copy(update={
@@ -611,7 +578,7 @@ def _apply_state_updates(
                                             trace_id, evict.id, len(non_dormant), config.thread_max_active,
                                             extra={"trace_id": trace_id, "turn": turn_no},
                                         )
-                                _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
+                                _merge_arc_update(state.setdefault("long_term_objective", {}), arc_with_new_thread)
                                 state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
                                 delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
                         except Exception as exc:
@@ -621,9 +588,9 @@ def _apply_state_updates(
                             )
 
             # Engine culling: when >= 3 dormant threads, move oldest to completed
-            if state.get("arc"):
+            if state.get("long_term_objective"):
                 try:
-                    arc = CampaignArc.model_validate(state["arc"])
+                    arc = LongTermObjective.model_validate(state["long_term_objective"])
                     dormant_threads = [t for t in arc.threads if t.dormant]
                     if len(dormant_threads) >= 3:
                         to_cull = min(dormant_threads, key=lambda t: t.last_updated_turn or 0)
@@ -635,7 +602,7 @@ def _apply_state_updates(
                         remaining = [t for t in arc.threads if t.id != to_cull.id]
                         arc.threads = remaining
                         arc.completed_threads.append(culled)
-                        _merge_arc_update(state.setdefault("arc", {}), arc)
+                        _merge_arc_update(state.setdefault("long_term_objective", {}), arc)
                         if delta is not None:
                             delta = delta.model_copy(update={"arc_update": arc})
                         _log.info(

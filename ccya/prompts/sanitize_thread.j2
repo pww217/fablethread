@@ -11,8 +11,7 @@ Rules:
 [USER]
 ## Current Arc
 
-**Goal:** {{ visible_goal }}
-{% if goal_context %}**Context:** {{ goal_context }}{% endif %}
+**Goal:** {{ long_term_objective }}
 {% if resolution %}**Resolution:** {{ resolution }}{% endif %}
 
 ### Active Threads
@@ -48,7 +47,7 @@ Review each active thread and output a JSON object inside <sanitize> tags.
 If a thread has no narrative mention in 5+ turns AND no activity (progress/urgency change) in 3+ turns, consider resolving as abandoned with narrative justification. Do not abandon threads still relevant to the current situation. Never abandon threads that have never been updated (no turns-ago suffix — these are freshly unearthed and need time to surface).
 
 ### Dormant guidance
-If a thread has no activity in 4+ turns, consider setting dormant: True. Dormant threads represent tensions faded from immediate relevance but can be reactivated. Never mark threads dormant that have never been updated (no turns-ago suffix).
+If a thread has no activity in 8+ turns, consider setting dormant: True. Dormant threads represent tensions faded from immediate relevance but can be reactivated. Never mark threads dormant that have never been updated (no turns-ago suffix).
 
 ### Culling guidance
 If there are >= 3 dormant threads, consider resolving the oldest (by last_updated_turn) as abandoned with a narrative outcome sentence. Never cull threads that have never been updated (no turns-ago suffix).
@@ -66,13 +65,13 @@ Update a thread's summary if it no longer matches the current narrative; keep it
 Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold ones (dormant: true), merge overlapping ones, prefer fewer meaningful threads.
 
 ### Arc goal vs. threads
-**Do NOT pivot visible_goal when:**
+**Do NOT pivot long_term_objective when:**
 - A thread resolved, failed, or changed urgency
 - Progress was made on a thread
 - The goal is still viable even if slow
 - A parallel thread became the dominant focus
 
-**DO update visible_goal when:**
+**DO update long_term_objective when:**
 - The main objective is impossible (target dead, location destroyed, ally betrayed)
 - A revelation invalidates the current goal (wrong person, place, or assumption)
 - The player's situation changed so drastically a different objective is now primary
@@ -82,8 +81,7 @@ Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold
 
 {
   "goal_update": {               // omit if unchanged
-    "visible_goal": "...",
-    "goal_context": "..."
+    "long_term_objective": "..."
   },
   "thread_updates": [            // only threads needing changes
     {
@@ -92,7 +90,7 @@ Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold
       "urgency": "...",
       "type": "threat|opportunity|complication|revelation",
       "progress": ["str"],
-      "progress_kind": "advancement|setback|shift"
+      "major_update_signal": "advancement|setback"
     }
   ],
   "resolved_threads": [

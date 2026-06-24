@@ -159,7 +159,7 @@ def build_prompt_context(
             "location": state_snapshot.get("location") or {},
             "inventory": state_snapshot.get("inventory") or [],
             "conditions": list(pc.get("conditions") or []),
-            "current_arc": arc,
+            "current_objective": arc,
             "all_threads": all_threads,
             "world_state": list(scene.get("world_state") or []),
             "resolved_arcs": [],
@@ -210,11 +210,11 @@ def build_prompt_context(
         scene = state_snapshot.get("scene") or {}
         meta = state_snapshot.get("meta") or {}
         pc = state_snapshot.get("pc") or {}
-        current_arc_ctx = None
+        current_objective_ctx = None
         if arc:
             all_threads = [t for t in (arc.get("threads") or [])]
-            current_arc_ctx = {
-                "visible_goal": arc.get("visible_goal", ""),
+            current_objective_ctx = {
+                "long_term_objective": arc.get("long_term_objective", ""),
                 "resolution": arc.get("resolution"),
                 "resolved_arcs": [],
                 "threads": [
@@ -256,7 +256,7 @@ def build_prompt_context(
             "pc_allegiance": None,
             "world_factions": [],
             "npc_roster": npc_roster,
-            "current_arc": current_arc_ctx,
+            "current_objective": current_objective_ctx,
             "curtain_call": curtain_call,
             "resolved_arcs": [],
             "location": state_snapshot.get("location") or {},

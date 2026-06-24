@@ -1,5 +1,5 @@
 from ccya.models.state import (
-    ArcResolution as ArcResolution, ArcThread as ArcThread, CampaignArc as CampaignArc, Condition as Condition, ConditionAdd as ConditionAdd,
+    ArcResolution as ArcResolution, ArcThread as ArcThread, LongTermObjective as LongTermObjective, Condition as Condition, ConditionAdd as ConditionAdd,
     ConditionRemove as ConditionRemove, InventoryItem as InventoryItem, InventoryRemove as InventoryRemove, InventoryUpdate as InventoryUpdate,
     LocationRef as LocationRef, NpcPresence as NpcPresence, ProgressEntry as ProgressEntry, ThreadResolution as ThreadResolution,
     ThreadUpdate as ThreadUpdate, WorldStateFact as WorldStateFact,

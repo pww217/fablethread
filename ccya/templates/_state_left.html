@@ -60,7 +60,7 @@
 <details class="sidebar-card" id="card-arc" data-card="arc" open>
     <summary><span>Arc</span></summary>
     <div class="sidebar-card-body arc-card-body">
-        {% set _goal = _arc.get('visible_goal', '') %}
+        {% set _goal = _arc.get('long_term_objective', '') %}
         {% set _goal_ctx = _arc.get('goal_context', '') %}
 
         {% if _goal %}

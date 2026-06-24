@@ -31,8 +31,8 @@
 {% endif %}
 
 ## Scene Context
-{% if current_arc and current_arc.threads %}
-{% set threads = current_arc.threads %}
+{% if current_objective and current_objective.threads %}
+{% set threads = current_objective.threads %}
 {% include "sections/_thread_list.j2" %}
 {% elif state.arc and state.arc.threads %}
 {% set threads = state.arc.threads %}
@@ -54,11 +54,6 @@
 {% include "sections/_recent_turns.j2" %}
 
 {% include "sections/_arc.j2" %}
-
-{% if current_arc and current_arc.completed_threads -%}
-### Past Resolutions
-{% for t in current_arc.completed_threads %}- `{{ t.id }}` [{{ t.resolution_state or "unknown" | upper }}] {{ t.outcome or "(no outcome recorded)" }}
-{% endfor -%}{%- endif %}
 
 ## This Turn's (Turn {{ meta.get('turn', '?') if meta is mapping else '?' }}) Result
 {% if rules_outcome and rules_outcome.impossible %}

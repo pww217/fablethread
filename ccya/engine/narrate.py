@@ -17,6 +17,7 @@ from ccya.engine._pacing import (
     detect_spiral,
 )
 from ccya.models import ArcThread, RulesOutcome
+from ccya.engine.hints import compute_arc_pressure_score
 from ccya.prompts.context import _fmt_progress
 
 if TYPE_CHECKING:
@@ -58,11 +59,13 @@ def _narrate_messages(
     )
 
     # Build arc context for narrator (needed by both system and user prompts)
-    arc = state.get("arc") or {}
+    arc = state.get("long_term_objective") or {}
+    arc_pressure_score = 0
+    arc_hint_text = None
     if arc:
         all_threads = [t for t in (arc.get("threads") or [])]
-        current_arc_ctx = {
-            "visible_goal": arc.get("visible_goal", ""),
+        current_objective_ctx = {
+            "long_term_objective": arc.get("long_term_objective", ""),
             "resolution": arc.get("resolution"),
             "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
             "threads": [
@@ -79,8 +82,11 @@ def _narrate_messages(
             ],
             "completed_threads": _filter_completed_threads(arc, turn_no, ttl=thread_ttl),
         }
+        # Compute arc pressure score
+        arc_obj = arc
+        arc_pressure_score, arc_hint_text = compute_arc_pressure_score(arc_obj, turn_no)
     else:
-        current_arc_ctx = None
+        current_objective_ctx = None
 
     user_ctx = {
         "state": state,
@@ -99,7 +105,9 @@ def _narrate_messages(
         "pc_allegiance": pc_allegiance,
         "world_factions": world_factions,
         "npc_roster": npc_roster,
-        "current_arc": current_arc_ctx,
+        "current_objective": current_objective_ctx,
+        "arc_pressure_score": arc_pressure_score,
+        "arc_hint_text": arc_hint_text,
         "curtain_call": curtain_call,
         "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
         "inventory": state.get("inventory") or [],
@@ -110,7 +118,9 @@ def _narrate_messages(
     system_text = _render(env, "narrate_system.j2", {
         "narrator_rules": narrator_rules,
         "world_rules": world_rules,
-        "current_arc": current_arc_ctx,
+        "current_objective": current_objective_ctx,
+        "arc_pressure_score": arc_pressure_score,
+        "arc_hint_text": arc_hint_text,
     })
     user_text = _render(env, "narrate_user.j2", user_ctx)
     msgs = [
@@ -188,7 +198,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     scene_phase = scene.get("scene_phase", "SETUP")
 
     # Count urgent threads for phase engine
-    _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict)]
+    _raw_thread_dicts = [t for t in (state.get("long_term_objective") or {}).get("threads") or [] if isinstance(t, dict)]
     thread_urgency_count = 0
     for td in _raw_thread_dicts:
         try:

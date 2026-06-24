@@ -8,12 +8,11 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 
 ```json
 {
-  "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "...", "promote_to_world_state": true}],
-  "thread_update": [{"id": "...", "type": "threat", "progress": "...", "progress_kind": "advancement|setback|shift", "urgency": "background|normal|urgent", "dormant": true}],
+  "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "..."}],
+  "thread_update": [{"id": "...", "type": "threat", "progress": "...", "major_update_signal": "advancement|setback", "urgency": "background|normal|urgent", "dormant": true}],
   "thread_add": {"id": "...", "type": "threat", "summary": "...", "urgency": "normal"},
-   "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["..."], "new_threads": [{"id": "...", "summary": "...", "urgency": "normal"}]},
+   "arc_resolve": {"resolution": "...", "long_term_objective": "..."},
    "goal_update": "...",
-   "chapter_end": true,
    "gm_beat": {"type": "...", "effect": "...", "npc_id": "...", "driver": "..."}
   "outcome_summary": "...",
   "actions": ["...", "...", "...", "..."]
@@ -43,9 +42,9 @@ REQUIRED — every `thread_add` and `thread_update` must include exactly one typ
 - `urgent` — Immediate. Something happening now or about to escalate.
 - `background` — Faded but recoverable. Set `dormant: true` when assigning background urgency.
 
-**`thread_resolve`:** Use when a thread concluded, failed, was absorbed into a broader thread, or urgency fully decayed. `promote_to_world_state: true` only when the outcome is a permanent world fact. Do NOT resolve threads still meaningfully active — prefer `dormant: true` for threads that might resurface. If a thread went unaddressed for 3+ turns, resolve or demote rather than update. **Close actively:** don't let resolved threads linger. If a thread is done, emit `thread_resolve`. **IMPORTANT: `thread_resolve` removes the thread from the active list and moves it to completed_threads. This is the ONLY way to drop threads from the active list.**
+**`thread_resolve`:** Use when a thread concluded, failed, was absorbed into a broader thread, or urgency fully decayed. Do NOT resolve threads still meaningfully active — prefer `dormant: true` for threads that might resurface. If a thread went unaddressed for 3+ turns, resolve or demote rather than update. **Close actively:** don't let resolved threads linger. If a thread is done, emit `thread_resolve`. **IMPORTANT: `thread_resolve` removes the thread from the active list and moves it to completed_threads.**
 
-**`thread_update`:** Only `progress` (5–7 words max) — factual, confirmed by this turn's events, no speculation. `progress_kind` classifies the change. If the thread is no longer relevant, resolve it (thread_resolve) or set dormant: true, then create a new thread via thread_add — do not repurpose with progress that contradicts the summary.
+**`thread_update`:** Only `progress` (5–7 words max) — factual, confirmed by this turn's events, no speculation. `major_update_signal` classifies the change. If the thread is no longer relevant, resolve it (thread_resolve) or set dormant: true, then create a new thread via thread_add — do not repurpose with progress that contradicts the summary.
 
 **CRITICAL: Progress must be a new fact, not a rephrasing.** The system rejects progress entries that are 70%+ text-similar to the last entry. "Telegram reveals Captain Miller's involvement" followed by "Telegram confirms Captain Miller's involvement" will be rejected — changing one verb is not progress. Each progress entry must add genuinely new information: a new discovery, a setback, a shift in circumstances, or a concrete development. If you cannot state a new fact about the thread, do not emit an update.
 
@@ -65,15 +64,13 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 Emit **only** when the narrative chapter genuinely ends — a decisive win, a fundamental shift, or 8+ turns on the same goal. Target cadence: 8–15 turns.
 
-**CRITICAL: Do NOT use `arc_resolve` to drop threads.** `thread_resolve` is the only way to drop threads from the active list. Using `arc_resolve` with `drop_threads` resets the entire arc state (visible_goal, threads, completed_threads) — this is destructive and should only happen when the chapter genuinely ends. If you need to drop a thread, use `thread_resolve` instead.
+**CRITICAL: `thread_resolve` is the only way to drop threads from the active list.**
 
 **CRITICAL: Do NOT emit `arc_resolve` as an empty object `{}`.** If you are not actually resolving the arc, omit the field entirely. An empty `arc_resolve` object will cause a validation error.
 
-WRONG: `arc_resolve` with unchanged `visible_goal` (no-op). RIGHT: `arc_resolve` introduces a new goal or `chapter_end: true` keeps the current one.
+WRONG: `arc_resolve` with unchanged `long_term_objective` (no-op). RIGHT: `arc_resolve` introduces a new goal.
 
-`chapter_end: true` — signal that the chapter is ending without resetting arc state. Use this when the chapter's tension has resolved but the core goal remains. The arc continues with its current threads.
-
-`goal_update` — the arc's direction shifted but the arc isn't over. **Use sparingly; arcs are meant to last 7+ turns.** Only update when: the main objective is impossible (target dead, location destroyed, ally betrayed); a revelation invalidates the current goal; the player's situation changed so drastically a different objective is now primary; the arc has coasted 8+ turns without meaningful progress. **Do NOT update when:** a thread resolved/failed/changed urgency; progress was made; the goal is still viable; a parallel thread became dominant. **Do NOT emit a no-op** — if the goal hasn't genuinely shifted, omit this field entirely. **CRITICAL: Compare your proposed `goal_update` against the current `visible_goal`. If they are identical or nearly identical (same meaning, different wording), do NOT emit `goal_update`. Omit the field entirely instead.**
+`goal_update` — the arc's direction shifted but the arc isn't over. **Use sparingly; arcs are meant to last 7+ turns.** Only update when: the main objective is impossible (target dead, location destroyed, ally betrayed); a revelation invalidates the current goal; the player's situation changed so drastically a different objective is now primary; the arc has coasted 8+ turns without meaningful progress. **Do NOT update when:** a thread resolved/failed/changed urgency; progress was made; the goal is still viable; a parallel thread became dominant. **Do NOT emit a no-op** — if the goal hasn't genuinely shifted, omit this field entirely. **CRITICAL: Compare your proposed `goal_update` against the current `long_term_objective`. If they are identical or nearly identical (same meaning, different wording), do NOT emit `goal_update`. Omit the field entirely instead.**
 
 ## GM Beat
 

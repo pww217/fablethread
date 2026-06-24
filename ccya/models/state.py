@@ -19,7 +19,7 @@ class NpcPresence(str, Enum):
 
 
 class ProgressEntry(BaseModel):
-    kind: Literal["advancement", "setback", "shift"] = "advancement"
+    kind: Literal["advancement", "setback"] = "advancement"
     text: str
 
 
@@ -40,7 +40,7 @@ class ArcThread(BaseModel):
             return None
         return v
 
-    progress: list[ProgressEntry] = Field(default_factory=list)
+    major_updates: list[ProgressEntry] = Field(default_factory=list)
     resolution_state: str | None = None
     outcome: str | None = None
     resolved_turn: int | None = None
@@ -76,13 +76,13 @@ class ArcThread(BaseModel):
         return handler(v)
 
 
-class CampaignArc(BaseModel):
-    visible_goal: str = ""
-    goal_context: str = ""
+class LongTermObjective(BaseModel):
+    long_term_objective: str = ""
     threads: list[ArcThread] = Field(default_factory=list)
     completed_threads: list[ArcThread] = Field(default_factory=list)
     resolution: str | None = None
     last_thread_created_turn: int = 0
+    started_turn: int | None = None
 
 
 class Condition(BaseModel):
@@ -158,7 +158,8 @@ class ThreadResolution(BaseModel):
     id: str
     resolution_state: Literal["resolved", "failed", "abandoned"]
     outcome: str = ""  # one past-tense sentence written at resolution time; stored on completed ArcThread
-    promote_to_world_state: bool = False
+    resolved_turn: int | None = None
+    world_state_candidate: str | None = None
 
 
 class ThreadUpdate(BaseModel):
@@ -167,7 +168,8 @@ class ThreadUpdate(BaseModel):
     urgency: Literal["background", "normal", "urgent"] | None = None
     type: Literal["threat", "opportunity", "complication", "revelation"] | None = None
     progress: str | None = None
-    progress_kind: Literal["advancement", "setback", "shift"] | None = None
+    major_update_signal: Literal["advancement", "setback"] | None = None
+    reason: str | None = None
 
     @field_validator("type", mode="before")
     @classmethod
@@ -182,7 +184,4 @@ class ThreadUpdate(BaseModel):
 
 class ArcResolution(BaseModel):
     resolution: str
-    visible_goal: str
-    goal_context: str
-    drop_threads: list[str] = Field(default_factory=list)
-    new_threads: list[ArcThread] = Field(default_factory=list)
+    long_term_objective: str

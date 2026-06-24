@@ -405,7 +405,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 san_diffs.append({"op": "add", "op_sym": "+", "field": _a.get("id", ""), "value": f"[{_a.get('urgency', 'normal')}] {_a.get('summary', '')}"})
             goal = chg.get("goal") or {}
             if goal.get("before") != goal.get("after"):
-                san_diffs.append({"op": "update", "op_sym": "~", "field": "visible_goal", "value": f"{goal.get('before', '')} → {goal.get('after', '')}"})
+                san_diffs.append({"op": "update", "op_sym": "~", "field": "long_term_objective", "value": f"{goal.get('before', '')} → {goal.get('after', '')}"})
 
             rows.append({
                 "row_kind": "sanitizer",

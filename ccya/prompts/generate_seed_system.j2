@@ -18,7 +18,7 @@ Generate a SeedEnvelope JSON for a new playthrough. Wrap your entire response in
 Four independently selected narrative dimensions. They are NOT a menu — weave them into something coherent. Tension between them is expected.
 
 - **SITUATION ARCHETYPE** (`{{ pool_selection.situation.id }}`): The pressure or tension the player walks into.
-- **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Longer-term narrative direction. The visible_goal builds on this pattern over multiple turns — not resolved in one action.
+- **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Longer-term narrative direction. The long_term_objective builds on this pattern over multiple turns — not resolved in one action.
 - **CHARACTER DYNAMIC** (`{{ pool_selection.character_dynamic.id }}`): The PC's position relative to power structures. PC bio must be consistent with this (trusted_insider → show community ties; free_agent → show independence).
 - **MORAL PRESSURE** (`{{ pool_selection.moral_pressure.id }}`): The ethical dilemma driving immediate personal stakes.
 {% endif %}
@@ -34,7 +34,7 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {tags: string[], world_state: string[]},
     compendium: {npcs: {snake_case: {name: string, title: string, bio: string, presence: "present" | "nearby" | "known", bond?: string, motivation?: string, fear?: string, leverage?: string, personality?: archetype_id  /* see Personality archetypes table below — required for named NPCs, omit for unnamed */}}},
-    arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: null}
+    arc: {long_term_objective: string, goal_context: string, threads: ArcThread[], completed_threads: null}
   },
   opening_narrative: string,
   outcome_summary: string,
@@ -60,8 +60,8 @@ Build in this order, using everything already established before generating what
 1. **PC** — bio, stats, tagline. Must be consistent with `character_dynamic`.
 2. **World state** — 3 immutable hard constraints that directly affect gameplay choices now (border closures, martial law, banned technologies, faction blockades). No historical backstory older than one generation unless it's an active constraint today. No flavor lore. Fewer high-quality facts beats many generic ones.
 3. **Campaign arc** — informed by PC, world state, situation archetype, and character dynamic:
-   - `visible_goal`: multi-stage objective. What happens after the first step succeeds? After it fails?
-   - `goal_context`: 2–3 sentences on why this goal matters to this character specifically — inner cost, emotional stakes. Don't restate visible_goal or leak hidden truths.
+   - `long_term_objective`: multi-stage objective. What happens after the first step succeeds? After it fails?
+   - `goal_context`: 2–3 sentences on why this goal matters to this character specifically — inner cost, emotional stakes. Don't restate long_term_objective or leak hidden truths.
    - `threads`: see Thread rules below.
 4. **Opening scene + NPCs** — instantiates the situation archetype concretely.
 5. **Inventory** — appropriate to scene and PC concept.

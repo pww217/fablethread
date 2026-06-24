@@ -6,52 +6,9 @@ constraints:
   starting_quest_count: 1
   # ranges
   inventory_size_range: [4, 8]
-  pc_stat_range: [1, 4]
-  pc_stat_total_range: [12, 18]
   prose_word_range: [530, 930]
   # composition
   required_inventory_kinds: [weapon, consumable]
-  # creativity guards
-  forbid_cliches:
-    - "amnesia"
-    - "chosen one"
-    - "lone wolf who trusts no one"
-
-
-inspiration:
-  pc: |
-    The PC is a specific person twenty years in. They were born into the before-world
-    or born after the collapse — make that choice and let it shape everything else.
-    Before-world survivors carry specific losses and skills from their former life
-    that have adapted into survival tools. After-world people have never known anything
-    different — they can read infection signs the way their parents read traffic lights.
-    Give the PC a concrete role in whatever community or arrangement they belong to,
-    and give them something they are actively trying to protect or reach. Avoid defining
-    them by tragedy alone — they are also good at something, care about something, find
-    something funny under impossible circumstances.
-
-  npcs: |
-    Each NPC is a whole person. Before-world or after-world — make that call and
-    let it shape their frame of reference. The settlement leader who made a deal
-    with FEDRA and lives with what that cost. The patrol runner who has never been
-    inside a FEDRA zone and doesn't trust the description. The kid who grew up in
-    the settlement and thinks the before-world stories are exaggerated. At least
-    one NPC should want something that directly conflicts with what the player
-    needs — not as an obstacle, but as a person whose community depends on a
-    different answer. People lie, conceal, protect, miscalculate. Give them all
-    of that.
-
-  inventory: |
-    Twenty years of improvisation and selective preservation. A before-world
-    survivor carries things with personal weight — a specific tool from their
-    former life, a weapon that has been repaired so many times the original parts
-    are a minority, a photograph inside the lining of a jacket. An after-world
-    survivor carries things they were taught to carry — a gas mask with cracked
-    straps carefully mended, a hand-drawn map in someone else's handwriting,
-    a trade good they were told never to use unless they had no other choice.
-    Show what the character uses and what they won't put down. Show the numbers —
-    not "some ammo" but 9 shells. Not "medicine" but three doses of a specific
-    antibiotic they can't resupply.
 
 situation_archetypes:
   - id: infrastructure_failure

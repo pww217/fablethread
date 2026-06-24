@@ -6,23 +6,9 @@ constraints:
   starting_quest_count: 1
   # ranges
   inventory_size_range: [4, 7]
-  pc_stat_range: [1, 4]
-  pc_stat_total_range: [9, 12]
   prose_word_range: [530, 930]
   # composition
   required_inventory_kinds: [weapon, tool]
-  # creativity guards
-  forbid_cliches:
-    - "pirate captain with a bounty on their head"
-    - "smuggler carrying contraband they don't know about"
-    - "the ship is the only thing they have left"
-    - "ex-Coalition pilot who went rogue"
-    - "the last Browncoat holding a candle for the cause"
-    - "a mysterious stranger offering a job in a saloon"
-    - "the only pilot who can make the run"
-    - "former Companion turned vigilante"
-    - "secret Browncoat war hero in hiding"
-
 
 situation_archetypes:
   - id: freighter_under_attack

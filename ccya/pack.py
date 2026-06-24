@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
-from ccya.models import CampaignArc, InventoryItem, WorldStateFact
+from ccya.models import LongTermObjective, InventoryItem, WorldStateFact
 
 
 _log = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ class SeedState(BaseModel):
     inventory: list[InventoryItem] = Field(default_factory=list)
     scene: SeedScene
     compendium: SeedCompendium = Field(default_factory=SeedCompendium)
-    arc: CampaignArc | None = None
+    arc: LongTermObjective | None = None
 
 
 class SeedEnvelope(BaseModel):
@@ -85,7 +85,7 @@ class SeedEnvelope(BaseModel):
     seed_state: SeedState
     opening_narrative: str = Field(min_length=50)
     actions: list[str] = Field(min_length=4, max_length=4)
-    arc: CampaignArc | None = None
+    arc: LongTermObjective | None = None
     outcome_summary: str = ""
 
 

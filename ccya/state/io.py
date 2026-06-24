@@ -88,9 +88,8 @@ def _default_state() -> dict[str, Any]:
         },
         "location": {"id": "", "name": "", "description": ""},
         "inventory": [],
-        "arc": {
-            "visible_goal": "",
-            "goal_context": "",
+        "long_term_objective": {
+            "long_term_objective": "",
             "threads": [],
             "completed_threads": [],
             "resolution": None,
@@ -103,6 +102,7 @@ def _default_state() -> dict[str, Any]:
             "turn_entered": 0,
         },
         "compendium": {"npcs": {}},
+        "world_state_candidates": [],
         "world": {
             "factions": [],
             "locations": [],

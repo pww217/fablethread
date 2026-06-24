@@ -282,8 +282,8 @@ def summarize_changes(
                 if isinstance(ra, dict):
                     threads.append({
                         "kind": "arc_resolved",
-                        "id": ra.get("visible_goal", "?"),
-                        "summary": ra.get("visible_goal", ""),
+                        "id": ra.get("long_term_objective", "?"),
+                        "summary": ra.get("long_term_objective", ""),
                         "detail": ra.get("resolution", ""),
                     })
 

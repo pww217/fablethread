@@ -6,58 +6,12 @@ constraints:
   starting_quest_count: 1
   # ranges
   inventory_size_range: [4, 8]
-  pc_stat_range: [1, 4]
-  pc_stat_total_range: [12, 18]
   prose_word_range: [530, 930]
   # composition
   required_inventory_kinds: ['weapon', 'tool']
-  # creativity guards
-  forbid_cliches:
-     - "the guy was trouble"
-     - "the case was a setup from the start"
-     - "the city was a beast"
-     - "he had a dark past"
-     - "the bottle was his only friend"
-     - "he smelled like gin and trouble"
-     - "the office was on the third floor of a building that used to be something"
-     - "the money was the least of it"
-     - "the real killer was dead / missing / already in jail"
-     - "the answer was the person standing right in front of him"
-     - "a man who played both sides"
-     - "the corrupt politician was behind everything"
 
 world_rules:
   - No supernatural, paranormal, or sci-fi phenomena exist in this setting. All technology and social conditions are grounded in the 1930s United States.
-
-inspiration:
-  pc: |
-    The PC is a detective or investigator — but not a hardened veteran with twenty
-    years on the job. He is someone who learned the work through doing: a cop who
-    got pushed onto the investigative desk, a former reporter who started his own
-    agency, a union investigator who knows the streets, a federal agent who doesn't
-    fit the bureau. Give him a specific skill (reading documents, reading rooms,
-    reading people) and a specific liability (a reputation, a debt, a relationship
-    that complicates things). He is not cynical by nature; he became that way
-    by necessity.
-
-  npcs: |
-    All cops, detectives, gangsters, reporters, union reps, judges, and bartenders
-    are men. The initial NPCs in the opening scene MUST use male names only —
-    select from the male name pool provided. Each NPC is a man embedded in the
-    city's infrastructure: a cop who knows the evidence room, a reporter who
-    knows the dock foreman, a union rep who knows the mayor's chief of staff,
-    a judge who knows the DA's weakness, a bartender who knows who meets whom
-    and when. He has a role in the system and a reason for being outside it in
-    this moment. At least one NPC should have an interest that conflicts with
-    the player's — not as a villain, but as someone with different information,
-    different jurisdiction, or different priorities.
-
-  inventory: |
-    Items reflect what an investigator in the 1930s actually carried or had access to:
-    a service weapon (or a concealed piece), a notebook, a flashlight, a lockpick set,
-    a badge (real or fake), a camera, a revolver with limited ammunition. Include one
-    thing that was important to someone else — a letter, a photograph, a document. Show
-    the gap between what the job requires and what the player actually has.
 
 situation_archetypes:
   - id: murder_investigation
