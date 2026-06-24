@@ -1,6 +1,8 @@
 ---
 title: "Storyteller→sanitizer ID mismatch"
 status: canceled
+urgency: 2
+size: small
 created: 2026-06-14
 labels:
   - Bug

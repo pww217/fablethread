@@ -1,10 +1,13 @@
 ---
 title: "[EV] Mobile Turn Viewer CSS Tailwind purge strips custom selectors"
 status: canceled
+urgency: 4
+size: small
 created: 2026-06-11
 labels:
-  - Feature
+  - Bug
   - Tooling
+  - UI
 ---
 
 ```

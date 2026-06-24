@@ -1,6 +1,8 @@
 ---
 title: "Compendium alias priority and naming strategy"
 status: done
+urgency: 3
+size: medium
 created: 2026-06-11
 labels:
   - Feature

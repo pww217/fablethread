@@ -1,6 +1,8 @@
 ---
 title: "NPC left-behind tracking on location change"
 status: canceled
+urgency: 4
+size: medium
 created: 2026-06-11
 labels:
   - Feature

@@ -1,6 +1,8 @@
 ---
 title: Beat Phase Violations — Invalid Beat Types in BREATHER Phase
 status: new
+urgency: 3
+size: small
 created: 2026-06-24
 labels:
   - engine

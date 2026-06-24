@@ -1,6 +1,8 @@
 ---
 title: "Pacing gate fires on success instead of failure — blocks retroactive thread_add when it should block escalation on failure"
 status: canceled
+urgency: 2
+size: medium
 created: 2026-06-13
 labels:
   - Improvement

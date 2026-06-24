@@ -1,6 +1,8 @@
 ---
 title: "Scene scoping causes thread/arcs duplication"
 status: canceled
+urgency: 3
+size: medium
 created: 2026-06-12
 labels:
   - Bug

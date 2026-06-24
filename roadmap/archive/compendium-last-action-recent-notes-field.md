@@ -1,6 +1,8 @@
 ---
 title: "[NPC] Compendium last action recent notes field"
 status: canceled
+urgency: 4
+size: small
 created: 2026-06-11
 labels:
   - Feature

@@ -1,6 +1,8 @@
 ---
 title: "3 consecutive escalation beats — Exceeds 2-consecutive-same-type limit"
 status: canceled
+urgency: 3
+size: small
 created: 2026-06-12
 labels:
   - Bug

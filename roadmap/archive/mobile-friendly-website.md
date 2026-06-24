@@ -1,6 +1,8 @@
 ---
 title: "[UI] Mobile-friendly website"
 status: canceled
+urgency: 4
+size: large
 created: 2026-06-14
 labels:
   - Improvement

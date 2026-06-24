@@ -1,6 +1,8 @@
 ---
 title: "[UI] Outcome in chronicle tab + other info"
 status: done
+urgency: 4
+size: medium
 created: 2026-06-12
 labels:
   - Feature

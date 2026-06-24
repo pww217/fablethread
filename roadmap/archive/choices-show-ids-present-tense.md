@@ -1,6 +1,8 @@
 ---
 title: "[State] Choices show IDs/present tense"
 status: done
+urgency: 4
+size: small
 created: 2026-06-14
 labels:
   - Bug

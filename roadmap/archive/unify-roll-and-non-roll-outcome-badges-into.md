@@ -1,6 +1,8 @@
 ---
 title: "[UI] Unify roll and non-roll outcome badges into single element"
 status: done
+urgency: 4
+size: medium
 created: 2026-06-15
 labels:
   - Improvement

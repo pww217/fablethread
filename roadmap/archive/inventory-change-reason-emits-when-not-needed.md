@@ -1,6 +1,8 @@
 ---
 title: "[State] Inventory change reason emits when not needed, reasons wrong"
 status: done
+urgency: 4
+size: small
 created: 2026-06-12
 labels:
   - Bug

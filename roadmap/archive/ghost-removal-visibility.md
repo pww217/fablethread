@@ -1,6 +1,8 @@
 ---
 title: "[Conditions] Ghost removal visibility"
 status: canceled
+urgency: 4
+size: small
 created: 2026-06-14
 labels:
   - Feature

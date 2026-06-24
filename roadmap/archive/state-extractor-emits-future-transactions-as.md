@@ -1,6 +1,8 @@
 ---
 title: "[State] State extractor emits future transactions as present"
 status: done
+urgency: 3
+size: small
 created: 2026-06-12
 labels:
   - Bug

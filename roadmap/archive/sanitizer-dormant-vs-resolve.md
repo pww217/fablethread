@@ -1,6 +1,8 @@
 ---
 title: "Sanitizer dormant vs resolve"
 status: done
+urgency: 3
+size: small
 created: 2026-06-14
 labels:
   - Improvement

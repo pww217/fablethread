@@ -1,6 +1,8 @@
 ---
 title: "[NPC] NPC bonds display bug"
 status: done
+urgency: 4
+size: small
 created: 2026-06-14
 labels:
   - Improvement

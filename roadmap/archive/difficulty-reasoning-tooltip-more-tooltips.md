@@ -1,6 +1,8 @@
 ---
 title: "Difficulty reasoning tooltip + more tooltips throughout"
 status: done
+urgency: 4
+size: medium
 created: 2026-06-12
 labels:
   - Feature

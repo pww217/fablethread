@@ -1,6 +1,8 @@
 ---
 title: Empty NPC presence brackets in storytell stream
 status: validated
+urgency: 3
+size: small
 created: 2026-06-23
 resolved: 2026-06-23
 labels:

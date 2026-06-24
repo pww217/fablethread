@@ -1,7 +1,8 @@
 ---
 title: "Beat Driver Always 'Motivation'"
 status: new
-priority: medium
+urgency: 3
+size: medium
 created: 2026-06-22
 labels:
   - beat-generation
