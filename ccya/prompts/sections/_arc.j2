@@ -13,7 +13,7 @@
 **Arc resolution:** {{ current_objective.resolution }}
 {% endif %}{% if resolved_arcs and resolved_arcs|length > 0 -%}
 
-### Recently Resolved Arcs (TTL)
+### Recently Resolved Arcs
 {%- for ra in resolved_arcs %}
 - **Turn {{ ra.resolved_turn }}:** {{ ra.resolution[:120] }}{% endfor -%}
 

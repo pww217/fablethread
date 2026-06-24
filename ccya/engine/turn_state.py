@@ -158,33 +158,9 @@ def _apply_thread_updates(
                         turn_no, t.id, _current_urgency, new_urgency, _age, extra={"turn": turn_no},
                     )
 
-    # Thread completion: auto-resolve threads whose progress entries >= threshold
-    completed: list[ArcThread] = []
-    if config and remaining_threads:
-        threshold = config.thread_completion_threshold
-        i = 0
-        while i < len(remaining_threads):
-            t = remaining_threads[i]
-            if not t.dormant and len(t.major_updates) >= threshold:
-                resolved = t.model_copy(update={
-                    "resolution_state": "resolved",
-                    "outcome": "Thread reached its natural conclusion.",
-                    "resolved_turn": turn_no,
-                })
-                completed.append(resolved)
-                remaining_threads.pop(i)
-                mutated = True
-                _log.info(
-                    "thread_updates.completed trace_id=%d thread %s progress=%d threshold=%d",
-                    turn_no, t.id, len(t.major_updates), threshold, extra={"turn": turn_no},
-                )
-            else:
-                i += 1
-
-    if mutated or completed:
+    if mutated:
         return arc.model_copy(update={
             "threads": remaining_threads,
-            "completed_threads": arc.completed_threads + completed,
         })
     return None
 
@@ -227,7 +203,7 @@ def _apply_arc_resolve(
         "long_term_objective": old_arc.long_term_objective,
         "resolution": resolution.resolution,
         "resolved_turn": turn_no,
-        "closed_threads": [],
+
     }
 
     state.setdefault("resolved_arcs", []).append(resolved_arc_entry)
