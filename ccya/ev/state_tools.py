@@ -199,7 +199,7 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_com
         threads = []
         # From state_snapshot
         ss = ev.get("state_snapshot") or {}
-        arc = ss.get("long_term_objective") or {}
+        arc = ss.get("arc") or {}
         for th in (arc.get("threads") or []):
             if isinstance(th, dict) and th.get("id"):
                 threads.append({
@@ -212,6 +212,15 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_com
                 if tid not in all_thread_events:
                     all_thread_events[tid] = {"created_turn": t, "resolved_turn": None, "updates": 0}
                 if _thread_is_dormant(th) and all_thread_events[tid]["resolved_turn"] is None:
+                    all_thread_events[tid]["resolved_turn"] = t
+
+        # Track completed threads (resolved via thread_resolve or arc_resolve)
+        for ct in (arc.get("completed_threads") or []):
+            if isinstance(ct, dict) and ct.get("id"):
+                tid = ct["id"]
+                if tid not in all_thread_events:
+                    all_thread_events[tid] = {"created_turn": t, "resolved_turn": None, "updates": 0}
+                if all_thread_events[tid]["resolved_turn"] is None:
                     all_thread_events[tid]["resolved_turn"] = t
 
         if threads:
@@ -610,7 +619,7 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
             urgent_thread = 0
             threat_thread = 0
             ss = ev.get("state_snapshot") or {}
-            arc = ss.get("long_term_objective") or {}
+            arc = ss.get("arc") or {}
             for th in (arc.get("threads") or []):
                 if isinstance(th, dict) and not _thread_is_dormant(th):
                     if th.get("urgency") == "urgent":
@@ -1025,7 +1034,7 @@ def format_state(state: dict[str, Any], fmt: str = "full") -> None:
     session_name = state.get("meta", {}).get("session_name", "")
     if any(scene.get(k) for k in ("tags",)) or session_name:
         _render_scene_section(state)
-    arc = state.get("long_term_objective") or {}
+    arc = state.get("arc") or {}
     if any(arc.get(k) for k in ("long_term_objective", "threads", "completed_threads", "hidden_truths", "discovered_truths")):
         _render_arc_section(state)
     compendium_npcs = (state.get("compendium") or {}).get("npcs")
