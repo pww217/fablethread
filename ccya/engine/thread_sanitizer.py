@@ -247,6 +247,16 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
             if pk is not None and pk not in ("advancement", "setback"):
                 tu_copy["major_update_signal"] = "advancement"
 
+            # Coerce unknown urgency values to "normal"
+            urg = tu_copy.get("urgency")
+            if urg is not None and urg not in ("background", "normal", "urgent"):
+                tu_copy["urgency"] = "normal"
+
+            # Coerce unknown type values to None (omitted from output)
+            tp = tu_copy.get("type")
+            if tp is not None and tp not in ("threat", "opportunity", "complication", "revelation"):
+                tu_copy["type"] = None
+
             validated_tu = ThreadUpdate.model_validate(tu_copy)
             result_dict = validated_tu.model_dump(exclude_none=True)
             # Re-add original progress array for apply phase (we need full replacement list)
@@ -267,7 +277,12 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
         if not isinstance(_rt, dict):
             continue
         try:
-            validated_rt = ThreadResolution.model_validate(_rt)
+            rt_copy = dict(_rt)
+            # Coerce unknown resolution_state values to "resolved"
+            rs = rt_copy.get("resolution_state")
+            if rs is not None and rs not in ("resolved", "failed", "abandoned"):
+                rt_copy["resolution_state"] = "resolved"
+            validated_rt = ThreadResolution.model_validate(rt_copy)
             validated_rts.append(validated_rt.model_dump())
         except Exception:
             _log.warning("thread_sanitizer: skipping invalid resolved_thread %s", _rt.get("id"))
@@ -287,7 +302,16 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
         if not isinstance(_ws, dict):
             continue
         try:
-            validated_ws_fact = SanitizedWorldStateFact.model_validate(_ws)
+            ws_copy = dict(_ws)
+            # Coerce unknown tier values to "global"
+            tier = ws_copy.get("tier")
+            if tier is not None and tier not in ("global", "local"):
+                ws_copy["tier"] = "global"
+            # Coerce unknown valence values to "neutral"
+            valence = ws_copy.get("valence")
+            if valence is not None and valence not in ("threat", "complication", "neutral", "boon"):
+                ws_copy["valence"] = "neutral"
+            validated_ws_fact = SanitizedWorldStateFact.model_validate(ws_copy)
             validated_ws.append(validated_ws_fact.model_dump(exclude_none=True))
         except Exception:
             _log.warning("thread_sanitizer: skipping invalid world_state entry %s", _ws.get("id"))

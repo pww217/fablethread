@@ -72,6 +72,7 @@ class SeedState(BaseModel):
     compendium: SeedCompendium = Field(default_factory=SeedCompendium)
     arc: LongTermObjective | None = None
     arc_origin: str = ""
+    actions: list[str] = Field(default_factory=list)
     world: dict[str, Any] = Field(default_factory=dict)
 
 

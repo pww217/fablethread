@@ -62,8 +62,8 @@ Build in this order, using everything already established before generating what
 1. **World facts (global tier)** — 3–5 immutable hard constraints that directly affect gameplay choices now (border closures, martial law, banned technologies, faction blockades). No historical backstory older than one generation unless it's an active constraint today. No flavor lore. Fewer high-quality facts beats many generic ones. Each fact must have `tier: "global"`, `permanent: true`, and a `valence` from: "threat", "complication", "neutral", "boon".
 2. **World facts (local tier)** — 2–3 facts specific to the PC's immediate area or situation. Each fact must have `tier: "local"`, `permanent: false`, and a `valence` from: "threat", "complication", "neutral", "boon".
 3. **Key locations** — 4–5 named places that exist in the world at game start. Ordered from most accessible to least known. Include 1–2 breadcrumb locations (places the PC has heard of but not visited). Each has `id`, `name`, `description`, `status`, and `tags`.
-4. **PC situation** — structured situational facts about the PC's current circumstances{% if scenario and scenario.pc_situation_schema %} ({% for s in scenario.pc_situation_schema %}{{ s.key }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Defined by `pc_situation_schema` in the pack.
-5. **Arc origin** — 2–3 sentences in past tense answering "how did the PC end up here?" Seed-time field only, never regenerated.
+4. **Arc origin** — 2–3 sentences in past tense describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference the PC's personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to the PC will be established through arc threads later. Seed-time field only, never regenerated.
+5. **PC situation** — structured situational facts about the PC's current circumstances{% if scenario and scenario.pc_situation_schema %} ({% for s in scenario.pc_situation_schema %}{{ s.key }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Defined by `pc_situation_schema` in the pack.
 6. **Campaign arc** — informed by PC, world state, situation archetype, and character dynamic:
     - `long_term_objective`: multi-stage objective. What happens after the first step succeeds? After it fails?
     - `threads`: see Thread rules below.
@@ -127,7 +127,7 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - `pc.stats`: four integers, range per hard constraints, total per hard constraints.
 
 ## Arc origin
-- `arc_origin`: 2–3 sentences in past tense answering "how did the PC end up here?" This is a seed-time field only — never regenerated. It should connect the PC's backstory to the current situation in a way that feels inevitable in hindsight.
+- `arc_origin`: 2–3 sentences in past tense describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference the PC's personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to the PC will be established through arc threads later. Seed-time field only, never regenerated.
 
 ## Session name
 - `meta.session_name`: A short, evocative title for this game session (3-6 words). Should capture the campaign's tone and setting without describing a specific scene or character. This name defines the entire playthrough.
