@@ -1,4 +1,4 @@
-{# Left sidebar: Scene, Location, Arc, Compendium #}
+{# Left sidebar: Scene, Location, Objective, Compendium #}
 {% set comp = (state.compendium.npcs if state.compendium and state.compendium.npcs else {}) %}
 {% set _present = namespace(items=[]) %}
 {% if comp is mapping and comp %}{% for _k, _v in comp.items() %}{% if _v is mapping and _v.get("presence") == "present" %}{% set _present.items = _present.items + [_v] %}{% endif %}{% endfor %}{% endif %}
@@ -55,23 +55,20 @@
     </div>
 </details>
 
-{% set _arc = state.get('long_term_objective') %}
+{% set _arc = state.get('arc') %}
 {% if _arc %}
 <details class="sidebar-card" id="card-arc" data-card="arc" open>
-    <summary><span>Arc</span></summary>
+    <summary><span>Objective</span></summary>
     <div class="sidebar-card-body arc-card-body">
         {% set _goal = _arc.get('long_term_objective', '') %}
+        {% set _arc_origin = state.get('arc_origin', '') %}
 
         {% if _goal %}
-        <div class="arc-goal">
+        <div class="arc-goal has-tooltip">
             {{ _goal }}
-        </div>
-        {% endif %}
-
-        {% set _arc_origin = state.get('arc_origin', '') %}
-        {% if _arc_origin %}
-        <div class="arc-origin" data-md style="font-style: italic; color: var(--text-muted); margin-top: 8px; font-size: clamp(12px, 0.65rem, 14px);">
-            {{ _arc_origin }}
+            {% if _arc_origin %}
+            <span class="tooltip-body" data-md>{{ _arc_origin }}</span>
+            {% endif %}
         </div>
         {% endif %}
 
@@ -95,7 +92,7 @@
         <details class="arc-section arc-section-resolution">
             <summary class="arc-section-summary">
                 <span class="arc-eye">✓</span>
-                <span>Arc Resolution (Turn {{ _arc.resolved_turn or '?' }})</span>
+                <span>Objective Resolution (Turn {{ _arc.resolved_turn or '?' }})</span>
             </summary>
             <div class="arc-truth" data-md>{{ _arc.resolution }}</div>
         </details>
@@ -105,7 +102,7 @@
         <details class="arc-section arc-section-resolved">
             <summary class="arc-section-summary">
                 <span class="arc-eye">📜</span>
-                <span>Recently Resolved Arcs ({{ _resolved_arcs | length }})</span>
+                <span>Recently Resolved Objectives ({{ _resolved_arcs | length }})</span>
             </summary>
             <div class="arc-truths">
                 {% for ra in _resolved_arcs %}
@@ -132,7 +129,7 @@
             </div>
         </details>
         {% elif not _active and not _goal %}
-        <div class="arc-empty">No arc active.</div>
+        <div class="arc-empty">No objective active.</div>
         {% endif %}
     </div>
 </details>

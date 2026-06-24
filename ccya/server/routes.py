@@ -486,7 +486,7 @@ async def new_game(request: Request):
             _log.info("new_game hints provided, using static pack seed pack=%s", _app_mod._pack_id)
             pack = _app_mod._active_pack
             if pack.seed is None:
-                return HTMLResponse("<p class='text-red-400'>This pack has no static seed state. Provide no hints to generate a custom game.</p>")
+                return HTMLResponse("<p class='text-red-400'>This pack has no static seed state. Provide no hints to generate a custom game.</p>", status_code=400)
             seed = pack.seed.model_dump(mode="json")
             seed["meta"]["setting_pack"] = _app_mod._pack_id
             if pc_stats_dict:
@@ -507,7 +507,7 @@ async def new_game(request: Request):
             _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("new_game failed")
-        return HTMLResponse(f"<p class='text-red-400'>Game creation failed: {exc}</p>")
+        return HTMLResponse(f"<p class='text-red-400'>Game creation failed: {exc}</p>", status_code=400)
 
     _log.info("new_game pack=%s", _app_mod._pack_id)
     ctx = _debug_context()
