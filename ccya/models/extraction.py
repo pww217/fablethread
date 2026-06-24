@@ -8,7 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ccya.models.state import (
-    ArcThread, ArcResolution, CampaignArc, ConditionAdd, ConditionRemove,
+    ArcThread, ArcResolution, LongTermObjective, ConditionAdd, ConditionRemove,
     InventoryItem, InventoryRemove, InventoryUpdate, LocationRef, ThreadResolution, ThreadUpdate,
 )
 
@@ -103,7 +103,7 @@ class StateDelta(BaseModel):
         default_factory=list, max_length=12
     )
     actions: list[str] = Field(default_factory=list, max_length=10)
-    arc_update: CampaignArc | None = None
+    arc_update: LongTermObjective | None = None
 
     @field_validator("pc_condition_add", mode="before")
     @classmethod
@@ -228,27 +228,26 @@ class GMBeat(BaseModel):
 class StorytellerResult(BaseModel):
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
-    goal_update: str | None = None
+    goal_update: dict[str, Any] | None = None
     gm_beat: GMBeat | None = None
     thread_resolve: list[ThreadResolution] = Field(default_factory=list)
     thread_add: ArcThread | None = None
     thread_update: list[ThreadUpdate] = Field(default_factory=list)
     arc_resolve: ArcResolution | None = None
-    chapter_end: bool = False
 
     @field_validator("thread_update", mode="before")
     @classmethod
-    def _coerce_progress_kind(cls, v: Any) -> Any:
+    def _coerce_major_update_signal(cls, v: Any) -> Any:
         if not v:
             return v
-        VALID_KINDS = {"advancement", "setback", "shift"}
+        VALID_KINDS = {"advancement", "setback"}
         coerced = []
         for item in v:
             if isinstance(item, dict):
-                pk = item.get("progress_kind")
+                pk = item.get("major_update_signal")
                 if pk is not None and pk not in VALID_KINDS:
                     item = dict(item)
-                    item["progress_kind"] = "advancement"
+                    item["major_update_signal"] = "advancement"
             coerced.append(item)
         return coerced
 

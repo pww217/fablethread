@@ -6,53 +6,12 @@ constraints:
   starting_quest_count: 1
   # ranges
   inventory_size_range: [4, 8]
-  pc_stat_range: [1, 4]
-  pc_stat_total_range: [12, 18]
   prose_word_range: [530, 930]
   # composition
   required_inventory_kinds: [weapon, tool]
-  # creativity guards
-  forbid_cliches:
-    - "treasure map with an X marks the spot"
-    - "a parrot on the shoulder"
-    - "peg leg and eye patch"
-    - "walk the plank"
-    - "one eye on the horizon, the other on the gold"
-    - "the most feared pirate captain in the Caribbean"
-    - "a cursed artifact that brings bad luck"
-    - "a treasure that can't be spent"
 
 world_rules:
   - No supernatural, paranormal, or mythological creatures exist in this setting. Technology is limited to the Age of Sail era (late 1600s–early 1700s).
-
-inspiration:
-  pc: |
-    The PC is a crew member or officer on a pirate vessel — not the captain with a
-    legendary reputation, but someone who earned his share through violence and
-    competence. Give him a skill that keeps him alive and a reason he can't go back
-    to legitimate life. He is not romantic — he is brutal, pragmatic, and capable of
-    both terrible violence and fierce loyalty to the crew.
-
-  npcs: |
-    All sailors, naval officers, and pirates are men. The initial NPCs in the
-    opening scene MUST use male names only — select from the male name pool
-    provided. Each NPC is a man who chose the pirate life or was forced into it.
-    The quartermaster who enforces the Articles and keeps the captain in line.
-    The surgeon who has seen every wound a cutlass can make and treats them with
-    rough competence. The powder monkey who is twelve years old and faster than
-    anyone on deck. The deserter from the Royal Navy who knows how a man-of-war
-    fights. At least one NPC should want something that conflicts with the
-    player's — not as a villain, but as someone whose survival depends on a
-    different answer. Men lie, conceal, protect, miscalculate. Give them all of
-    that.
-
-  inventory: |
-    Items reflect what a pirate actually carried or had access to. A cutlass with
-    notches from use, a flintlock pistol with one shot, a knife worn smooth by
-    grip, a share of Spanish silver coins, a journal of port coordinates, a
-    length of hemp rope, a waterskin with questionable contents. Show what the
-    character uses and what they won't put down. Show the numbers — not "some
-    powder" but a measured pouch. Not "food" but hardtack and salted pork.
 
 situation_archetypes:
   - id: mutiny_in_progress
@@ -224,6 +183,23 @@ npc_bonds:
     description: The NPC and PC were held for ransom together and have a pact from that time.
     tags: [captivity, pact, shared_trauma]
     incompatible_with: []
+
+pc_situation_schema:
+  - key: vessel
+    description: The PC's ship or vessel
+    required: false
+  - key: crew
+    description: The PC's crew situation
+    required: false
+  - key: debts
+    description: Debts, obligations, or bounties on the PC
+    required: false
+  - key: alliances
+    description: Faction alliances or contacts the PC relies on
+    required: false
+  - key: home
+    description: The PC's home base or territory
+    required: false
 
 scene_detail_bundles:
   - id: quarterdeck

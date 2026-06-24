@@ -1657,6 +1657,15 @@ body {
   opacity: 0.6;
   margin-bottom: 6px;
 }
+.pack-card-origin {
+  font-size: 0.71rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-bottom: 4px;
+  padding: 0 8px;
+  font-style: italic;
+}
 .save-card-current-badge {
   font-size: 0.65rem;
   font-family: var(--font-mono);

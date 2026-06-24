@@ -119,6 +119,23 @@ async def run_turn(
 
         turn_no = state.get("meta", {}).get("turn", 0) + 1
 
+        # TTL expiry: remove world state facts whose expires_turn has passed (before any LLM call)
+        ws = state.get("scene", {}).get("world_state", [])
+        expired_ids: list[str] = []
+        for fact in ws:
+            if isinstance(fact, dict) and fact.get("expires_turn") is not None and fact["expires_turn"] <= turn_no:
+                fact_id = fact.get("id", "")
+                if fact_id:
+                    expired_ids.append(fact_id)
+        if expired_ids:
+            state.setdefault("scene", {})["world_state"] = [
+                f for f in ws if not (isinstance(f, dict) and f.get("id") in expired_ids)
+            ]
+            _log.info(
+                "world_state.ttl_expiry trace_id=%s turn=%d expired=%s",
+                trace_id, turn_no, expired_ids, extra={"trace_id": trace_id, "turn": turn_no},
+            )
+
         # Append roll to recent_rolls rolling window for spiral detection
         if ctx.outcome and ctx.outcome.rolled:
             recent_rolls = state.setdefault("meta", {}).setdefault("recent_rolls", [])

@@ -1,6 +1,6 @@
 ---
 title: "Arc, thread, and seed generation refactor"
-status: up-next
+status: validated
 urgency: 1
 size: large
 created: 2026-06-23

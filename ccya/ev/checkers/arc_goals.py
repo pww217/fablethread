@@ -12,7 +12,7 @@ _log = logging.getLogger(__name__)
 @register_checker(
     "arc_goal_updates", "deterministic",
     requires_fields=["extraction.storytell", "state_snapshot"],
-    description="goal_update overwrites visible_goal",
+    description="goal_update overwrites long_term_objective",
 )
 def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
@@ -22,26 +22,28 @@ def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
         storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
         goal_update = storytell_output.get("goal_update")
 
-        if not goal_update or not isinstance(goal_update, str):
+        if not goal_update or not isinstance(goal_update, dict):
             continue
 
-        # If this turn also resolved the arc, arc_resolve.visible_goal supersedes goal_update
+        goal_lto = goal_update.get("long_term_objective", "")
+
+        # If this turn also resolved the arc, arc_resolve.long_term_objective supersedes goal_update
         if storytell_output.get("arc_resolve"):
             continue
 
         # state_snapshot is captured post-turn (after goal_update is applied),
         # so the current turn's state_snapshot already has the goal_update
-        # reflected. Compare against the CURRENT turn's visible_goal to verify
+        # reflected. Compare against the CURRENT turn's long_term_objective to verify
         # the engine applied the goal_update correctly.
         snap = extract_field(ev, "state_snapshot") or {}
-        arc = snap.get("arc") or {}
-        visible_goal = arc.get("visible_goal", "")
+        arc = snap.get("long_term_objective") or {}
+        long_term_objective = arc.get("long_term_objective", "")
 
-        if goal_update != visible_goal:
+        if goal_lto != long_term_objective:
             findings.append({
                 "turn": ev.get("turn"),
                 "check": "goal_update_applied",
-                "detail": f"storytell emitted goal_update='{goal_update}' at turn {ev.get('turn')}, but state's arc.visible_goal='{visible_goal}'",
+                "detail": f"storytell emitted goal_update.long_term_objective='{goal_lto}' at turn {ev.get('turn')}, but state's long_term_objective='{long_term_objective}'",
             })
             all_passed = False
 

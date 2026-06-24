@@ -13,8 +13,9 @@ from ccya.engine.extraction.utils import _filter_evicted_threads
 from ccya.engine.narrate import _get_resolved_arcs
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.models import IntentEnvelope
+from ccya.engine.hints import compute_arc_pressure_score
 from ccya.personality import ARCHETYPES
-from ccya.prompts.context import _fmt_progress
+from ccya.prompts.context import _fmt_progress, _filter_completed_threads
 
 _log = logging.getLogger(__name__)
 
@@ -36,13 +37,13 @@ def _storytell_messages(
     """Build [system, user] messages for stream 3 (thread signals + facts + actions + outcome_summary)."""
     scene = state.get("scene") or {}
 
-    arc = state.get("arc") or {}
+    arc = state.get("long_term_objective") or {}
     _raw_threads = arc.get("threads") or []
     all_threads: list[dict[str, Any]] = []
     for t in _raw_threads:
         if isinstance(t, dict):
             entry: dict[str, Any] = dict(t)
-            entry["progress"] = _fmt_progress(entry.get("progress"))
+            entry["progress"] = _fmt_progress(entry.get("major_updates"))
             entry.setdefault("last_updated_turn", t.get("last_updated_turn"))
             all_threads.append(entry)
         else:
@@ -55,6 +56,10 @@ def _storytell_messages(
     prior_history = list((state.get("meta") or {}).get("prior_history", [])[:-1])
     prior_history = _filter_evicted_threads(prior_history, evicted_ids)
 
+    # TTL-filter completed_threads (only include recent ones)
+    ttl_filtered_completed = _filter_completed_threads(arc, turn_no, ttl=arc_ttl)
+    arc = {**arc, "completed_threads": ttl_filtered_completed}
+
     system_text = _render(
         env, "storytell_system.j2", {
             "recent_beats": list((state.get("meta") or {}).get("recent_beats", [])),
@@ -64,6 +69,12 @@ def _storytell_messages(
 
     # Curtain Call signal for CLIMAX phase
     curtain_call = scene.get("curtain_call", "")
+
+    # Compute arc pressure score
+    arc_pressure_score = 0
+    arc_hint_text = None
+    if arc:
+        arc_pressure_score, arc_hint_text = compute_arc_pressure_score(arc, turn_no)
 
     user_text = _render(
         env,
@@ -78,7 +89,7 @@ def _storytell_messages(
             "inventory": extraction_ctx.inventory_this_turn,
             "conditions": extraction_ctx.conditions_this_turn,
             # State-sourced (these don't change within a turn)
-            "current_arc": arc,
+            "current_objective": arc,
             "all_threads": all_threads,
             "world_state": world_state,
             "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
@@ -92,6 +103,8 @@ def _storytell_messages(
             "band": band,
             "scene_phase": scene.get("scene_phase", "SETUP"),
             "curtain_call": curtain_call,
+            "arc_pressure_score": arc_pressure_score,
+            "arc_hint_text": arc_hint_text,
             "allowed_beat_types": derive_allowed_beat_types(
                 scene.get("scene_phase", "SETUP"),
                 directive=pacing_context.directive if pacing_context else "",

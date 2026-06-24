@@ -1,5 +1,10 @@
 {% include "sections/_pc_header.j2" %}{% include "sections/_conditions.j2" %}
 
+{% if pc_situation %}
+## PC Situation
+{% for key, value in pc_situation.items() %}- **{{ key }}:** {{ value }}
+{% endfor %}
+{% endif %}
 ## scene
 Location: {{ location.name or location.id or "Unknown" }}
 {%- if npc_roster %}

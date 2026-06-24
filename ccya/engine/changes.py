@@ -206,8 +206,8 @@ def summarize_changes(
             facts.append({"kind": "updated", "old": pre_text, "new": post_text})
 
     threads: list[dict[str, Any]] = []
-    pre_arc = pre.get("arc") or {}
-    post_arc = post.get("arc") or {}
+    pre_arc = pre.get("long_term_objective") or {}
+    post_arc = post.get("long_term_objective") or {}
     if pre_arc or post_arc:
         pre_t = {t.get("id"): t for t in (pre_arc.get("threads") or []) if isinstance(t, dict)}
         post_t = {t.get("id"): t for t in (post_arc.get("threads") or []) if isinstance(t, dict)}
@@ -282,8 +282,8 @@ def summarize_changes(
                 if isinstance(ra, dict):
                     threads.append({
                         "kind": "arc_resolved",
-                        "id": ra.get("visible_goal", "?"),
-                        "summary": ra.get("visible_goal", ""),
+                        "id": ra.get("long_term_objective", "?"),
+                        "summary": ra.get("long_term_objective", ""),
                         "detail": ra.get("resolution", ""),
                     })
 

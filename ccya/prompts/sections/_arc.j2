@@ -1,26 +1,28 @@
 {# _arc.j2
    Required: none (renders "No active campaign arc." if empty)
-   Optional: current_arc (dict with visible_goal, resolution, completed_threads), resolved_arcs (list[dict])
-   Emits: ### Campaign Arc, ### Previously Resolved Arcs, ### Completed Threads headers
+   Optional: current_objective (dict with long_term_objective, resolution, completed_threads), resolved_arcs (list[dict]), arc_pressure_score, arc_hint_text
+   Emits: ### Campaign Arc, ### Recently Resolved Arcs, ### Completed Threads headers, hint tags
 #}
-{% if current_arc and current_arc.visible_goal -%}
+{% if current_objective and current_objective.long_term_objective -%}
 ### Campaign Arc
 
-**Goal:** {{ current_arc.visible_goal }}
-{% if current_arc.resolution %}
-**Arc resolution:** {{ current_arc.resolution }}
+{% if arc_hint_text -%}
+> **Pressure hint:** {{ arc_hint_text }}
+{% endif %}**Goal:** {{ current_objective.long_term_objective }}
+{% if current_objective.resolution %}
+**Arc resolution:** {{ current_objective.resolution }}
 {% endif %}{% if resolved_arcs and resolved_arcs|length > 0 -%}
 
-### Previously Resolved Arcs (TTL)
+### Recently Resolved Arcs
 {%- for ra in resolved_arcs %}
-- **Turn {{ ra.resolved_turn }}:** {{ ra.resolution[:120] }}{% endfor -%}
+- **Turn {{ ra.resolved_turn }}:** {{ ra.resolution }}{% endfor -%}
 
-{% endif -%}{% if current_arc.completed_threads and current_arc.completed_threads|length > 0 -%}
+{% endif -%}{% if current_objective.completed_threads and current_objective.completed_threads|length > 0 -%}
 
 ### Completed Threads (TTL)
-{%- for ct in current_arc.completed_threads[:15] %}
+{%- for ct in current_objective.completed_threads %}
 - `{{ ct.id }}`: {{ ct.summary[:80] }} [urgency:{{ ct.urgency }}]{% if ct.resolved_turn %} resolved turn {{ ct.resolved_turn }}{% endif %}
-{%- endfor %}{% if current_arc.completed_threads|length > 15 %}...and {{ current_arc.completed_threads|length - 15 }} more{% endif %}
+{%- endfor %}
 {%- endif %}
 {%- else -%}
 No active campaign arc.

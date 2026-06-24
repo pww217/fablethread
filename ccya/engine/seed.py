@@ -358,6 +358,10 @@ async def generate_seed(
             envelope.seed_state.arc = envelope.arc
             arc = envelope.seed_state.arc
             if arc and hasattr(arc, "threads"):
+                # Set started_turn to the current turn (usually 1 at seed time)
+                if getattr(arc, "started_turn") is None:
+                    object.__setattr__(arc, "started_turn", envelope.seed_state.meta.get("turn", 1))
+                # Enforce hard limits on non-dormant threads and urgency
                 non_dormant_threads = [t for t in (arc.threads or []) if not t.dormant]
                 dormant_threads = [t for t in (arc.threads or []) if t.dormant]
 
@@ -401,7 +405,7 @@ async def generate_seed(
                 return _strip_non_ascii(text).strip().rstrip(".")
 
             baseline_texts_set = {_normalize_for_match(t) for t in scenario.world_facts}
-            baseline_ws = [WorldStateFact(id=f"baseline_{i}", text=text, tier="permanent") for i, text in enumerate(scenario.world_facts)]
+            baseline_ws = [WorldStateFact(id=f"baseline_{i}", text=text, tier="global", permanent=True) for i, text in enumerate(scenario.world_facts)]
             merged_ws = cast(
                 list[WorldStateFact | str],
                 baseline_ws + [f for f in existing_ws if _normalize_for_match(f.text if isinstance(f, WorldStateFact) else f) not in baseline_texts_set],

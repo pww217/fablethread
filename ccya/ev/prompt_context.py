@@ -50,7 +50,7 @@ def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
         }
         entries.append(entry)
     entries.sort(key=lambda e: (_PRESENCE_SORT.get(e["presence"], 9), e["name"]))
-    return entries[:10]
+    return entries[:12]
 
 
 def _build_rules_outcome(turn_ev: dict[str, Any]) -> dict[str, Any] | None:
@@ -116,7 +116,7 @@ def build_prompt_context(
         }
 
     if stream == "storytell":
-        arc = state_snapshot.get("arc") or {}
+        arc = state_snapshot.get("long_term_objective") or {}
         scene = state_snapshot.get("scene") or {}
         meta = state_snapshot.get("meta") or {}
         pc = state_snapshot.get("pc") or {}
@@ -127,7 +127,7 @@ def build_prompt_context(
                 entry = dict(t)
                 entry.setdefault("last_updated_turn", None)
                 from ccya.prompts.context import _fmt_progress
-                entry["progress"] = _fmt_progress(entry.get("progress"))
+                entry["progress"] = _fmt_progress(entry.get("major_updates"))
                 all_threads.append(entry)
             else:
                 all_threads.append({"id": "", "summary": ""})
@@ -159,7 +159,7 @@ def build_prompt_context(
             "location": state_snapshot.get("location") or {},
             "inventory": state_snapshot.get("inventory") or [],
             "conditions": list(pc.get("conditions") or []),
-            "current_arc": arc,
+            "current_objective": arc,
             "all_threads": all_threads,
             "world_state": list(scene.get("world_state") or []),
             "resolved_arcs": [],
@@ -184,10 +184,10 @@ def build_prompt_context(
     if stream == "ruling":
         comp = state_snapshot.get("compendium", {}).get("npcs", {})
         npc_roster = _build_npc_roster(comp)
-        arc = state_snapshot.get("arc") or {}
+        arc = state_snapshot.get("long_term_objective") or {}
         pc = state_snapshot.get("pc") or {}
         urgent_threads = [
-            {"id": t.get("id", ""), "summary": t.get("summary", ""), "progress": t.get("progress", [])}
+            {"id": t.get("id", ""), "summary": t.get("summary", ""), "progress": t.get("major_updates", [])}
             for t in (arc.get("threads") or []) if t.get("urgency") == "urgent"
         ]
         return {
@@ -206,15 +206,15 @@ def build_prompt_context(
     if stream == "narrate":
         comp = state_snapshot.get("compendium", {}).get("npcs", {})
         npc_roster = _build_npc_roster(comp)
-        arc = state_snapshot.get("arc") or {}
+        arc = state_snapshot.get("long_term_objective") or {}
         scene = state_snapshot.get("scene") or {}
         meta = state_snapshot.get("meta") or {}
         pc = state_snapshot.get("pc") or {}
-        current_arc_ctx = None
+        current_objective_ctx = None
         if arc:
             all_threads = [t for t in (arc.get("threads") or [])]
-            current_arc_ctx = {
-                "visible_goal": arc.get("visible_goal", ""),
+            current_objective_ctx = {
+                "long_term_objective": arc.get("long_term_objective", ""),
                 "resolution": arc.get("resolution"),
                 "resolved_arcs": [],
                 "threads": [
@@ -256,7 +256,7 @@ def build_prompt_context(
             "pc_allegiance": None,
             "world_factions": [],
             "npc_roster": npc_roster,
-            "current_arc": current_arc_ctx,
+            "current_objective": current_objective_ctx,
             "curtain_call": curtain_call,
             "resolved_arcs": [],
             "location": state_snapshot.get("location") or {},

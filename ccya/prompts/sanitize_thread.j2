@@ -11,8 +11,7 @@ Rules:
 [USER]
 ## Current Arc
 
-**Goal:** {{ visible_goal }}
-{% if goal_context %}**Context:** {{ goal_context }}{% endif %}
+**Goal:** {{ long_term_objective }}
 {% if resolution %}**Resolution:** {{ resolution }}{% endif %}
 
 ### Active Threads
@@ -33,6 +32,21 @@ Rules:
 {% for b in prior_history %}{{ b }}
 {% endfor %}
 
+## Current World State
+{% if current_world_state %}
+{% for f in current_world_state %}{% if f is mapping %}- [{% if f.tier == "global" %}global{% else %}local{% endif %}] {{ f.text }}
+{% elif f is string %}- {{ f }}
+{% endif -%}
+{% endfor %}
+{% else %}(none){% endif %}
+
+## World State Candidates
+{% if world_state_candidates %}
+The storyteller has proposed these world state facts from resolved threads:
+{% for c in world_state_candidates %}- Thread `{{ c.thread_id }}` (resolved T{{ c.resolved_turn }}): "{{ c.text }}"
+{% endfor %}
+{% else %}(none){% endif %}
+
 ## Instructions
 
 Review each active thread and output a JSON object inside <sanitize> tags.
@@ -48,7 +62,7 @@ Review each active thread and output a JSON object inside <sanitize> tags.
 If a thread has no narrative mention in 5+ turns AND no activity (progress/urgency change) in 3+ turns, consider resolving as abandoned with narrative justification. Do not abandon threads still relevant to the current situation. Never abandon threads that have never been updated (no turns-ago suffix — these are freshly unearthed and need time to surface).
 
 ### Dormant guidance
-If a thread has no activity in 4+ turns, consider setting dormant: True. Dormant threads represent tensions faded from immediate relevance but can be reactivated. Never mark threads dormant that have never been updated (no turns-ago suffix).
+If a thread has no activity in 8+ turns, consider setting dormant: True. Dormant threads represent tensions faded from immediate relevance but can be reactivated. Never mark threads dormant that have never been updated (no turns-ago suffix).
 
 ### Culling guidance
 If there are >= 3 dormant threads, consider resolving the oldest (by last_updated_turn) as abandoned with a narrative outcome sentence. Never cull threads that have never been updated (no turns-ago suffix).
@@ -66,24 +80,32 @@ Update a thread's summary if it no longer matches the current narrative; keep it
 Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold ones (dormant: true), merge overlapping ones, prefer fewer meaningful threads.
 
 ### Arc goal vs. threads
-**Do NOT pivot visible_goal when:**
+**Do NOT pivot long_term_objective when:**
 - A thread resolved, failed, or changed urgency
 - Progress was made on a thread
 - The goal is still viable even if slow
 - A parallel thread became the dominant focus
 
-**DO update visible_goal when:**
+**DO update long_term_objective when:**
 - The main objective is impossible (target dead, location destroyed, ally betrayed)
 - A revelation invalidates the current goal (wrong person, place, or assumption)
 - The player's situation changed so drastically a different objective is now primary
 - The arc has coasted 8+ turns without meaningful progress
 
+### World state evaluation
+Thread resolutions may propose new world state facts via `world_state_candidate`. Evaluate all candidates against current world state and return a complete replacement array:
+- **Include** confirmed facts with `id`, `text`, `tier` ("global" or "local"), `permanent` (boolean), `valence` ("threat"|"complication"|"neutral"|"boon"), and optionally `expires_turn` (turn number when it expires).
+- **Omit** rejected facts — they are simply not included in the returned array.
+- Global facts are immutable constraints affecting the whole world. Local facts are area-specific and may be temporary.
+- Never include world state facts that are just narrative flavor — they must be gameplay-affecting constraints.
+- If including a local fact, consider setting `expires_turn` to a future turn number (e.g., current_turn + 10).
+- Any fact not in the returned array is removed from world state.
+
 ### Output JSON schema
 
 {
   "goal_update": {               // omit if unchanged
-    "visible_goal": "...",
-    "goal_context": "..."
+    "long_term_objective": "..."
   },
   "thread_updates": [            // only threads needing changes
     {
@@ -92,7 +114,7 @@ Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold
       "urgency": "...",
       "type": "threat|opportunity|complication|revelation",
       "progress": ["str"],
-      "progress_kind": "advancement|setback|shift"
+      "major_update_signal": "advancement|setback"
     }
   ],
   "resolved_threads": [
@@ -102,18 +124,21 @@ Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold
       "outcome": "One sentence describing what happened."
     }
   ],
-  "new_threads": [
+  "world_state": [            // complete replacement array — omit rejected facts
     {
-      "id": "new_unique_id",
-      "summary": "Thread summary",
-      "urgency": "normal",
-      "dormant": false
+      "id": "unique_fact_id",
+      "text": "The world state fact text",
+      "tier": "global|local",
+      "permanent": true,
+      "valence": "threat|complication|neutral|boon",
+      "expires_turn": 42
     }
   ],
   "_checklist": {                // MANDATORY
     "thread_count": "Reviewed N active threads",
     "resolved": "N threads resolved or decayed",
     "new": "N new threads added",
-    "goal": "Goal updated (why) OR confirmed current"
+    "goal": "Goal updated (why) OR confirmed current",
+    "world_state": "N facts confirmed/rejected"
   }
 }

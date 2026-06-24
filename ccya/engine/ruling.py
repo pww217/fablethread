@@ -39,7 +39,7 @@ def _ruling_messages(
     system_text = _render(env, "ruling_system.j2", {})
     
     # Build urgent_threads from arc.threads with urgency == "urgent"
-    arc = state.get("arc") or {}
+    arc = state.get("long_term_objective") or {}
     threads = arc.get("threads") or []
     urgent_threads = []
     for t in threads:
@@ -47,7 +47,7 @@ def _ruling_messages(
             urgent_threads.append({
                 "id": t.get("id", ""),
                 "summary": t.get("summary", ""),
-                "progress": t.get("progress", []),
+                "progress": t.get("major_updates", []),
             })
     
     user_text = _render(
@@ -65,6 +65,7 @@ def _ruling_messages(
             "urgent_threads": urgent_threads,
             "conditions": list(pc.get("conditions") or []),
             "state": state,
+            "pc_situation": pc.get("situation") or {},
         },
     )
     return [
@@ -296,7 +297,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     if config.thread_deescalate_on_success and outcome.rolled and outcome.band in ("success", "crit_success"):
         if any(
             isinstance(t, dict) and t.get("urgency") == "urgent"
-            for t in ((state.get("arc") or {}).get("threads") or [])
+            for t in ((state.get("long_term_objective") or {}).get("threads") or [])
         ):
             deescalate = 1.0 if outcome.band == "crit_success" else 0.6
 
