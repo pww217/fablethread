@@ -54,6 +54,8 @@ REQUIRED — every `thread_add` and `thread_update` must include exactly one typ
 
 **CRITICAL: Never both update AND resolve the same thread in one turn.** If you are resolving a thread (it concluded, failed, or was absorbed), emit it ONLY in `thread_resolve`. Do NOT also include a `thread_update` for that same ID. These are mutually exclusive operations.
 
+**CRITICAL: thread_add IDs must be unique.** Before emitting `thread_add`, check that your proposed ID does not already exist in the active or completed threads list. Using a duplicate ID will cause the thread to be silently discarded. If you want to create a new thread, use a distinct ID that does not match any existing thread.
+
 **Include location in thread summaries when relevant:** `"rescue hostages from warehouse district"` not `"rescue hostages"`.
 
 **Before emitting `thread_add`:** scan all active AND latent threads for conceptual overlap. If the same tension is already tracked, use `thread_update` instead. Only create a new thread for genuinely distinct tension. Target: 3–4 threads (~4 total). Hard cap: 5. If you would add a thread but are at 4–5, first resolve or demote an existing one.
