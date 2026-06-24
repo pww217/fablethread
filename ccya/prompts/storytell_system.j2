@@ -8,8 +8,8 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 
 ```json
 {
-  "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "..."}],
-  "thread_update": [{"id": "...", "type": "threat", "progress": "...", "major_update_signal": "advancement|setback", "urgency": "background|normal|urgent", "dormant": true}],
+  "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "...", "resolved_turn": 0, "world_state_candidate": "..."}],
+  "thread_update": [{"id": "...", "type": "threat", "progress": "...", "major_update_signal": "advancement|setback", "urgency": "background|normal|urgent", "dormant": true, "reason": "..."}],
   "thread_add": {"id": "...", "type": "threat", "summary": "...", "urgency": "normal"},
    "arc_resolve": {"resolution": "...", "long_term_objective": "..."},
    "goal_update": "...",

@@ -1,9 +1,12 @@
 # 02-Arc System Redesign
 
-> **Status:** scoping
+> **Status:** implemented
 > **Related designs:**
 > - [01-Primitives](./01-primitives.md) — Shared building blocks (field renames, TTL, pressure score, pc.situation)
 > - [03-Seed Worldbuilding Redesign](./03-seed-worldbuilding-redesign.md)
+>
+> **Related plans:**
+> - [Arc System Plan](../../plans/arc-system-plan.md) — Implementation plan for arc lifecycle, thread→world state promotion, storyteller prompt updates
 >
 > **Discovery/evidence:** [Arc System — Discovery](../discovery/arc-system-problems.md)
 >   Comprehensive evidence file: eval data, prompt evolution trace, code-based findings, checker gaps, state model issues.

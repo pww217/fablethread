@@ -315,6 +315,14 @@ def _apply_thread_resolutions(
             "resolved_turn": turn_no,
         }))
 
+        # Collect world_state_candidate for two-step promotion (sanitizer evaluates in seed worldbuilding plan)
+        if res.world_state_candidate:
+            state.setdefault("world_state_candidates", []).append({
+                "thread_id": res.id,
+                "text": res.world_state_candidate,
+                "resolved_turn": turn_no,
+            })
+
     if not any_found:
         return None
 
