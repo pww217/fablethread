@@ -214,7 +214,10 @@ def _apply_arc_resolve(
         extra={"turn": turn_no},
     )
 
-    # Create new successor arc with all threads carried forward
+    # Create new successor arc with all threads carried forward.
+    # completed_threads=[] intentionally — clean slate at arc boundary.
+    # Completed threads from the resolved arc are stored in resolved_arcs
+    # above; the new arc starts fresh with only active threads.
     new_arc = LongTermObjective(
         long_term_objective=resolution.long_term_objective,
         threads=list(old_arc.threads),

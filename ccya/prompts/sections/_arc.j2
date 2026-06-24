@@ -15,7 +15,7 @@
 
 ### Recently Resolved Arcs
 {%- for ra in resolved_arcs %}
-- **Turn {{ ra.resolved_turn }}:** {{ ra.resolution[:120] }}{% endfor -%}
+- **Turn {{ ra.resolved_turn }}:** {{ ra.resolution }}{% endfor -%}
 
 {% endif -%}{% if current_objective.completed_threads and current_objective.completed_threads|length > 0 -%}
 

@@ -60,7 +60,7 @@ async def _sanitize_threads_impl(
     turn_no = int(meta.get("turn", 0))
 
     env = _build_jinja_env(str(Path(__file__).parent.parent / "prompts"))
-    messages = _build_messages(env, state, recent_turns, prior_history, turn_no, current_turn)
+    messages = _build_messages(env, state, recent_turns, prior_history, turn_no, current_turn, sanitize_every=config.sanitize_every)
 
     t_sanitize = asyncio.get_running_loop().time()
     try:
@@ -134,6 +134,7 @@ def _build_messages(
     prior_history: list[str],
     turn_no: int,
     current_turn: int,
+    sanitize_every: int = 1,
 ) -> list[dict[str, str]]:
     """Build system + user messages for the sanitizer LLM call."""
     arc = state.get("long_term_objective") or {}
@@ -144,7 +145,11 @@ def _build_messages(
     resolution = arc.get("resolution")
     threads = [{**t, "last_updated_turn": t.get("last_updated_turn"), "progress": t.get("major_updates") or []} for t in (arc.get("threads") or [])]
     completed_threads = [{**ct, "last_updated_turn": ct.get("last_updated_turn"), "progress": ct.get("major_updates") or [], "resolved_turn": ct.get("resolved_turn")} for ct in (arc.get("completed_threads") or [])]
-    world_state_candidates = state.get("world_state_candidates", [])
+    # TTL pass: drop candidates older than sanitize_every * 2 turns
+    # Prevents accumulation when sanitizer is disabled or skipped
+    raw_candidates = state.get("world_state_candidates", [])
+    ttl_cutoff = current_turn - (sanitize_every * 2)
+    world_state_candidates = [c for c in raw_candidates if c.get("resolved_turn", 0) >= ttl_cutoff]
     current_world_state = state.get("scene", {}).get("world_state", [])
 
     user_prompt = env.get_template("sanitize_thread.j2").render(

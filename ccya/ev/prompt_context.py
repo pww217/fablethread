@@ -50,7 +50,7 @@ def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
         }
         entries.append(entry)
     entries.sort(key=lambda e: (_PRESENCE_SORT.get(e["presence"], 9), e["name"]))
-    return entries[:10]
+    return entries[:12]
 
 
 def _build_rules_outcome(turn_ev: dict[str, Any]) -> dict[str, Any] | None:
