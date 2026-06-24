@@ -185,19 +185,19 @@ npc_bonds:
     incompatible_with: []
 
 pc_situation_schema:
-  - id: vessel
+  - key: vessel
     description: The PC's ship or vessel
     required: false
-  - id: crew
+  - key: crew
     description: The PC's crew situation
     required: false
-  - id: debts
+  - key: debts
     description: Debts, obligations, or bounties on the PC
     required: false
-  - id: alliances
+  - key: alliances
     description: Faction alliances or contacts the PC relies on
     required: false
-  - id: home
+  - key: home
     description: The PC's home base or territory
     required: false
 

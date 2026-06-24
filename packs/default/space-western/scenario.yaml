@@ -153,6 +153,17 @@ moral_pressures:
     tags: [aliens, diplomacy, unknown]
     incompatible_with: []
 
+pc_situation_schema:
+  - key: vessel
+    description: What vessel does the PC have, and in what condition?
+    required: false
+  - key: settlement
+    description: What settlement or outpost does the PC call home?
+    required: false
+  - key: faction_alignment
+    description: What faction, guild, or group does the PC align with?
+    required: false
+
 npc_bonds:
   - id: old_crewmate
     tags: [crew, ship, shared_mileage]

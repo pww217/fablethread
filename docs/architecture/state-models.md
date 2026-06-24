@@ -34,17 +34,17 @@ inventory: list[InventoryItem] — credits pinned to top
   - id: str, name: str, notes: str, amount: int (≥1), aliases: [str]
 
  arc:                           # managed by engine/turn_state.py
-   visible_goal: str
-   goal_context: str            # 2–3 sentences explaining why visible_goal matters (UI-only; not rendered in prompts)
-   threads: list[ArcThread]     # unified arc.threads[] with dormant flag; dedup is id-only
-   completed_threads: list[ArcThread]   # resolved/failed/abandoned threads
-   resolution: str | None       # set when arc is resolved via arc_resolve
-   last_thread_created_turn: int  # tracks when a thread was last created for thread_add cooldown gate
+    long_term_objective: str
+    threads: list[ArcThread]     # unified arc.threads[] with dormant flag; dedup is id-only
+    completed_threads: list[ArcThread]   # resolved/failed/abandoned threads
+    resolution: str | None       # set when arc is resolved via arc_resolve
+    last_thread_created_turn: int  # tracks when a thread was last created for thread_add cooldown gate
+    started_turn: int | None     # turn when arc was created (for pressure score age calculation)
 
-resolved_arcs: list[dict]     # stored at state level, TTL-pruned in prompts; each entry has visible_goal, resolution, goal_context, resolved_turn
+resolved_arcs: list[dict]     # stored at state level, TTL-pruned in prompts; each entry has long_term_objective, resolution, resolved_turn
 
 scene:
-  world_state: list[WorldStateFact]   # permanent tier = seed-authored; persistent tier = LLM-added at runtime
+  world_state: list[WorldStateFact]   # global tier = seed-authored; local tier = LLM-added at runtime
   turn_entered: int            # when the current scene was entered (set on location change, used by _compute_ages())
   location_entered_turn: int   # when location was last changed
 
@@ -61,24 +61,23 @@ world.factions: [str], world.locations: list[KeyLocation]
 - **RulesOutcome**: `rolled`, `skill`, `difficulty`, `stat_value`, `stat_mod`, `diff_mod`, `dice`, `raw_total`, `final_total`, `band`, `directive`, `intent`, `intent_verb`, `impossible`, `reason`
 - **SceneExtractResult**: `compendium_npc_update`, `candidate_npcs: list[dict]` (per-NPC beat candidates: [{id, type, effect}])
 - **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`, `location_change`, `location_description`
-- **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (str | None, applied directly to arc dict), `arc_resolve` (ArcResolution | None), `thread_resolve` (with outcome sentence + promote_to_world_state flag), `thread_add`, `gm_beat`, `actions`, `outcome_summary`, `chapter_end: bool`
-- **SeedEnvelope**: `seed_state: SeedState`, `opening_narrative`, `actions`, `arc: CampaignArc | None` (includes `goal_context` — UI-only, not rendered in prompts; unified `threads[]` with `progress: list[ProgressEntry]`, `completed_threads[]`)
+- **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (dict | None, applied directly to arc dict), `arc_resolve` (ArcResolution | None), `thread_resolve` (with outcome sentence + world_state_candidate), `thread_add`, `gm_beat`, `actions`, `outcome_summary`
+- **SeedEnvelope**: `seed_state: SeedState`, `opening_narrative`, `actions`, `arc: LongTermObjective | None` (unified `threads[]` with `major_updates: list[ProgressEntry]`, `completed_threads[]`)
 
 ### State models (ccya/models/state.py)
 
-- **ArcThread**: `id`, `summary`, `dormant`, `type`, `urgency`, `progress: list[ProgressEntry]`, `resolution_state`, `outcome`, `resolved_turn`, `last_updated_turn`, `added_turn`, `urgency_set_turn`
-- **CampaignArc**: `visible_goal`, `goal_context`, `threads: list[ArcThread]`, `completed_threads: list[ArcThread]`, `resolution`, `last_thread_created_turn`
+- **ArcThread**: `id`, `summary`, `dormant`, `type`, `urgency`, `major_updates: list[ProgressEntry]`, `resolution_state`, `outcome`, `resolved_turn`, `last_updated_turn`, `added_turn`, `urgency_set_turn`
+- **LongTermObjective**: `long_term_objective`, `threads: list[ArcThread]`, `completed_threads: list[ArcThread]`, `resolution`, `last_thread_created_turn`, `started_turn`
 - **Condition**: `id`, `label`, `description`, `added_turn`
 - **InventoryItem**: `id`, `name`, `notes`, `amount`, `aliases: [str]`
 - **NpcPresence**: `name`, `title`, `bio`, `aliases: [str]`, `presence`, `position`, `motivation`, `fear`, `leverage`, `personality`, `first_seen_turn`, `last_presence_turn`, `last_seen_location`, `departed_reason`, `departed_turn` — note: `party` is NOT a field on this enum (it's a compendium entry field, not a presence value)
-- **ProgressEntry**: `kind: Literal["advancement", "setback", "shift"]`, `text`
+- **ProgressEntry**: `kind: Literal["advancement", "setback"]`, `text`
 - **ThreadResolution**: `id`, `resolution_state: Literal["resolved", "failed", "abandoned"]`, `outcome: str`, `world_state_candidate: str | None`
-- **ThreadUpdate**: `id`, `dormant`, `urgency`, `type`, `summary`, `progress`, `progress_kind`
-- **ArcResolution**: `resolution`, `visible_goal`, `goal_context`, `drop_threads: list[str]`, `new_threads: list[ArcThread]`
-- **WorldStateFact**: `id: str`, `text: str`, `tier: Literal["global", "local"] = "global"`, `permanent: bool = False`, `valence: Valence | None = None`, `expires_turn: int | None = None`
+- **ThreadUpdate**: `id`, `dormant`, `urgency`, `type`, `major_updates`, `major_update_signal`
+- **ArcResolution**: `resolution`, `long_term_objective`
+- **WorldStateFact**: `id: str`, `text: str`, `tier: Literal["global", "local"] = "global"`, `permanent: bool = False`, `valence: Literal["threat", "complication", "neutral", "boon"] | None = None`, `expires_turn: int | None = None`
 - **KeyLocation**: `id: str`, `name: str`, `description: str = ""`, `status: str = "active"`, `tags: list[str] = []`
-- **Valence**: Enum — `THREAT`, `COMPLICATION`, `NEUTRAL`, `BOON`
-- **SanitizedWorldStateFact**: `id: str`, `text: str`, `tier: Literal["global", "local"] = "global"`, `permanent: bool = False`, `valence: Valence | None = None`, `expires_turn: int | None = None`, `source_thread: str | None = None`
+- **SanitizedWorldStateFact**: `id: str`, `text: str`, `tier: Literal["global", "local"] = "global"`, `permanent: bool = False`, `valence: Literal["threat", "complication", "neutral", "boon"] | None = None`, `expires_turn: int | None = None`
 
 ### Extraction models (ccya/models/extraction.py)
 
@@ -101,7 +100,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 - **SkillName**: 4 skills (strength, dexterity, wits, charisma)
 - **Difficulty**: 5 difficulty levels with modifiers in DIFFICULTY_MOD
 - **Band**: crit_fail, fail, setback, partial, success, crit_success (1d12 natural: 1=crit_fail, 12=crit_success)
-- **EngineConfig**: thread_max_active, nearby_decay_ttl, departed_archive_ttl, climax_turn_limit, breather_max_turns, convergence_threshold, thread_completion_threshold, thread_creation_cooldown, thread_urgency_max_age, sanitize_every, arc_memory_ttl, thread_memory_ttl, debug_mode, plus sampling params per stage (ruling_temperature, narrate_temperature, etc.)
+- **EngineConfig**: thread_max_active, nearby_decay_ttl, departed_archive_ttl, climax_turn_limit, breather_max_turns, convergence_threshold, thread_creation_cooldown, thread_urgency_max_age, sanitize_every, arc_memory_ttl, thread_memory_ttl, debug_mode, plus sampling params per stage (ruling_temperature, narrate_temperature, etc.)
 
 ### Compactor models (ccya/models/compactor.py) — dormant
 
@@ -116,19 +115,19 @@ world.factions: [str], world.locations: list[KeyLocation]
 ### WorldStateFact
 - `tier: Literal["global", "local"]` — global facts are immutable world constraints (seed-authored or confirmed by sanitizer); local facts are area-specific and may be temporary
 - `permanent: bool` — if true, the fact is never expired or removed; if false, it may be removed by TTL or sanitizer
-- `valence: Valence | None` — "threat", "complication", "neutral", or "boon"; indicates the fact's impact on the PC's situation
-- `expires_turn: int | None` — if set, the fact is automatically removed at this turn number (TTL expiry pass in turn_state.py)
+- `valence: Literal["threat", "complication", "neutral", "boon"] | None` — indicates the fact's impact on the PC's situation
+- `expires_turn: int | None` — if set, the fact is automatically removed at this turn number (TTL expiry pass in turn.py)
 - Two-step promotion: storyteller proposes via `ThreadResolution.world_state_candidate`; thread sanitizer evaluates and confirms/rejects/modifies via `world_state_actions`
 
 ### ThreadResolution
 - `outcome: str` — one past-tense sentence written at resolution time; persisted on completed ArcThread by `_apply_thread_resolutions()` alongside `resolution_state`
 
-### Progress migration
-- `ArcThread.progress` has migrated through two versions:
-  - v1: `str` — single progress string
-  - v2: `list[str]` — append-only list of progress strings
-  - v3 (current): `list[ProgressEntry]` — structured entries with `kind` + `text`
-- A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all legacy shapes: bare strings wrapped in `[{"text": v, "kind": "advancement"}]`; string lists converted to `[{"text": s, "kind": "advancement"} for s in list]`
+### Major updates migration
+- `ArcThread.major_updates` has migrated through two versions:
+  - v1: `progress` as `str` — single progress string
+  - v2: `progress` as `list[str]` — append-only list of progress strings
+  - v3 (current): `major_updates` as `list[ProgressEntry]` — structured entries with `kind` + `text`
+- Legacy `progress` values are coerced by a Pydantic `field_validator` on `ArcThread` that wraps bare strings in `[{"text": v, "kind": "advancement"}]` and converts string lists to `[{"text": s, "kind": "advancement"} for s in list]`
 
 ### StateDelta actions
 - `actions: list[str]`, max_length=10 — merged from StorytellerResult.actions, persisted to `state["pc"]["actions"]` as rolling window by `apply_delta()`

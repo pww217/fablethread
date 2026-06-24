@@ -156,6 +156,17 @@ moral_pressures:
     tags: [grief, accountability, unit_guilt]
     incompatible_with: []
 
+pc_situation_schema:
+  - key: unit_assignment
+    description: What unit or squad is the PC assigned to?
+    required: false
+  - key: position
+    description: What is the PC's current position or role in the field?
+    required: false
+  - key: mission_context
+    description: What is the PC's current mission or operation?
+    required: false
+
 npc_bonds:
   - id: foxhole_brother
     tags: [combat, shared_section, front_line]

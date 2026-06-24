@@ -147,6 +147,17 @@ moral_pressures:
     tags: [redemption, past_mistakes, reform]
     incompatible_with: []
 
+pc_situation_schema:
+  - key: residence
+    description: Where does the PC live or operate from?
+    required: false
+  - key: contacts
+    description: Who does the PC know in the city? Informants, allies, enemies?
+    required: false
+  - key: evidence
+    description: What evidence, leverage, or compromising material does the PC have?
+    required: false
+
 npc_bonds:
   - id: former_partner
     tags: [partnership, shared_history, trust]
