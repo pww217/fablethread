@@ -6,47 +6,12 @@ constraints:
   starting_quest_count: 1
   # ranges
   inventory_size_range: [4, 8]
-  pc_stat_range: [1, 4]
-  pc_stat_total_range: [12, 18]
   prose_word_range: [530, 930]
   # composition
   required_inventory_kinds: [weapon, tool]
-  # creativity guards
-  forbid_cliches:
-    - "last soldier standing"
-    - "the war ends after this mission"
-    - "super weapon"
-    - "you're the only one who can"
-    - "the enemy is monstrous / inhuman"
-    - "you've seen too much"
-    - "the war made you this way"
-    - "you're just a soldier / sailor / airman — follow orders"
 
 world_rules:
   - No supernatural, paranormal, or sci-fi phenomena exist in this setting. All events are grounded in historical reality (1940–1945).
-
-inspiration:
-  pc: |
-    The PC is a rank-and-file Allied service member — not an officer giving orders,
-    not a special operative with a dossier. They are a rifleman, radioman, mechanic,
-    medic, driver, or clerk. Their rank is real. Their training is real. Their fear
-    is normal, not dramatic. What shaped them is pre-war: a farming town, an assembly
-    line, a dock district, a grain field, a pub. Give them a skill that matters in
-    this moment and a liability that matters in the next.
-
-  npcs: |
-    Each NPC is a real person in the Allied structure — or a civilian whose interests
-    intersect with it. They have a rank, specialty, reason for being where they are.
-    They are not an ally because they are good; they are allies because the war made
-    them so. At least one NPC should have an interest that conflicts with the player's
-    — not as a traitor, but as someone with different orders, information, or priorities.
-
-  inventory: |
-    Items reflect what a service member actually carried or had access to. Standard issue
-    weapons, personal modifications, captured items (if appropriate to theater), letters
-    and photos, ration cards, field manuals, medical supplies. Show the gap between what
-    the supply catalogue promised and what the player actually has. Include one thing that
-    was important to someone else before it became a tool.
 
 situation_archetypes:
   - id: firefight_starting_unexpected
@@ -190,6 +155,17 @@ moral_pressures:
   - id: friendly_fire_aftermath
     tags: [grief, accountability, unit_guilt]
     incompatible_with: []
+
+pc_situation_schema:
+  - key: unit_assignment
+    description: What unit or squad is the PC assigned to?
+    required: false
+  - key: position
+    description: What is the PC's current position or role in the field?
+    required: false
+  - key: mission_context
+    description: What is the PC's current mission or operation?
+    required: false
 
 npc_bonds:
   - id: foxhole_brother

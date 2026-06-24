@@ -18,7 +18,7 @@ Generate a SeedEnvelope JSON for a new playthrough. Wrap your entire response in
 Four independently selected narrative dimensions. They are NOT a menu — weave them into something coherent. Tension between them is expected.
 
 - **SITUATION ARCHETYPE** (`{{ pool_selection.situation.id }}`): The pressure or tension the player walks into.
-- **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Longer-term narrative direction. The visible_goal builds on this pattern over multiple turns — not resolved in one action.
+- **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Longer-term narrative direction. The long_term_objective builds on this pattern over multiple turns — not resolved in one action.
 - **CHARACTER DYNAMIC** (`{{ pool_selection.character_dynamic.id }}`): The PC's position relative to power structures. PC bio must be consistent with this (trusted_insider → show community ties; free_agent → show independence).
 - **MORAL PRESSURE** (`{{ pool_selection.moral_pressure.id }}`): The ethical dilemma driving immediate personal stakes.
 {% endif %}
@@ -29,12 +29,14 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
 {
   seed_state: {
     meta: {turn: 0, model: string, setting_pack: string, session_name: string},
-    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, charisma: int}, conditions: []},
+    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, charisma: int}, conditions: [], situation: {key: string}},
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
-    scene: {tags: string[], world_state: string[]},
+    scene: {tags: string[], world_state: Array<{id: string, text: string, tier: "global" | "local", permanent: boolean, valence: "threat" | "complication" | "neutral" | "boon", expires_turn: int | null}>},
     compendium: {npcs: {snake_case: {name: string, title: string, bio: string, presence: "present" | "nearby" | "known", bond?: string, motivation?: string, fear?: string, leverage?: string, personality?: archetype_id  /* see Personality archetypes table below — required for named NPCs, omit for unnamed */}}},
-    arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: null}
+    arc: {long_term_objective: string, threads: ArcThread[], completed_threads: null, started_turn: int | null},
+    arc_origin: string,
+    world: {locations: Array<{id: string, name: string, description: string, status: string, tags: string[]}>}
   },
   opening_narrative: string,
   outcome_summary: string,
@@ -57,14 +59,16 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
 
 Build in this order, using everything already established before generating what comes next:
 
-1. **PC** — bio, stats, tagline. Must be consistent with `character_dynamic`.
-2. **World state** — 3 immutable hard constraints that directly affect gameplay choices now (border closures, martial law, banned technologies, faction blockades). No historical backstory older than one generation unless it's an active constraint today. No flavor lore. Fewer high-quality facts beats many generic ones.
-3. **Campaign arc** — informed by PC, world state, situation archetype, and character dynamic:
-   - `visible_goal`: multi-stage objective. What happens after the first step succeeds? After it fails?
-   - `goal_context`: 2–3 sentences on why this goal matters to this character specifically — inner cost, emotional stakes. Don't restate visible_goal or leak hidden truths.
-   - `threads`: see Thread rules below.
-4. **Opening scene + NPCs** — instantiates the situation archetype concretely.
-5. **Inventory** — appropriate to scene and PC concept.
+1. **World facts (global tier)** — 3–5 immutable hard constraints that directly affect gameplay choices now (border closures, martial law, banned technologies, faction blockades). No historical backstory older than one generation unless it's an active constraint today. No flavor lore. Fewer high-quality facts beats many generic ones. Each fact must have `tier: "global"`, `permanent: true`, and a `valence` from: "threat", "complication", "neutral", "boon".
+2. **World facts (local tier)** — 2–3 facts specific to the PC's immediate area or situation. Each fact must have `tier: "local"`, `permanent: false`, and a `valence` from: "threat", "complication", "neutral", "boon".
+3. **Key locations** — 4–5 named places that exist in the world at game start. Ordered from most accessible to least known. Include 1–2 breadcrumb locations (places the PC has heard of but not visited). Each has `id`, `name`, `description`, `status`, and `tags`.
+4. **PC situation** — structured situational facts about the PC's current circumstances{% if scenario and scenario.pc_situation_schema %} ({% for s in scenario.pc_situation_schema %}{{ s.key }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Defined by `pc_situation_schema` in the pack.
+5. **Arc origin** — 2–3 sentences in past tense answering "how did the PC end up here?" Seed-time field only, never regenerated.
+6. **Campaign arc** — informed by PC, world state, situation archetype, and character dynamic:
+    - `long_term_objective`: multi-stage objective. What happens after the first step succeeds? After it fails?
+    - `threads`: see Thread rules below.
+7. **Opening scene + NPCs** — instantiates the situation archetype concretely.
+8. **Inventory** — appropriate to scene and PC concept.
 
 **Cross-field consistency (mandatory):**
 - `world_state` facts must establish pressures consistent with `arc_category`. No "all factions cooperate peacefully" in a power_struggle arc.
@@ -122,6 +126,9 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - `pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now.
 - `pc.stats`: four integers, range per hard constraints, total per hard constraints.
 
+## Arc origin
+- `arc_origin`: 2–3 sentences in past tense answering "how did the PC end up here?" This is a seed-time field only — never regenerated. It should connect the PC's backstory to the current situation in a way that feels inevitable in hindsight.
+
 ## Session name
 - `meta.session_name`: A short, evocative title for this game session (3-6 words). Should capture the campaign's tone and setting without describing a specific scene or character. This name defines the entire playthrough.
 
@@ -130,6 +137,21 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - One sentence each. Maximum 4 entries (including any engine-prepended baseline facts).
 - BAD: "The old empire fell three centuries ago." / "A peace treaty was signed in 2147." (historical flavor, no present impact)
 - GOOD: "Travel between districts requires a valid faction pass." / "All firearms are banned under penalty of immediate detention."
+- Valence requirement: The combined global + local world state must include at least one fact with `valence: "neutral"` or `valence: "boon"`. Without this instruction the LLM defaults to threats and complications.
+
+## Key locations
+- 4–5 named places that exist in the world at game start.
+- Ordered from most accessible to least known.
+- Include 1–2 breadcrumb locations (places the PC has heard of but not visited).
+- Each has: `id` (snake_case), `name`, `description`, `status` (e.g. "active", "abandoned", "restricted"), `tags` (list of descriptive tags).
+
+## PC situation
+- Structured situational facts about the PC's current circumstances.
+{% if scenario and scenario.pc_situation_schema %}{% for s in scenario.pc_situation_schema %}
+- `{{ s.key }}` — {{ s.description }}{% endfor %}
+{% else %}- Keys are defined by `pc_situation_schema` in the pack (3–5 keys maximum, all `required: false`).
+{% endif %}- Values are short strings describing the PC's current situation for each key.
+- If a key has no relevant fact, omit it from the output.
 
 ## Inventory rules
 - 3–6 items appropriate to the opening scene and PC concept.

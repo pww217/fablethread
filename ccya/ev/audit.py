@@ -309,7 +309,6 @@ def cmd_storyteller_audit(events: list[dict[str, Any]]) -> None:
         gu = output.get("goal_update")
         if gu is not None:
             if isinstance(gu, str) and gu.strip():
-                # Free-form string — sanitizer requires dict with visible_goal/goal_context
                 violations.append({
                     "turn": t,
                     "field": "goal_update",
@@ -317,12 +316,11 @@ def cmd_storyteller_audit(events: list[dict[str, Any]]) -> None:
                     "value": gu[:80] + "..." if len(gu) > 80 else gu,
                 })
             elif isinstance(gu, dict):
-                # Check if it has the required fields
-                if not gu.get("visible_goal") and not gu.get("goal_context"):
+                if not gu.get("long_term_objective"):
                     violations.append({
                         "turn": t,
                         "field": "goal_update",
-                        "issue": "dict without visible_goal or goal_context",
+                        "issue": "dict without long_term_objective",
                         "value": str(gu)[:80],
                     })
 

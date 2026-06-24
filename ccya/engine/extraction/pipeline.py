@@ -224,7 +224,7 @@ async def _run_extraction_pipeline(
             narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
             present_npc_names = [entry.get("name", "") for entry in extraction_ctx.comp_this_turn.values() if isinstance(entry, dict) and entry.get("presence") == "present"]
             inventory_items = [item.get("name", item.get("id", "")) if isinstance(item, dict) else str(item) for item in (state.get("inventory") or [])]
-            arc_goal = (state.get("arc") or {}).get("visible_goal", "")
+            arc_goal = (state.get("long_term_objective") or {}).get("long_term_objective", "")
 
             actions = []
             # Action from narration summary

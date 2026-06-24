@@ -12,14 +12,15 @@
 | `ccya/engine/config.py` | EngineConfig dataclass; CheckerConfig threshold fields; turn lock management; Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() orchestrator; 5-call pipeline (rules→narrate→scene/state/storytell); state_snapshot capture |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
-| `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay |
+| `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay; LongTermObjective.started_turn on arc resolve |
 | `ccya/engine/_pacing.py` | Beat constraints, convergence score, spiral detection |
 | `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context |
 | `ccya/engine/pack_gen.py` | LLM-generated ScenarioBrief → packs/custom/ |
 | `ccya/engine/names.py` | Name pool generation via Faker |
-| `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry |
+| `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; pc.situation in ruling context |
 | `ccya/engine/extraction/` | Scene/state/storytell extraction pipeline (3 streams) |
-| `ccya/engine/thread_sanitizer.py` | Batch arc/thread cleanup every N turns |
+| `ccya/engine/hints.py` | Hint generation for ruling context (pc.situation) |
+| `ccya/engine/thread_sanitizer.py` | Batch arc/thread cleanup every N turns; atomic world_state swap |
 | `ccya/engine/seed.py` | Dynamic pack seed generation; personality fallback |
 | `ccya/engine/changes.py` | State diff → emoji display lines for UI |
 | `ccya/engine/npc_roster.py` | NPC roster builder: presence filter, recency+richness scoring, top-12 selection |
@@ -113,7 +114,8 @@
 
 - **EV checkers** import from `ccya/engine/config` and `ccya/rules` deliberately — checkers need engine constants to validate mechanical invariants. Checkers read events.jsonl directly, not the turn pipeline.
 - **Error propagation**: LLM failure → typed LlmcError → server middleware → server_errors.jsonl + SSE error event. Engine modules use structured logging via `extra={}` (error_kind, trace_id).
-- **Thread lifecycle**: Three-layer governance (auto-dormant at 4 turns, urgency decay at 8 turns, completion threshold auto-resolve). Scene-scoped threads purged on location change. See [cross-module-contracts.md](./architecture/cross-module-contracts.md) for full state machine.
+- **Thread lifecycle**: Three-layer governance (auto-dormant at 8 turns, urgency decay at 8 turns, completion threshold auto-resolve). Scene-scoped threads purged on location change. State key: `state["long_term_objective"]` (renamed from `state["arc"]`). Model: `LongTermObjective` (renamed from `CampaignArc`). See [cross-module-contracts.md](./architecture/cross-module-contracts.md) for full state machine.
+- **World state lifecycle**: `ThreadResolution.world_state_candidate` collected in `_apply_thread_resolutions()`. Two-step promotion: storyteller proposes (stored as `world_state_candidates` in state), thread sanitizer evaluates via atomic `world_state` swap (complete replacement array). TTL expiry pass in `_apply_state_updates()` removes facts whose `expires_turn` has passed. Valence enum: threat, complication, neutral, boon. Tier: global (immutable) or local (may expire). See [state-models.md](./architecture/state-models.md) for model details.
 - **Extraction routing**: SceneExtractResult (tagline, location, NPC updates), StateExtractResult (inventory, conditions), StorytellerResult (threads, goals, arcs, beats). See [state-models.md](./architecture/state-models.md) for field routing details.
 - **Token budget**: `config.context_window` (default 32768) — trim_messages() drops oldest non-system messages. Affects all pipeline stages.
 - **Prompt architecture**: Two template systems (prompt templates in `ccya/prompts/`, UI templates in `ccya/templates/`). See [prompts-architecture.md](./architecture/prompts-architecture.md) for rendering flow.

@@ -11,7 +11,7 @@ import re
 from typing import Any
 
 from ccya.errors import ErrorKind
-from ccya.models import CampaignArc, SceneExtractResult, StateDelta
+from ccya.models import LongTermObjective, SceneExtractResult, StateDelta
 from ccya.state.inventory import (
     _fuzzy_match_inventory,
     resolve_inventory_canonical_id,
@@ -49,10 +49,10 @@ def _item_to_dict(item: Any) -> dict[str, Any]:
     return result
 
 
-def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
-    """Merge arc_update into live arc dict. visible_goal/resolution merged conditionally; threads[] and completed_threads[] always replaced."""
-    if au.visible_goal:
-        arc["visible_goal"] = au.visible_goal
+def _merge_arc_update(arc: dict[str, Any], au: LongTermObjective) -> None:
+    """Merge arc_update into live arc dict. long_term_objective/resolution merged conditionally; threads[] and completed_threads[] always replaced."""
+    if au.long_term_objective:
+        arc["long_term_objective"] = au.long_term_objective
     if au.resolution is not None:
         arc["resolution"] = au.resolution
     if au.last_thread_created_turn and au.last_thread_created_turn != 0:
@@ -279,7 +279,7 @@ def apply_delta(
 
     # --- Arc update: merge arc_update into state arc ---
     if delta.arc_update is not None:
-        _merge_arc_update(state.setdefault("arc", {}), delta.arc_update)
+        _merge_arc_update(state.setdefault("long_term_objective", {}), delta.arc_update)
 
     # --- Persist storyteller actions as rolling window ---
     if delta.actions:

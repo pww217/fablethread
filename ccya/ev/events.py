@@ -86,7 +86,7 @@ def load_current_state(save_dir: Path) -> dict[str, Any]:
 
 def state_diff(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     lines: list[str] = []
-    for key in ["pc", "scene", "location", "inventory", "arc", "compendium"]:
+    for key in ["pc", "scene", "location", "inventory", "long_term_objective", "compendium"]:
         vb = before.get(key, {})
         va = after.get(key, {})
         if vb != va:

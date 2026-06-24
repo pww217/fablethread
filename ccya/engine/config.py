@@ -180,8 +180,6 @@ class EngineConfig:
 
     # Urgency decay: demote urgent→normal→background after N turns at same urgency level
     thread_urgency_max_age: int = 8
-    # Thread completion threshold (number of progress entries that completes a thread)
-    thread_completion_threshold: int = 3
     # Thread creation cooldown (minimum turns between new thread additions)
     thread_creation_cooldown: int = 3
 
@@ -300,7 +298,6 @@ def build_engine_config(
 
         # Thread lifecycle enforcement
         thread_urgency_max_age=int(game.get("thread_urgency_max_age", 8)),
-        thread_completion_threshold=int(game.get("thread_completion_threshold", 3)),
         thread_creation_cooldown=int(game.get("thread_creation_cooldown", 3)),
 
         sanitize_every=int(game.get("sanitize_every", 5)),   # 0 = disabled

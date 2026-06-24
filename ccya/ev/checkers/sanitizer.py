@@ -39,9 +39,9 @@ def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any]) -> 
         sev_turn = sev.get("turn")
         # Get state at this sanitizer's turn, or fall back to END state
         if sev_turn and sev_turn in turn_states:
-            arc = (turn_states[sev_turn].get("arc") or {})
+            arc = (turn_states[sev_turn].get("long_term_objective") or {})
         else:
-            arc = state.get("arc") or {}
+            arc = state.get("long_term_objective") or {}
 
         state_threads: dict[str, dict[str, Any]] = {}
         for t in arc.get("threads") or []:

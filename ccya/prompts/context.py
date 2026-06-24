@@ -104,17 +104,28 @@ def _fmt_progress(progress: Any) -> list[str]:
     return result
 
 
+def _filter_completed_threads(arc: dict[str, Any], turn_no: int, ttl: int = 3) -> list[dict[str, Any]]:
+    """Filter completed threads by TTL — only include recent ones."""
+    raw_threads = arc.get("completed_threads") or []
+    result: list[dict[str, Any]] = []
+    for t in raw_threads:
+        resolved_turn = t.get("resolved_turn") if isinstance(t, dict) else getattr(t, "resolved_turn", None)
+        if resolved_turn is not None and (turn_no - resolved_turn) <= ttl:
+            result.append(dict(t) if isinstance(t, dict) else t.model_dump())
+    return result
+
+
 class ArcThreadBlock(BaseModel):
     """Arc status + thread overview for prompt rendering."""
 
-    visible_goal: str
+    long_term_objective: str
     resolution: str | None = None
     threads: list[ArcThreadSummary]  # simplified thread view for prompts
     completed_threads: list[ArcThreadSummary] = Field(default_factory=list)
 
     @classmethod
     def from_state(cls, state: dict[str, Any]) -> ArcThreadBlock:
-        arc = state.get("arc", {})
+        arc = state.get("long_term_objective", {})
         raw_threads = []
         for t in arc.get("threads", []) + arc.get("completed_threads", []):
             if isinstance(t, ArcThreadSummary):
@@ -126,7 +137,7 @@ class ArcThreadBlock(BaseModel):
                         summary=t.get("summary", ""),
                         urgency=t.get("urgency", "normal"),
                         type=t.get("type"),
-                        progress=_fmt_progress(t.get("progress")),
+                        progress=_fmt_progress(t.get("major_updates")),
                         dormant=bool(t.get("dormant", False)),
                         last_updated_turn=t.get("last_updated_turn"),
                     )
@@ -138,7 +149,7 @@ class ArcThreadBlock(BaseModel):
                         summary=t.summary,
                         urgency=t.urgency,
                         type=getattr(t, "type", None),
-                        progress=_fmt_progress(t.progress),
+                        progress=_fmt_progress(t.major_updates),
                         dormant=getattr(t, "dormant", False),
                         last_updated_turn=getattr(t, "last_updated_turn", None),
                     )
@@ -146,7 +157,7 @@ class ArcThreadBlock(BaseModel):
         completed_start = len(arc.get("threads", []))
         completed = [t for t in raw_threads[completed_start:] if isinstance(t, ArcThreadSummary)]
         return cls(
-            visible_goal=arc.get("visible_goal", ""),
+            long_term_objective=arc.get("long_term_objective", ""),
             resolution=arc.get("resolution"),
             threads=[t for t in raw_threads if isinstance(t, ArcThreadSummary)],
             completed_threads=completed,
@@ -225,13 +236,13 @@ class NarratorBoundary(BaseModel):
 
     Source: _narrate_messages() user_ctx (lines 72-104). Note that _location.j2 and _inventory.j2 includes access state.location/state.inventory,
     so these are NOT separate top-level fields — they're accessed via the `state` dict.
-    ArcThreadBlock is exposed as `current_arc` to match _arc.j2's variable name (line 1 of _arc.j2).
+    ArcThreadBlock is exposed as `current_objective` to match _arc.j2's variable name (line 1 of _arc.j2).
 
     NOTE: threat_ages, threat_pressure_at, building_threat_imperative_at are passed in user_ctx but narrate_user.j2 never uses them — dead fields removed from boundary model. momentum, scene, compendium_bios, known_npcs, present_npcs also flagged as dead by alignment check and removed.
     """
 
     pc: PlayerBlock  # maps to {{ pc.* }} (lines 2-6 of narrate_user.j2)
-    current_arc: ArcThreadBlock  # maps to {{ current_arc.* }} in _arc.j2 include (line 13 of narrate_user.j2)
+    current_objective: ArcThreadBlock  # maps to {{ current_objective.* }} in _arc.j2 include (line 13 of narrate_user.j2)
     state: dict[str, Any]  # covers state.location, state.inventory, state.scene.world_state accessed by includes
     npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster() call on line 98 of _narrate_messages
     pacing_context: PacingBlock | None = None
@@ -280,7 +291,7 @@ class StorytellerBoundary(BaseModel):
 
     npc_roster/location/inventory/conditions come from extraction_ctx.
     all_threads/world_state/intent/pacing_context/recent_turns/turn_no/band/scene_phase/allowed_beat_types are top-level variables.
-    current_arc provides campaign arc metadata (visible_goal, resolution) via _arc.j2 include.
+    current_objective provides campaign arc metadata (long_term_objective, resolution) via _arc.j2 include.
     all_threads is mapped to threads via {% set threads = all_threads %} before _thread_list.j2 include.
     """
 
@@ -289,7 +300,7 @@ class StorytellerBoundary(BaseModel):
     location: LocationBlock
     conditions: list[Condition]
     inventory: list[InventoryItem]
-    current_arc: dict[str, Any]  # campaign arc metadata — passed to _arc.j2 include
+    current_objective: dict[str, Any]  # campaign arc metadata — passed to _arc.j2 include
     all_threads: list[ArcThreadSummary]  # source is state.arc.threads (raw dicts) — Pydantic coerces since ArcThreadSummary field names match dict keys; schema tests must validate both raw-dict and object inputs
     world_state: list[str | dict[str, Any]]  # template uses `world_state` variable name
     intent: IntentEnvelope | None = None
@@ -309,8 +320,8 @@ class StorytellerBoundary(BaseModel):
 class NarratorSystemBoundary(BaseModel):
     """Context for narrate_system.j2 (only system prompt with dynamic data).
 
-    Source: _narrate_messages() passes narrator_rules, world_rules, current_arc.
-    Template uses only `world_rules` and `narrator_rules`. The `current_arc` variable is passed but no longer consumed (lines 64–68 of narrate_system.j2 removed in prompt cleanup). Alignment check passes with no dead fields.
+    Source: _narrate_messages() passes narrator_rules, world_rules, current_objective.
+    Template uses only `world_rules` and `narrator_rules`. The `current_objective` variable is passed but no longer consumed (lines 64–68 of narrate_system.j2 removed in prompt cleanup). Alignment check passes with no dead fields.
     """
 
     narrator_rules: list[str]

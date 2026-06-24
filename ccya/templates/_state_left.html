@@ -55,20 +55,23 @@
     </div>
 </details>
 
-{% set _arc = state.get('arc') %}
+{% set _arc = state.get('long_term_objective') %}
 {% if _arc %}
 <details class="sidebar-card" id="card-arc" data-card="arc" open>
     <summary><span>Arc</span></summary>
     <div class="sidebar-card-body arc-card-body">
-        {% set _goal = _arc.get('visible_goal', '') %}
-        {% set _goal_ctx = _arc.get('goal_context', '') %}
+        {% set _goal = _arc.get('long_term_objective', '') %}
 
         {% if _goal %}
-        <div class="arc-goal{% if _goal_ctx %} has-tooltip{% endif %}">
+        <div class="arc-goal">
             {{ _goal }}
-            {% if _goal_ctx %}
-            <div class="tooltip-body" data-md>{{ _goal_ctx }}</div>
-            {% endif %}
+        </div>
+        {% endif %}
+
+        {% set _arc_origin = state.get('arc_origin', '') %}
+        {% if _arc_origin %}
+        <div class="arc-origin" data-md style="font-style: italic; color: var(--text-muted); margin-top: 8px; font-size: clamp(12px, 0.65rem, 14px);">
+            {{ _arc_origin }}
         </div>
         {% endif %}
 
@@ -78,7 +81,7 @@
         {% if _active %}
         {% for thread in _active %}
         {% set _urg = thread.get('urgency', 'normal') %}
-        {% set _progress = thread.get('progress', []) %}
+        {% set _progress = thread.get('major_updates', []) %}
         <div class="arc-thread{% if _urg == 'immediate' %} arc-thread-urgent{% elif _urg == 'building' %} arc-thread-building{% endif %}{% if _progress %} has-tooltip{% endif %}">
             <span class="arc-thread-summary" data-md>{{ thread.get('summary', '') | striptags }}</span>
             {% if _progress %}
@@ -102,11 +105,11 @@
         <details class="arc-section arc-section-resolved">
             <summary class="arc-section-summary">
                 <span class="arc-eye">📜</span>
-                <span>Previously Resolved Arcs ({{ _resolved_arcs | length }})</span>
+                <span>Recently Resolved Arcs ({{ _resolved_arcs | length }})</span>
             </summary>
             <div class="arc-truths">
                 {% for ra in _resolved_arcs %}
-                <div class="arc-truth" data-md><strong>T{{ ra.turn }}</strong>: {{ ra.resolution[:120] }}{% if ra.goal_context %} (Goal: {{ ra.goal_context[:80] }}){% endif %}</div>
+                <div class="arc-truth" data-md><strong>T{{ ra.turn }}</strong>: {{ ra.resolution[:120] }}{% if ra.long_term_objective %} (Goal: {{ ra.long_term_objective[:80] }}){% endif %}</div>
                 {% endfor %}
             </div>
         </details>

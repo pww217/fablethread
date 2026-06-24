@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
-from ccya.models import CampaignArc, InventoryItem, WorldStateFact
+from ccya.models import LongTermObjective, InventoryItem, WorldStateFact
 
 
 _log = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ class SeedPC(BaseModel):
     stats: dict[str, int] = Field(default_factory=dict)
     conditions: list[str] = Field(default_factory=list)
     drive: str = ""
+    situation: dict[str, str] = Field(default_factory=dict)
 
 
 class SeedLocation(BaseModel):
@@ -69,7 +70,9 @@ class SeedState(BaseModel):
     inventory: list[InventoryItem] = Field(default_factory=list)
     scene: SeedScene
     compendium: SeedCompendium = Field(default_factory=SeedCompendium)
-    arc: CampaignArc | None = None
+    arc: LongTermObjective | None = None
+    arc_origin: str = ""
+    world: dict[str, Any] = Field(default_factory=dict)
 
 
 class SeedEnvelope(BaseModel):
@@ -85,7 +88,7 @@ class SeedEnvelope(BaseModel):
     seed_state: SeedState
     opening_narrative: str = Field(min_length=50)
     actions: list[str] = Field(min_length=4, max_length=4)
-    arc: CampaignArc | None = None
+    arc: LongTermObjective | None = None
     outcome_summary: str = ""
 
 
@@ -150,6 +153,7 @@ class ScenarioBrief(BaseModel):
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
     name_seed: int | None = None
     inspiration: Inspiration = Field(default_factory=Inspiration)
+    pc_situation_schema: list[dict[str, Any]] = Field(default_factory=list)
     situation_archetypes: list[PoolEntry] = Field(default_factory=list, max_length=16)
     arc_categories: list[PoolEntry] = Field(default_factory=list, max_length=20)
     character_dynamics: list[PoolEntry] = Field(default_factory=list, max_length=12)

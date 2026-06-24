@@ -11,7 +11,7 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json
 from ccya.llm_client import chat as llm_chat
-from ccya.models import ArcThread, CampaignArc, ProgressEntry, ThreadResolution, ThreadUpdate
+from ccya.models import ArcThread, LongTermObjective, ProgressEntry, SanitizedWorldStateFact, ThreadResolution, ThreadUpdate
 from ccya.state.chronicle import append_event, load_last_narration
 
 _log = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ async def _sanitize_threads_impl(
     turn_no = int(meta.get("turn", 0))
 
     env = _build_jinja_env(str(Path(__file__).parent.parent / "prompts"))
-    messages = _build_messages(env, state, recent_turns, prior_history, turn_no)
+    messages = _build_messages(env, state, recent_turns, prior_history, turn_no, current_turn, sanitize_every=config.sanitize_every)
 
     t_sanitize = asyncio.get_running_loop().time()
     try:
@@ -133,27 +133,36 @@ def _build_messages(
     recent_turns: list[dict[str, Any]],
     prior_history: list[str],
     turn_no: int,
+    current_turn: int,
+    sanitize_every: int = 1,
 ) -> list[dict[str, str]]:
     """Build system + user messages for the sanitizer LLM call."""
-    arc = state.get("arc") or {}
+    arc = state.get("long_term_objective") or {}
 
     system_prompt = env.get_template("sanitize_thread.j2").render()
 
-    visible_goal = arc.get("visible_goal", "")
-    goal_context = arc.get("goal_context", "")
+    long_term_objective = arc.get("long_term_objective", "")
     resolution = arc.get("resolution")
-    threads = [{**t, "last_updated_turn": t.get("last_updated_turn"), "progress": t.get("progress") or []} for t in (arc.get("threads") or [])]
-    completed_threads = [{**ct, "last_updated_turn": ct.get("last_updated_turn"), "progress": ct.get("progress") or []} for ct in (arc.get("completed_threads") or [])]
+    threads = [{**t, "last_updated_turn": t.get("last_updated_turn"), "progress": t.get("major_updates") or []} for t in (arc.get("threads") or [])]
+    completed_threads = [{**ct, "last_updated_turn": ct.get("last_updated_turn"), "progress": ct.get("major_updates") or [], "resolved_turn": ct.get("resolved_turn")} for ct in (arc.get("completed_threads") or [])]
+    # TTL pass: drop candidates older than sanitize_every * 2 turns
+    # Prevents accumulation when sanitizer is disabled or skipped
+    raw_candidates = state.get("world_state_candidates", [])
+    ttl_cutoff = current_turn - (sanitize_every * 2)
+    world_state_candidates = [c for c in raw_candidates if c.get("resolved_turn", 0) >= ttl_cutoff]
+    current_world_state = state.get("scene", {}).get("world_state", [])
 
     user_prompt = env.get_template("sanitize_thread.j2").render(
-        visible_goal=visible_goal,
-        goal_context=goal_context,
+        long_term_objective=long_term_objective,
         resolution=resolution,
         threads=threads,
         completed_threads=completed_threads,
         turn_no=turn_no,
         recent_turns=recent_turns,
         prior_history=prior_history,
+        world_state_candidates=world_state_candidates,
+        current_world_state=current_world_state,
+        current_turn=current_turn,
     )
 
     return [
@@ -213,13 +222,12 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
 
     result: dict[str, Any] = {}
 
-    # goal_update — optional, must have visible_goal and/or goal_context if present
+    # goal_update — optional, must have long_term_objective if present
     gu = raw.get("goal_update")
     if gu is not None:
-        if isinstance(gu, dict) and (gu.get("visible_goal") or gu.get("goal_context")):
+        if isinstance(gu, dict) and gu.get("long_term_objective"):
             result["goal_update"] = {
-                "visible_goal": str(gu["visible_goal"]),
-                "goal_context": str(gu["goal_context"]) if gu.get("goal_context") else None,
+                "long_term_objective": str(gu["long_term_objective"]),
             }
 
     # thread_updates — validate each against ThreadUpdate model (with progress coercion)
@@ -234,10 +242,10 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
             if prog is not None and isinstance(prog, list):
                 tu_copy["progress"] = str(prog[0]) if prog else None
 
-            # Coerce unknown progress_kind values to "advancement"
-            pk = tu_copy.get("progress_kind")
-            if pk is not None and pk not in ("advancement", "setback", "shift"):
-                tu_copy["progress_kind"] = "advancement"
+            # Coerce unknown major_update_signal values to "advancement"
+            pk = tu_copy.get("major_update_signal")
+            if pk is not None and pk not in ("advancement", "setback"):
+                tu_copy["major_update_signal"] = "advancement"
 
             validated_tu = ThreadUpdate.model_validate(tu_copy)
             result_dict = validated_tu.model_dump(exclude_none=True)
@@ -267,25 +275,25 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
     if validated_rts:
         result["resolved_threads"] = validated_rts
 
-    # new_threads — validate against ArcThread model
-    nt_list = raw.get("new_threads", [])
-    validated_nts: list[dict[str, Any]] = []
-    for _nt in nt_list or []:
-        if not isinstance(_nt, dict):
-            continue
-        try:
-            validated_nt = ArcThread.model_validate(_nt)
-            validated_nts.append(validated_nt.model_dump())
-        except Exception:
-            _log.warning("thread_sanitizer: skipping invalid new_thread %s", _nt.get("id"))
-
-    if validated_nts:
-        result["new_threads"] = validated_nts
-
     # _checklist — must be dict[str, str]
     checklist = raw.get("_checklist")
     if isinstance(checklist, dict):
         result["_checklist"] = {k: str(v) for k, v in checklist.items() if isinstance(k, str)}
+
+    # world_state — complete replacement list, validate each entry against SanitizedWorldStateFact
+    ws_list = raw.get("world_state", [])
+    validated_ws: list[dict[str, Any]] = []
+    for _ws in ws_list or []:
+        if not isinstance(_ws, dict):
+            continue
+        try:
+            validated_ws_fact = SanitizedWorldStateFact.model_validate(_ws)
+            validated_ws.append(validated_ws_fact.model_dump(exclude_none=True))
+        except Exception:
+            _log.warning("thread_sanitizer: skipping invalid world_state entry %s", _ws.get("id"))
+
+    if validated_ws:
+        result["world_state"] = validated_ws
 
     return result
 
@@ -297,19 +305,17 @@ def _apply_sanitization(
     ) -> tuple[bool, dict[str, Any]]:
     """Apply sanitization changes to arc state.
 
-    1. goal_update: replace visible_goal/goal_context if non-null
+    1. goal_update: replace long_term_objective if non-null
     2. thread_updates: find by ID in threads[], apply non-null fields
     3. resolved_threads: move from threads[] to completed_threads[]
-    4. new_threads: validate as ArcThread, append to threads[]
-
     Returns (has_changes, changes_detail).
     """
-    arc_raw = state.get("arc")
+    arc_raw = state.get("long_term_objective")
     if not arc_raw:
         return False, {}
 
     try:
-        arc = CampaignArc.model_validate(arc_raw)
+        arc = LongTermObjective.model_validate(arc_raw)
     except Exception as exc:
         _log.warning("thread_sanitizer: failed to validate arc, skipping: %s", exc)
         return False, {}
@@ -334,23 +340,17 @@ def _apply_sanitization(
 
     # 1. goal_update
     gu = parsed.get("goal_update")
-    if gu and isinstance(gu, dict):
-        changes_detail["goal_before"] = changes_detail["goal"]["before"] = arc.visible_goal or None
-        new_goal = gu.get("visible_goal", arc.visible_goal)
-        new_context = gu.get("goal_context", arc.goal_context)
-        if new_goal != arc.visible_goal or (new_context is not None and new_context != arc.goal_context):
-            changes_detail["goal_after"] = changes_detail["goal"]["after"] = str(new_goal)
-            arc.visible_goal = str(new_goal)
-            if new_context is not None:
-                arc.goal_context = str(new_context)
-        else:
-            changes_detail["goal"]["after"] = changes_detail["goal_after"] = str(new_goal)
+    if gu and isinstance(gu, dict) and gu.get("long_term_objective"):
+        new_goal = str(gu["long_term_objective"])
+        if new_goal != arc.long_term_objective:
+            changes_detail["goal_before"] = changes_detail["goal"]["before"] = arc.long_term_objective or None
+            changes_detail["goal_after"] = changes_detail["goal"]["after"] = new_goal
+            arc.long_term_objective = new_goal
 
     # Build lookup maps for thread resolution by ID
     threads_by_id: dict[str, int] = {}
     for i, t in enumerate(arc.threads):
         threads_by_id[t.id] = i
-    completed_ids_set: set[str] = {t.id for t in arc.completed_threads}
 
     # 2. thread_updates — only apply to active (non-resolved) threads
     for _tu in parsed.get("thread_updates") or []:
@@ -384,11 +384,11 @@ def _apply_sanitization(
         # duplicate-progress entries wasting output tokens in diffs.
         prog_list = _tu.get("progress")
         if isinstance(prog_list, list) and prog_list:
-            kind = _tu.get("progress_kind", "advancement") or "advancement"
-            old_progress = [p.text for p in arc.threads[found_idx].progress]
+            kind = _tu.get("major_update_signal", "advancement") or "advancement"
+            old_progress = [p.text for p in arc.threads[found_idx].major_updates]
             if prog_list != old_progress:
                 new_entries = [ProgressEntry(text=str(p), kind=kind) for p in prog_list]
-                updates_dict["progress"] = new_entries
+                updates_dict["major_updates"] = new_entries
                 delta["progress"] = {
                     "before": old_progress,
                     "after": prog_list,
@@ -452,29 +452,6 @@ def _apply_sanitization(
     changes_detail["resolved_list"] = changes_detail["resolved"]
 
 
-    # 5. new_threads — validate and append to threads[]
-    for _nt in parsed.get("new_threads") or []:
-        nid = _nt.get("id", "")
-        if not nid:
-            continue
-
-        # Skip duplicate IDs (collision with existing thread)
-        if nid in threads_by_id or nid in completed_ids_set:
-            _log.warning(
-                "thread_sanitizer: new_thread id=%s collides with existing — skipping",
-                nid,
-            )
-            continue
-
-        try:
-            validated_nt = ArcThread.model_validate(_nt)
-            arc.threads.append(validated_nt)
-            added_ids.append(nid)
-            entry = dict(validated_nt.model_dump())
-            changes_detail["added"].append(entry)
-        except Exception:
-            _log.warning("thread_sanitizer: invalid new_thread %s — skipping", nid)
-
     changes_detail["added_ids"] = added_ids
     changes_detail["added_list"] = changes_detail["added"]
 
@@ -482,15 +459,22 @@ def _apply_sanitization(
     if added_ids and arc.threads:
         arc.last_thread_created_turn = current_turn
 
+    # 6. world_state — atomic swap: replace entire world_state array
+    new_world_state = parsed.get("world_state")
+    if new_world_state is not None:
+        state.setdefault("scene", {})["world_state"] = new_world_state
+        # Clear processed candidates
+        state.pop("world_state_candidates", None)
+
     # Write back mutated arc (only if something changed)
     has_changes = bool(updated_ids or resolved_ids or added_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])
 
     if has_changes:
-        state["arc"] = {**_dump_arc(arc), "threads": [t.model_dump() for t in arc.threads], "completed_threads": [t.model_dump() for t in arc.completed_threads]}
+        state["long_term_objective"] = {**_dump_arc(arc), "threads": [t.model_dump() for t in arc.threads], "completed_threads": [t.model_dump() for t in arc.completed_threads]}
 
     return has_changes, changes_detail
 
 
-def _dump_arc(arc: CampaignArc) -> dict[str, Any]:
-    """Dump CampaignArc to plain dict."""
+def _dump_arc(arc: LongTermObjective) -> dict[str, Any]:
+    """Dump LongTermObjective to plain dict."""
     return {**arc.model_dump(exclude={"threads", "completed_threads"})}

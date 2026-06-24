@@ -246,7 +246,7 @@ def _compute_scene_phase(
     turns_in_phase = scene.get("turns_in_phase", 0) + 1
 
     # Count urgent threads
-    _raw_threads = (state.get("arc") or {}).get("threads") or []
+    _raw_threads = (state.get("long_term_objective") or {}).get("threads") or []
     thread_urgency_count = 0
     for t in _raw_threads:
         if isinstance(t, dict) and getattr(ArcThread.model_validate(t) if not isinstance(t, ArcThread) else t, "urgency", "normal") == "urgent":

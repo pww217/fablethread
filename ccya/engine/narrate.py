@@ -17,7 +17,8 @@ from ccya.engine._pacing import (
     detect_spiral,
 )
 from ccya.models import ArcThread, RulesOutcome
-from ccya.prompts.context import _fmt_progress
+from ccya.engine.hints import compute_arc_pressure_score
+from ccya.prompts.context import _fmt_progress, _filter_completed_threads
 
 if TYPE_CHECKING:
     from ccya.engine.turn_context import PacingContext, TurnContext
@@ -58,11 +59,13 @@ def _narrate_messages(
     )
 
     # Build arc context for narrator (needed by both system and user prompts)
-    arc = state.get("arc") or {}
+    arc = state.get("long_term_objective") or {}
+    arc_pressure_score = 0
+    arc_hint_text = None
     if arc:
         all_threads = [t for t in (arc.get("threads") or [])]
-        current_arc_ctx = {
-            "visible_goal": arc.get("visible_goal", ""),
+        current_objective_ctx = {
+            "long_term_objective": arc.get("long_term_objective", ""),
             "resolution": arc.get("resolution"),
             "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
             "threads": [
@@ -72,15 +75,18 @@ def _narrate_messages(
                     "type": t.get("type") if isinstance(t, dict) else getattr(t, "type", None),
                     "id": t.get("id", "") if isinstance(t, dict) else getattr(t, "id", ""),
                     "dormant": t.get("dormant", False) if isinstance(t, dict) else getattr(t, "dormant", False),
-                    "progress": _fmt_progress(t.get("progress")) if isinstance(t, dict) else (_fmt_progress(t.progress) if hasattr(t, "progress") else []),
+                    "progress": _fmt_progress(t.get("major_updates")) if isinstance(t, dict) else (_fmt_progress(t.major_updates) if hasattr(t, "major_updates") else []),
                     "last_updated_turn": t.get("last_updated_turn") if isinstance(t, dict) else getattr(t, "last_updated_turn", None),
                 }
                 for t in all_threads if not (isinstance(t, dict) and t.get("dormant") is True) or not hasattr(t, "dormant") or not getattr(t, "dormant", False)
             ],
             "completed_threads": _filter_completed_threads(arc, turn_no, ttl=thread_ttl),
         }
+        # Compute arc pressure score
+        arc_obj = arc
+        arc_pressure_score, arc_hint_text = compute_arc_pressure_score(arc_obj, turn_no)
     else:
-        current_arc_ctx = None
+        current_objective_ctx = None
 
     user_ctx = {
         "state": state,
@@ -99,7 +105,9 @@ def _narrate_messages(
         "pc_allegiance": pc_allegiance,
         "world_factions": world_factions,
         "npc_roster": npc_roster,
-        "current_arc": current_arc_ctx,
+        "current_objective": current_objective_ctx,
+        "arc_pressure_score": arc_pressure_score,
+        "arc_hint_text": arc_hint_text,
         "curtain_call": curtain_call,
         "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
         "inventory": state.get("inventory") or [],
@@ -110,7 +118,9 @@ def _narrate_messages(
     system_text = _render(env, "narrate_system.j2", {
         "narrator_rules": narrator_rules,
         "world_rules": world_rules,
-        "current_arc": current_arc_ctx,
+        "current_objective": current_objective_ctx,
+        "arc_pressure_score": arc_pressure_score,
+        "arc_hint_text": arc_hint_text,
     })
     user_text = _render(env, "narrate_user.j2", user_ctx)
     msgs = [
@@ -123,17 +133,6 @@ def _narrate_messages(
         _log.debug("narrate complete turn=%d messages=%d", turn_no, len(msgs))
 
     return msgs
-
-
-def _filter_completed_threads(arc: dict[str, Any], turn_no: int, ttl: int = 3) -> list[dict[str, Any]]:
-    """Filter completed threads by TTL — only include recent ones."""
-    raw_threads = arc.get("completed_threads") or []
-    result: list[dict[str, Any]] = []
-    for t in raw_threads:
-        resolved_turn = t.get("resolved_turn") if isinstance(t, dict) else getattr(t, "resolved_turn", None)
-        if resolved_turn is not None and (turn_no - resolved_turn) <= ttl:
-            result.append(dict(t) if isinstance(t, dict) else t.model_dump())
-    return result
 
 
 def _get_resolved_arcs(state: dict[str, Any], turn_no: int, *, ttl: int = 3) -> list[dict[str, Any]]:
@@ -188,7 +187,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     scene_phase = scene.get("scene_phase", "SETUP")
 
     # Count urgent threads for phase engine
-    _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict)]
+    _raw_thread_dicts = [t for t in (state.get("long_term_objective") or {}).get("threads") or [] if isinstance(t, dict)]
     thread_urgency_count = 0
     for td in _raw_thread_dicts:
         try:

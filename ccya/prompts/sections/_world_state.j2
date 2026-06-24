@@ -3,7 +3,7 @@
    Optional: none — always renders (may be empty)
    Emits: no header (caller must provide one)
 #}
-{% for fact in (state.scene.world_state or []) %}{% if fact is mapping %}- [{% if fact.tier == "permanent" %}permanent{% else %}persistent{% endif %}] {{ fact.text }}
+{% for fact in (state.scene.world_state or []) %}{% if fact is mapping %}- [{% if fact.tier == "global" %}global{% else %}local{% endif %}{% if fact.valence %}|{{ fact.valence }}{% endif %}] {{ fact.text }}
 {% elif fact is string %}- {{ fact }}
 {% endif -%}
 {% endfor -%}
