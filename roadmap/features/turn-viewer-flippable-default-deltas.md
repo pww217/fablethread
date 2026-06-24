@@ -1,6 +1,7 @@
 ---
 title: "[EV] Turn viewer flippable + default deltas"
-status: scoping
+status: done
+completed: 2026-06-24
 urgency: 4
 size: medium
 created: 2026-06-14

@@ -20,11 +20,11 @@ ARCHIVE_INDEX_FILE = ROADMAP_DIR / "archive-index.md"
 ARCHIVE_DIR = ROADMAP_DIR / "archive"
 ARCHIVE_DAYS = 10
 
-STATUS_ORDER = ["idea", "scoping", "up-next", "new", "validated", "done", "canceled"]
+STATUS_ORDER = ["idea", "scoping", "up-next", "new", "validated", "validating", "done", "canceled"]
 
 # Workflow stage grouping
-BACKLOG_STATUSES = {"idea", "new"}
-ACTIVE_STATUSES = {"scoping", "up-next", "validated"}
+BACKLOG_STATUSES = {"idea", "new", "validated", "scoping", "validating"}
+ACTIVE_STATUSES = {"up-next"}
 DONE_STATUSES = {"done", "canceled"}
 
 BUCKET_ORDER = ["Balancing", "Extraction", "Tech Debt", "Tooling", "UI", "World Building"]
@@ -61,6 +61,7 @@ SECTION_MAP = {
     "up-next": "Up-Next",
     "new": "New",
     "validated": "Validated",
+    "validating": "Validating",
     "done": "Done",
     "canceled": "Canceled",
 }
@@ -215,7 +216,7 @@ def write_sections(filepath: Path, entries: list[dict], show_size: bool, status_
             return 0
 
     # Group by status first, then by bucket within each status
-    status_order = ["idea", "scoping", "up-next", "new", "validated", "done", "canceled"]
+    status_order = ["idea", "scoping", "up-next", "new", "validated", "validating", "done", "canceled"]
     status_entries: dict[str, list[dict]] = {}
     for e in entries:
         status_entries.setdefault(e["status"], []).append(e)

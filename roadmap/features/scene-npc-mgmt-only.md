@@ -1,6 +1,7 @@
 ---
 title: "Scene = NPC mgmt only"
-status: idea
+status: done
+completed: 2026-06-24
 urgency: 4
 size: medium
 created: 2026-06-14

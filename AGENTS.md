@@ -74,7 +74,7 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 - `roadmap/features/<slug>.md` — one file per feature/improvement/moonshot
 - `roadmap/archive/` — completed or canceled items
 - `roadmap/backlog.md` — auto-generated backlog TOC (idea/new) via `make roadmap`
-- `roadmap/active.md` — auto-generated active TOC (scoping/up-next/validated) via `make roadmap`
+- `roadmap/active.md` — auto-generated active TOC (up-next) via `make roadmap`
 - `roadmap/done.md` — auto-generated done TOC (done/canceled) via `make roadmap`
 - `roadmap/archive-index.md` — auto-generated archive TOC via `make roadmap`
 

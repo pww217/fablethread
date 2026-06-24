@@ -1,0 +1,330 @@
+# Convergence Proactive Design
+
+> **Status:** scoping
+> **Source:** `roadmap/bugs/convergence-starvation.md` (validated, root cause confirmed)
+
+## Problem Statement
+
+`compute_convergence_score()` in `_pacing.py:86-142` computes a 5-component score that is entirely reactive. Each component depends on state that can remain 0 indefinitely under stealth/avoidance-heavy play styles. The phase machine requires `convergence_score >= 2` for `RISING → CLIMAX`, but when all 5 components are 0, there is no recovery mechanism — convergence deadlocks.
+
+Three components are broken or disabled in practice:
+- **`dice_weight`** (+1): requires urgent thread AND a roll AND a fail. Triple-gated — rarely fires even when rolls happen.
+- **`beat_streak`** (+1): requires ≥60% pressure beats in last 5. But 34-57% of turns have null beats (storyteller emits no beat), diluting the window. Beat driver is always `"motivation"`, never pressure types.
+- **`any_urgent`** (+1): requires the storyteller to escalate a thread to `"urgent"` — which it never does in practice. This is a separate concern (storyteller guidance) but contributes to starvation.
+
+Separately, **CLIMAX → RESOLUTION** is a pure turn-count timeout (default 4 turns). No engine signal can exit early or extend. The curtain_call system provides prompt-level guidance but the engine has no ears — if the storyteller resolves the thread on CLIMAX turn 1, the game stalls for 3 more turns; if the climax is still building at turn 4, the engine force-transitions anyway.
+
+## Current State
+
+### Phase machine
+
+`_compute_scene_phase()` in `_pacing.py:222-294`:
+
+| Transition | Current trigger | Works? |
+|------------|----------------|--------|
+| SETUP → RISING | urgent thread OR 3-turn TTL | OK — 3-turn timeout works. Urgent-thread early-exit path dead in practice |
+| RISING → CLIMAX | `convergence_score >= 2` | BROKEN — convergence can stay 0 forever |
+| CLIMAX → RESOLUTION | 4-turn hard cap | WEAK — no signal, just a timer |
+| RESOLUTION → BREATHER | Always (1 turn) | FINE |
+| BREATHER → RISING | urgent thread OR 3-turn TTL | OK — same as SETUP. 3-turn recovery is reasonable |
+
+SETUP → RISING and BREATHER → RISING always take exactly 3 turns because the urgent-thread path never fires. Acceptable for now — 3 turns of setup or recovery is reasonable.
+
+### Existing convergence components (`_pacing.py:86-142`)
+
+| # | Component | Signal | Fires? |
+|---|-----------|--------|--------|
+| 1 | `any_urgent` | Non-dormant thread with `urgency="urgent"` | Rarely — storyteller never escalates |
+| 2 | `any_threat` | Non-dormant thread with `type="threat"` | Reliably — most threads are threat type |
+| 3 | `scene_age` | `scene_age >= scene_pressure_threshold` (3) | Reliably — age always increments |
+| 4 | `beat_streak` | ≥60% of last 5 beats are pressure types | Rarely — null beats (type=None) don't count |
+| 5 | `dice_weight` | urgent thread AND rolled AND band in fail/crit_fail | Barely ever — triple-gated |
+
+### Dead code
+
+- **`avoidance_keywords`** (`EngineConfig.avoidance_keywords`, `config.py:152`): defined, populated from config, never consumed anywhere. Zero runtime references outside config.
+
+### Relevant functions
+
+| File | Line(s) | Function |
+|------|---------|----------|
+| `_pacing.py` | 86-142 | `compute_convergence_score()` |
+| `_pacing.py` | 222-294 | `_compute_scene_phase()` — phase machine |
+| `narrate.py` | 204-211 | Invocation of `compute_convergence_score()` |
+| `narrate.py` | 238-266 | Convergence component booleans (mirrors core function) |
+| `turn_state.py` | 420-433 | `recent_beats` append + cap |
+| `turn.py` | 139-144 | `recent_rolls` append for spiral detection |
+| `config.py` | 152 | `avoidance_keywords` (dead) |
+| `turn_context.py` | 41-48 | `PacingContext` dataclass |
+
+## Target State
+
+Two reforms:
+
+### Reform 1: RISING → CLIMAX — proactive convergence (7 components)
+
+Replace the 5 reactive components with 7 components (6 boolean + 1 integer floor).
+
+#### 1. `any_urgent` — UNCHANGED
++1 if any non-dormant thread has `urgency="urgent"`.
+Field: `"urgent_thread": 0|1`
+
+#### 2. `any_threat` — UNCHANGED
++1 if any non-dormant thread has `type="threat"`.
+Field: `"threat_thread": 0|1`
+
+#### 3. `scene_age` — UNCHANGED
++1 if `scene_age >= scene_pressure_threshold` (default 3).
+Field: `"scene_age": 0|1`
+
+#### 4. `beat_streak` — REPAIRED
++1 if ≥60% of last 5 beats are pressure types. **When a beat entry has `type=None`, carry over the type from the chronologically previous non-null entry in the window.** Reflects the 2-turn TTL: a null beat means the prior beat is still narratively active.
+
+```
+carried = []
+prev = None
+for b in window:
+    bt = b.get("type")
+    if bt is None:
+        bt = prev
+    else:
+        prev = bt
+    carried.append(bt)
+
+pressure_count = count of bt in pressure_types for bt in carried
+threshold = ceil(n * 0.6) if n < 5 else 3
+score += 1 if pressure_count >= threshold
+```
+
+Field: `"beat_streak": 0|1`
+
+#### 5. `roll_starvation` — NEW
++1 if no roll has occurred in 3+ turns. Computed from `recent_rolls` (most-recent-first, capped at 5).
+
+```
+turns_since_last_roll = current_turn - recent_rolls[0]["turn"] if recent_rolls else None
+score += 1 if turns_since_last_roll is not None and turns_since_last_roll >= 3
+```
+
+If no roll has ever occurred in the game (`recent_rolls` empty), this stays 0 — not punishing turn-1 avoidance.
+
+Field: `"roll_starvation": 0|1`
+Config: `roll_starvation_threshold`, default `3`.
+
+#### 6. `threat_density` — NEW
++1 if the number of active (non-dormant) threat-type threads ≥ 3. High threat saturation means pressure even without individual urgency.
+
+```
+active_threat_count = count of t where t.get("type") == "threat" and not t.get("dormant", False)
+score += 1 if active_threat_count >= 3
+```
+
+Field: `"threat_density": 0|1`
+Config: `threat_density_threshold`, default `3`.
+
+#### 7. `stall_floor` — NEW
+Proactive floor that increments when convergence stays below threshold.
+
+State tracking: `meta.consecutive_low_convergence` (int, default 0), incremented each turn when `convergence_score < convergence_threshold`, reset to 0 when `>= convergence_threshold`. Reset on turn cancel/retry (revert to pre-turn value).
+
+```
+if consecutive_low_convergence >= 3:
+    floor = 1 + ((consecutive_low_convergence - 3) // 3)
+    score += min(floor, stall_floor_max)
+```
+
+Field: `"stall_floor": int` (not 0|1 — can be >1)
+Config: `stall_floor_max`, default `3`. Cap at 3.
+
+### Reform 2: CLIMAX → RESOLUTION — signal-gated exit
+
+Replace the hard 4-turn cap with a signal-gated system. The base limit stays 4, but engine signals can exit early or extend.
+
+#### Early exit
+
+Transition CLIMAX → RESOLUTION when:
+```
+a thread was resolved this turn AND convergence_score < 2
+```
+
+The thread resolution is the natural narrative endpoint. Convergence < 2 ensures the resolved thread was genuinely the main pressure source — if another thread is still urgent, convergence stays high and the climax continues.
+
+#### Extension
+
+If at turn 4 (`climax_turn_limit`) the climax is still building, extend the cap:
+```
+if climax_turn_count >= climax_turn_limit AND convergence >= 3 AND any unresolved urgent thread exists:
+    extend by up to 2 additional turns
+```
+
+The extension is recalculated each turn. As soon as conditions clear (or the extended cap is reached), transition.
+
+#### Absolute maximum
+
+`climax_turn_limit + extension_max` = 4 + 2 = **6 total CLIMAX turns maximum**. After turn 6, the engine forces RESOLUTION regardless. This is the hard safety net.
+
+```
+elif phase == "CLIMAX":
+    climax_turn_count += 1
+    limit = climax_turn_limit
+    if climax_turn_count >= climax_turn_limit:
+        # Check early exit
+        thread_resolved = (storyteller_result.thread_resolve is not None)
+        if thread_resolved and convergence_score < 2:
+            phase = "RESOLUTION"
+            climax_turn_count = 0
+        # Check extension
+        elif convergence >= 3 and has_urgent_active_thread:
+            if climax_turn_count >= climax_turn_limit + extension_max:
+                phase = "RESOLUTION"
+                climax_turn_count = 0
+            # else stay in CLIMAX
+        else:
+            phase = "RESOLUTION"
+            climax_turn_count = 0
+```
+
+### Removing `dice_weight`
+
+Removed. Triple-gated, rarely fired even with active play, conflated player failure with narrative pressure.
+
+### Removing `avoidance_keywords`
+
+Removed. Dead code — defined in `EngineConfig` but never consumed anywhere. No runtime references, no YAML consumers. Delete config field, deserialization, and any related import.
+
+### State model changes
+
+| Field | Scope | Type | Owner |
+|-------|-------|------|-------|
+| `meta.consecutive_low_convergence` | Add | `int`, default 0 | `turn_state.py` — updated every turn after convergence computed; reset on cancel/retry |
+
+### `EngineConfig` changes
+
+| Key | Action | Default | Notes |
+|-----|--------|---------|-------|
+| `avoidance_keywords` | Remove | — | Dead code |
+| `roll_starvation_threshold` | Add | `3` | Turns without a roll before +1 |
+| `threat_density_threshold` | Add | `3` | Active threat threads before +1 |
+| `stall_floor_max` | Add | `3` | Cap on stall floor extra score |
+| `extension_max` | Add | `2` | Max additional CLIMAX turns beyond `climax_turn_limit` |
+
+### `PacingContext`
+
+No new fields. `convergence_components: dict[str, int]` accommodates arbitrary keys. Export new keys (`roll_starvation`, `threat_density`, `stall_floor`), remove `dice_weight`.
+
+### Templates
+
+No prompt template changes. Convergence score and phase transitions are engine-side. `PacingContext` propagates `convergence_score` to logs via `summary`; `convergence_components` available for debug rendering.
+
+## Scenario Math
+
+All RISING scenarios use the 7-component score with threshold=2. Components that fire marked `✓`. Stall floor shown only when >0.
+
+### A: Aggressive fighter (rolls every turn, threat threads exist, some beats)
+
+| Turn | U | T | A | B | R | D | F | Σ | Phase |
+|------|---|---|---|---|---|---|---|---|-------|
+| T1 | 0 | ✓ | 0 | 0 | 0 | 0 | 0 | **1** | RISING |
+| T2 | 0 | ✓ | 0 | ✓ | 0 | 0 | 0 | **2** | → CLIMAX |
+| T3 | 0 | ✓ | ✓ | ✓ | 0 | 0 | 0 | **3** | CLIMAX |
+
+→ CLIMAX at T2. One threat thread + normal beats is enough by turn 2.
+
+### B: Stealth rogue (no rolls, no threat threads, quiet actions, null beats)
+
+| Turn | U | T | A | B | R | D | F | Σ | Phase |
+|------|---|---|---|---|---|---|---|---|-------|
+| T1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **0** | RISING |
+| T2 | 0 | 0 | 0 | ✓ | 0 | 0 | 0 | **1** | RISING |
+| T3 | 0 | 0 | ✓ | ✓ | ✓ | 0 | 0 | **3** | → CLIMAX |
+
+→ CLIMAX at T3. Null beats carry over prior beat type; by T3, scene_age + roll_starvation + carried beat_streak reach threshold. **This was permanently stuck under the old system.**
+
+### C: Social/political player (rolls charisma, 1-2 non-threat threads, no threats)
+
+| Turn | U | T | A | B | R | D | F | Σ | Phase |
+|------|---|---|---|---|---|---|---|---|-------|
+| T1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **0** | RISING |
+| T2 | 0 | 0 | 0 | ✓ | 0 | 0 | 0 | **1** | RISING |
+| T3 | 0 | 0 | ✓ | ✓ | 0 | 0 | 0 | **2** | → CLIMAX |
+| T4 | 0 | 0 | ✓ | ✓ | 0 | 0 | 1 | **3** | CLIMAX |
+
+→ CLIMAX at T3 with beat_streak, T4 via stall_floor. **Hardest case — active player, non-threatening arc. Stall floor catches at turn 4.**
+
+### D: High-threat-density arc (5 active threads, 3 are threat type)
+
+| Turn | U | T | A | B | R | D | F | Σ | Phase |
+|------|---|---|---|---|---|---|---|---|-------|
+| T1 | 0 | ✓ | 0 | 0 | 0 | ✓ | 0 | **2** | → CLIMAX |
+
+→ CLIMAX at T1. any_threat + threat_density fire immediately on turn 1.
+
+### E: Mixed activity (some rolls, 3 active threads, 2 threats, variable beats)
+
+| Turn | U | T | A | B | R | D | F | Σ | Phase |
+|------|---|---|---|---|---|---|---|---|-------|
+| T1 | 0 | ✓ | 0 | 0 | 0 | 0 | 0 | **1** | RISING |
+| T2 | 0 | ✓ | 0 | 0 | 0 | 0 | 0 | **1** | RISING |
+| T3 | 0 | ✓ | ✓ | ✓ | 0 | 0 | 0 | **3** | → CLIMAX |
+
+→ CLIMAX at T3. Scene_age + any_threat + beat_streak.
+
+### RISING→CLIMAX summary
+
+| Persona | Old (avg) | New (avg) | Worst case |
+|---------|-----------|-----------|------------|
+| Aggressive fighter | 2-3 | T2 | T3 |
+| Stealth rogue | ∞ (stuck) | T3 | T4 (via stall_floor) |
+| Social/political | 3-5 | T3 | T4 (via stall_floor) |
+| High-threat-density | T1 | T1 | T1 |
+| Mixed activity | 2-3 | T3 | T3 |
+
+**No more convergence deadlock. Worst case: 4 turns.**
+
+## CLIMAX→RESOLUTION scenarios
+
+### F: Thread resolves on CLIMAX turn 1 (early exit)
+
+| CLIMAX turn | Thread resolved? | Convergence | Action |
+|-------------|-----------------|-------------|--------|
+| T1 | ✓ (resolved) | 0 (pressure dropped) | → RESOLUTION (early exit) |
+| T1 | ✓ (resolved) | 2+ (another thread still urgent) | Stay in CLIMAX |
+
+→ Early exit when the resolved thread actually relieves pressure. If convergence stays high, the climax continues for the remaining unresolved thread.
+
+### G: Climax still intense at turn 4 (extension)
+
+| CLIMAX turn | Convergence | Urgent threads | Action |
+|-------------|-------------|----------------|--------|
+| T4 | 3 | ✓ (1+ urgent) | Extend to T5 |
+| T5 | 3 | ✓ (1+ urgent) | Extend to T6 |
+| T6 | any | any | Force RESOLUTION (hard cap) |
+
+→ Up to 2 extra turns when the climax is genuinely still building. Hard stop at 6.
+
+### H: Normal climax run
+
+| CLIMAX turn | Convergence | Action |
+|-------------|-------------|--------|
+| T1 | 3 | Curtain_call=active |
+| T2 | 3 | — |
+| T3 | 2 | Curtain_call=forced |
+| T4 | 1 | → RESOLUTION (no early exit needed, timeout reached) |
+
+→ Normal 4-turn climax, no early exit needed, no extension triggered. Unchanged behavior.
+
+## What is unchanged
+
+- `PacingContext` struct fields (convergence_components dict auto-adapts)
+- `BEAT_BUCKETS` and `BEAT_PHASE_MAP`
+- `derive_allowed_beat_types()`
+- `detect_spiral()`
+- `_compute_pacing_context()`
+- `_compute_narration_directive()`
+- Storytell and Narrate prompt templates
+- `convergence_threshold` default (2) and config key
+- `climax_turn_limit` default (4) and config key
+- Turn viewer / debug panel rendering
+- SETUP → RISING transition logic (3-turn TTL unchanged)
+- RESOLUTION → BREATHER (always, 1 turn)
+- BREATHER → RISING transition logic (3-turn TTL unchanged)
