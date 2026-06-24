@@ -218,7 +218,7 @@ def _apply_arc_resolve(
     new_arc = LongTermObjective(
         long_term_objective=resolution.long_term_objective,
         threads=list(old_arc.threads),
-        completed_threads=old_arc.completed_threads[:],
+        completed_threads=[],
         last_thread_created_turn=turn_no,
         started_turn=turn_no,
     )
