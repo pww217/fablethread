@@ -1,4 +1,4 @@
-"""Server package — re-exports for backward compatibility."""
+"""Server package."""
 
 from .app import (
     app,

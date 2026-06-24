@@ -160,7 +160,7 @@ def assign_personality(
     """
     if not motivation and not fear:
         _log.debug(
-            "assign_personality npc=%s no_mf_fields fallback=%s",
+            "assign_personality npc=%s no_mf_fields using default=%s",
             npc_id, _DEFAULT_ID,
         )
         return ARCHETYPES[_DEFAULT_ID]

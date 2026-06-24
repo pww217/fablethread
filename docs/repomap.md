@@ -69,7 +69,7 @@
 ## Key entry points
 
 - **run_turn()** → `ccya/engine/turn.py` — 5-call pipeline orchestrator (rules→narrate→scene/state/storytell extract)
-- **load_state()** → `ccya/state/io.py` — loads YAML with migration normalization
+- **load_state()** → `ccya/state/io.py` — loads YAML state
 - **save_state()** → `ccya/state/io.py` — atomic write (tmp + rename)
 - **apply_delta()** → `ccya/state/delta_builder.py` — merges extraction results into state
 - **app** → `ccya/server/__init__.py` — FastAPI instance with ~25 routes

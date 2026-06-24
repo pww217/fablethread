@@ -16,7 +16,7 @@ Sanitization runs every turn, adding to LLM load. Running it on off turns (every
 ## Scope
 
 * Add config option for sanitization frequency (e.g., `sanitize_every: 2` for every other turn)
-* Default to current behavior (every turn) for backwards compatibility, or change default to every other turn
+* Default to current behavior (every turn) or change default to every other turn
 * Consider: is per-turn sanitization actually necessary, or is it overkill?
 * Coordinate with TICK-8 (sanitizer lifecycle fix)
 

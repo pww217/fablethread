@@ -384,19 +384,6 @@ def cmd_storyteller_audit(events: list[dict[str, Any]]) -> None:
         print()
 
 
-def cmd_thread_audit(events: list[dict[str, Any]]) -> None:
-    """Deprecated: cross-references storyteller thread_add IDs with sanitizer-added IDs.
-
-    This audit is architecturally meaningless — storyteller and sanitizer are
-    independent LLM systems with no coordination mechanism for thread IDs.
-    Zero matches is expected. See DEEP-DIVE-REPORT.md for details.
-    """
-    print("=== Thread Audit (DEPRECATED) ===")
-    print("This audit compares two independent LLM systems with no coordination.")
-    print("Zero matches is architecturally expected, not a bug.")
-    print("The thread audit has been deprecated. See DEEP-DIVE-REPORT.md.")
-
-
 def cmd_ruling_audit(events: list[dict[str, Any]]) -> None:
     """Check ruling.reason compliance — non-empty, condition IDs present."""
     violations: list[dict[str, Any]] = []

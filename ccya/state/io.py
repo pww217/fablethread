@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from pathlib import Path
 from typing import Any, cast
 
@@ -14,9 +13,6 @@ from enum import Enum
 from ccya.errors import ErrorKind
 
 _log = logging.getLogger(__name__)
-
-CURRENT_SCHEMA_VERSION = 1
-
 
 def _assign_seed_personalities(state: dict[str, Any]) -> None:
     """Assign personality archetype ids to any NPCs missing one in the seed state."""
@@ -36,21 +32,6 @@ def _assign_seed_personalities(state: dict[str, Any]) -> None:
         entry["personality"] = arch.id
 
 
-def _migrate_v0_to_v1(content: str, raw: dict[str, Any]) -> dict[str, Any]:
-    """Migrate a legacy (v0) state to v1.
-
-    Applies the existing regex fix for corrupted ThreadState YAML tags.
-    """
-    content = re.sub(
-        r"(state:\s*)!!python/object/apply:ccya\.models\.ThreadState\n(\s+)-\s+(\w+)",
-        r"\1\3",
-        content,
-    )
-    raw = yaml.safe_load(content) or _default_state()
-    raw["schema_version"] = CURRENT_SCHEMA_VERSION
-    return raw
-
-
 def _coerce_enums(obj: Any) -> Any:
     """Recursively convert Enum values to their string values for YAML serialization."""
     if isinstance(obj, Enum):
@@ -64,7 +45,6 @@ def _coerce_enums(obj: Any) -> Any:
 
 def _default_state() -> dict[str, Any]:
     return {
-        "schema_version": CURRENT_SCHEMA_VERSION,
         "meta": {
             "turn": 0,
             "setting_pack": "",
@@ -129,14 +109,6 @@ def load_state(save_dir: Path) -> dict[str, Any]:
         _log.error("load_state path=%s empty — returning default state", path,
                     extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
         return _default_state()
-    loaded_version = raw.get("schema_version", 0)
-    if loaded_version == 0:
-        raw = _migrate_v0_to_v1(content, raw)
-    if loaded_version > CURRENT_SCHEMA_VERSION:
-        _log.warning(
-            "state schema version %d is newer than engine version %d — loading anyway",
-            loaded_version, CURRENT_SCHEMA_VERSION,
-        )
     return raw
 
 
