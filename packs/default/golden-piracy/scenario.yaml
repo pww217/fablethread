@@ -184,6 +184,23 @@ npc_bonds:
     tags: [captivity, pact, shared_trauma]
     incompatible_with: []
 
+pc_situation_schema:
+  - id: vessel
+    description: The PC's ship or vessel
+    required: false
+  - id: crew
+    description: The PC's crew situation
+    required: false
+  - id: debts
+    description: Debts, obligations, or bounties on the PC
+    required: false
+  - id: alliances
+    description: Faction alliances or contacts the PC relies on
+    required: false
+  - id: home
+    description: The PC's home base or territory
+    required: false
+
 scene_detail_bundles:
   - id: quarterdeck
     items: [a compass in a gimbaled brass mount, a swivel gun loaded with grapeshot]

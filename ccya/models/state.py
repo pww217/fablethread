@@ -147,10 +147,40 @@ class LocationRef(BaseModel):
     description: str = ""
 
 
+class KeyLocation(BaseModel):
+    """A named place in the world at game start."""
+    id: str
+    name: str
+    description: str = ""
+    status: str = "active"
+    tags: list[str] = Field(default_factory=list)
+
+
+class Valence(str, Enum):
+    THREAT = "threat"
+    COMPLICATION = "complication"
+    NEUTRAL = "neutral"
+    BOON = "boon"
+
+
 class WorldStateFact(BaseModel):
     id: str
     text: str
-    tier: Literal["permanent", "persistent"] = "persistent"
+    tier: Literal["global", "local"] = "global"
+    permanent: bool = False
+    valence: Valence | None = None
+    expires_turn: int | None = None
+
+
+class SanitizedWorldStateFact(BaseModel):
+    """A world state fact that has been confirmed by the thread sanitizer."""
+    id: str
+    text: str
+    tier: Literal["global", "local"] = "global"
+    permanent: bool = False
+    valence: Valence | None = None
+    expires_turn: int | None = None
+    source_thread: str | None = None
 
 
 class ThreadResolution(BaseModel):

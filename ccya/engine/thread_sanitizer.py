@@ -11,7 +11,7 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json
 from ccya.llm_client import chat as llm_chat
-from ccya.models import ArcThread, LongTermObjective, ProgressEntry, ThreadResolution, ThreadUpdate
+from ccya.models import ArcThread, LongTermObjective, ProgressEntry, SanitizedWorldStateFact, ThreadResolution, ThreadUpdate
 from ccya.state.chronicle import append_event, load_last_narration
 
 _log = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ async def _sanitize_threads_impl(
     turn_no = int(meta.get("turn", 0))
 
     env = _build_jinja_env(str(Path(__file__).parent.parent / "prompts"))
-    messages = _build_messages(env, state, recent_turns, prior_history, turn_no)
+    messages = _build_messages(env, state, recent_turns, prior_history, turn_no, current_turn)
 
     t_sanitize = asyncio.get_running_loop().time()
     try:
@@ -133,6 +133,7 @@ def _build_messages(
     recent_turns: list[dict[str, Any]],
     prior_history: list[str],
     turn_no: int,
+    current_turn: int,
 ) -> list[dict[str, str]]:
     """Build system + user messages for the sanitizer LLM call."""
     arc = state.get("long_term_objective") or {}
@@ -143,6 +144,8 @@ def _build_messages(
     resolution = arc.get("resolution")
     threads = [{**t, "last_updated_turn": t.get("last_updated_turn"), "progress": t.get("progress") or []} for t in (arc.get("threads") or [])]
     completed_threads = [{**ct, "last_updated_turn": ct.get("last_updated_turn"), "progress": ct.get("progress") or [], "resolved_turn": ct.get("resolved_turn")} for ct in (arc.get("completed_threads") or [])]
+    world_state_candidates = state.get("world_state_candidates", [])
+    current_world_state = state.get("scene", {}).get("world_state", [])
 
     user_prompt = env.get_template("sanitize_thread.j2").render(
         long_term_objective=long_term_objective,
@@ -152,6 +155,9 @@ def _build_messages(
         turn_no=turn_no,
         recent_turns=recent_turns,
         prior_history=prior_history,
+        world_state_candidates=world_state_candidates,
+        current_world_state=current_world_state,
+        current_turn=current_turn,
     )
 
     return [
@@ -283,6 +289,21 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
     checklist = raw.get("_checklist")
     if isinstance(checklist, dict):
         result["_checklist"] = {k: str(v) for k, v in checklist.items() if isinstance(k, str)}
+
+    # world_state_actions — validate each against SanitizedWorldStateFact model
+    ws_list = raw.get("world_state_actions", [])
+    validated_ws: list[dict[str, Any]] = []
+    for _ws in ws_list or []:
+        if not isinstance(_ws, dict):
+            continue
+        try:
+            validated_ws_fact = SanitizedWorldStateFact.model_validate(_ws)
+            validated_ws.append(validated_ws_fact.model_dump(exclude_none=True))
+        except Exception:
+            _log.warning("thread_sanitizer: skipping invalid world_state_action %s", _ws.get("id"))
+
+    if validated_ws:
+        result["world_state_actions"] = validated_ws
 
     return result
 
@@ -473,6 +494,69 @@ def _apply_sanitization(
     # Set last_thread_created_turn if any threads were added
     if added_ids and arc.threads:
         arc.last_thread_created_turn = current_turn
+
+    # 6. world_state_actions — confirm/reject/modify world state facts
+    ws_actions = parsed.get("world_state_actions", [])
+    ws_changed = False
+    if ws_actions:
+        current_ws = state.get("scene", {}).get("world_state", [])
+        ws_by_id: dict[str, int] = {}
+        for i, f in enumerate(current_ws):
+            if isinstance(f, dict) and f.get("id"):
+                ws_by_id[f["id"]] = i
+
+        for action in ws_actions:
+            action_type = action.get("action", "confirm")
+            fact_id = action.get("id", "")
+            if not fact_id:
+                continue
+
+            if action_type == "confirm":
+                # Add or update a world state fact
+                fact_text = action.get("text", "")
+                if not fact_text:
+                    continue
+                tier = action.get("tier", "local")
+                permanent = action.get("permanent", False)
+                valence = action.get("valence")
+                expires_turn = action.get("expires_turn")
+
+                if fact_id in ws_by_id:
+                    # Update existing fact
+                    idx = ws_by_id[fact_id]
+                    current_ws[idx]["text"] = fact_text
+                    current_ws[idx]["tier"] = tier
+                    current_ws[idx]["permanent"] = permanent
+                    if valence:
+                        current_ws[idx]["valence"] = valence
+                    if expires_turn is not None:
+                        current_ws[idx]["expires_turn"] = expires_turn
+                else:
+                    # Add new fact
+                    new_fact: dict[str, Any] = {
+                        "id": fact_id,
+                        "text": fact_text,
+                        "tier": tier,
+                        "permanent": permanent,
+                    }
+                    if valence:
+                        new_fact["valence"] = valence
+                    if expires_turn is not None:
+                        new_fact["expires_turn"] = expires_turn
+                    current_ws.append(new_fact)
+                ws_changed = True
+
+            elif action_type == "reject":
+                # Remove a world state fact
+                if fact_id in ws_by_id:
+                    idx = ws_by_id[fact_id]
+                    current_ws.pop(idx)
+                    ws_changed = True
+
+        if ws_changed:
+            state.setdefault("scene", {})["world_state"] = current_ws
+            # Clear processed candidates
+            state.pop("world_state_candidates", None)
 
     # Write back mutated arc (only if something changed)
     has_changes = bool(updated_ids or resolved_ids or added_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])

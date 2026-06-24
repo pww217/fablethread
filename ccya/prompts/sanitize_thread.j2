@@ -32,6 +32,21 @@ Rules:
 {% for b in prior_history %}{{ b }}
 {% endfor %}
 
+## Current World State
+{% if current_world_state %}
+{% for f in current_world_state %}{% if f is mapping %}- [{% if f.tier == "global" %}global{% else %}local{% endif %}] {{ f.text }}
+{% elif f is string %}- {{ f }}
+{% endif -%}
+{% endfor %}
+{% else %}(none){% endif %}
+
+## World State Candidates
+{% if world_state_candidates %}
+The storyteller has proposed these world state facts from resolved threads:
+{% for c in world_state_candidates %}- Thread `{{ c.thread_id }}` (resolved T{{ c.resolved_turn }}): "{{ c.text }}"
+{% endfor %}
+{% else %}(none){% endif %}
+
 ## Instructions
 
 Review each active thread and output a JSON object inside <sanitize> tags.
@@ -77,6 +92,15 @@ Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold
 - The player's situation changed so drastically a different objective is now primary
 - The arc has coasted 8+ turns without meaningful progress
 
+### World state evaluation
+Thread resolutions may propose new world state facts via `world_state_candidate`. Evaluate each:
+- **Confirm**: The fact is a genuine, lasting change to the world. Include `id`, `text`, `tier` ("global" or "local"), `permanent` (boolean), `valence` ("threat"|"complication"|"neutral"|"boon"), and optionally `expires_turn` (turn number when it expires).
+- **Reject**: The fact is too specific, too temporary, or contradicts existing world state. Include `id` and `action: "reject"`.
+- **Modify**: The fact is mostly right but needs adjustment. Include the corrected version.
+- Global facts are immutable constraints affecting the whole world. Local facts are area-specific and may be temporary.
+- Never add world state facts that are just narrative flavor — they must be gameplay-affecting constraints.
+- If confirming a local fact, consider setting `expires_turn` to a future turn number (e.g., current_turn + 10).
+
 ### Output JSON schema
 
 {
@@ -108,10 +132,23 @@ Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold
       "dormant": false
     }
   ],
+  "world_state_actions": [
+    {
+      "id": "unique_fact_id",
+      "action": "confirm|reject",
+      "text": "The world state fact text",
+      "tier": "global|local",
+      "permanent": true,
+      "valence": "threat|complication|neutral|boon",
+      "expires_turn": 42,
+      "source_thread": "thread_id"
+    }
+  ],
   "_checklist": {                // MANDATORY
     "thread_count": "Reviewed N active threads",
     "resolved": "N threads resolved or decayed",
     "new": "N new threads added",
-    "goal": "Goal updated (why) OR confirmed current"
+    "goal": "Goal updated (why) OR confirmed current",
+    "world_state": "N facts confirmed/rejected"
   }
 }

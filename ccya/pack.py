@@ -25,6 +25,7 @@ class SeedPC(BaseModel):
     stats: dict[str, int] = Field(default_factory=dict)
     conditions: list[str] = Field(default_factory=list)
     drive: str = ""
+    situation: dict[str, str] = Field(default_factory=dict)
 
 
 class SeedLocation(BaseModel):
@@ -70,6 +71,8 @@ class SeedState(BaseModel):
     scene: SeedScene
     compendium: SeedCompendium = Field(default_factory=SeedCompendium)
     arc: LongTermObjective | None = None
+    arc_origin: str = ""
+    world: dict[str, Any] = Field(default_factory=dict)
 
 
 class SeedEnvelope(BaseModel):

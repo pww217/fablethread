@@ -26,6 +26,7 @@ pc:
   conditions: list[Condition] — id-based dedup, FIFO cap 5; conditions persist until explicitly removed by extractor
     - id: str, label: str, description: str, added_turn: int
   actions: [str]               # rolling window of last 10 Storyteller actions, persisted by apply_delta
+  situation: dict[str, str]    # structured situational facts (vessel, crew, debts, alliances, home)
 
 location: {id, name, description}: str
 
@@ -49,7 +50,7 @@ scene:
 
 compendium.npcs: dict[id] → {name, title, bio, aliases: [str], presence: str | "present"|"nearby"|"known"|"departed"|"archived", position: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), personality: str | None (archetype id; write-once, immutable), first_seen_turn: int | None, last_presence_turn: int | None, last_seen_location: str | None, departed_reason: str | None, departed_turn: int | None, party: bool | None (companion flag — exempts from location-change auto-demotion, auto-cleared on departed)}
 
-world.factions: [str], world.locations: [str]
+world.factions: [str], world.locations: list[KeyLocation]
 ```
 
 ## Pydantic models
@@ -71,10 +72,13 @@ world.factions: [str], world.locations: [str]
 - **InventoryItem**: `id`, `name`, `notes`, `amount`, `aliases: [str]`
 - **NpcPresence**: `name`, `title`, `bio`, `aliases: [str]`, `presence`, `position`, `motivation`, `fear`, `leverage`, `personality`, `first_seen_turn`, `last_presence_turn`, `last_seen_location`, `departed_reason`, `departed_turn` — note: `party` is NOT a field on this enum (it's a compendium entry field, not a presence value)
 - **ProgressEntry**: `kind: Literal["advancement", "setback", "shift"]`, `text`
-- **ThreadResolution**: `id`, `resolution_state: Literal["resolved", "failed", "abandoned"]`, `outcome: str`
+- **ThreadResolution**: `id`, `resolution_state: Literal["resolved", "failed", "abandoned"]`, `outcome: str`, `world_state_candidate: str | None`
 - **ThreadUpdate**: `id`, `dormant`, `urgency`, `type`, `summary`, `progress`, `progress_kind`
 - **ArcResolution**: `resolution`, `visible_goal`, `goal_context`, `drop_threads: list[str]`, `new_threads: list[ArcThread]`
-- **WorldStateFact**: `id: str`, `text: str`, `tier: Literal["permanent", "persistent"] = "persistent"`
+- **WorldStateFact**: `id: str`, `text: str`, `tier: Literal["global", "local"] = "global"`, `permanent: bool = False`, `valence: Valence | None = None`, `expires_turn: int | None = None`
+- **KeyLocation**: `id: str`, `name: str`, `description: str = ""`, `status: str = "active"`, `tags: list[str] = []`
+- **Valence**: Enum — `THREAT`, `COMPLICATION`, `NEUTRAL`, `BOON`
+- **SanitizedWorldStateFact**: `id: str`, `text: str`, `tier: Literal["global", "local"] = "global"`, `permanent: bool = False`, `valence: Valence | None = None`, `expires_turn: int | None = None`, `source_thread: str | None = None`
 
 ### Extraction models (ccya/models/extraction.py)
 
@@ -110,7 +114,11 @@ world.factions: [str], world.locations: [str]
 - `beat_expires_turn`: turn number at which pending beat expires (set to `turn_no + 2` in turn.py)
 
 ### WorldStateFact
-- `tier: Literal["permanent", "persistent"]` — permanent facts are seed-authored and never written or removed by the LLM; persistent facts are runtime-added durable environmental changes promoted from thread/arc resolution outcomes
+- `tier: Literal["global", "local"]` — global facts are immutable world constraints (seed-authored or confirmed by sanitizer); local facts are area-specific and may be temporary
+- `permanent: bool` — if true, the fact is never expired or removed; if false, it may be removed by TTL or sanitizer
+- `valence: Valence | None` — "threat", "complication", "neutral", or "boon"; indicates the fact's impact on the PC's situation
+- `expires_turn: int | None` — if set, the fact is automatically removed at this turn number (TTL expiry pass in turn_state.py)
+- Two-step promotion: storyteller proposes via `ThreadResolution.world_state_candidate`; thread sanitizer evaluates and confirms/rejects/modifies via `world_state_actions`
 
 ### ThreadResolution
 - `outcome: str` — one past-tense sentence written at resolution time; persisted on completed ArcThread by `_apply_thread_resolutions()` alongside `resolution_state`

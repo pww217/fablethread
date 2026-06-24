@@ -1,8 +1,8 @@
 from ccya.models.state import (
     ArcResolution as ArcResolution, ArcThread as ArcThread, LongTermObjective as LongTermObjective, Condition as Condition, ConditionAdd as ConditionAdd,
     ConditionRemove as ConditionRemove, InventoryItem as InventoryItem, InventoryRemove as InventoryRemove, InventoryUpdate as InventoryUpdate,
-    LocationRef as LocationRef, NpcPresence as NpcPresence, ProgressEntry as ProgressEntry, ThreadResolution as ThreadResolution,
-    ThreadUpdate as ThreadUpdate, WorldStateFact as WorldStateFact,
+    KeyLocation as KeyLocation, LocationRef as LocationRef, NpcPresence as NpcPresence, ProgressEntry as ProgressEntry, SanitizedWorldStateFact as SanitizedWorldStateFact,
+    ThreadResolution as ThreadResolution, ThreadUpdate as ThreadUpdate, Valence as Valence, WorldStateFact as WorldStateFact,
 )
 from ccya.models.extraction import (
     CompendiumNpcUpdate as CompendiumNpcUpdate, GMBeat as GMBeat, SceneExtractResult as SceneExtractResult,
