@@ -395,8 +395,8 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                     pd = _delta["progress"]
                     old_str = "[" + ", ".join(str(p) for p in pd["before"]) + "]"
                     new_str = "[" + ", ".join(str(p) for p in pd["after"]) + "]"
-                    san_diffs.append({"op": "remove", "op_sym": "-", "field": f"{_tid}.progress", "value": old_str})
-                    san_diffs.append({"op": "add", "op_sym": "+", "field": f"{_tid}.progress", "value": new_str})
+                    san_diffs.append({"op": "remove", "op_sym": "-", "field": f"{_tid}.major_updates", "value": old_str})
+                    san_diffs.append({"op": "add", "op_sym": "+", "field": f"{_tid}.major_updates", "value": new_str})
             for _r in chg.get("removed") or []:
                 san_diffs.append({"op": "remove", "op_sym": "-", "field": _r["id"], "value": _r.get("reason", "")})
             for _r in chg.get("resolved") or []:

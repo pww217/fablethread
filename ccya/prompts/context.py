@@ -126,7 +126,7 @@ class ArcThreadBlock(BaseModel):
                         summary=t.get("summary", ""),
                         urgency=t.get("urgency", "normal"),
                         type=t.get("type"),
-                        progress=_fmt_progress(t.get("progress")),
+                        progress=_fmt_progress(t.get("major_updates")),
                         dormant=bool(t.get("dormant", False)),
                         last_updated_turn=t.get("last_updated_turn"),
                     )

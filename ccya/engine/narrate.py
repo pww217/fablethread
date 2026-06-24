@@ -75,7 +75,7 @@ def _narrate_messages(
                     "type": t.get("type") if isinstance(t, dict) else getattr(t, "type", None),
                     "id": t.get("id", "") if isinstance(t, dict) else getattr(t, "id", ""),
                     "dormant": t.get("dormant", False) if isinstance(t, dict) else getattr(t, "dormant", False),
-                    "progress": _fmt_progress(t.get("progress")) if isinstance(t, dict) else (_fmt_progress(t.progress) if hasattr(t, "progress") else []),
+                    "progress": _fmt_progress(t.get("major_updates")) if isinstance(t, dict) else (_fmt_progress(t.major_updates) if hasattr(t, "major_updates") else []),
                     "last_updated_turn": t.get("last_updated_turn") if isinstance(t, dict) else getattr(t, "last_updated_turn", None),
                 }
                 for t in all_threads if not (isinstance(t, dict) and t.get("dormant") is True) or not hasattr(t, "dormant") or not getattr(t, "dormant", False)

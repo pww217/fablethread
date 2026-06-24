@@ -488,14 +488,6 @@ def _apply_state_updates(
 
         # Arc director: process thread updates and arc resolution
         if state.get("long_term_objective") and storyteller_result:
-            # Process chapter_end signal (separate from arc_resolve)
-            if storyteller_result.chapter_end:
-                _log.info(
-                    "chapter_end trace_id=%s turn=%d",
-                    trace_id, turn_no, extra={"trace_id": trace_id, "turn": turn_no},
-                )
-                state.setdefault("meta", {})["last_chapter_end_turn"] = turn_no
-
             thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
             if thread_delta is not None:
                 _merge_arc_update(
