@@ -23,7 +23,7 @@ def _apply_sanitizer_changes_to_arc(
         return snap
 
     snap = dict(snap)
-    arc = dict(snap.get("long_term_objective") or {})
+    arc = dict(snap.get("arc", {}))
     threads = list(arc.get("threads") or [])
     completed = list(arc.get("completed_threads") or [])
 
@@ -85,7 +85,7 @@ def _apply_sanitizer_changes_to_arc(
 
     arc["threads"] = threads
     arc["completed_threads"] = completed
-    snap["long_term_objective"] = arc
+    snap["arc"] = arc
     return snap
 
 
@@ -123,7 +123,7 @@ def thread_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
         # Reconstruct arc state by applying sanitizer changes from the previous turn.
         # This ensures we validate against the state the storyteller actually saw.
         snap = _apply_sanitizer_changes_to_arc(snap, prev_sanitizer_for_this)
-        arc = snap.get("long_term_objective") or {}
+        arc = snap.get("arc") or {}
         thread_ids = {
             t.get("id") for t in (arc.get("threads") or [])
             if isinstance(t, dict) and t.get("id")

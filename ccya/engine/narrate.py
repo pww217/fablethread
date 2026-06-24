@@ -59,7 +59,7 @@ def _narrate_messages(
     )
 
     # Build arc context for narrator (needed by both system and user prompts)
-    arc = state.get("long_term_objective") or {}
+    arc = state.get("arc") or {}
     arc_pressure_score = 0
     arc_hint_text = None
     if arc:
@@ -187,7 +187,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     scene_phase = scene.get("scene_phase", "SETUP")
 
     # Count urgent threads for phase engine
-    _raw_thread_dicts = [t for t in (state.get("long_term_objective") or {}).get("threads") or [] if isinstance(t, dict)]
+    _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict)]
     thread_urgency_count = 0
     for td in _raw_thread_dicts:
         try:

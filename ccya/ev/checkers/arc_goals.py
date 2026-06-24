@@ -36,7 +36,7 @@ def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
         # reflected. Compare against the CURRENT turn's long_term_objective to verify
         # the engine applied the goal_update correctly.
         snap = extract_field(ev, "state_snapshot") or {}
-        arc = snap.get("long_term_objective") or {}
+        arc = snap.get("arc") or {}
         long_term_objective = arc.get("long_term_objective", "")
 
         if goal_lto != long_term_objective:

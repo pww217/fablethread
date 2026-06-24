@@ -97,9 +97,23 @@ def main() -> None:
         args = args[:-1]
     elif cmd not in ("play", "prompt-eval", "init", "eval", "status", "check") and "save-dir" in flags:
         turn_file = Path(str(flags["save-dir"])) / "events.jsonl"
-    elif cmd in ("play", "prompt-eval", "init", "eval", "status", "check"):
-        # play writes events; prompt-eval renders/calls; eval subcommands load events themselves; init creates new sessions; status reads state directly; check loads events itself
+    elif cmd in ("play", "prompt-eval", "init", "eval", "status"):
+        # play writes events; prompt-eval renders/calls; eval subcommands load events themselves; init creates new sessions; status reads state directly
         pass
+    elif cmd == "check":
+        # check loads events from --save-dir if provided
+        if "save-dir" in flags:
+            turn_file = Path(str(flags["save-dir"])) / "events.jsonl"
+        elif len(args) > 1 and (args[-1].endswith(".jsonl") or args[-1].startswith("saves/")):
+            candidate = Path(args[-1])
+            if candidate.is_dir():
+                turn_file = candidate / "events.jsonl"
+            else:
+                turn_file = candidate
+            args = args[:-1]
+        else:
+            # check without --save-dir or events path — will load empty list
+            pass
     else:
         print("Error: no events file specified. Use --save-dir <path> or pass events.jsonl path as argument.", file=sys.stderr)
         sys.exit(1)

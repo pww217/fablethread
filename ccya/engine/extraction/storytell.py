@@ -37,7 +37,7 @@ def _storytell_messages(
     """Build [system, user] messages for stream 3 (thread signals + facts + actions + outcome_summary)."""
     scene = state.get("scene") or {}
 
-    arc = state.get("long_term_objective") or {}
+    arc = state.get("arc") or {}
     _raw_threads = arc.get("threads") or []
     all_threads: list[dict[str, Any]] = []
     for t in _raw_threads:

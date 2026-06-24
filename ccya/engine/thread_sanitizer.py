@@ -137,7 +137,7 @@ def _build_messages(
     sanitize_every: int = 1,
 ) -> list[dict[str, str]]:
     """Build system + user messages for the sanitizer LLM call."""
-    arc = state.get("long_term_objective") or {}
+    arc = state.get("arc") or {}
 
     system_prompt = env.get_template("sanitize_thread.j2").render()
 
@@ -310,12 +310,12 @@ def _apply_sanitization(
     3. resolved_threads: move from threads[] to completed_threads[]
     Returns (has_changes, changes_detail).
     """
-    arc_raw = state.get("long_term_objective")
+    arc_raw = state.get("arc", {})
     if not arc_raw:
         return False, {}
 
     try:
-        arc = LongTermObjective.model_validate(arc_raw)
+        arc = LongTermObjective.model_validate(state.get("arc", {}))
     except Exception as exc:
         _log.warning("thread_sanitizer: failed to validate arc, skipping: %s", exc)
         return False, {}
@@ -470,7 +470,7 @@ def _apply_sanitization(
     has_changes = bool(updated_ids or resolved_ids or added_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])
 
     if has_changes:
-        state["long_term_objective"] = {**_dump_arc(arc), "threads": [t.model_dump() for t in arc.threads], "completed_threads": [t.model_dump() for t in arc.completed_threads]}
+        state.setdefault("arc", {}).update({**_dump_arc(arc), "threads": [t.model_dump() for t in arc.threads], "completed_threads": [t.model_dump() for t in arc.completed_threads]})
 
     return has_changes, changes_detail
 
