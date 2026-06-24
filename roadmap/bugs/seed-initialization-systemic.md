@@ -1,6 +1,6 @@
 ---
 title: "Seed Initialization Systemic Failures — Dynamic Packs"
-status: new
+status: done
 urgency: 1
 size: large
 created: 2026-06-24

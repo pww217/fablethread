@@ -9,18 +9,32 @@ Refer to all characters by their actual names. Never use "PC" or "NPC" as labels
 ```json
 {
   "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "position": "...", "party": true}],
-   "candidate_npcs": [{"id": "npc_id", "type": "motivation|fear|leverage|bond", "effect": "observable behavioral pressure ~1 sentence"}, ...]
+   "candidate_npcs": [{"id": "npc_id", "type": "motivation|fear|leverage|bond", "effect": "psychological state hint ~1 sentence"}, ...]
 }
 ```
 
 ## Beat candidate selection
 
-Identify 1-3 NPCs likely to act or be affected next turn. For each, assign one of these four types and write an effect referencing the NPC's existing compendium fields:
+Identify 2-3 NPCs likely to act or be affected next turn. For each, assign one of these four types and write an effect as a **psychological state hint** — not a story beat, not a behavioral prediction. The storyteller receives these hints WITHOUT the full NPC roster fields, so they only know what you tell them.
 
-- `motivation` → "X's desire for [motivation] drives them to [behavior]"
-- `fear` → "X's fear of [fear] drives them to [behavior]"
-- `leverage` → "X's advantage of [leverage] drives them to [behavior]"
-- `bond` → "X's history with [bond] drives them to [behavior]"
+**Selection priority:** When choosing among candidates, prefer motivation first, then leverage or bond, then fear. Motivation is the most reliable driver and should be your first choice whenever available. Leverage and bond are second-tier — use them when motivation is not available or when you want to show a different facet of the character. Fear is last — use it sparingly, only when the character's fear is the most salient psychological feature this turn.
+
+**Psychological state format by type:**
+
+- `motivation` → "Character wants X and Y." or "Character is driven to achieve X."
+- `fear` → "Character fears X and Y." or "Character is afraid of X happening."
+- `leverage` → "Character exercises leverage over X." or "Character considers exercising leverage over X." or "Character has something X wants."
+- `bond` → "Character feels responsible for X." or "Character is protective of X." or "Character has shared history with X that influences their actions." or "Character owes X something." or "Character resents X."
+
+**Grounding rule:** Effects must directly reference existing compendium fields. Use the actual values from the roster — don't invent new psychological drivers. The effect should read like a psychological state statement, not a prediction of behavior.
+
+**Example (motivation):** Roster shows `motivation: He wants to protect his sister at all costs` → `type: "motivation"`, `effect: "Anthony wants to protect his sister and keep her safe from the syndicate."`
+
+**Example (fear):** Roster shows `fear: He's terrified of being exposed as a fraud` → `type: "fear"`, `effect: "Anthony fears being exposed as a fraud and losing his reputation."`
+
+**Example (leverage):** Roster shows `leverage: He holds the original unedited transcripts` → `type: "leverage"`, `effect: "Anthony has leverage over David — he holds the original unedited transcripts."`
+
+**Example (bond):** Roster shows `bond: He served five years with David in the militia` → `type: "bond"`, `effect: "Anthony feels responsible for David — they served together in the militia and he owes him his life."`
 
 **PRE-CHECK — mandatory before assigning type:**
 1. Look at the NPC's roster entry in the `## Characters` section.
@@ -28,21 +42,15 @@ Identify 1-3 NPCs likely to act or be affected next turn. For each, assign one o
 3. If an NPC has no psychological fields, do NOT include them as a candidate.
 4. For unnamed/group NPCs (name matches an alias, e.g., "Three men", "Two dockworkers"), do NOT include them — they have no psychological fields.
 
-**Grounding rule:** Effects must directly reference existing compendium fields. "Anthony's fear of being silenced drives him to panic" not "Anthony is panicking." Never invent new psychological drivers — use what's in the roster.
-
-**Example (correct):** Roster shows `leverage: He holds the original unedited transcripts` → `type: "leverage"`, `effect: "Anthony's advantage of holding the original transcripts drives him to lean on David for protection."`
-
-**Example (wrong):** Roster shows NO fear field → do NOT assign `type: "fear"`.
-
-**Example (wrong):** Roster shows `leverage: unknown` → do NOT invent a motivation/fear/bond type. Only use leverage if leverage has a real value (not "unknown").
-
 **DO NOT:**
 - Assign a type that is NOT in the NPC's roster entry. If the roster has no `motivation` field, never use `type: "motivation"`.
 - Infer a psychological field from narration. The roster is ground truth. Narration shows behavior; roster shows the driver.
 - Include NPCs where the psychological field value is "unknown", empty, or missing. If `leverage: unknown`, do NOT use `type: "leverage"` — the field has no real value.
 - Include unnamed/group NPCs (e.g., "Three men", "Two dockworkers", "approaching_men").
+- Write effects that predict behavior or describe what the NPC will do. Write effects that describe what the NPC feels, wants, or knows.
+- Write effects that read like story beats or narration. These are psychological hints for the storyteller to work with, not beats to deliver.
 
-**Effect rule:** One sentence. Observable behavioral pressure, not internal state. Always implies "expect this to matter this turn."
+**Effect rule:** One sentence. Psychological state, not behavioral prediction. Present tense. Names the character and the psychological driver. Does not describe what will happen — describes what is true about the character right now.
 
 ## Field rules
 
@@ -109,9 +117,9 @@ When creating or updating an NPC entry:
 
 ## NPC field requirements
 
-- **Named NPCs (proper name in `name`):** Must have `bio` + `personality` + at least 2 of {motivation, fear, leverage, bond} = 4 fields minimum. On first entry, aim for all fields.
-- **Unnamed NPCs (descriptive label in `name` + same string in `aliases`; no proper name):** `bio` only. Do NOT add personality, motivation, fear, leverage, bond, or any other personality-related fields. The engine rejects personality fields on unnamed NPCs — treat this as a hard constraint.
-- **Promotion to named:** When narration reveals a proper name for an NPC previously known by description, set `name` to the proper name AND add `personality` + 2 of {motivation, fear, leverage, bond}. Keep the old descriptor in `aliases`.
+- **Named NPCs (proper name in `name`):** Must have `bio` + `personality` + `motivation` + 2 of {fear, leverage, bond} = 5 fields minimum. On first entry, aim for all 5 fields. Motivation is mandatory for every character.
+- **Unnamed NPCs (descriptive label in `name` + same string in `aliases`; no proper name):** `bio` + `motivation`. Do NOT add personality, fear, leverage, or bond. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace." The engine rejects personality fields on unnamed NPCs — treat this as a hard constraint.
+- **Promotion to named:** When narration reveals a proper name for an NPC previously known by description, set `name` to the proper name AND add `personality` + 2 of {fear, leverage, bond} (motivation should already exist). Keep the old descriptor in `aliases`.
 - **Group NPCs:** If the entry represents multiple people, the `name` field must always state the exact count as a spelled-out integer (e.g., 'Two armed guards', 'Three dockworkers'). Never use vague quantifiers — 'a few', 'several', 'a group of', 'some' are forbidden. When the count is unknown, use 'Unknown' as the count prefix. We must always know how many people are in any scene or grouping.
 - **Group NPC ID reuse:** When the quantity of a known group NPC changes, reuse the existing compendium ID — do NOT create a new ID. The ID is tied to the NPC type, not the quantity.
 - **Group NPC bio:** When the narration describes distinguishing features of individuals in a group (appearance, demeanor, visible traits), capture them in the bio. Format: "Individual 1 description + Individual 2 description + [group role/context]." If the narration provides no distinguishing details, write a minimal bio that at least establishes the group's visible presence (e.g., "Crewmen on watch duty, standing near the hatch"). Never leave a group NPC bio as generic filler like "is a sailor" or "present in the scene."

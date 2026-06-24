@@ -78,15 +78,15 @@ WRONG: `arc_resolve` with unchanged `long_term_objective` (no-op). RIGHT: `arc_r
 
 `gm_beat`: one beat to shape the next turn, or `null`. When present, must include `type`, `effect`, and optionally `npc_id` + `driver`.
 
-**Scene-driven beat generation:** Scene has already identified candidate NPCs with their psychological drivers and vague effects. Your job is to map them to specific NPCs and threads.
+**Scene-driven beat generation:** Scene has identified 2-3 NPCs with psychological state hints (what they want, fear, leverage, or feel). These are NOT beats — they are raw material. Your job is to blend them into a coherent story beat.
 
 - **Scene is the authority on who matters narratively; you are the authority on how it connects to story structure.**
 - `candidate_npcs` is provided in the user prompt (variable data). Use it as your starting point.
+- **Blend, don't pick.** The ideal beat combines 2-3 psychological hints into a single coherent story point. Example: "Anthony wants to protect his sister" + "David fears exposure" → Anthony offers to shield David from scrutiny in exchange for David's silence about the sister's whereabouts. Two psychological states, one beat.
 - **Three patterns:**
-  1. **Deliver as-is:** Pick one candidate and deliver it with minor wording tweaks.
-  2. **Combine:** Two candidates interact (e.g., one NPC's fear + another's leverage = one coherent beat).
+  1. **Deliver as-is:** One candidate is so strong it stands alone as a beat.
+  2. **Combine (preferred):** Two or more psychological hints interact — fear + leverage, motivation + bond, etc. — into one coherent beat.
   3. **Thread-apply:** Map a candidate's effect to an active/urgent thread.
-- You may optionally blend effects from multiple candidates and attach the beat to threads.
 - If scene provided no candidates, generate a beat from scratch based on narration + threads.
 
 **`effect` (required):** A short, concrete sentence describing what is about to happen. Must be narratively specific — name NPCs, reference locations, tie to active threads. NOT a category label. NOT "ambient tension." If you cannot write a concrete sentence, emit `null` for the entire `gm_beat`.
