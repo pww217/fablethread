@@ -1,6 +1,8 @@
 ---
 title: "100% empty ruling.reason — All condition additions have empty ruling.reason"
 status: done
+urgency: 3
+size: small
 created: 2026-06-12
 labels:
   - Bug

@@ -1,6 +1,8 @@
 ---
 title: "[Conditions] Condition age display + system guidance"
 status: done
+urgency: 4
+size: small
 created: 2026-06-11
 labels:
   - Improvement

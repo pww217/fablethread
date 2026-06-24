@@ -1,6 +1,8 @@
 ---
 title: "[NPC] NPC presence gaps"
 status: done
+urgency: 3
+size: medium
 created: 2026-06-14
 labels:
   - Feature

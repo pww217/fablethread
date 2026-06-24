@@ -1,6 +1,8 @@
 ---
 title: "Condition cap exceeded — 6 conditions active at T21, exceeding PC_CONDITIONS_MAX=5"
 status: canceled
+urgency: 3
+size: small
 created: 2026-06-12
 labels:
   - Bug

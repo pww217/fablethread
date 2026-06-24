@@ -1,6 +1,8 @@
 ---
 title: "[Prompt] Prompt tightening"
 status: canceled
+urgency: 4
+size: small
 created: 2026-06-14
 labels:
   - Improvement

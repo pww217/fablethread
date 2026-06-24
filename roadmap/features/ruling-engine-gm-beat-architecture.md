@@ -1,6 +1,8 @@
 ---
 title: "Ruling Engine GM Beat Authority & Pre-Turn Pipeline"
 status: scoping
+urgency: 3
+size: medium
 created: 2026-06-24
 labels:
   - architecture

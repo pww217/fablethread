@@ -1,7 +1,8 @@
 ---
 title: "Convergence Starvation — Pacing Engine"
 status: new
-priority: high
+urgency: 2
+size: large
 created: 2026-06-22
 labels:
   - pacing

@@ -1,6 +1,8 @@
 ---
 title: "NPC ghosting — NPCs vanish from compendium state with zero departure tracking"
 status: canceled
+urgency: 2
+size: medium
 created: 2026-06-12
 labels:
   - Bug

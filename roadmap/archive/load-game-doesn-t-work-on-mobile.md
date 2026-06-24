@@ -1,6 +1,8 @@
 ---
 title: "[UI] Load game doesn't work on mobile"
 status: done
+urgency: 4
+size: medium
 created: 2026-06-12
 labels:
   - Bug

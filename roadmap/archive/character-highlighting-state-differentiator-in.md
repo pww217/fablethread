@@ -1,6 +1,8 @@
 ---
 title: "[NPC] Character highlighting/state differentiator in scene"
 status: done
+urgency: 4
+size: small
 created: 2026-06-12
 labels:
   - Improvement

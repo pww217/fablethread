@@ -1,6 +1,8 @@
 ---
 title: "[NPC] NPC compendium overhaul — last_seen, last action, alias priority"
 status: done
+urgency: 3
+size: large
 created: 2026-06-12
 labels:
   - Feature

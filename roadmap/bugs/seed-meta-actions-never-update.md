@@ -1,6 +1,8 @@
 ---
 title: Seed Meta Actions Never Update After Initialization
 status: new
+urgency: 3
+size: small
 created: 2026-06-24
 labels:
   - engine

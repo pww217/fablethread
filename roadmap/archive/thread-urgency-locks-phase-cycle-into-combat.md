@@ -1,6 +1,8 @@
 ---
 title: "[Scene] Thread urgency locks phase cycle into combat spiral"
 status: done
+urgency: 2
+size: medium
 created: 2026-06-15
 labels:
   - Improvement

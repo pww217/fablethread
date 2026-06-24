@@ -1,6 +1,8 @@
 ---
 title: "[User-Reported] NPC/Character System Gaps and Hallucinations"
 status: new
+urgency: 3
+size: medium
 created: 2026-06-24
 labels:
   - engine

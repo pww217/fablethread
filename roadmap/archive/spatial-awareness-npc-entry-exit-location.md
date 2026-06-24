@@ -1,6 +1,8 @@
 ---
 title: "[NPC] Spatial awareness — NPC entry/exit, location announcement"
 status: canceled
+urgency: 4
+size: medium
 created: 2026-06-12
 labels:
   - Feature

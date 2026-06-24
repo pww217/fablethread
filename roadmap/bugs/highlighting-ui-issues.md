@@ -1,6 +1,8 @@
 ---
 title: "[User-Reported] Highlighting/UI Rendering Issues"
 status: new
+urgency: 4
+size: small
 created: 2026-06-24
 labels:
   - ui

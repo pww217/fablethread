@@ -1,6 +1,8 @@
 ---
 title: "Resolved arcs for storytell"
 status: canceled
+urgency: 4
+size: small
 created: 2026-06-11
 labels:
   - Improvement

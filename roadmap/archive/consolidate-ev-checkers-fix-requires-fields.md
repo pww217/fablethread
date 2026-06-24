@@ -1,6 +1,8 @@
 ---
 title: "Consolidate EV checkers — fix requires_fields, logic bugs, runner issues"
 status: done
+urgency: 2
+size: medium
 created: 2026-06-12
 labels:
   - Bug

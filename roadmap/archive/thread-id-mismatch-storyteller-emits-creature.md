@@ -1,6 +1,8 @@
 ---
 title: "Thread ID mismatch — Storyteller emits creature_ambush_threat, sanitizer adds creature_ambush"
 status: done
+urgency: 3
+size: small
 created: 2026-06-12
 labels:
   - Bug

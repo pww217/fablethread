@@ -1,6 +1,8 @@
 ---
 title: "[UI] Purple highlighting too intense in delta/summary"
 status: done
+urgency: 4
+size: small
 created: 2026-06-12
 labels:
   - Improvement

@@ -1,6 +1,8 @@
 ---
 title: "[User-Reported] Seed Initialization Systemic Failures"
 status: new
+urgency: 1
+size: large
 created: 2026-06-24
 labels:
   - engine
