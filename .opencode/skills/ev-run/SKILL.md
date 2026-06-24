@@ -3,7 +3,7 @@ name: ev-run
 description: Run a full 5-pack evaluation and produce a consolidated report
 ---
 
-Purpose: Launch eval scenarios, run them sequentially, generate automated per-run reports, and synthesize a consolidated group-level report with regression detection.
+Purpose: Execute the standard 5-pack evaluation. Its only output is the raw run data and per-run auto-reports. After completion, hand off to ev-review for deeper analysis.
 
 ## Prerequisites
 
@@ -44,24 +44,13 @@ done
 
 The `--auto-report` flag writes a per-run `report.md` inside each run directory. Alternatively, set `auto_report: true` in the session's `ev.yaml` to enable it without the flag.
 
-## Consolidated Report (`REPORT.md`)
+## Handoff to ev-review
 
-After all 5 runs complete, synthesize a consolidated `REPORT.md` at the group directory level (`evals/runs/YYYY-MM-DD_{tag}_{sha:8}/REPORT.md`):
-
-- **Checker scores** — read each per-run `report.md`, compile pass/fail table across all 5 scenarios
-- **LLM qualitative analysis** — narrative flow, pacing, thread resolution, convergence, character consistency
-- **Regression detection** — compare against the most recent prior eval group (see below)
-- **Recommendations** — per-scenario notes on what to investigate or fix
-
-**Model:** `evals/runs/2026-06-17_0.27.0-31-g07266252_0726625/consolidated-narrative-eval-2026-06-17.md`
-
-## Regression Detection
-
-1. Find the newest group directory before the current one in `evals/runs/`
-2. Read its `REPORT.md` for baseline checker scores and qualitative notes
-3. For each scenario, delta: checker pass count, known failure modes, narrative quality
-4. Run `git log --oneline <prior_sha>..HEAD` to identify what changed between the two eval dates
-5. In the consolidated report, call out: improvements, regressions, and changes worth investigating
+After all 5 runs complete, invoke `ev-review` to:
+1. Scan roadmap for `validating` items and check against current run data
+2. Run full rubric against the new runs
+3. File new bugs as `new`
+4. Write consolidated REPORT.md with validating item status
 
 ## Reference Docs
 

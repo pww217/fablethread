@@ -457,6 +457,40 @@ ev.py check 5 ruling_intent_match --llm --save-dir saves/my-game
 
 ---
 
+## Validating Items Review
+
+When reviewing an eval group for validating items (bugs in `validating` status awaiting confirmation):
+
+1. **Scan roadmap** — read all `roadmap/bugs/*.md` with `status: validating`
+2. **Match to relevant runs** — determine which scenario(s) are relevant to each bug based on bug labels (e.g., `pacing` → convergence issues, `narrative` → beat/story issues)
+3. **Run targeted checkers** — check the specific mechanics related to the bug:
+   ```bash
+   ev.py check 5 <relevant-checker> --save-dir evals/runs/<group>/<run>/
+   ```
+4. **Confirm or regress:**
+   - Bug behavior absent → update status to `done`, set `completed: YYYY-MM-DD`, run `make roadmap`
+   - Bug still present → update status to `up-next`, note regression in report
+5. **Report** — in consolidated report under "Validating Items":
+   - List each validating item with status (confirmed/done or regressed/up-next)
+   - Note which run(s) were checked and what checker/command was used
+
+## Git Log Change Assessment
+
+Before running full rubric, assess changes since last eval to focus attention:
+
+```bash
+git log --oneline <prior_sha>..<current_sha> -- ccya/
+```
+
+**Scope:** Only `ccya/` folder. Ignore `evals/`, `docs/`, `roadmap/`, `plans/`, `scripts/`.
+
+**High-risk areas** (promote to top of rubric review):
+- `ccya/prompts/` — extraction, ruling, narrate, storytell prompts
+- `ccya/engine/` — pacing, convergence, phase machine
+- `ccya/models.py` — state schema changes
+
+Report changes under "Changes Since Last Eval" in the consolidated report.
+
 ## Quick Reference — Commands by Goal
 
 | If you want... | Command |
