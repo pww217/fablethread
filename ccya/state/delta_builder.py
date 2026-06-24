@@ -279,7 +279,7 @@ def apply_delta(
 
     # --- Arc update: merge arc_update into state arc ---
     if delta.arc_update is not None:
-        _merge_arc_update(state.setdefault("long_term_objective", {}), delta.arc_update)
+        _merge_arc_update(state.setdefault("arc", {}), delta.arc_update)
 
     # --- Persist storyteller actions as rolling window ---
     if delta.actions:

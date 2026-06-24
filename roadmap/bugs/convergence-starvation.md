@@ -1,9 +1,13 @@
-# Convergence Starvation — Pacing Engine
-
-**Status:** open
-**Priority:** high
-**Component:** pacing engine (`_pacing.py`)
-**Related:** [Arc System Redesign](../design/arc-system-redesign.md), [Eval Cycle 2 Report](../../evals/runs/2026-06-22_0.28.0-79-g2b62d1d_2b62d1d/REPORT.md)
+---
+title: "Convergence Starvation — Pacing Engine"
+status: new
+priority: high
+created: 2026-06-22
+labels:
+  - pacing
+  - convergence
+  - engine
+---
 
 ## Problem
 

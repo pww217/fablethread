@@ -500,7 +500,7 @@ def _llm_session(
     turns_played = 0
     trace_ids: list[str] = []
 
-    arc_goal = (state.get("long_term_objective") or {}).get("long_term_objective", "")
+    arc_goal = (state.get("arc") or {}).get("long_term_objective", "")
     system_prompt = resolve_personality(personality or "custom", custom_persona, arc_goal=arc_goal)
 
     # Store recent turns for context (turn input + narrative)
@@ -521,7 +521,7 @@ def _llm_session(
             context_parts.append(f"Inventory: {', '.join(items)}")
 
         # Arc goal + threads (narrative direction)
-        arc = state.get("long_term_objective") or {}
+        arc = state.get("arc") or {}
         goal = arc.get("long_term_objective", "")
         if goal:
             context_parts.append(f"Goal: {goal}")

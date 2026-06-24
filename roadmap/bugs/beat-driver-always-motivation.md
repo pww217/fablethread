@@ -1,9 +1,14 @@
-# Beat Driver Always "Motivation"
-
-**Status:** open
-**Priority:** medium
-**Component:** beat generation, scene extractor, storyteller prompt
-**Related:** [Arc System Redesign](../design/arc-system-redesign.md), [Eval Cycle 2 Report](../../evals/runs/2026-06-22_0.28.0-79-g2b62d1d_2b62d1d/REPORT.md)
+---
+title: "Beat Driver Always 'Motivation'"
+status: new
+priority: medium
+created: 2026-06-22
+labels:
+  - beat-generation
+  - scene-extractor
+  - storyteller
+  - pacing
+---
 
 ## Problem
 

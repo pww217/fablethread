@@ -54,7 +54,7 @@ def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
         # Verify goal_update differs from the previous turn's long_term_objective.
         # prev_snap_for_this holds the previous turn's state_snapshot, which
         # is the pre-goal_update state for this turn.
-        prev_arc = (prev_snap_for_this or {}).get("long_term_objective") or {}
+        prev_arc = (prev_snap_for_this or {}).get("arc") or {}
         prev_long_term_objective = prev_arc.get("long_term_objective", "")
 
         if goal_lto == prev_long_term_objective:

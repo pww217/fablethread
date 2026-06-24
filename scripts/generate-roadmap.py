@@ -13,8 +13,8 @@ FEATURES_DIR = ROADMAP_DIR / "features"
 INDEX_FILE = ROADMAP_DIR / "index.md"
 ARCHIVE_INDEX_FILE = ROADMAP_DIR / "archive-index.md"
 
-STATUS_ORDER = ["idea", "scoping", "up-next", "validated", "done", "canceled"]
-ACTIVE_STATUSES = {"idea", "scoping", "up-next", "validated"}
+STATUS_ORDER = ["idea", "scoping", "up-next", "new", "validated", "done", "canceled"]
+ACTIVE_STATUSES = {"idea", "scoping", "up-next", "new", "validated"}
 ARCHIVE_STATUSES = {"done", "canceled"}
 
 BUCKET_ORDER = ["Balancing", "Extraction", "Tech Debt", "Tooling", "UI", "World Building"]
@@ -23,6 +23,7 @@ SECTION_MAP = {
     "idea": "Idea",
     "scoping": "Scoping",
     "up-next": "Queued",
+    "new": "New",
     "validated": "Validating",
     "done": "Done",
     "canceled": "Canceled",
