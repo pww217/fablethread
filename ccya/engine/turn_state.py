@@ -559,6 +559,18 @@ def _apply_state_updates(
                                 _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
                                 state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
                                 delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
+                            else:
+                                _log.warning(
+                                    "thread_add.duplicate_id trace_id=%s turn=%d thread=%s — ID already exists in arc, skipping",
+                                    trace_id, turn_no, _new_thread.id, extra={"trace_id": trace_id, "turn": turn_no},
+                                )
+                                if thread_dedup_rejections is not None:
+                                    thread_dedup_rejections.append({
+                                        "thread_id": _new_thread.id,
+                                        "rejected_reason": "duplicate_id",
+                                        "similarity": 1.0,
+                                        "turn": turn_no,
+                                    })
                         except Exception as exc:
                             _log.warning(
                                 "thread_add: failed to validate arc at T%d for thread %s: %s",

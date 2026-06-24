@@ -1,6 +1,6 @@
 ---
 title: Thread Add Creates Duplicate IDs — Storyteller Reuses Active IDs
-status: new
+status: validated
 urgency: 2
 size: medium
 created: 2026-06-24
@@ -9,7 +9,43 @@ labels:
   - threads
   - storyteller
 ---
-## Problem
+
+## Validation
+
+**Validated: confirmed root cause. FIXED.**
+
+### Root Cause Confirmed
+
+`_apply_thread_updates()` in `turn_state.py:17-136` handles `thread_update` events (updates to existing threads). The `thread_dedup_rejections` list is only populated for **progress dedup** (line 79-85) when progress text similarity >= 0.70.
+
+**`thread_add` dedup was silent** — at `turn_state.py:536-537`:
+```python
+existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
+if _new_thread.id not in existing_ids:
+    # add thread
+# else: silently skip — no logging, no dedup_rejection recorded
+```
+
+When the storyteller generated a `thread_add` with an ID that already existed in active or completed threads, the thread was silently discarded. No log message, no `dedup_rejection` entry, no feedback to the storyteller.
+
+### Evidence Confirmed
+
+The ticket's evidence matches the code behavior:
+- `corporate_pursuit` at T3 and T9 → T9 silently skipped (ID exists from T3)
+- `black_market_shipment` at T5 and T6 → T6 silently skipped (ID exists from T5)
+- `thread_dedup_rejections` was empty because it only tracked progress dedup, not ID dedup
+
+### Assessment
+
+This is a real bug. The storyteller had no feedback loop for rejected thread additions.
+
+### Fix Applied
+
+1. **Code-level enforcement** (`turn_state.py:563-574`): Added `else` branch for duplicate `thread_add` IDs — logs a warning and records a `dedup_rejection` entry with `rejected_reason: "duplicate_id"` and `similarity: 1.0`. This gives the storyteller feedback via the `thread_dedup_rejections` field in the extraction event.
+
+2. **Prompt-level guidance** (`storytell_system.j2`): Added explicit instruction: "CRITICAL: thread_add IDs must be unique. Before emitting `thread_add`, check that your proposed ID does not already exist in the active or completed threads list. Using a duplicate ID will cause the thread to be silently discarded."
+
+---
 
 The storyteller generates `thread_add` entries with IDs that already exist in the active threads list. The thread dedup system (`thread_dedup_rejections`) does not catch these.
 
