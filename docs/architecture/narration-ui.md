@@ -92,7 +92,7 @@ flowchart TD
 | `GET /panels/char-creation` | `_char_creation.html` | New Game — character stats builder |
 | `GET /panels/world-builder` | `_world_builder.html` | New Game — world creation form |
 | `GET /panels/debug` | `_debug.html` | Debug panel — recent turn timings, errors |
-| `GET /panels/state` | `_state.html` | Combined left+right (legacy) |
+| `GET /panels/state` | `_state.html` | Combined left+right |
 
 ### Client state machine (`game()` — inline `<script>` in index.html)
 

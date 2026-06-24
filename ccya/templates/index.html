@@ -1676,7 +1676,7 @@ function game() {
             textDiv.className = 'narrative-text';
             textDiv.innerHTML = '<span class="streaming-cursor"></span>';
             textDiv.classList.add('streaming');
-            // Detached element — kept for compatibility with existing cleanup paths
+            // Detached element cleanup
             // that call `cursor.remove()`. The live cursor span lives inside textDiv
             // and is replaced each render in `_drainRenderFn`.
             const cursor = document.createElement('span');

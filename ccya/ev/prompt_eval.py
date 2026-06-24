@@ -115,8 +115,7 @@ def _extract_prompt_from_event(
 ) -> dict[str, str]:
     """Extract stored rendered prompts from events or prompts.jsonl.
 
-    When from_events is True, loads from prompts.jsonl (new data source).
-    Falls back to reading from event blob for backward compat.
+    Loads from prompts.jsonl first; falls back to reading from event blob.
     """
     prompts = load_prompts(save_dir)
     turn = ev.get("turn")

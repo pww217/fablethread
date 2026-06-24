@@ -383,18 +383,5 @@ Processes `storyteller_result.thread_resolve` (list of `ThreadResolution` with `
 4. **Unknown resolution ID** — Log WARNING, skip — does not block valid resolutions
 5. **Duplicate thread ID in creation** — Checked against existing + completed IDs
 6. **Same-turn update+resolve conflict** — Same thread id in both `thread_update` and `thread_resolve` → log WARNING, resolution wins (fires after update)
-7. **Progress type migration** — Old saves with `progress: "str"` or `progress: list[str]` are coerced via `field_validator("progress", mode="wrap")`: bare strings wrapped in `[{"text": v, "kind": "advancement"}]`; string lists converted to `[{"text": s, "kind": "advancement"} for s in list]`.
-8. **Progress dedup rejection** — New progress with ≥70% textual overlap against last entry → log WARNING, skip entry (does not block rest of update)
-9. **Thread cap eviction** — After thread_add, if active count > `thread_max_active`, oldest active thread evicted to `dormant: True` — log INFO with evicted thread id
-
-### Progress Migration
-
-`ArcThread.progress` has migrated through two versions:
-- **v1:** `str` — single progress string
-- **v2:** `list[str]` — append-only list of progress strings
-- **v3 (current):** `list[ProgressEntry]` — structured entries with `kind` (`"advancement"` or `"setback"`) + `text`
-
-A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all legacy shapes:
-- Bare `str`: wraps in `[{"text": v, "kind": "advancement"}]`
-- `list[str]`: converts to `[{"text": s, "kind": "advancement"} for s in list]`
-- `list[ProgressEntry]`: passes through
+7. **Progress dedup rejection** — New progress with ≥70% textual overlap against last entry → log WARNING, skip entry (does not block rest of update)
+8. **Thread cap eviction** — After thread_add, if active count > `thread_max_active`, oldest active thread evicted to `dormant: True` — log INFO with evicted thread id

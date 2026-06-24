@@ -3,7 +3,7 @@
 ## state.yaml — canonical live state
 
 ```yaml
-schema_version: int  # CURRENT_SCHEMA_VERSION = 1 in state/io.py; migration from v0 handled by _migrate_v0_to_v1()
+# (no schema_version field — all saves use current format)
 meta:
   session_name: str            # short evocative title for this game session (3-6 words)
   turn: int                    # source of truth — incremented only in engine/turn.py
@@ -121,13 +121,6 @@ world.factions: [str], world.locations: list[KeyLocation]
 
 ### ThreadResolution
 - `outcome: str` — one past-tense sentence written at resolution time; persisted on completed ArcThread by `_apply_thread_resolutions()` alongside `resolution_state`
-
-### Major updates migration
-- `ArcThread.major_updates` has migrated through two versions:
-  - v1: `progress` as `str` — single progress string
-  - v2: `progress` as `list[str]` — append-only list of progress strings
-  - v3 (current): `major_updates` as `list[ProgressEntry]` — structured entries with `kind` + `text`
-- Legacy `progress` values are coerced by a Pydantic `field_validator` on `ArcThread` that wraps bare strings in `[{"text": v, "kind": "advancement"}]` and converts string lists to `[{"text": s, "kind": "advancement"} for s in list]`
 
 ### StateDelta actions
 - `actions: list[str]`, max_length=10 — merged from StorytellerResult.actions, persisted to `state["pc"]["actions"]` as rolling window by `apply_delta()`
