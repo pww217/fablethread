@@ -68,6 +68,53 @@ def _generate_save_dir_name(pack_name: str) -> str:
     return f"{safe}-{today}"
 
 
+def _generate_seed_actions(seed: dict[str, Any]) -> list[str]:
+    """Generate 4 fallback actions for static seeds based on seed context."""
+    actions: list[str] = []
+    inventory = seed.get("inventory") or []
+    inventory_items = [item.get("name", item.get("id", "")) if isinstance(item, dict) else str(item) for item in inventory]
+    arc = seed.get("arc") or {}
+    arc_goal = arc.get("long_term_objective", "") or arc.get("visible_goal", "")
+    scene = seed.get("scene") or {}
+    present_npcs = scene.get("present_npcs") or []
+    npc_names = [npc.get("name", "") for npc in present_npcs if isinstance(npc, dict)]
+    quests = seed.get("quests") or []
+    quest_objectives = []
+    for q in quests:
+        if isinstance(q, dict):
+            for obj in q.get("objectives") or []:
+                if isinstance(obj, dict):
+                    quest_objectives.append(obj.get("description", ""))
+
+    # Action 1: Quest-driven (first objective or generic)
+    if quest_objectives:
+        actions.append(f"Take up the first objective: {quest_objectives[0][:80]}")
+    elif arc_goal:
+        actions.append(f"Focus on {arc_goal[:60]} to advance your goal.")
+    else:
+        actions.append("Decide what matters most and pursue it.")
+
+    # Action 2: NPC interaction
+    if npc_names:
+        actions.append(f"Speak with {npc_names[0]} about what just happened.")
+    else:
+        actions.append("Survey your surroundings for useful information.")
+
+    # Action 3: Inventory-based
+    if inventory_items:
+        actions.append(f"Check your {inventory_items[0]} for anything useful.")
+    else:
+        actions.append("Pat down your gear for anything you might have missed.")
+
+    # Action 4: Arc or exploration
+    if arc_goal:
+        actions.append(f"Focus on {arc_goal[:60]} to advance your goal.")
+    else:
+        actions.append("Take a careful look around the area.")
+
+    return actions[:4]
+
+
 def _apply_seed_to_save_dir(
     seed_dict: dict[str, Any],
     opening_narrative: str | None = None,
@@ -88,10 +135,10 @@ def _apply_seed_to_save_dir(
         seed_dict.setdefault("meta", {})["_seed_type"] = pack_type
     if pack_source is not None:
         seed_dict.setdefault("meta", {})["_pack_source"] = pack_source
-    if opening_narrative is not None and actions is not None:
+    if opening_narrative is not None or actions is not None:
         seed_dict["__seed_meta__"] = {
-            "opening_narrative": opening_narrative,
-            "actions": actions,
+            "opening_narrative": opening_narrative or "",
+            "actions": actions or [],
             "outcome_summary": outcome_summary,
         }
     if pool_selection:
@@ -223,7 +270,7 @@ async def index(request: Request):
     ctx["last_actions"] = last_actions
     ctx["opening"] = opening
     ctx["opening_actions"] = opening_actions
-    ctx["opening_outcome_summary"] = _get_opening_outcome_summary() if opening else ""
+    ctx["opening_outcome_summary"] = (state.get("__seed_meta__") or {}).get("outcome_summary", "") or (_get_opening_outcome_summary() if opening else "")
     ctx["has_narrative"] = bool(opening or history)
     ctx["pack_name"] = _app_mod._active_pack.manifest.name
     ctx["character_creation_enabled"] = _app_mod.config.get("game", {}).get(
@@ -491,7 +538,8 @@ async def new_game(request: Request):
             seed["meta"]["setting_pack"] = _app_mod._pack_id
             if pc_stats_dict:
                 seed.setdefault("pc", {})["stats"] = pc_stats_dict
-            _apply_seed_to_save_dir(seed, None, None, pack_type="static", pack_source=_app_mod._pack_id)
+            actions = _generate_seed_actions(seed)
+            _apply_seed_to_save_dir(seed, None, actions, pack_type="static", pack_source=_app_mod._pack_id)
         else:
             # No hints — generate seed via LLM
             envelope, pool_selection = await generate_seed(
