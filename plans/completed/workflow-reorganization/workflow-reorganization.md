@@ -42,7 +42,7 @@ Five phases executed in dependency order: (1) fix three independent pre-roadmap 
 3. **"Assume parallel work" is added.** Global AGENTS.md cross-skill rule: never revert code you didn't write, investigate via `git log`, ask user if blocked.
 4. **flesh-design stays deleted.** No stub. review-design absorbed its purpose.
 5. **roadmap/ is the canonical ticket tracker.** Supersedes Linear as primary source of truth. Linear ticket ref appears in PR body as optional metadata when present in roadmap frontmatter.
-6. **roadmap index is auto-generated.** `scripts/generate-roadmap.py` parses YAML frontmatter from all files in `roadmap/bugs/` and `roadmap/features/`, writes `roadmap/index.md`.
+6. **roadmap index is auto-generated.** `scripts/generate-roadmap.py` parses YAML frontmatter from all files in `roadmap/bugs/` and `roadmap/features/`, writes `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md`.
 
 ## Risks, Ambiguities, and Blockers
 
@@ -163,7 +163,7 @@ If `roadmap/` already exists, skip creation but verify subdirectories exist.
 2. Parses YAML frontmatter from each file (using `yaml` library, or if not available, use a simple regex; prefer `yaml` if `PyYAML` is in the project's dependencies — check with `uv run python -c "import yaml"`)
 3. Groups entries by status (scoping, up-next, validated, done, canceled)
 4. Within each group, lists entries with: title, slug (filename), type (bug/feature), urgency, size, labels, created date
-5. Writes `roadmap/index.md` with: grouped by status, each group as a table, archive items listed separately under "Archive"
+5. Writes `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md` with: grouped by status, each group as a table, archive items listed separately under "Archive"
 
 Frontmatter schema:
 ```yaml
@@ -203,7 +203,7 @@ Use the project's Python environment: `#!/usr/bin/env python3` shebang, use `pat
 
 **Why:** The design doc requires an auto-generated TOC grouped by status, driven by a script.
 
-**Validation:** Run `.venv/bin/python scripts/generate-roadmap.py` — should produce `roadmap/index.md` with headers but no entries (directories are empty).
+**Validation:** Run `.venv/bin/python scripts/generate-roadmap.py` — should produce `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md` with headers but no entries (directories are empty).
 
 #### Step 2.3 — Add Makefile target
 
@@ -219,7 +219,7 @@ Find the right place in the alphabetically-ordered targets (after `new-game` or 
 
 **Why:** The design doc requires a `make roadmap` target for the auto-generator.
 
-**Validation:** Run `make roadmap` — should produce `roadmap/index.md` (with empty tables).
+**Validation:** Run `make roadmap` — should produce `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md` (with empty tables).
 
 ### Tests to write or update
 
@@ -351,7 +351,7 @@ None. These are config file edits.
 - `roadmap/bugs/<slug>.md` — one file per bug
 - `roadmap/features/<slug>.md` — one file per feature/improvement/moonshot
 - `roadmap/archive/` — completed items
-- `roadmap/index.md` — auto-generated TOC (via `make roadmap`)
+- `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md` — auto-generated TOCs (via `make roadmap`)
 - Status lifecycle (bugs): `new` → `validated` → `done` (or `canceled` at any point)
 - Status lifecycle (features): `idea` → `scoping` → `up-next` → `done` (or `canceled` at any point)
 - Design doc lifecycle: `scoping` → `reviewed` → `implemented`
@@ -438,7 +438,7 @@ Infer bug vs feature from Linear label (e.g., `bug` → `roadmap/bugs/`, otherwi
 
 Bulk create the files. After all are created, run `make roadmap` to regenerate the index.
 
-**Validation:** Count files in `roadmap/bugs/` + `roadmap/features/` — should match ~60. `make roadmap` succeeds. `roadmap/index.md` has all entries.
+**Validation:** Count files in `roadmap/bugs/` + `roadmap/features/` — should match ~60. `make roadmap` succeeds. `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md` have all entries.
 
 ### Tests to write or update
 
