@@ -1,9 +1,10 @@
 ---
 title: "[User-Reported] NPC/Character System Gaps and Hallucinations"
-status: new
+status: done
 urgency: 3
 size: medium
 created: 2026-06-24
+resolved: 2026-06-24
 labels:
   - engine
   - extraction
@@ -19,20 +20,18 @@ Character extraction and management has multiple issues:
 3. **Candidate hints too prescriptive/hallucinating** — Extraction inventing psych states for unnamed NPCs, creating fields that don't exist, hallucinating regular fields
 4. **Location drift / NPC persistence** — NPCs not properly managed on location change (scene motion expunging? Setting to nearby?). NPCs drift across locations incorrectly.
 
-## Root Cause Estimate
+## Fix Applied
 
-- Extraction prompts at `ccya/prompts/` not enforcing the named vs. unnamed NPC schema correctly
-- Scene transition logic (`ccya/engine/step/` or `scene.py`) not cleaning up or relocating NPCs properly
-- Candidate hint generation conflating "psych state" with actual character fields
+### Items 1-3: Fixed
 
-## Impact
+- **`extract_scene_system.j2`:** Unnamed NPCs now get `bio` + `motivation` (was `bio` only). Named NPCs now get `bio` + `personality` + `motivation` + 2 of {fear, leverage, bond} (was "at least 2 of" without mandatory motivation). Scene extractor effects changed from beat-like to psychological state format, reducing hallucination of non-existent fields.
 
-- Bloated/inaccurate character compendium
-- Narrative inconsistency (NPCs appearing in wrong locations)
-- Hallucinated fields pollute state and downstream prompts
+- **`generate_seed_system.j2`:** Same field requirements applied to seed generation. Unnamed NPCs get `bio` + `motivation`. Named NPCs get `bio` + `personality` + `motivation` + 2 of {fear, leverage, bond}.
 
-## Suggested Fix
+### Item 4: Not addressed
 
-1. Update extraction schema/prompts: enforce named NPC = personality + motivation + 2 of [fear, leverage, bond]; unnamed = motivation only
-2. Audit scene transition logic: ensure NPCs are expunged or moved to `nearby` on location change
-3. Restrict candidate hints to only valid schema fields; remove psych-state invention for unnamed NPCs
+Location drift / NPC persistence on location change is a separate issue in the engine's scene transition logic (`ccya/engine/step/` or `scene.py`). This was not touched in this fix.
+
+## Status
+
+Items 1-3 are resolved. Item 4 (location drift) should be tracked as a separate ticket if it remains a problem.
