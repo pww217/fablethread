@@ -30,6 +30,7 @@
                                 <span class="save-card-current-badge" x-show="save.name === activeSaveName">active</span>
                             </div>
                             <div class="pack-card-dir" x-show="save.display_name && save.display_name !== save.name" x-text="save.name"></div>
+                            <div class="pack-card-origin" x-show="save.arc_origin" x-text="save.arc_origin"></div>
                             <div class="pack-card-tags">
                                 <span class="pack-card-tag" x-show="save.turn_count > 0">Turn <span x-text="save.turn_count"></span></span>
                                 <span class="pack-card-tag" x-show="save.pack" x-text="save.pack"></span>

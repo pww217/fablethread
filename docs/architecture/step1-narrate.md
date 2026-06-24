@@ -39,16 +39,15 @@ flowchart LR
 
 ## Arc context in narration
 
-The narrator receives `current_arc` in both system and user prompts. Key fields:
+The narrator receives `current_objective` in both system and user prompts. Key fields:
 
-- **`goal_context`**: A seed-time field (2–3 sentences) explaining why `visible_goal` matters to the character specifically — inner cost or pressure that makes it emotionally loaded. UI-only (surfaced as tooltip on the arc goal in the sidebar). NOT rendered in prompt context — the narrator works from general early-turn behavioral guidance in the system prompt, not from the raw `goal_context` value.
-- **`visible_goal`**: The player-facing objective.
+- **`long_term_objective`**: The player-facing objective. An `arc_origin` (seed-time field, 2–3 sentences past tense) is surfaced in the sidebar UI but NOT rendered in prompt context — the narrator works from general early-turn behavioral guidance, not the raw origin text.
 - **`threads[]`**: Unified thread collection with `dormant` flag. Scene-scope threads provide immediate pressure; arc-scope threads provide medium-term tension.
 - **`resolved_arc`**: TTL-filtered list of previously resolved arcs, providing narrative continuity across arc transitions.
 
 ### Opening-turn narrative mode
 
-The seed embeds emotional stakes in the initial state — NPC `relation` fields, `motivation/fear/leverage`, and a `goal_context` sidebar entry. The narrator does NOT receive special early-turn prompt guidance or `goal_context` in its context. Instead, the initial scene's NPCs (with rich behavioral drivers), the opening narrative's tone, and the player-facing sidebar create the onboarding experience. The narrator works from its standard behavioral guidance and the richness of seed-generated state.
+The seed embeds emotional stakes in the initial state — NPC `relation` fields, `motivation/fear/leverage`, and an `arc_origin` sidebar entry. The narrator does NOT receive special early-turn prompt guidance or `arc_origin` in its context. Instead, the initial scene's NPCs (with rich behavioral drivers), the opening narrative's tone, and the player-facing sidebar create the onboarding experience. The narrator works from its standard behavioral guidance and the richness of seed-generated state.
 
 ## Key forward dependency
 

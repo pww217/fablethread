@@ -23,7 +23,7 @@ def _apply_sanitizer_changes_to_arc(
         return snap
 
     snap = dict(snap)
-    arc = dict(snap.get("arc") or {})
+    arc = dict(snap.get("long_term_objective") or {})
     threads = list(arc.get("threads") or [])
     completed = list(arc.get("completed_threads") or [])
 
@@ -44,7 +44,7 @@ def _apply_sanitizer_changes_to_arc(
             "summary": added.get("summary", ""),
             "urgency": added.get("urgency", "normal"),
             "dormant": False,
-            "progress": [],
+            "major_updates": [],
         })
 
     # Apply resolved threads (move from active to completed)
@@ -72,7 +72,7 @@ def _apply_sanitizer_changes_to_arc(
             if t.get("id") == tid:
                 progress = update.get("progress")
                 if isinstance(progress, dict) and progress.get("after"):
-                    t["progress"] = [
+                    t["major_updates"] = [
                         {"kind": p["kind"] if isinstance(p, dict) else "advancement", "text": p["text"] if isinstance(p, dict) else p}
                         for p in progress["after"]
                     ]
@@ -85,7 +85,7 @@ def _apply_sanitizer_changes_to_arc(
 
     arc["threads"] = threads
     arc["completed_threads"] = completed
-    snap["arc"] = arc
+    snap["long_term_objective"] = arc
     return snap
 
 
@@ -123,7 +123,7 @@ def thread_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
         # Reconstruct arc state by applying sanitizer changes from the previous turn.
         # This ensures we validate against the state the storyteller actually saw.
         snap = _apply_sanitizer_changes_to_arc(snap, prev_sanitizer_for_this)
-        arc = snap.get("arc") or {}
+        arc = snap.get("long_term_objective") or {}
         thread_ids = {
             t.get("id") for t in (arc.get("threads") or [])
             if isinstance(t, dict) and t.get("id")

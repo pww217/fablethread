@@ -153,6 +153,7 @@ class ScenarioBrief(BaseModel):
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
     name_seed: int | None = None
     inspiration: Inspiration = Field(default_factory=Inspiration)
+    pc_situation_schema: list[dict[str, Any]] = Field(default_factory=list)
     situation_archetypes: list[PoolEntry] = Field(default_factory=list, max_length=16)
     arc_categories: list[PoolEntry] = Field(default_factory=list, max_length=20)
     character_dynamics: list[PoolEntry] = Field(default_factory=list, max_length=12)

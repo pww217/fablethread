@@ -275,21 +275,6 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
     if validated_rts:
         result["resolved_threads"] = validated_rts
 
-    # new_threads — validate against ArcThread model
-    nt_list = raw.get("new_threads", [])
-    validated_nts: list[dict[str, Any]] = []
-    for _nt in nt_list or []:
-        if not isinstance(_nt, dict):
-            continue
-        try:
-            validated_nt = ArcThread.model_validate(_nt)
-            validated_nts.append(validated_nt.model_dump())
-        except Exception:
-            _log.warning("thread_sanitizer: skipping invalid new_thread %s", _nt.get("id"))
-
-    if validated_nts:
-        result["new_threads"] = validated_nts
-
     # _checklist — must be dict[str, str]
     checklist = raw.get("_checklist")
     if isinstance(checklist, dict):
@@ -323,8 +308,6 @@ def _apply_sanitization(
     1. goal_update: replace long_term_objective if non-null
     2. thread_updates: find by ID in threads[], apply non-null fields
     3. resolved_threads: move from threads[] to completed_threads[]
-    4. new_threads: validate as ArcThread, append to threads[]
-
     Returns (has_changes, changes_detail).
     """
     arc_raw = state.get("long_term_objective")
@@ -368,7 +351,6 @@ def _apply_sanitization(
     threads_by_id: dict[str, int] = {}
     for i, t in enumerate(arc.threads):
         threads_by_id[t.id] = i
-    completed_ids_set: set[str] = {t.id for t in arc.completed_threads}
 
     # 2. thread_updates — only apply to active (non-resolved) threads
     for _tu in parsed.get("thread_updates") or []:
@@ -469,29 +451,6 @@ def _apply_sanitization(
     changes_detail["resolved_ids"] = resolved_ids
     changes_detail["resolved_list"] = changes_detail["resolved"]
 
-
-    # 5. new_threads — validate and append to threads[]
-    for _nt in parsed.get("new_threads") or []:
-        nid = _nt.get("id", "")
-        if not nid:
-            continue
-
-        # Skip duplicate IDs (collision with existing thread)
-        if nid in threads_by_id or nid in completed_ids_set:
-            _log.warning(
-                "thread_sanitizer: new_thread id=%s collides with existing — skipping",
-                nid,
-            )
-            continue
-
-        try:
-            validated_nt = ArcThread.model_validate(_nt)
-            arc.threads.append(validated_nt)
-            added_ids.append(nid)
-            entry = dict(validated_nt.model_dump())
-            changes_detail["added"].append(entry)
-        except Exception:
-            _log.warning("thread_sanitizer: invalid new_thread %s — skipping", nid)
 
     changes_detail["added_ids"] = added_ids
     changes_detail["added_list"] = changes_detail["added"]

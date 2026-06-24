@@ -55,7 +55,7 @@ flowchart LR
 
     subgraph OUT["Outputs — SeedEnvelope"]
         O1["seed_state: GameState<br>  pc (name, tagline, bio, stats)<br>  location (id, name, description)<br>  scene (world_state: list[WorldStateFact])<br>  compendium.npcs: dict[id] CompendiumEntry<br>    (presence='present' for in-scene NPCs,<br>     presence='known' otherwise)<br>  meta (model, setting_pack, turn=0,<br>       recent_beats: list[dict])"]:::outNode
-        O2["arc: CampaignArc<br>  visible_goal, goal_context (personal stakes),<br>  threads[] (unified, with dormant flag),<br>  completed_threads[]"]:::outNode
+        O2["arc: CampaignArc<br>  long_term_objective,<br>  threads[] (unified, with dormant flag),<br>  completed_threads[]"]:::outNode
         O3["opening_narrative: str<br>(prose intro shown before turn 1)"]:::outNode
         O4["actions: list[str]<br>(4 distinct, character-shaped,<br>scene-grounded choices)"]:::outNode
     end
@@ -80,7 +80,7 @@ Static seeds loaded via YAML (`--new-game` with a static pack) go through `init_
 
 The seed prompt (`generate_seed_system.j2`) enforces these requirements:
 
-- **`goal_context`**: 2–3 sentences explaining why `visible_goal` matters to this character specifically — inner cost or pressure that makes it emotionally loaded. No hidden-truth spoilers, no restating `visible_goal`, no direct statement of the thematic question. Must connect character motive, story stakes, and emotional cost.
+- **`arc_origin`**: 2–3 sentences in past tense answering "how did the PC end up here?" Seed-time field only, never regenerated. Surfaces in the sidebar.
 - **NPC `relation` field**: Each opening NPC has a defined narrative job. One NPC is personally tied to the PC's motive or vulnerability; the other carries immediate external pressure from the world or conflict. The `relation` field encodes PC-facing relevance (e.g. "owes them a favor", "is their only contact here", "represents the institution pressing on them").
 - **Compendium NPCs**: The seed also generates 2–3 NPCs in `compendium.npcs` (name, title, bio) who exist in the world but are not present in the opening scene. Their bios tie them to factions, locations, or world pressures, not to the immediate situation. These become discoverable characters during play.
 - **Action guidance**: Each of the 4 choices is written from the PC's point of view, grounded in a present NPC, immediate risk, active thread, or character motive. They differ in emotional posture (confront, deflect, investigate, protect, exploit, withdraw, etc.) and avoid generic verbs.

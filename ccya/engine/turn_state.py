@@ -173,8 +173,7 @@ def _apply_arc_resolve(
     """Process arc resolution from the storyteller.
 
     Resolves current arc, stores it in resolved_arcs with TTL tracking,
-    processes thread drop list (opt-out carry-over), and creates a new
-    successor arc seeded with surviving + new threads.
+    then creates a new successor arc with all threads carried forward.
     """
     if not storyteller_result.arc_resolve:
         return None
@@ -294,7 +293,7 @@ def _apply_thread_resolutions(
             "resolved_turn": turn_no,
         }))
 
-        # Collect world_state_candidate for two-step promotion (sanitizer evaluates in seed worldbuilding plan)
+        # Collect world_state_candidate for two-step promotion via thread sanitizer
         if res.world_state_candidate:
             state.setdefault("world_state_candidates", []).append({
                 "thread_id": res.id,

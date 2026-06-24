@@ -116,7 +116,7 @@ def build_prompt_context(
         }
 
     if stream == "storytell":
-        arc = state_snapshot.get("arc") or {}
+        arc = state_snapshot.get("long_term_objective") or {}
         scene = state_snapshot.get("scene") or {}
         meta = state_snapshot.get("meta") or {}
         pc = state_snapshot.get("pc") or {}
@@ -127,7 +127,7 @@ def build_prompt_context(
                 entry = dict(t)
                 entry.setdefault("last_updated_turn", None)
                 from ccya.prompts.context import _fmt_progress
-                entry["progress"] = _fmt_progress(entry.get("progress"))
+                entry["progress"] = _fmt_progress(entry.get("major_updates"))
                 all_threads.append(entry)
             else:
                 all_threads.append({"id": "", "summary": ""})
@@ -184,10 +184,10 @@ def build_prompt_context(
     if stream == "ruling":
         comp = state_snapshot.get("compendium", {}).get("npcs", {})
         npc_roster = _build_npc_roster(comp)
-        arc = state_snapshot.get("arc") or {}
+        arc = state_snapshot.get("long_term_objective") or {}
         pc = state_snapshot.get("pc") or {}
         urgent_threads = [
-            {"id": t.get("id", ""), "summary": t.get("summary", ""), "progress": t.get("progress", [])}
+            {"id": t.get("id", ""), "summary": t.get("summary", ""), "progress": t.get("major_updates", [])}
             for t in (arc.get("threads") or []) if t.get("urgency") == "urgent"
         ]
         return {
@@ -206,7 +206,7 @@ def build_prompt_context(
     if stream == "narrate":
         comp = state_snapshot.get("compendium", {}).get("npcs", {})
         npc_roster = _build_npc_roster(comp)
-        arc = state_snapshot.get("arc") or {}
+        arc = state_snapshot.get("long_term_objective") or {}
         scene = state_snapshot.get("scene") or {}
         meta = state_snapshot.get("meta") or {}
         pc = state_snapshot.get("pc") or {}

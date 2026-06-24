@@ -155,7 +155,7 @@ class WorldStateFact(BaseModel):
     text: str
     tier: Literal["global", "local"] = "global"
     permanent: bool = False
-    valence: Valence | None = None
+    valence: Valence = Valence.NEUTRAL
     expires_turn: int | None = None
 
 
@@ -165,7 +165,7 @@ class SanitizedWorldStateFact(BaseModel):
     text: str
     tier: Literal["global", "local"] = "global"
     permanent: bool = False
-    valence: Valence | None = None
+    valence: Valence = Valence.NEUTRAL
     expires_turn: int | None = None
 
 

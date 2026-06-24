@@ -199,14 +199,14 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_com
         threads = []
         # From state_snapshot
         ss = ev.get("state_snapshot") or {}
-        arc = ss.get("arc") or {}
+        arc = ss.get("long_term_objective") or {}
         for th in (arc.get("threads") or []):
             if isinstance(th, dict) and th.get("id"):
                 threads.append({
                     "id": th["id"],
                     "dormant": _thread_is_dormant(th),
                     "urgency": th.get("urgency", "normal"),
-                    "progress": (th.get("progress") or [])[-1] if th.get("progress") else "",
+                    "progress": (th.get("major_updates") or [])[-1] if th.get("major_updates") else "",
                 })
                 tid = th["id"]
                 if tid not in all_thread_events:
@@ -610,7 +610,7 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
             urgent_thread = 0
             threat_thread = 0
             ss = ev.get("state_snapshot") or {}
-            arc = ss.get("arc") or {}
+            arc = ss.get("long_term_objective") or {}
             for th in (arc.get("threads") or []):
                 if isinstance(th, dict) and not _thread_is_dormant(th):
                     if th.get("urgency") == "urgent":

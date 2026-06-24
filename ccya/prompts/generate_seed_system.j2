@@ -62,7 +62,7 @@ Build in this order, using everything already established before generating what
 1. **World facts (global tier)** — 3–5 immutable hard constraints that directly affect gameplay choices now (border closures, martial law, banned technologies, faction blockades). No historical backstory older than one generation unless it's an active constraint today. No flavor lore. Fewer high-quality facts beats many generic ones. Each fact must have `tier: "global"`, `permanent: true`, and a `valence` from: "threat", "complication", "neutral", "boon".
 2. **World facts (local tier)** — 2–3 facts specific to the PC's immediate area or situation. Each fact must have `tier: "local"`, `permanent: false`, and a `valence` from: "threat", "complication", "neutral", "boon".
 3. **Key locations** — 4–5 named places that exist in the world at game start. Ordered from most accessible to least known. Include 1–2 breadcrumb locations (places the PC has heard of but not visited). Each has `id`, `name`, `description`, `status`, and `tags`.
-4. **PC situation** — structured situational facts about the PC's current circumstances (vessel, home, crew, debts, alliances). Defined by `pc_situation_schema` in the pack.
+4. **PC situation** — structured situational facts about the PC's current circumstances{% if scenario and scenario.pc_situation_schema %} ({% for s in scenario.pc_situation_schema %}{{ s.key }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Defined by `pc_situation_schema` in the pack.
 5. **Arc origin** — 2–3 sentences in past tense answering "how did the PC end up here?" Seed-time field only, never regenerated.
 6. **Campaign arc** — informed by PC, world state, situation archetype, and character dynamic:
     - `long_term_objective`: multi-stage objective. What happens after the first step succeeds? After it fails?
@@ -147,8 +147,10 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 
 ## PC situation
 - Structured situational facts about the PC's current circumstances.
-- Keys are defined by `pc_situation_schema` in the pack (3–5 keys maximum, all `required: false`).
-- Values are short strings describing the PC's current situation for each key (e.g. "vessel": "The *Sea Wasp*, a 40-foot sloop with a cracked mainsail").
+{% if scenario and scenario.pc_situation_schema %}{% for s in scenario.pc_situation_schema %}
+- `{{ s.key }}` — {{ s.description }}{% endfor %}
+{% else %}- Keys are defined by `pc_situation_schema` in the pack (3–5 keys maximum, all `required: false`).
+{% endif %}- Values are short strings describing the PC's current situation for each key.
 - If a key has no relevant fact, omit it from the output.
 
 ## Inventory rules
