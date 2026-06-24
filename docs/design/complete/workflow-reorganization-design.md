@@ -35,7 +35,7 @@ The current workflow has no trunk-based discipline. All work lands directly on `
 | Merge to main via PR | review-code skill suggests merging the PR. Human approves and merges. No auto-merge. | Keeps human in the loop for the integration decision. |
 | flesh-design merged into review-design | Delete flesh-design skill. review-design absorbs its action-bias into a single output mode. | They validate the same things against source. The split is artificial. |
 | review-design single mode | Single mode: update and refine the existing design doc, surfacing key blockers, design ambiguities, and suggested improvements. No separate "report" vs "sharpen" modes. | One mode is sufficient. The output goes both to the file (restructured sections) and to chat (verdict + summary + blockers). |
-| In-repo planning system | `roadmap/` directory with individual MD files for bugs and features. Status in YAML frontmatter, not directory paths. Auto-generated `roadmap/index.md`. Slug-based status values: bugs (new, validated, done, canceled), features (idea, scoping, up-next, done, canceled). | Agent-readable, agent-writable. Slug ties roadmap entry → design → plan → branch → PR. |
+| In-repo planning system | `roadmap/` directory with individual MD files for bugs and features. Status in YAML frontmatter, not directory paths. Auto-generated `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md`. Slug-based status values: bugs (new, validated, done, canceled), features (idea, scoping, up-next, done, canceled). | Agent-readable, agent-writable. Slug ties roadmap entry → design → plan → branch → PR. |
 | Status in file, not in path | Status is a frontmatter field. Files stay in `bugs/` or `features/` regardless of status. Completed items move to `archive/`. | Moving files between directories per status change is friction. A field update is one edit. |
 | Planning lifecycle tied to skills | Skills update roadmap status spontaneously at each phase transition (scoping → up-next → validated → done). Design docs update their own status (scoping → reviewed → implemented). | Self-tracking. No separate status-update workflow. |
 | "Stay in your lane" as cross-skill rule | Only touch files the plan or design explicitly names. Do not restore deleted files, revert prior work, or modify anything outside your stated scope. | Prevents agents from undoing intentional deletions or reverting other agents' work. |
@@ -148,7 +148,7 @@ A Python script `scripts/generate-roadmap.py`:
 - Scans `roadmap/bugs/`, `roadmap/features/`, `roadmap/archive/`
 - Parses YAML frontmatter from each MD file
 - Groups items by status
-- Writes `roadmap/index.md` with sections:
+- Writes `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md` with sections:
   - **Queued** (up-next)
   - **Validating** (validated)
   - **Done** (done)
@@ -315,7 +315,7 @@ Already fixed. `~/.config/opencode/*` is on the external_directory allow list. `
 - review-code severity levels and checklist — unchanged
 - Global AGENTS.md Cascade and Anti-tool Looping — unchanged
 - Local ccya AGENTS.md content — will be updated (skill descriptions, workflow rules, roadmap conventions)
-- The auto-generated `roadmap/index.md` — informational only, never the source of truth
+- The auto-generated `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md` — informational only, never the source of truth
 
 ## New Model Shapes
 

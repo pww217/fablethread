@@ -59,7 +59,7 @@ new-game:
 	uv run python -m ccya --new-game
 
 roadmap:
-	uv run python scripts/generate-roadmap.py
+	uv run python scripts/generate-roadmap.py $(ARGS)
 
 vendor:
 	mkdir -p ccya/static/vendor
