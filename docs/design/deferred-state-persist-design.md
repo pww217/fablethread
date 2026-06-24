@@ -175,7 +175,7 @@ Removed entirely. `pop_persist_started` was already removed in completed plan `t
 
 ## Risks, Ambiguities, and Blockers
 
-- **Race: cancel after write starts.** The atomic write block is not truly atomic across multiple files (`events.jsonl`, `state.yaml`, `chroncle.md`, `prompts.jsonl`). `server_errors.jsonl` is written by `ccya/server/app.py` (route-level error handlers), not by `turn.py`, so it cannot be part of turn's atomic write. If cancel arrives after `append_event` but before `save_state`, the event is on disk but state is from the previous turn. Mitigation: check cancel flag at the top of the write block. If set, skip the entire block and return. The cancel endpoint waited for `_turn_done` — if the generator exits without writing, cancel sees nothing to revert.
+- **Atomic write block — cancel vs crash.** The atomic write block handles cancel mid-write (check flag, skip block). But `events.jsonl` and `chronicle.md` are append-only files — you can't `os.replace` them with a temp file without losing every prior turn's events. `state.yaml` works because it's a single-file snapshot. `prompts.jsonl` is small enough to treat like `state.yaml` (write to temp, rename). **Mitigation:** write `events.jsonl` and `chronicle.md` to temp files first, then rename all files in sequence. If a crash hits mid-sequence, you get a mismatch (e.g., `state.yaml` updated but `events.jsonl` not), but this is astronomically rare — requires a crash *between* two `os.replace` calls, not during a write. `server_errors.jsonl` is written by `ccya/server/app.py` (route-level error handlers), not by `turn.py`, so it cannot be part of turn's atomic write.
 - **Panel render HTML generation.** The `_render_scene_panel(state)` etc. functions must produce HTML matching the current Jinja2 templates. These are extracted from the existing template rendering path (e.g., HTMX partial swaps). If templates change, panel render functions must be kept in sync.
 - **SSE event ordering.** The frontend receives narrative tokens interleaved with `panel_update` events. The frontend must handle `panel_update` independently of narrative streaming — no ordering assumption beyond "panel_update for panel X arrives after its phase completes."
 - **EV tooling migration.** Renaming `state_snapshot` to `last_turn_state` touches ~15 files. Each change is a mechanical find-and-replace, but the `prompt_context.py` reader logic must be carefully verified: the semantics change from "frozen copy of pre-sanitizer state" to "complete post-turn state including sanitizer."
@@ -193,7 +193,7 @@ Removed entirely. `pop_persist_started` was already removed in completed plan `t
 
 ### State management
 - `ccya/state/io.py` — `restore_snapshot_state` was already removed in completed plan `tooling-infra/dead-code-removal.md`. Consider removing the orphaned `state_snapshot.yaml` cleanup at line 136 (no file is ever written by that name anymore).
-- `ccya/state/chronicle.py` — `remove_last_event()` (verify no orphaned event concern with single-write model)
+- `ccya/state/chronicle.py` — `remove_last_event()` (verify no orphaned event concern with single-write model); update `append_event` and `append_chronicle` to write to temp files then `os.replace` for maximum crash resilience
 
 ### EV tooling (in scope)
 - `ccya/ev/prompt_context.py` — `state_snapshot` → `last_turn_state`; extend `prev_snap` usage to cover all fields except turn-specific metadata (band, scene_phase, curtain_call, allowed_beat_types)
@@ -222,13 +222,17 @@ ruling ──→ narrate ──→ scene extract ──→ state extract ──�
                                           sanitizer runs in-memory
                                                     │
                                                     ↓
-                                          ┌─────────────────────┐
-                                          │  Atomic write block │
-                                          │  ─ save_state       │
-                                          │  ─ append_event     │
-                                          │  ─ append_chronicle │
-                                          │  ─ append_prompts   │
-                                          └─────────────────────┘
+                                           ┌─────────────────────┐
+                                           │  Atomic write block │
+                                           │  ─ save_state       │
+                                           │  ─ write_event*     │
+                                           │  ─ write_chronicle* │
+                                           │  ─ write_prompts    │
+                                           └─────────────────────┘
+                                           * Write to temp file, then os.replace
+                                           * events.jsonl and chronicle.md are
+                                           * append-only — true atomicity not
+                                           * possible, but crash gap is negligible
                                                     │
                                                     ↓
                                             yield ("complete", ...)
@@ -298,7 +302,7 @@ The design says `_render_scene_panel(state)` etc. are "extracted from the existi
 
 ### 4. Atomic write block handles cancel but not crashes
 
-The design mitigates cancel mid-write (check flag, skip block). But if the process crashes mid-write (e.g., `save_state` succeeds but `append_event` crashes), you still get partial corruption — event on disk but state not updated, or vice versa. The cancel flag check doesn't help here. **Mitigation:** use atomic file operations (write to temp files, then rename) for `events.jsonl` and `chronicle.md` too, or accept this limitation and document it.
+The design mitigates cancel mid-write (check flag, skip block). But `events.jsonl` and `chronicle.md` are append-only files — you can't `os.replace` them with a temp file without losing every prior turn's events. `state.yaml` works because it's a single-file snapshot. `prompts.jsonl` is small enough to treat like `state.yaml` (write to temp, rename). **Mitigation:** write `events.jsonl` and `chronicle.md` to temp files first, then rename all files in sequence. If a crash hits mid-sequence, you get a mismatch (e.g., `state.yaml` updated but `events.jsonl` not), but this is astronomically rare — requires a crash *between* two `os.replace` calls, not during a write. Accept this limitation and document it.
 
 ### 5. `clear_all_turn_locks()` still references `_persist_started`
 
