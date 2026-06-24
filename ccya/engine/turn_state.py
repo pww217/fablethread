@@ -472,23 +472,6 @@ def _apply_state_updates(
         else:
             meta.pop("last_condition_change_reason", None)
 
-        # TTL expiry: remove world state facts whose expires_turn has passed
-        ws = state.get("scene", {}).get("world_state", [])
-        expired_ids: list[str] = []
-        for fact in ws:
-            if isinstance(fact, dict) and fact.get("expires_turn") is not None and fact["expires_turn"] <= turn_no:
-                fact_id = fact.get("id", "")
-                if fact_id:
-                    expired_ids.append(fact_id)
-        if expired_ids:
-            state.setdefault("scene", {})["world_state"] = [
-                f for f in ws if not (isinstance(f, dict) and f.get("id") in expired_ids)
-            ]
-            _log.info(
-                "world_state.ttl_expiry trace_id=%s turn=%d expired=%s",
-                trace_id, turn_no, expired_ids, extra={"trace_id": trace_id, "turn": turn_no},
-            )
-
         # Stamp last_presence_turn and last_seen_location on touched NPCs; create minimal entry if new
         comp = state.get("compendium", {}).get("npcs", {})
         location = state.get("location", {})

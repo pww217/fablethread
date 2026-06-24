@@ -85,6 +85,7 @@ def _default_state() -> dict[str, Any]:
             },
             "conditions": [],
             "allegiance": None,
+            "situation": {},
         },
         "location": {"id": "", "name": "", "description": ""},
         "inventory": [],
