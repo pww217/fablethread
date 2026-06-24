@@ -2162,14 +2162,16 @@ function _highlightEntities(container, state) {
 
     // Collect NPC names
     const npcs = (state.compendium && state.compendium.npcs) || {};
+    const numericWords = new Set(['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']);
     for (const id in npcs) {
         const entry = npcs[id];
         if (entry && entry.name) {
             names.push({ name: entry.name, cls: 'entity-npc' });
             const parts = entry.name.split(/\s+/);
             if (parts.length > 1) {
-                names.push({ name: parts[0], cls: 'entity-npc' });
-                names.push({ name: parts[parts.length - 1], cls: 'entity-npc' });
+                if (!numericWords.has(parts[0].toLowerCase())) names.push({ name: parts[0], cls: 'entity-npc' });
+                const last = parts[parts.length - 1];
+                if (!numericWords.has(last.toLowerCase())) names.push({ name: last, cls: 'entity-npc' });
             }
         }
     }
@@ -2186,8 +2188,9 @@ function _highlightEntities(container, state) {
         names.push({ name: pcName, cls: 'entity-pc' });
         const pcParts = pcName.split(/\s+/);
         if (pcParts.length > 1) {
-            names.push({ name: pcParts[0], cls: 'entity-pc' });
-            names.push({ name: pcParts[pcParts.length - 1], cls: 'entity-pc' });
+            if (!numericWords.has(pcParts[0].toLowerCase())) names.push({ name: pcParts[0], cls: 'entity-pc' });
+            const last = pcParts[pcParts.length - 1];
+            if (!numericWords.has(last.toLowerCase())) names.push({ name: last, cls: 'entity-pc' });
         }
     }
 
@@ -2593,7 +2596,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <div id="hint-right" class="gutter-hint gutter-hint--right"></div>
 
 <!-- Initial game state for client-side entity highlighting -->
-<script id="initial-state" type="application/json">{{ state if state else {} | tojson | safe }}</script>
+<script id="initial-state" type="application/json">{{ (state if state else {}) | tojson | safe }}</script>
 
 </body>
 </html>
