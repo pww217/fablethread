@@ -1,16 +1,45 @@
 ---
 title: "Convergence Starvation — Pacing Engine"
-status: new
+status: up-next
 urgency: 2
 size: large
 created: 2026-06-22
+design: docs/design/convergence-proactive-design.md
 labels:
   - pacing
   - convergence
   - engine
+  - phase-transitions
 ---
 
-## Problem
+## Validation
+
+**Validated: confirmed root cause.**
+
+### Root Cause Confirmed
+
+`compute_convergence_score()` in `_pacing.py:86-142` computes a 5-component score that is **entirely reactive** — every component depends on current state, nothing injects pressure proactively:
+
+1. `any_urgent` (+1): Any non-dormant thread with urgency="urgent"
+2. `any_threat` (+1): Any non-dormant thread with type="threat"
+3. `scene_age` (+1): Scene age >= scene_pressure_threshold (default 3)
+4. `beat_streak` (+1): ≥60% of last 5 beats are pressure types
+5. `dice_weight` (+1): any_urgent AND rolled AND band in crit_fail/fail
+
+Phase transition at `_pacing.py:262`: `RISING → CLIMAX` requires `convergence_score >= config.convergence_threshold` (default 2). If all 5 components are 0, convergence stays at 0 forever — no mechanism to recover.
+
+### Contributing Factors Confirmed
+
+1. **Stealth-heavy play style** — ruling system classifies idle observation/unimpeded movement as "no check required" → no rolls → no dice_weight component. This is by design (`routes.py` ruling system).
+2. **No rolls → no beat streak** — null beats (34-57%) mean no beats to streak. Beat driver is always "motivation" (not pressure types).
+3. **Thread urgency skewed** — most threads are "normal" urgency, not "urgent". `any_urgent` component stays 0.
+4. **Fresh scene** — `scene_age < scene_pressure_threshold` when just entered RISING.
+
+### Assessment
+
+This is a real architectural gap. The convergence system has no proactive pressure injection. All 4 suggested fixes (proactive injection, floor, narrative transitions, urgency escalation) are valid approaches. Proactive pressure injection (Option A) is recommended as it addresses the root cause directly.
+
+---
 
 When all 5 convergence components are 0, there is no mechanism to recover. The phase machine waits for `convergence >= convergence_threshold` (default 2) to transition RISING→CLIMAX, but if convergence is 0, it can never reach the threshold. This creates "convergence dead spots" where the game state is completely static.
 

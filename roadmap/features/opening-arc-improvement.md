@@ -1,6 +1,7 @@
 ---
 title: "Opening arc improvement"
-status: scoping
+status: done
+completed: 2026-06-24
 urgency: 4
 size: medium
 created: 2026-06-14

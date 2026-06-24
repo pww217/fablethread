@@ -1,6 +1,7 @@
 ---
 title: "Threads as fact sheet + objectives, multiple arcs"
-status: idea
+status: done
+completed: 2026-06-24
 urgency: 4
 size: large
 created: 2026-06-14

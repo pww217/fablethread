@@ -1,6 +1,7 @@
 ---
 title: "[World] World state shows bloat, not active constraints"
-status: scoping
+status: done
+completed: 2026-06-24
 urgency: 3
 size: medium
 created: 2026-06-12
