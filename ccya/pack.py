@@ -90,6 +90,7 @@ class SeedEnvelope(BaseModel):
     opening_narrative: str = Field(min_length=50)
     actions: list[str] = Field(min_length=4, max_length=4)
     arc: LongTermObjective | None = None
+    arc_origin: str = ""
     outcome_summary: str = ""
 
 

@@ -357,6 +357,8 @@ async def generate_seed(
         if envelope.arc:
             envelope.seed_state.arc = envelope.arc
             arc = envelope.seed_state.arc
+        if envelope.arc_origin:
+            envelope.seed_state.arc_origin = envelope.arc_origin
             if arc and hasattr(arc, "threads"):
                 # Set started_turn to the current turn (usually 1 at seed time)
                 if getattr(arc, "started_turn") is None:

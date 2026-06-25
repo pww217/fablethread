@@ -155,13 +155,16 @@ moral_pressures:
 
 pc_situation_schema:
   - key: vessel
-    description: What vessel does the PC have, and in what condition?
+    description: What vessel does the PC have? Name, type, condition, and features.
     required: false
-  - key: settlement
-    description: What settlement or outpost does the PC call home?
+  - key: home_port
+    description: What port or station does the PC dock or claim as home?
     required: false
-  - key: faction_alignment
-    description: What faction, guild, or group does the PC align with?
+  - key: reputation
+    description: How is the PC known or unknown? Feared, respected, or just another face?
+    required: false
+  - key: filiation
+    description: What faction or guild is the PC aligned with or registered under?
     required: false
 
 npc_bonds:

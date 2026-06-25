@@ -29,7 +29,7 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
 {
   seed_state: {
     meta: {turn: 0, model: string, setting_pack: string, session_name: string},
-    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, charisma: int}, conditions: [], situation: {key: string}},
+    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, charisma: int}, conditions: [], situation: { {% if scenario and scenario.pc_situation_schema %}{% for s in scenario.pc_situation_schema %}{{ s.key }}: string{% if not loop.last %}, {% endif %}{% endfor %}{% else %}key: string{% endif %} }},
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {tags: string[], world_state: Array<{id: string, text: string, tier: "global" | "local", permanent: boolean, valence: "threat" | "complication" | "neutral" | "boon", expires_turn: int | null}>},
@@ -68,6 +68,8 @@ Build in this order, using everything already established before generating what
     - `long_term_objective`: multi-stage objective. What happens after the first step succeeds? After it fails?
     - `threads`: see Thread rules below.
 7. **Opening scene + NPCs** — instantiates the situation archetype concretely.
+   7a. Generate scene NPCs (at least 1 present in opening scene).
+   7b. For every person named in `pc_situation`, create a compendium entry with presence set appropriately. These are REQUIRED — do not skip.
 8. **Inventory** — appropriate to scene and PC concept.
 
 **Cross-field consistency (mandatory):**
@@ -119,6 +121,8 @@ Choose the archetype that best fits the NPC's motivation, fear, and narrative ro
 
 Do NOT add `relation` or `notes` to compendium entries — engine-managed at runtime.
 
+**NPC generation from pc_situation (mandatory):** For every person named in `pc_situation` values, create a compendium entry with the full name from `pc_situation`. Give them a `bio`, presence (known/nearby/present), and all 5 personality fields. Scene NPCs come from the opening scene — pc_situation NPCs are in addition to scene NPCs.
+
 ## PC field rules
 - `pc.name`: given name + family name (e.g. "Mira Sovak"). No single-word names.
 - `pc.tagline`: 5–10 words — role + defining trait (e.g. "Structural engineer, nine months sober").
@@ -150,6 +154,8 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - `{{ s.key }}` — {{ s.description }}{% endfor %}
 {% else %}- Keys are defined by `pc_situation_schema` in the pack (3–5 keys maximum, all `required: false`).
 {% endif %}- Values are short strings describing the PC's current situation for each key.
+- Values may include names of people or places. Names in `pc_situation` are the source of truth for NPC generation.
+- **When mentioning family members, always include a full name** (given + PC's family name). BAD: "Wife Clara in Morganstead." GOOD: "Wife Clara Vance in Morganstead."
 - If a key has no relevant fact, omit it from the output.
 
 ## Inventory rules
@@ -206,6 +212,9 @@ Bad summary: "Go to Saint Mercy Hospital and find the ledger."
 - NPCs appear in action, not in introduction.
 - Let arc tension surface through what the player observes, not what the narrator announces.
 - Weave in world state facts naturally — don't list them. If a border closure is a world fact, show its effect (a checkpoint, a denied passage) rather than stating it.
+- Weave in pc_situation naturally — establish the PC's baseline so the player and narrator treat it as ground truth. Every key from pc_situation must surface in the opening narrative (e.g., if pc_situation has vessel and home_port, mention both). Do not list them; integrate through environmental detail, dialogue, or internal observation.
+- Weave in arc_origin naturally — establish the world-level event or condition that shaped the current situation. Through environmental detail, character dialogue, or the PC's internal observation, make the arc_origin felt as a background pressure. The arc_origin's core event or its direct consequences should be evident in the scene's tension or setting.
+- The opening scene must be set in or near one of the key locations from `world.locations`. Reference the location's description and status through environmental detail.
 - If a present NPC has a personal tie to the PC (shared history, debt, emotional bond), show it through action or dialogue — not exposition.
 - If there's a compendium NPC known to the PC but not present, reference them naturally in narration (a phone call, a rumor, a memory).
 
