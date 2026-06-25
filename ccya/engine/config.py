@@ -190,6 +190,8 @@ class EngineConfig:
     # NPC lifecycle TTLs
     nearby_decay_ttl: int = 2       # turns before nearby → known auto-decay
     departed_archive_ttl: int = 3  # turns as "departed" before → archived
+    # Condition TTL
+    condition_default_ttl: int = 10  # turns assigned when LLM omits turns_remaining
 
     debug_mode: bool = False
 
@@ -308,6 +310,8 @@ def build_engine_config(
         debug_mode=bool(game.get("debug", {}).get("enabled", False)),
 
         checkers=_build_checkers_config(cfg),
+
+        condition_default_ttl=int(game.get("condition_default_ttl", 10)),
     )
 
 

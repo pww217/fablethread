@@ -46,9 +46,14 @@ IDs are immutable once assigned. If an item is renamed or upgraded, use `invento
 
 ## Before emitting any inventory change
 
-1. Check the `## inventory` list. If the item likely matches an existing entry (e.g. narration says "dagger" and `worn_dagger` exists), use the existing ID and emit `inventory_update` instead of `inventory_add`.
-2. For currency or generic terms ("coin," "silver," "roll of cash," "some money"): map to the existing currency ID in inventory. Never invent a new currency ID. If the narration mentions currency but no matching currency ID exists in inventory, emit `inventory_add` with the pack's currency ID (from the seed inventory's currency item).
-3. Clamp all remove amounts to the current stack. Never emit a remove amount exceeding what exists in inventory.
+**CRITICAL — Match by name, not by guessing IDs:**
+
+The `## inventory` list shows items by their display name (e.g., "Colt Detective Special", ".38 Caliber Rounds", "Engraved Brass Knuckles"). The narration will mention items by these same names.
+
+1. **If the narration mentions an item that appears in the `## inventory` list by name, you MUST use that item's existing ID.** Do NOT generate a new ID from the narration text. Example: narration says "Colt Detective Special" → use ID `heavy_revolver` (not `colt_detective_special`). Narration says ".38 Caliber Rounds" → use ID `revolver_rounds` (not `.38_caliber_rounds`).
+2. **If the narration mentions an item NOT in the inventory list**, it is a genuinely new item — emit `inventory_add` with a new ID.
+3. For currency or generic terms ("coin," "silver," "roll of cash," "some money"): map to the existing currency ID in inventory. Never invent a new currency ID. If the narration mentions currency but no matching currency ID exists in inventory, emit `inventory_add` with the pack's currency ID (from the seed inventory's currency item).
+4. Clamp all remove amounts to the current stack. Never emit a remove amount exceeding what exists in inventory.
 
 ## Quantities
 
@@ -65,7 +70,7 @@ Ammo is individual rounds. "Shot"→-1, "burst"→2-4. Reloading→no change.
   "inventory_remove": [{"id": "..."}],
   "inventory_add": [{"id": "...", "name": "...", "notes": "...", "amount": 1}],
   "pc_condition_remove": [{"id": "..."}],
-  "pc_condition_add": [{"id": "...", "label": "...", "description": "..."}],
+  "pc_condition_add": [{"id": "...", "label": "...", "description": "...", "turns_remaining": 5}],
   "location_change": {"id": "...", "name": "...", "description": "..."},
   "location_description": "..."
 }
@@ -104,7 +109,18 @@ Ammo is individual rounds. "Shot"→-1, "burst"→2-4. Reloading→no change.
 
 `pc_condition_add`: new conditions with a clear, substantial cause in the narration. Max 2 per turn. Total active conditions must not exceed 5 — if at cap, remove the least relevant before adding.
 
+**CRITICAL — Do NOT add conditions already in `active_conditions`:** The `## active_conditions` section shows all conditions currently on the PC. If a condition already appears there, do NOT add it again. Only add conditions that are NOT in the active_conditions list.
+
 Only add a condition if it would plausibly affect at least one future dice roll. Do not add flavor conditions with no mechanical relevance.
+
+**Duration guidance for `turns_remaining`:**
+- 1–2 turns: sensory/transient — winded, ears ringing, dust in eyes, momentary disorientation
+- 3–4 turns: minor discomfort — bruised ribs, muscle strain, sprained ankle, minor cut, rattled, smoke inhalation, dehydration
+- 5–6 turns: significant wounds — deep bruising, serious laceration (no stitches needed), broken nose, moderate burns, concussion symptoms
+- 7+ turns: major long-term threats — severe poisoning, radiation sickness, progressive disease, gangrenous wound
+- "permanent": won't heal without professional/story intervention. Broken bone, amputated limb, permanent disfigurement, cursed, lost eye, severe burns requiring stitches
+
+When in doubt, assign a longer duration rather than a shorter one.
 
 **Condition removal guidance — consider age AND severity:**
 

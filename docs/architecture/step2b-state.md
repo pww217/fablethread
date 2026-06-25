@@ -27,7 +27,7 @@ flowchart LR
         O1["inventory_add: list[InventoryItem]<br>  id, name, notes, amount"]:::outNode
         O2["inventory_remove: list[InventoryRemove]<br>  id, amount (None = full stack)"]:::outNode
         O3["inventory_update: list[InventoryUpdate]<br>  id, name?, notes?"]:::outNode
-        O4["pc_condition_add: list[ConditionAdd]<br>  id, label, description"]:::outNode
+        O4["pc_condition_add: list[ConditionAdd]<br>  id, label, description, turns_remaining (int | Literal[\"permanent\"])"]:::outNode
         O5["pc_condition_remove: list[ConditionRemove]<br>  id"]:::outNode
         O6["location_change: LocationRef | None<br>  id, name, description"]:::outNode
         O7["location_description: str | None"]:::outNode
