@@ -1,6 +1,7 @@
 ---
 title: Beat Phase Violations — Invalid Beat Types in BREATHER Phase
-status: new
+status: canceled
+canceled_reason: BEAT_PHASE_MAP already includes revelation and opportunity in BREATHER; Scene Pressure directive is phase-agnostic age-based signal, not a beat override. Both flagged violations are valid per current code.
 urgency: 3
 size: small
 created: 2026-06-24

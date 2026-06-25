@@ -118,12 +118,12 @@ class EngineConfig:
     #                      config panels (future use). Currently none.
     #
     host: str = "http://localhost:8080/v1"
-    model: str = "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit-thinking"
+    model: str = "mlx-community/gemma-4-26b-a4b-it-mxfp8"
     request_timeout_s: int = 1200
     ruling_temperature: float = 0.2
     extract_temperature: float = 0.4
     narrate_temperature: float = 0.9
-    generate_seed_temperature: float = 0.9
+    generate_seed_temperature: float = 0.7
 
     # ruling
     ruling_top_p: float = 0.8
