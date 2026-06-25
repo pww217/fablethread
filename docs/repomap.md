@@ -65,6 +65,13 @@
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter; StreamHandler |
 | `ccya/prompts/` | Jinja2 prompt templates (system + user) + shared includes (sections/) |
 | `ccya/templates/` | HTML UI templates (sidebar, modals, character sheets) |
+| `ccya/static/tokens.css` | Design tokens, base reset, fluid typography |
+| `ccya/static/app-shell.css` | Main game UI — shell layout, header, narrative column, sidebars, modals, responsive rules |
+| `ccya/static/chronicle.css` | Chronicle overlay — turn log shell, panel, scrollbar |
+| `ccya/static/turn-viewer.css` | Standalone full-page debug turn viewer |
+| `ccya/static/game-utils.js` | Pure utility functions — markdown, entities, tooltips, display drain, pills |
+| `ccya/static/game.js` | Alpine components — `charCreation()`, `worldBuilder()`, `game()` |
+| `ccya/static/app-init.js` | DOM initialization — `DOMContentLoaded` handlers, HTMX wiring, pills layout |
 
 ## Key entry points
 
