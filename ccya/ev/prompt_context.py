@@ -79,9 +79,9 @@ def build_prompt_context(
 ) -> dict[str, Any]:
     """Build the context dict for rendering a prompt for the given stream and turn.
 
-    Uses the previous turn's post-turn state_snapshot for fields that change
-    during storytell (pending_beat, recent_beats) and the current turn's event
-    data for fields set before storytell (band, scene_phase, allowed_beat_types).
+    Uses the previous turn's last_turn_state for all state fields, and the
+    current turn's event data for turn-specific metadata (band, scene_phase,
+    allowed_beat_types).
 
     Known limitations:
     - conditions/inventory reflect post-storytell state (close to pre-storytell)
@@ -93,33 +93,32 @@ def build_prompt_context(
         print(f"Error: turn {turn_no} not found", file=sys.stderr)
         sys.exit(1)
 
-    # Use previous turn's state_snapshot for fields that change during storytell
+    # Use previous turn's last_turn_state for all state fields
     prev_ev = _find_prev_event(events, turn_no)
-    prev_snap = (prev_ev.get("state_snapshot") or {}) if prev_ev else {}
+    prev_snap = (prev_ev.get("last_turn_state") or {}) if prev_ev else {}
     prev_meta = prev_snap.get("meta") or {}
 
-    state_snapshot = turn_ev.get("state_snapshot") or {}
     narration = (turn_ev.get("narrate") or {}).get("output", "")
     intent = (turn_ev.get("ruling") or {}).get("intent")
 
     if stream == "scene":
-        pc = state_snapshot.get("pc") or {}
-        comp = state_snapshot.get("compendium", {}).get("npcs", {})
+        pc = prev_snap.get("pc") or {}
+        comp = prev_snap.get("compendium", {}).get("npcs", {})
         npc_roster = _build_npc_roster(comp)
         pc_name = pc.get("name", "Unnamed")
         return {
             "narration": narration,
-            "location": state_snapshot.get("location") or {},
+            "location": prev_snap.get("location") or {},
             "npc_roster": npc_roster,
             "pc_name": pc_name,
             "turn_no": turn_no,
         }
 
     if stream == "storytell":
-        arc = state_snapshot.get("arc") or {}
-        scene = state_snapshot.get("scene") or {}
-        meta = state_snapshot.get("meta") or {}
-        pc = state_snapshot.get("pc") or {}
+        arc = prev_snap.get("arc") or {}
+        scene = prev_snap.get("scene") or {}
+        meta = prev_snap.get("meta") or {}
+        pc = prev_snap.get("pc") or {}
         # Format thread progress like _storytell_messages does
         all_threads = []
         for t in (arc.get("threads") or []):
@@ -132,11 +131,12 @@ def build_prompt_context(
             else:
                 all_threads.append({"id": "", "summary": ""})
         # Build NPC roster from compendium
-        comp = state_snapshot.get("compendium", {}).get("npcs", {})
+        comp = prev_snap.get("compendium", {}).get("npcs", {})
         npc_roster = _build_npc_roster(comp)
         # Compute curtain_call like the engine does
         curtain_call = ""
-        if scene.get("scene_phase") == "CLIMAX":
+        scene_phase = turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP")
+        if scene_phase == "CLIMAX":
             climax_turn_count = scene.get("climax_turn_count", 0)
             climax_turn_limit = scene.get("climax_turn_limit", 5)
             if climax_turn_count >= climax_turn_limit - 1:
@@ -156,8 +156,8 @@ def build_prompt_context(
         return {
             "narration": narration,
             "npc_roster": npc_roster,
-            "location": state_snapshot.get("location") or {},
-            "inventory": state_snapshot.get("inventory") or [],
+            "location": prev_snap.get("location") or {},
+            "inventory": prev_snap.get("inventory") or [],
             "conditions": list(pc.get("conditions") or []),
             "current_objective": arc,
             "all_threads": all_threads,
@@ -174,42 +174,42 @@ def build_prompt_context(
             "turn_no": turn_no,
             # Read band from current turn's ruling outcome
             "band": (turn_ev.get("ruling") or {}).get("band", ""),
-            "scene_phase": scene.get("scene_phase", "SETUP"),
+            "scene_phase": scene_phase,
             "curtain_call": curtain_call,
             "allowed_beat_types": turn_ev.get("allowed_beat_types") or [],
-            "state": state_snapshot,
+            "state": prev_snap,
             "pc_name": pc.get("name", "Unnamed"),
         }
 
     if stream == "ruling":
-        comp = state_snapshot.get("compendium", {}).get("npcs", {})
+        comp = prev_snap.get("compendium", {}).get("npcs", {})
         npc_roster = _build_npc_roster(comp)
-        arc = state_snapshot.get("arc") or {}
-        pc = state_snapshot.get("pc") or {}
+        arc = prev_snap.get("arc") or {}
+        pc = prev_snap.get("pc") or {}
         urgent_threads = [
             {"id": t.get("id", ""), "summary": t.get("summary", ""), "progress": t.get("major_updates", [])}
             for t in (arc.get("threads") or []) if t.get("urgency") == "urgent"
         ]
         return {
             "pc": pc,
-            "location": state_snapshot.get("location") or {},
+            "location": prev_snap.get("location") or {},
             "user_input": "",
             "meta": {"turn": turn_no},
             "npc_roster": npc_roster,
-            "inventory": state_snapshot.get("inventory") or [],
+            "inventory": prev_snap.get("inventory") or [],
             "recent_turns": [],
-            "scene_phase": state_snapshot.get("scene", {}).get("scene_phase", "SETUP"),
+            "scene_phase": prev_snap.get("scene", {}).get("scene_phase", "SETUP"),
             "urgent_threads": urgent_threads,
-            "state": state_snapshot,
+            "state": prev_snap,
         }
 
     if stream == "narrate":
-        comp = state_snapshot.get("compendium", {}).get("npcs", {})
+        comp = prev_snap.get("compendium", {}).get("npcs", {})
         npc_roster = _build_npc_roster(comp)
-        arc = state_snapshot.get("arc") or {}
-        scene = state_snapshot.get("scene") or {}
-        meta = state_snapshot.get("meta") or {}
-        pc = state_snapshot.get("pc") or {}
+        arc = prev_snap.get("arc") or {}
+        scene = prev_snap.get("scene") or {}
+        meta = prev_snap.get("meta") or {}
+        pc = prev_snap.get("pc") or {}
         current_objective_ctx = None
         if arc:
             all_threads = [t for t in (arc.get("threads") or [])]
@@ -240,7 +240,7 @@ def build_prompt_context(
             elif climax_turn_count == 1:
                 curtain_call = "active"
         return {
-            "state": state_snapshot,
+            "state": prev_snap,
             "pc": pc,
             "prior_history": list((meta.get("prior_history") or [])[:-1]),
             "recent_turns": [],
@@ -251,7 +251,7 @@ def build_prompt_context(
             "pacing_context": turn_ev.get("pacing_context") or {},
             "turn_no": turn_no,
             "meta": {"turn": turn_no},
-            "scene": state_snapshot.get("scene", {}),
+            "scene": prev_snap.get("scene", {}),
             "ages": {},
             "pc_allegiance": None,
             "world_factions": [],
@@ -259,21 +259,21 @@ def build_prompt_context(
             "current_objective": current_objective_ctx,
             "curtain_call": curtain_call,
             "resolved_arcs": [],
-            "location": state_snapshot.get("location") or {},
-            "inventory": state_snapshot.get("inventory") or [],
+            "location": prev_snap.get("location") or {},
+            "inventory": prev_snap.get("inventory") or [],
             "conditions": list(pc.get("conditions") or []),
         }
 
     if stream == "state":
-        pc = state_snapshot.get("pc") or {}
+        pc = prev_snap.get("pc") or {}
         return {
             "narration": narration,
             "conditions": list(pc.get("conditions") or []),
-            "inventory": state_snapshot.get("inventory") or [],
-            "location": state_snapshot.get("location") or {},
+            "inventory": prev_snap.get("inventory") or [],
+            "location": prev_snap.get("location") or {},
             "intent": intent if isinstance(intent, dict) else None,
             "turn_no": turn_no,
-            "state": state_snapshot,
+            "state": prev_snap,
             "pc_name": pc.get("name", "Unnamed"),
         }
 

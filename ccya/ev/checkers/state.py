@@ -17,7 +17,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "location_description_consistency", "deterministic",
-    requires_fields=["state_snapshot.location.description"],
+    requires_fields=["last_turn_state.location.description"],
     description="Verify extracted location description is non-empty and substantive",
 )
 def location_description_consistency(events: list[dict[str, Any]]) -> CheckerResult:
@@ -27,8 +27,8 @@ def location_description_consistency(events: list[dict[str, Any]]) -> CheckerRes
     cfg = EngineConfig().checkers
 
     for ev in events:
-        state_snapshot = extract_field(ev, "state_snapshot") or {}
-        location = state_snapshot.get("location") or {}
+        last_turn_state = extract_field(ev, "last_turn_state") or {}
+        location = last_turn_state.get("location") or {}
         description = location.get("description") or ""
 
         if not description.strip():
@@ -69,7 +69,7 @@ def location_description_consistency(events: list[dict[str, Any]]) -> CheckerRes
 
 @register_checker(
     "world_state_facts", "deterministic",
-    requires_fields=["state_snapshot.scene.world_state"],
+    requires_fields=["last_turn_state.scene.world_state"],
     description="Verify world_state facts are non-empty strings or dicts with text",
 )
 def world_state_facts(events: list[dict[str, Any]]) -> CheckerResult:
@@ -79,8 +79,8 @@ def world_state_facts(events: list[dict[str, Any]]) -> CheckerResult:
     cfg = EngineConfig().checkers
 
     for ev in events:
-        state_snapshot = extract_field(ev, "state_snapshot") or {}
-        scene = state_snapshot.get("scene") or {}
+        last_turn_state = extract_field(ev, "last_turn_state") or {}
+        scene = last_turn_state.get("scene") or {}
         world_state = scene.get("world_state") or []
 
         if not world_state:

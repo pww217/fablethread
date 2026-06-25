@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "arc_resolution_validity", "deterministic",
-    requires_fields=["extraction.storytell", "state_snapshot"],
+    requires_fields=["extraction.storytell", "last_turn_state"],
     description="arc_resolve has resolution + long_term_objective",
     needs_non_turn_events=True,
 )

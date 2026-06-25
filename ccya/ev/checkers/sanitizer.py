@@ -32,8 +32,8 @@ def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any]) -> 
     turn_states: dict[int, dict[str, Any]] = {}
     for ev in events:
         ts = ev.get("turn")
-        if ts is not None and "state_snapshot" in ev:
-            turn_states[ts] = ev["state_snapshot"]
+        if ts is not None and "last_turn_state" in ev:
+            turn_states[ts] = ev["last_turn_state"]
 
     for sev in sanitizer_events:
         sev_turn = sev.get("turn")

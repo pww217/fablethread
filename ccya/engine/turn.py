@@ -12,7 +12,7 @@ from typing import Any, AsyncIterator
 
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
-from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts, is_cancel_requested, register_persist, register_turn, signal_turn_done
+from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts, is_cancel_requested, register_turn, signal_turn_done
 from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.extraction import (
     _avg_event_ms,
@@ -432,10 +432,7 @@ async def run_turn(
                 "context_meta": _context_meta(rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars),
             },
         }
-        # Snapshot post-turn state before overwriting — used by delete_last_turn
-        register_persist(str(save_dir))
-        save_state(save_dir, state)
-        event["state_snapshot"] = load_state(save_dir)
+        # Append event (without last_turn_state yet — captured after all modifications)
         append_event(save_dir, event)
 
         # Write stripped prompts to prompts.jsonl
@@ -480,7 +477,7 @@ async def run_turn(
             f"\n\n## Turn {state['meta']['turn']} — {user_input}\n\n{narrative.strip()}",
         )
 
-        # Append outcome_summary as prior_history bullet (after persist, before yield complete)
+        # Deferred: prior_history + sanitizer + final save_state
         if outcome_summary and outcome_summary.strip():
             turn_no = state["meta"]["turn"]
             bullet = f"- [T{turn_no}] {outcome_summary}"
@@ -489,9 +486,8 @@ async def run_turn(
             prior.append(bullet)
             if len(prior) > 20:
                 meta["prior_history"] = prior[-20:]
-            save_state(save_dir, state)
 
-        # === Thread sanitizer (after prior_history, before yield complete) ===
+        # Thread sanitizer (after prior_history, before yield complete)
         if config.sanitize_every > 0:
             t_sanitize = asyncio.get_running_loop().time()
             state, sanitize_ran = await sanitize_threads(
@@ -502,7 +498,10 @@ async def run_turn(
                 yield ("phase", {"phase": "sanitize_done", "ms": round(
                     (asyncio.get_running_loop().time() - t_sanitize) * 1000, 1
                 )})
-            save_state(save_dir, state)
+
+        # Single atomic write block
+        event["last_turn_state"] = state
+        save_state(save_dir, state)
 
         result_obj = TurnResult(
             turn=state["meta"]["turn"],

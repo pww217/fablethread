@@ -42,10 +42,10 @@ def location_change(events: list[dict[str, Any]]) -> CheckerResult:
         if prev_ev is None:
             continue
 
-        prev_loc = ((extract_field(prev_ev, "state_snapshot") or {}).get("location") or {}).get("id")
+        prev_loc = ((extract_field(prev_ev, "last_turn_state") or {}).get("location") or {}).get("id")
         post_loc = extract_field(ev, "post_turn_location_id")
         if post_loc is None:
-            post_loc = ((extract_field(ev, "state_snapshot") or {}).get("location") or {}).get("id")
+            post_loc = ((extract_field(ev, "last_turn_state") or {}).get("location") or {}).get("id")
 
         if post_loc == prev_loc:
             findings.append({
@@ -78,7 +78,7 @@ def inventory_integrity(events: list[dict[str, Any]]) -> CheckerResult:
     for i, ev in enumerate(events):
         prev_ev = events[i - 1] if i > 0 else None
 
-        inventory = (extract_field(ev, "state_snapshot") or {}).get("inventory", [])
+        inventory = (extract_field(ev, "last_turn_state") or {}).get("inventory", [])
         bad_neg = [item["id"] for item in inventory
                     if isinstance(item, dict) and item.get("id") and item.get("amount", 1) < 1]
         if bad_neg:
@@ -90,7 +90,7 @@ def inventory_integrity(events: list[dict[str, Any]]) -> CheckerResult:
             all_passed = False
 
         if prev_ev is not None:
-            prev_inv = (extract_field(prev_ev, "state_snapshot") or {}).get("inventory") or []
+            prev_inv = (extract_field(prev_ev, "last_turn_state") or {}).get("inventory") or []
             zero_items = _zero_items_from_inv(prev_inv)
             removes = (extract_field(ev, "applied") or {}).get("inventory_remove") or []
             bad_overdraw = []

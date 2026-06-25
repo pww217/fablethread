@@ -133,4 +133,4 @@ def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
         chronicle_path.write_text("")
     (save_dir / "events.jsonl").write_text("")
     # Remove stale snapshot from a previous game
-    (save_dir / "state_snapshot.yaml").unlink(missing_ok=True)
+

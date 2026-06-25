@@ -386,7 +386,7 @@ def assign_scene_ids(events: list[dict[str, Any]]) -> dict[int, int]:
     """Assign scene IDs to events based on location changes and phase resets.
 
     A new scene starts when:
-    - Location changes (detected from state_snapshot or extraction)
+    - Location changes (detected from last_turn_state or extraction)
     - Phase resets to SETUP (after being in a different phase)
 
     Returns a dict mapping turn -> scene_id.
@@ -406,8 +406,8 @@ def assign_scene_ids(events: list[dict[str, Any]]) -> dict[int, int]:
         pc = ev.get("pacing_context") or {}
         phase = pc.get("scene_phase", "")
 
-        # Check for location in state_snapshot
-        ss = ev.get("state_snapshot") or {}
+        # Check for location in last_turn_state
+        ss = ev.get("last_turn_state") or {}
         loc = ss.get("location") or {}
         if isinstance(loc, dict):
             new_location = loc.get("name") or loc.get("id")

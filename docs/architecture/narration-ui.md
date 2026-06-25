@@ -133,10 +133,10 @@ Grouped by category via emoji prefix:
 | 📜 | Faction/arc | `.tc-fa` |
 
 ### Cancel
-`POST /turn/cancel` sets a cancel flag on the running turn, waits for it to finish, then removes the completed turn's events via `remove_last_event()` and `remove_last_chronicle_turn()`, restores `state_snapshot` from the turn's event (pre-sanitizer state), and returns previous actions for re-submission.
+`POST /turn/cancel` sets a cancel flag on the running turn, waits for it to finish, then removes the completed turn's events via `remove_last_event()` and `remove_last_chronicle_turn()`, and returns `{"ok": true, "cancelled": true}`. No state revert needed since deferred atomic write means no disk writes occurred during the in-flight turn.
 
 ### Retry
-`POST /turn/delete` removes all events for the last turn from `events.jsonl` (including sanitizer events on turns divisible by `sanitize_every`) and `chronicle.md`, restores `state_snapshot` from the deleted turn's event, and returns previous actions for re-submission.
+`POST /turn/delete` removes all events for the last turn from `events.jsonl` (including sanitizer events on turns divisible by `sanitize_every`) and `chronicle.md`, restores `last_turn_state` from the deleted turn's event, and returns previous actions for re-submission.
 
 ### New Game
 `POST /new-game` with optional `pack_id`, `pc_name`, `pc_stats`, `hints`. If no hints provided, triggers `generate_seed()` LLM pipeline (dynamic pack); if hints provided, loads static pack's `seed_state.yaml` as fallback. Full page reload on success. Reroll (`POST /new-game/reroll`) HTMX-swaps the opening narrative + actions.

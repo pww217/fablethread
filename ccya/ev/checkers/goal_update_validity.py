@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "goal_update_validity", "deterministic",
-    requires_fields=["extraction.storytell", "state_snapshot"],
+    requires_fields=["extraction.storytell", "last_turn_state"],
     description="goal_update is non-empty string, differs from previous long_term_objective",
 )
 def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
@@ -20,14 +20,14 @@ def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
     prev_snap: dict[str, Any] | None = None
 
     for ev in events:
-        # Capture the previous turn's state_snapshot before updating.
-        # state_snapshot is captured post-turn (after goal_update is applied),
-        # so the current turn's state_snapshot already has the goal_update
+        # Capture the previous turn's last_turn_state before updating.
+        # last_turn_state is captured post-turn (after goal_update is applied),
+        # so the current turn's last_turn_state already has the goal_update
         # reflected. We need the PREVIOUS turn's long_term_objective to verify the
         # goal_update actually changed something.
         prev_snap_for_this = prev_snap
-        if "state_snapshot" in ev:
-            prev_snap = ev["state_snapshot"]
+        if "last_turn_state" in ev:
+            prev_snap = ev["last_turn_state"]
 
         storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
         goal_update = storytell_output.get("goal_update")
@@ -52,7 +52,7 @@ def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
             continue
 
         # Verify goal_update differs from the previous turn's long_term_objective.
-        # prev_snap_for_this holds the previous turn's state_snapshot, which
+        # prev_snap_for_this holds the previous turn's last_turn_state, which
         # is the pre-goal_update state for this turn.
         prev_arc = (prev_snap_for_this or {}).get("arc") or {}
         prev_long_term_objective = prev_arc.get("long_term_objective", "")

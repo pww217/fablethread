@@ -184,7 +184,7 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_com
     """Show thread lifecycle across all turns in compact table."""
     if not include_compaction:
         events = [ev for ev in events if not is_compaction_event(ev)]
-    # Gather thread state at each turn from state_snapshots and sanitizer events
+    # Gather thread state at each turn from last_turn_states and sanitizer events
     turn_threads: dict[int, list[dict[str, Any]]] = {}
     seen_turns: set[int] = set()
     all_thread_events: dict[str, dict[str, Any]] = {}  # thread_id -> {created_turn, resolved_turn, updates}
@@ -197,8 +197,8 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_com
             continue
 
         threads = []
-        # From state_snapshot
-        ss = ev.get("state_snapshot") or {}
+        # From last_turn_state
+        ss = ev.get("last_turn_state") or {}
         arc = ss.get("arc") or {}
         for th in (arc.get("threads") or []):
             if isinstance(th, dict) and th.get("id"):
@@ -359,8 +359,8 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
 
         beat_data.append(beat_entry)
 
-        # Gather recent_beats from state_snapshot.meta for display
-        snap = ev.get("state_snapshot") or {}
+        # Gather recent_beats from last_turn_state.meta for display
+        snap = ev.get("last_turn_state") or {}
         meta = (snap.get("meta") or {})
         recent = meta.get("recent_beats")
         if isinstance(recent, list) and recent:
@@ -432,10 +432,10 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
             turns_str = ", ".join(str(t) for t in s["turns"])
             print(f"  '{s['type']}' x{s['count']}: turns {turns_str}")
 
-    # Recent beats history per turn (from state_snapshot.meta.recent_beats)
+    # Recent beats history per turn (from last_turn_state.meta.recent_beats)
     if recent_beats_history:
         print()
-        print("--- recent_beats (from state_snapshot.meta) ---")
+        print("--- recent_beats (from last_turn_state.meta) ---")
         for t in sorted(recent_beats_history.keys()):
             beats = recent_beats_history[t]
             entries = ", ".join(
@@ -540,8 +540,8 @@ def cmd_beat_ttl(events: list[dict[str, Any]], include_compaction: bool = False)
         if t is None or not isinstance(t, int):
             continue
 
-        # From pending_gm_beat in state_snapshot or meta
-        ss = ev.get("state_snapshot") or {}
+        # From pending_gm_beat in last_turn_state or meta
+        ss = ev.get("last_turn_state") or {}
         meta = ss.get("meta") or {}
         pending_beat = meta.get("pending_gm_beat") or {}
         if pending_beat and pending_beat.get("beat_expires_turn"):
@@ -618,7 +618,7 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
         if estimate and not comps:
             urgent_thread = 0
             threat_thread = 0
-            ss = ev.get("state_snapshot") or {}
+            ss = ev.get("last_turn_state") or {}
             arc = ss.get("arc") or {}
             for th in (arc.get("threads") or []):
                 if isinstance(th, dict) and not _thread_is_dormant(th):

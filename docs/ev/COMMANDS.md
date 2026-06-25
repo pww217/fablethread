@@ -197,7 +197,7 @@ Events are one JSON line per turn in `events.jsonl`. Key fields:
 | `.applied` | State deltas that were applied |
 | `.rejected` | State deltas that were rejected with reasons |
 | `.pacing_context` | scene_phase, directive, outcome_hint, convergence |
-| `.state_snapshot` | Full state at start of turn |
+| `.last_turn_state` | Full state at start of turn |
 | `.post_turn_pending_beat` | pending_gm_beat after turn processing |
 
 ### Data sources
@@ -210,7 +210,7 @@ Events are one JSON line per turn in `events.jsonl`. Key fields:
 | Threads | `.extraction.storytell.output.*`, sanitizer events | threads, thread-audit |
 | Beat data | `.extraction.storytell.output.gm_beat`, `.pacing_context` | beats, mechanics |
 | Pacing | `.pacing_context` | beats, mechanics --pacing, convergence |
-| Goals | `.extraction.storytell.output.goal_update`, `.state_snapshot` | goals, arc_goal_updates |
+| Goals | `.extraction.storytell.output.goal_update`, `.last_turn_state` | goals, arc_goal_updates |
 | Sanitizer | `kind="sanitizer"` events | thread-audit, sanitizer_lifecycle |
 
 ---

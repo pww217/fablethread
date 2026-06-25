@@ -191,7 +191,7 @@ ev.py trace meta.pending_gm_beat --save-dir saves/my-game
 **What it validates:** Thread add/update correctness, goal alignment, resolution rates
 
 **What to look for:**
-- `thread_add` entries appear in next turn's `state_snapshot.arc.threads`
+- `thread_add` entries appear in next turn's `last_turn_state.arc.threads`
 - `thread_update` IDs reference existing threads in `state.arc.threads`
 - `goal_update` string from storyteller matches `arc.visible_goal` in state
 - Thread progression is meaningful (not tiny increments like 0.50, 0.53, 0.56)
@@ -254,7 +254,7 @@ ev.py convergence --save-dir saves/my-game                # convergence score co
 **What it validates:** Inventory balance, condition lifecycle, cap enforcement
 
 **What to look for:**
-- No negative inventory amounts in `state_snapshot.inventory`
+- No negative inventory amounts in `last_turn_state.inventory`
 - No overdraw: removing items that don't exist or have zero quantity
 - Condition IDs appear in ruling's `reason` text (lowercase comparison)
 - No duplicate condition IDs in a single turn
@@ -366,7 +366,7 @@ ev.py state --save-dir saves/my-game --format scene         # scene/world_state 
 - Orphan threads: threads in state never referenced by any sanitizer event
 - Sanitizer events exist in events.jsonl (`kind: "sanitizer"`)
 
-> **Note:** The engine never emits `threads_removed` — it moves threads to `completed_threads[]` instead. The `sanitizer_lifecycle` checker was fixed to not require this field. When checking thread existence, use the state at the sanitizer's turn (from `state_snapshot` in turn events), not the END state, to avoid false positives for resolved threads.
+> **Note:** The engine never emits `threads_removed` — it moves threads to `completed_threads[]` instead. The `sanitizer_lifecycle` checker was fixed to not require this field. When checking thread existence, use the state at the sanitizer's turn (from `last_turn_state` in turn events), not the END state, to avoid false positives for resolved threads.
 
 **Commands:**
 ```bash

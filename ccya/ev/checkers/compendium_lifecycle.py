@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "compendium_lifecycle", "deterministic",
-    requires_fields=["applied.compendium_npc_update", "state_snapshot"],
+    requires_fields=["applied.compendium_npc_update", "last_turn_state"],
     description="NPCs added via compendium_npc_update appear in state.compendium.npcs",
 )
 def compendium_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
@@ -25,7 +25,7 @@ def compendium_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
         if not npc_updates:
             continue
 
-        snap = extract_field(ev, "state_snapshot") or {}
+        snap = extract_field(ev, "last_turn_state") or {}
         compendium = snap.get("compendium") or {}
         npcs = compendium.get("npcs") or {}
 

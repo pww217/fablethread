@@ -10,7 +10,7 @@
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
 | `ccya/engine/config.py` | EngineConfig dataclass; CheckerConfig threshold fields; turn lock management; Jinja env setup |
-| `ccya/engine/turn.py` | run_turn() orchestrator; 5-call pipeline (rules→narrate→scene/state/storytell); state_snapshot capture |
+| `ccya/engine/turn.py` | run_turn() orchestrator; 5-call pipeline (rules→narrate→scene/state/storytell); deferred atomic write block with last_turn_state capture |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
 | `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay, TTL condition expiration (_expire_conditions); LongTermObjective.started_turn on arc resolve |
 | `ccya/engine/_pacing.py` | Beat constraints, convergence score, spiral detection |

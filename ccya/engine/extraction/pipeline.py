@@ -106,6 +106,13 @@ async def _run_extraction_pipeline(
     _log.debug("extraction.scene.done trace_id=%s result_type=%s tokens_in=%d tokens_out=%d", trace_id, type(scene_result).__name__, scene_usage.get("prompt_tokens", 0), scene_usage.get("completion_tokens", 0))
 
     yield ("phase", {"phase": "extract_stream_done", "stream": "scene"})
+    yield ("panel_update", {
+        "panel": "scene",
+        "data": {
+            "npcs": state.get("compendium", {}).get("npcs", {}),
+            "location": state.get("location"),
+        },
+    })
 
     # --- Stream 2: State ---
     yield ("phase", {"phase": "extract_stream_start", "stream": "state"})
@@ -150,6 +157,14 @@ async def _run_extraction_pipeline(
         _log.warning("extraction.state.empty trace_id=%s turn_no=%d state has no inventory or condition changes after retries", trace_id, turn_no)
     _log.debug("extraction.state.done trace_id=%s result_type=%s inv_add=%d inv_remove=%d inv_update=%d conds_add=%d conds_remove=%d tokens_in=%d tokens_out=%d", trace_id, type(state_result).__name__, len(state_result.inventory_add or []), len(state_result.inventory_remove or []), len(state_result.inventory_update or []), len(state_result.pc_condition_add or []), len(state_result.pc_condition_remove or []), state_usage.get("prompt_tokens", 0), state_usage.get("completion_tokens", 0))
     yield ("phase", {"phase": "extract_stream_done", "stream": "state"})
+    yield ("panel_update", {
+        "panel": "state",
+        "data": {
+            "pc": state.get("pc"),
+            "inventory": state.get("inventory"),
+            "conditions": state.get("pc", {}).get("conditions"),
+        },
+    })
 
     # --- Stream 3: Storytell (always runs — post-narration storytelling brain) ---
     yield ("phase", {"phase": "extract_stream_start", "stream": "storytell"})
@@ -273,6 +288,14 @@ async def _run_extraction_pipeline(
         _log.warning("extraction.storytell.empty trace_id=%s turn_no=%d storytell has no actions after retries", trace_id, turn_no)
     _log.debug("extraction.storytell.done trace_id=%s result_type=%s actions=%d tokens_in=%d tokens_out=%d gm_beat=%s", trace_id, type(storytell_result).__name__, len(storytell_result.actions or []), storytell_usage.get("prompt_tokens", 0), storytell_usage.get("completion_tokens", 0), storytell_result.gm_beat.type if storytell_result.gm_beat else None)
     yield ("phase", {"phase": "extract_stream_done", "stream": "storytell"})
+    yield ("panel_update", {
+        "panel": "arc",
+        "data": {
+            "arc": state.get("arc"),
+            "scene": state.get("scene"),
+            "meta": state.get("meta"),
+        },
+    })
 
     _log.debug("extraction.dedup.start trace_id=%s compendium_updates=%d state_inv_add=%d", trace_id, len(scene_result.compendium_npc_update or []), len(state_result.inventory_add or []))
     # --- Dedup compendium updates before merging into StateDelta ---

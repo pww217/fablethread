@@ -8,7 +8,7 @@ and which checkers consume it.
 
 | You want to check… | Use this field | Because… |
 |---|---|---|
-| What the game state looked like AFTER a turn completed | `event["state_snapshot"]` | Full persisted state at end of turn |
+| What the game state looked like AFTER a turn completed | `event["last_turn_state"]` | Full persisted state at end of turn |
 | What pacing directive/phase was active DURING the turn | `event["pacing_context"]` | Computed in Step 0, used by Steps 1–2c |
 | What the storyteller LLM saw (NPCs/inventory/conditions after deltas) | `extraction.storytell.rendered_user` | Full prompt; `extraction_context` is NOT stored separately |
 | What the sanitizer actually changed | `event["changes"]` or `kind:"sanitizer"` events | Post-sanitizer delta |
@@ -17,7 +17,7 @@ and which checkers consume it.
 
 ## State Types
 
-### 1. `state_snapshot` (event field)
+### 1. `last_turn_state` (event field)
 
 **Where:** `engine/turn.py:1423` — captured AFTER all turn processing (ruling, narrate, extract, sanitizer, apply_delta).
 
@@ -27,20 +27,20 @@ and which checkers consume it.
 
 **Used by checkers:** `arc_resolution_validity`, `thread_resolution_validity`, `thread_lifecycle`, `arc_goal_updates`, `goal_update_validity`, `beat_narrative_chain`, `npc_presence`, `inventory_integrity`, `conditions_lifecycle`, `compendium_lifecycle`
 
-**⚠️ Critical gotcha:** Because `state_snapshot` is captured post-turn, any thread/arc resolution that happened during the turn is already reflected in it. Checkers that validate `arc_resolve.drop_threads` or `thread_resolve` IDs must compare against the **previous** turn's `state_snapshot` (pre-resolution state), not the current turn's. See the checker fix in commit `677258e` for the pattern.
+**⚠️ Critical gotcha:** Because `last_turn_state` is captured post-turn, any thread/arc resolution that happened during the turn is already reflected in it. Checkers that validate `arc_resolve.drop_threads` or `thread_resolve` IDs must compare against the **previous** turn's `last_turn_state` (pre-resolution state), not the current turn's. See the checker fix in commit `677258e` for the pattern.
 
 **Example:**
 ```python
-# WRONG: comparing arc_resolve against current turn's state_snapshot
+# WRONG: comparing arc_resolve against current turn's last_turn_state
 # (threads already moved to completed_threads)
-snap = extract_field(ev, "state_snapshot")
+snap = extract_field(ev, "last_turn_state")
 
 # CORRECT: track previous turn's snapshot
 prev_snap = None
 for ev in events:
     prev_for_this = prev_snap
-    if "state_snapshot" in ev:
-        prev_snap = ev["state_snapshot"]
+    if "last_turn_state" in ev:
+        prev_snap = ev["last_turn_state"]
     # now prev_for_this holds pre-resolution state
 ```
 
@@ -89,9 +89,9 @@ class _ExtractionContext:
 **How checkers access it:** They don't — it's not in events. Checkers that need this data must either:
 - Parse `extraction.storytell.rendered_user` (the full storyteller prompt, which includes the extraction context)
 - Use `applied.*` fields from the event (which reflect what was actually applied)
-- Use `state_snapshot` (which reflects post-turn state)
+- Use `last_turn_state` (which reflects post-turn state)
 
-**⚠️ Known issue:** Several checkers reference `event.get("extraction_context")` in their `requires_fields` or documentation, but this field is never written to events. Checkers that need extraction context data should use `applied.*` or `state_snapshot` instead. See `ev/compat.py` for detection of this issue.
+**⚠️ Known issue:** Several checkers reference `event.get("extraction_context")` in their `requires_fields` or documentation, but this field is never written to events. Checkers that need extraction context data should use `applied.*` or `last_turn_state` instead. See `ev/compat.py` for detection of this issue.
 
 ### 4. `changes` (event field)
 
@@ -217,7 +217,7 @@ flowchart LR
 
     subgraph PERSIST["Turn event written<br>(turn.py:1371-1424)"]
         EV["event dict<br>(ruling, pacing_context,<br>narrate, extraction,<br>changes, actions)"]:::event
-        SS["state_snapshot<br>(load_state() of<br>post-apply state)"]:::event
+        SS["last_turn_state<br>(load_state() of<br>post-apply state)"]:::event
     end
 
     STATE --> STEP0
@@ -240,7 +240,7 @@ flowchart LR
 When writing or debugging a checker, ask:
 
 1. **Am I checking what the LLM decided?** → Use `extraction.*.output`
-2. **Am I checking what actually happened to the game state?** → Use `state_snapshot` (but remember: post-turn!)
+2. **Am I checking what actually happened to the game state?** → Use `last_turn_state` (but remember: post-turn!)
 3. **Am I checking what the sanitizer changed?** → Use `changes` or `kind:"sanitizer"` events
 4. **Am I checking pacing/phase behavior?** → Use `pacing_context`
 5. **Am I checking what the LLM saw in its prompt?** → Parse `extraction.*.rendered_user`
@@ -249,7 +249,7 @@ When writing or debugging a checker, ask:
 
 | Bug | Cause | Fix |
 |---|---|---|
-| Comparing `arc_resolve.drop_threads` against current turn's `state_snapshot` | Threads already moved to `completed_threads` by post-turn snapshot | Compare against previous turn's `state_snapshot` |
-| Comparing `thread_resolve` IDs against current turn's `state_snapshot` | Same as above | Compare against previous turn's `state_snapshot` |
+| Comparing `arc_resolve.drop_threads` against current turn's `last_turn_state` | Threads already moved to `completed_threads` by post-turn snapshot | Compare against previous turn's `last_turn_state` |
+| Comparing `thread_resolve` IDs against current turn's `last_turn_state` | Same as above | Compare against previous turn's `last_turn_state` |
 | Checking `extraction_context` field in events | Field never written to events | Parse `extraction.storytell.rendered_user` or use `applied.*` |
 | Substring matching removed directives | Narration text contains word variants ("Overwhelm" vs "overwhelmed") | Use regex word boundaries (`\bOverwhelm\b`) |

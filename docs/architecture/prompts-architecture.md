@@ -85,7 +85,7 @@ Two entirely separate template systems exist — do not conflate them:
 Fast prompt testing via `ev.py prompt-eval`:
 - `cmd_prompt_eval_dump()` — renders prompts (no LLM)
 - `cmd_prompt_eval_call()` — renders + LLM + check
-- `build_prompt_context()` — builds context dict from `state_snapshot` for prompt rendering (scene, storytell streams)
+- `build_prompt_context()` — builds context dict from `last_turn_state` for prompt rendering (scene, storytell streams)
 - Three inline checkers: `_run_golden_match()`, `_run_prose_quality()`, `_run_extraction_format()`
 - Supports `scene` and `storytell` streams
-- Uses `state_snapshot` (post-turn) as context
+- Uses `last_turn_state` (post-turn) as context

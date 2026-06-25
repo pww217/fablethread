@@ -33,8 +33,6 @@ _inflight: _EventLock = _EventLock()
 
 _cancel_requested: dict[str, asyncio.Event] = {}
 _turn_done: dict[str, asyncio.Event] = {}
-_persist_started: dict[str, bool] = {}
-
 
 def is_turn_in_progress(save_dir: str) -> bool:
     lock = _inflight._locks.get(save_dir)
@@ -51,9 +49,6 @@ def is_cancel_requested(save_dir: str) -> bool:
     event = _cancel_requested.get(save_dir)
     return event is not None and event.is_set()
 
-
-def register_persist(save_dir: str) -> None:
-    _persist_started[save_dir] = True
 
 
 def clear_cancel(save_dir: str) -> None:
@@ -80,7 +75,6 @@ def clear_all_turn_locks(save_dir: str) -> None:
     _inflight._locks.pop(save_dir, None)
     _cancel_requested.pop(save_dir, None)
     _turn_done.pop(save_dir, None)
-    _persist_started.pop(save_dir, None)
 
 
 async def await_turn_done(save_dir: str, timeout: float = 30.0) -> bool:

@@ -16,7 +16,7 @@ def conditions_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
     all_passed = True
 
     for ev in events:
-        snap = extract_field(ev, "state_snapshot") or {}
+        snap = extract_field(ev, "last_turn_state") or {}
         conditions = (snap.get("pc") or {}).get("conditions") or []
 
         # dedup check

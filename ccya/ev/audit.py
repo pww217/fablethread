@@ -21,7 +21,7 @@ def _detect_npc_ghosting(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     for ev in events:
         # Skip side events (sanitizer, etc.) — they have
-        # empty state_snapshots and would break the comparison.
+        # empty last_turn_states and would break the comparison.
         if ev.get("kind"):
             continue
 
@@ -29,7 +29,7 @@ def _detect_npc_ghosting(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if t is None or not isinstance(t, int):
             continue
 
-        ss = ev.get("state_snapshot") or {}
+        ss = ev.get("last_turn_state") or {}
         compendium = ss.get("compendium") or {}
         npcs = compendium.get("npcs") or {}
 
