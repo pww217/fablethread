@@ -2,6 +2,24 @@
 
 **Status: completed**
 
+**Review:** 2026-06-25 — All 7 steps verified against source. No deviations from plan.
+
+### Contract checks
+- [x] `turns_remaining` field on Condition (line 80) and ConditionAdd (line 97) — **pass**
+- [x] `condition_default_ttl` on EngineConfig (line 194) and build_engine_config() (line 314) — **pass**
+- [x] `_DEFAULT_CONDITION_TTL` constant (line 22) and usage in apply_delta (line 268) — **pass**
+- [x] `_expire_conditions()` function (line 381), `condition_expired` event (line 404), call site (line 469) — **pass**
+- [x] `_apply_state_updates()` signature matches call site in turn.py (7 params including save_dir) — **pass**
+- [x] Duration guidance in extract_state_system.j2 (line 116) + schema example (line 73) — **pass**
+- [x] TTL display in _conditions.j2 (line 9) — **pass**
+- [x] Documentation: state-models.md (lines 26, 27, 71, 129), step2b-state.md (line 30), repomap.md (lines 15, 30), cross-module-contracts.md (line 52) — **pass**
+- [x] Lint + typecheck: **pass** (ruff, mypy, vulture all clean)
+
+### Fixes during execution
+- `append_event` import was initially inserted inside `_apply_state_updates()` body (wrong location). Fixed by adding to top-level imports.
+- `append_event()` expects `Path`, not `str` — converted `save_dir` parameter from `str` to `Path(save_dir)` at call site.
+- Added `save_dir: str` parameter to `_apply_state_updates()` signature (not in original plan) since it was needed for `append_event()` and wasn't previously passed through.
+
 ## Design Reference
 
 Discussed in chat — TTL system re-implemented with duration bands:
