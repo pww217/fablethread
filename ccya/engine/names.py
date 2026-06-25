@@ -79,22 +79,27 @@ def generate_name_pool(
         names = []
         for _ in range(count):
             faker = _pick(fakers, weights, rng)
+            first = faker.first_name() if hasattr(faker, "first_name") else faker.name()
+            last = faker.last_name() if hasattr(faker, "last_name") else ""
+            full = f"{first} {last}" if last else first
             if use_romaji:
-                raw = faker.name()
-                names.append(_to_romaji(raw))
+                names.append(_to_romaji(full))
             else:
-                names.append(_ensure_ascii(faker.name()))
+                names.append(_ensure_ascii(full))
         return names
 
     def _gen_locations(count: int) -> list[str]:
+        suffixes = ["shire", "burg", "ton", "stead", "ford", "worth", "bury", "port", "mouth"]
         locations = []
-        for _ in range(count):
+        for i in range(count):
             faker = _pick(fakers, weights, rng)
+            last = faker.last_name()
+            suffix = suffixes[i % len(suffixes)]
+            name = f"{last}{suffix}"
             if use_romaji:
-                raw = faker.city()
-                locations.append(_to_romaji(raw))
+                locations.append(_to_romaji(name))
             else:
-                locations.append(_ensure_ascii(faker.city()))
+                locations.append(_ensure_ascii(name))
         return locations
 
     result = {
@@ -126,15 +131,17 @@ def generate_npc_names(
     for _ in range(count):
         faker = _pick(fakers, weights, rng)
         if gender == "male" and hasattr(faker, "first_name_male"):
-            raw = faker.first_name_male()
+            first = faker.first_name_male()
         elif gender == "female" and hasattr(faker, "first_name_female"):
-            raw = faker.first_name_female()
+            first = faker.first_name_female()
         else:
-            raw = faker.name()
+            first = faker.first_name() if hasattr(faker, "first_name") else faker.name()
+        last = faker.last_name() if hasattr(faker, "last_name") else ""
+        full = f"{first} {last}" if last else first
         if use_romaji:
-            names.append(_to_romaji(raw))
+            names.append(_to_romaji(full))
         else:
-            names.append(_ensure_ascii(raw))
+            names.append(_ensure_ascii(full))
     return names
 
 
@@ -152,10 +159,14 @@ def generate_npc_names_split(
     female_names = []
     for _ in range(male_count):
         faker = _pick(fakers, weights, rng)
-        male_names.append(_ensure_ascii(faker.first_name_male() if hasattr(faker, 'first_name_male') else faker.name()))
+        first = faker.first_name_male() if hasattr(faker, "first_name_male") else faker.first_name() if hasattr(faker, "first_name") else faker.name()
+        last = faker.last_name() if hasattr(faker, "last_name") else ""
+        male_names.append(_ensure_ascii(f"{first} {last}" if last else first))
     for _ in range(female_count):
         faker = _pick(fakers, weights, rng)
-        female_names.append(_ensure_ascii(faker.first_name_female() if hasattr(faker, 'first_name_female') else faker.name()))
+        first = faker.first_name_female() if hasattr(faker, "first_name_female") else faker.first_name() if hasattr(faker, "first_name") else faker.name()
+        last = faker.last_name() if hasattr(faker, "last_name") else ""
+        female_names.append(_ensure_ascii(f"{first} {last}" if last else first))
     return {"male": male_names, "female": female_names}
 
 
