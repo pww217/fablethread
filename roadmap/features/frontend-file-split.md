@@ -1,6 +1,6 @@
 ---
 title: "[Frontend] Split monolithic index.html and app.src.css into domain files"
-status: validated
+status: done
 urgency: 3
 size: medium
 created: 2026-06-25
