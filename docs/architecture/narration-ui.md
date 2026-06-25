@@ -94,7 +94,7 @@ flowchart TD
 | `GET /panels/debug` | `_debug.html` | Debug panel — recent turn timings, errors |
 | `GET /panels/state` | `_state.html` | Combined left+right |
 
-### Client state machine (`game()` — inline `<script>` in index.html)
+### Client state machine (`game()` in `ccya/static/game.js`)
 
 Alpine.js `x-data="game()"` manages:
 - `input` — textarea value
@@ -141,19 +141,15 @@ Grouped by category via emoji prefix:
 ### New Game
 `POST /new-game` with optional `pack_id`, `pc_name`, `pc_stats`, `hints`. If no hints provided, triggers `generate_seed()` LLM pipeline (dynamic pack); if hints provided, loads static pack's `seed_state.yaml` as fallback. Full page reload on success. Reroll (`POST /new-game/reroll`) HTMX-swaps the opening narrative + actions.
 
-## CSS Architecture
+## CSS File Layout
 
-- **`app.src.css`** — Tailwind + custom styles split by region:
-  - App shell layout (CSS Grid: header + body with sidebar-gutter-main-gutter-sidebar)
-  - Narrative blocks (`.narrative-block`, `.narrative-text`)
-  - Sidebar cards (`.card`, `.card-header`, `.card-body`)
-  - Input bar (`.input-bar`, `.game-input`, `.send-btn`)
-  - Action pills (`.action-pill`, `.pills-row`)
-  - Roll badges (`.roll-badge`, `.roll-band--*`)
-  - Chronicle overlay (`.turn-log-shell`, `.turn-log-panel`)
-  - New Game modal (`.modal-overlay`, `.pack-card`)
-  - Progress strip, tooltips, scrollbar styling
-  - Design tokens via CSS custom properties (`--text-primary`, `--bg-card`, `--status-*`)
+| File | Lines | Domain |
+|------|-------|--------|
+| `ccya/static/tokens.css` | 76 | Tailwind directives, design tokens, base reset, fluid typography |
+| `ccya/static/app-shell.css` | 2781 | Main game UI — app shell layout, header, narrative column, action pills, input bar, sidebars, sidebar cards (player/NPCs/inventory/arc/facts/errors/debug), pack picker modal, responsive/mobile drawer, game over modal, character creation, settings panel, entity highlighting, landing page, gutter hints |
+| `ccya/static/chronicle.css` | 312 | Chronicle overlay — turn log shell, panel, blocks, scrollbar styling |
+| `ccya/static/turn-viewer.css` | 1319 | Standalone full-page debug view — pipeline status cards, stage identity, event tables, no-save state |
+- **`app.src.css`** is the monolithic Tailwind entry point — unchanged during the split, all 4 files extracted alongside it for human readability
 - **Fluid typography**: 3-tier `@media` breakpoints set `html { font-size: clamp(...) }`:
   | Viewport | Font size clamp | Applicable to |
   |---|---|---|
@@ -163,6 +159,14 @@ Grouped by category via emoji prefix:
   - Font sizes throughout are in `rem` units, scaling proportionally with the base.
 - **Location panel fix**: Hardcoded `px` font sizes replaced with `rem` units to respect fluid base.
 - Compiled to **`app.css`** with cache-busting via `css_v` query param
+
+## JS File Layout
+
+| File | Lines | Domain |
+|------|-------|--------|
+| `ccya/static/game-utils.js` | 781 | Pure utility functions — card key helper, markdown rendering, entity highlighting, tooltip portal, display drain, progress strip, turn log UI, outcome badge builder, change line grouping |
+| `ccya/static/game.js` | 1161 | Alpine components — `charCreation()`, `worldBuilder()`, `game()` (panel state, drawers, pack picker, turn submission/streaming/SSE handlers, retry/cancel, settings) |
+| `ccya/static/app-init.js` | 163 | DOM initialization — first `DOMContentLoaded` (settings panel wiring, save picker, landing page), second `DOMContentLoaded` (markdown rendering, entity highlighting on history, card persistence, HTMX handlers, pills layout, gutter setup, collapsed hints) |
 
 ## Server Entry Point
 
