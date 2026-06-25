@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================
+   DESIGN TOKENS
+   ========================================================= */
+
+:root {
+  --bg-base:        #0f0f12;
+  --bg-surface:     #18181c;
+  --bg-elevated:    #222228;
+  --bg-highlight:   #2a2a32;
+  --border-subtle:  #2d2d35;
+  --border-strong:  #3d3d45;
+  --text-primary:   #f5f5f7;
+  --text-secondary: #a8a8b3;
+  --text-muted:     #8a8a96;
+  --accent:         #f0a030;
+  --accent-hover:   #e8b84a;
+  --accent-soft:    rgba(240, 160, 48, 0.10);
+  --accent-error:     #f87171;
+  --accent-error-soft: rgba(248, 113, 113, 0.10);
+  --accent-success:   #4ade80;
+  --accent-success-soft: rgba(74, 222, 128, 0.10);
+  --accent-warning:   #fbbf24;
+  --accent-warning-soft: rgba(251, 191, 36, 0.10);
+  --accent-blue:      #60a5fa;
+
+  /* Turn viewer — pipeline status (semantic) */
+  --status-ok:        #3fb8af;
+  --status-skipped:   #6b7280;
+  --status-retried:   #e0a458;
+  --status-rejected:  #e06c75;
+  --status-error:     #e06c75;
+  --status-neutral:   #94a3b8;
+
+  /* Turn viewer — stage identity (subtle accents) */
+  --stage-ruling:     #8b5cf6;
+  --stage-narrate:   #3b82f6;
+  --stage-scene:     #10b981;
+  --stage-state:     #f59e0b;
+  --stage-storytell: #ec4899;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+  --sidebar-w: min(320px, 28vw);
+  /* Fixed-height scroll regions for sidebar cards (player / location / scene excluded) */
+   --sidebar-card-body-scroll-h: 308px; /* facts panel — ~40% taller than old 220px */
+   --sidebar-card-body-world-state-scroll-h: 154px; /* world state — half height */
+   --sidebar-card-body-inventory-scroll-h: 660px; /* 1.5× prior 440px */
+  --radius:    8px;
+  --radius-sm: 5px;
+}
+
+/* =========================================================
+   BASE
+   ========================================================= */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+/* ── Fluid base: tiered by viewport width ── */
+@media (min-width: 769px) and (max-width: 1400px) { html { font-size: clamp(15px, 1vw, 17px); } }
+@media (min-width: 1401px) and (max-width: 2560px) { html { font-size: clamp(22px, 1.56vw, 26px); } }
+@media (min-width: 2561px) {
+   html { font-size: clamp(24px, 1.5vw, 27px); }
+   :root { --sidebar-w: min(512px, 38vw); }
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+}

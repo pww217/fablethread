@@ -178,11 +178,14 @@ pc_situation_schema:
   - key: home_settlement
     description: What settlement, if any, does the PC call home?
     required: false
-  - key: known_survivors
-    description: Who does the PC know is alive? Who do they know is dead or missing?
-    required: false
   - key: transport
-    description: What is the PC's mode of transport, if any?
+    description: What is the PC's mode of transport, if any? ("nothing" is valid)
+    required: false
+  - key: nearby_area
+    description: What's beyond the PC's home settlement? Neighboring settlements, hordes, or other threats.
+    required: false
+  - key: family_status
+    description: Who from the PC's family survived or didn't, and where are they?
     required: false
 
 scene_detail_bundles:
