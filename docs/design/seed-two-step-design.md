@@ -1,10 +1,12 @@
 # Seed Two-Step Design
 
-> **Status:** reviewed
+> **Status:** reviewed (partially superseded — see prereq decision below)
 > **Review date:** 2026-06-24
 > **Discovery:** [Seed Generation Temperature and Reliability](../discovery/seed-generation-temperature-and-reliability.md)
 > **Related designs:**
 > - [03-Seed Worldbuilding Redesign](./complete/03-seed-worldbuilding-redesign.md) — funnel ordering, pc_situation_schema, arc_origin, world state lifecycle
+> **Related tickets:**
+> - [Spread pc_situation over multiple turns](../../roadmap/features/pc-situation-reveal-over-time.md) — gradual reveal prereq decision (supersedes narrate_seed portion)
 
 ## Problem Statement
 
@@ -16,6 +18,13 @@ Seed generation makes a single LLM call that produces both structured game state
 At any single temperature, one output is compromised. At 0.9, ~50% of first attempts fail with "No JSON found" due to malformed JSON. At 0.65, reliability improves to ~80% but narration becomes more formulaic. The fundamental tension cannot be resolved within one call.
 
 **Hypothesis (confirmed in discovery):** Splitting into two LLM calls — `prepare_seed` (low temp, structured game state) and `narrate_seed` (high temp, creative prose only) — solves both problems simultaneously without additional complexity.
+
+> **Prereq decision:** The gradual pc_situation reveal over turns 0–3 ([roadmap/features/pc-situation-reveal-over-time.md](../../roadmap/features/pc-situation-reveal-over-time.md)) is a prerequisite decision. The design below was evaluated against two alternatives:
+>
+> 1. **Unified pipeline:** Skip `narrate_seed` entirely. Pass full SeedState through the existing turn pipeline on turn 0. The narrator gates situation reveal via a directive in the system prompt. Turn 0 ruling runs with placeholder input and no-roll outcome.
+> 2. **Separate narrate_seed:** The approach described in the problem statement — a dedicated `narrate_seed` call.
+>
+> **Decision: unified pipeline.** A separate `narrate_seed` duplicates the narrator prompt, creates dual retry logic, and adds complexity. The gradual reveal design (directive-based gating, 3-turn schedule, tension entries → arc threads) is implemented on top of the unified pipeline. **The `narrate_seed` portion of this design is superseded by the unified pipeline approach.** Only `prepare_seed` (low-temp structured generation) remains. The prose generation happens in the existing narrator on turn 0.
 
 ## Target State
 

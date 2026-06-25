@@ -1,6 +1,6 @@
 ---
 title: Thread Add Creates Duplicate IDs — Storyteller Reuses Active IDs
-status: validating
+status: up-next
 urgency: 2
 size: medium
 created: 2026-06-24
@@ -28,22 +28,23 @@ if _new_thread.id not in existing_ids:
 
 When the storyteller generated a `thread_add` with an ID that already existed in active or completed threads, the thread was silently discarded. No log message, no `dedup_rejection` entry, no feedback to the storyteller.
 
-### Evidence Confirmed
-
-The ticket's evidence matches the code behavior:
-- `corporate_pursuit` at T3 and T9 → T9 silently skipped (ID exists from T3)
-- `black_market_shipment` at T5 and T6 → T6 silently skipped (ID exists from T5)
-- `thread_dedup_rejections` was empty because it only tracked progress dedup, not ID dedup
-
 ### Assessment
 
 This is a real bug. The storyteller had no feedback loop for rejected thread additions.
 
-### Fix Applied
+### Fix Applied (Partial)
 
-1. **Code-level enforcement** (`turn_state.py:563-574`): Added `else` branch for duplicate `thread_add` IDs — logs a warning and records a `dedup_rejection` entry with `rejected_reason: "duplicate_id"` and `similarity: 1.0`. This gives the storyteller feedback via the `thread_dedup_rejections` field in the extraction event.
+1. **Code-level enforcement** (`turn_state.py:563-574`): Added `else` branch for duplicate `thread_add` IDs — logs a warning and records a `dedup_rejection` entry with `rejected_reason: "duplicate_id"` and `similarity: 1.0`.
 
-2. **Prompt-level guidance** (`storytell_system.j2`): Added explicit instruction: "CRITICAL: thread_add IDs must be unique. Before emitting `thread_add`, check that your proposed ID does not already exist in the active or completed threads list. Using a duplicate ID will cause the thread to be silently discarded."
+2. **Prompt-level guidance** (`storytell_system.j2`): Added explicit instruction about unique IDs.
+
+### Still Happening (Eval 2026-06-25)
+
+Despite the fix, duplicate thread_add IDs still occur:
+- noir-1930s T23: `dockworker_confrontation` (duplicate)
+- space-western T24: `militia_containment` (duplicate)
+
+The prompt guidance is insufficient to prevent the storyteller from generating duplicates. The storyteller needs stronger constraints or a different approach to ID generation.
 
 ---
 

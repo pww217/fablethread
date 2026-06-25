@@ -1,5 +1,5 @@
 ---
-title: Deferred state persistence — single atomic write at turn end
+title: Deferred state persistence — single best-effort atomic write at turn end
 status: reviewed
 design: docs/design/deferred-state-persist-design.md
 created: 2026-06-24
@@ -9,7 +9,16 @@ created: 2026-06-24
 
 ## Purpose
 
-This document is the design authority for moving all turn pipeline state writes to a single atomic point at turn end, enabling clean cancel/retry and progressive UI updates from in-memory state.
+This document is the design authority for moving all turn pipeline state writes to a single point at turn end, enabling clean cancel/retry and progressive UI updates from in-memory state.
+
+## MVP boundary
+
+Two changes are bundled here but can ship independently:
+
+1. **Deferred atomic write** (correctness fix). Consolidates 3+ disk writes into one best-effort atomic block at turn end. Eliminates stale `state_snapshot`, orphaned artifacts on cancel, and partial-turn corruption. **Shippable alone.**
+2. **Progressive SSE panel updates** (UX improvement). Pushes structured panel data via SSE after each extraction phase. Frontend renders panels from JSON. **Depends on #1** (needs in-memory state at phase boundaries) but can be deferred without blocking #1.
+
+If panel render extraction turns out messier than expected, #1 ships without #2. The cancel correctness fix and stale snapshot fix are not contingent on progressive UI.
 
 ## Problem Statement
 
@@ -32,15 +41,17 @@ The UI receives turn data only at `yield ("complete", ...)` (line 530), meaning 
 
 ## Target State
 
-1. **Single atomic write block** at the end of the turn pipeline. State, events, chronicle, prompts, prior_history, and sanitizer results are all written in one sequence after all phases complete. If a crash occurs before or during this block, the on-disk state reflects the end of the last completed turn — no partial-turn corruption.
+1. **Single best-effort atomic write block** at the end of the turn pipeline. State, events, chronicle, prompts, prior_history, and sanitizer results are all written in one sequence after all phases complete. `state.yaml` uses `os.replace` for true atomicity. `events.jsonl` and `chronicle.md` are append-only — written to temp then renamed in sequence. If a crash occurs before or during this block, the on-disk state reflects the end of the last completed turn — no partial-turn corruption.
 
 2. **Progressive SSE updates** from in-memory state. After each extraction phase (scene → state → storytell), a `panel_update` SSE event carries the computed panel data. The frontend updates the matching panel immediately. Narrative tokens continue to stream as today.
 
-3. **Cancel = memory discard.** No file cleanup needed. The UI receives a `panel_update` resetting all panels to the pre-turn state (read from the previous turn's written state).
+3. **Cancel = memory discard + frontend reset.** No file cleanup needed. `POST /turn/cancel` returns `{"ok": true, "cancelled": true}`. The frontend interprets this as a signal to reset all panels to the pre-turn state (read from the previous turn's written `last_turn_state`). No SSE push needed — cancel and turn SSE streams are separate connections.
 
-4. **Retry = delete + rerun.** `POST /turn/delete` removes the last turn's event/chronicle/prompts and invalidates it from the in-memory state view. The next turn start sees the clean pre-turn state. Same surface behavior, simpler implementation.
+4. **Canceled turns: lazy cleanup on turn start.** Canceled turns' events and chronicle entries accumulate on disk. On the next successful turn start, the engine removes events whose `turn` number exceeds the current `meta.turn` and whose `kind` is not `sanitizer`. This keeps `events.jsonl` bounded without adding complexity to the cancel path. The turn viewer (`tv.py`) should also filter out canceled turns from its display.
 
-5. **`state_snapshot` → `last_turn_state`.** Renamed for clarity. Captured at the single write point, reflecting the full post-turn state (including prior_history and sanitizer). EV checkers are updated to reference the new field name.
+5. **Retry = delete + rerun.** `POST /turn/delete` removes the last turn's event/chronicle/prompts and invalidates it from the in-memory state view. The next turn start sees the clean pre-turn state. Same surface behavior, simpler implementation.
+
+6. **`state_snapshot` → `last_turn_state`.** Renamed for clarity. Captured at the single write point, reflecting the full post-turn state (including prior_history and sanitizer). EV checkers are updated to reference the new field name.
 
 ## Constraints
 
@@ -49,7 +60,7 @@ The UI receives turn data only at `yield ("complete", ...)` (line 530), meaning 
 - The inflight lock (`_inflight` in `engine/config.py`) stays as the sole mutual-exclusion mechanism
 - Cancel signal infrastructure (`asyncio.Event` per save_dir) stays as-is
 - No LLM path changes — no interrupt signals, no new LLM calls
-- `prompts.jsonl` entries are part of the atomic write block (they are consumed offline by EV tooling, not by the live server)
+- `prompts.jsonl` entries are part of the best-effort atomic write block (they are consumed offline by EV tooling, not by the live server)
 
 ## Non-goals
 
@@ -65,7 +76,7 @@ The UI receives turn data only at `yield ("complete", ...)` (line 530), meaning 
 
 | Decision | What | Why |
 |---|---|---|
-| Single atomic write at turn end | All `save_state`, `append_event`, `append_chronicle`, `append_prompts`, prior_history, and sanitizer writes happen in one contiguous block after all LLM phases complete. | Eliminates partial-turn corruption on crash. Cancel has no files to revert. |
+| Single best-effort atomic write at turn end | All `save_state`, `append_event`, `append_chronicle`, `append_prompts`, prior_history, and sanitizer writes happen in one contiguous block after all LLM phases complete. `state.yaml` uses `os.replace` (true atomicity). `events.jsonl` and `chronicle.md` written to temp then renamed in sequence (best-effort). | Eliminates partial-turn corruption on crash. Cancel has no files to revert. |
 | Sanitizer runs in-memory before final write | Sanitizer executes at the same pipeline position (after storytell, before yield complete). Its mutations land on the in-memory state dict. The single write block includes sanitizer changes. | Simplest migration path — no timing change, no behavioral change to sanitizer logic. |
 | prior_history moves into deferred write | The prior_history bullet is computed in memory and appended to the state dict. The single write block persists it. | Removes the write-2 partial write point. No behavioral change to prior_history content. |
 | Crash resilience tradeoff accepted | A crash mid-turn loses the current turn entirely. On-disk state is clean at the last completed turn. | Preferable to current behavior where crash produces half-written state that cancel/delete may not fully revert. |
@@ -74,18 +85,18 @@ The UI receives turn data only at `yield ("complete", ...)` (line 530), meaning 
 
 | Decision | What | Why |
 |---|---|---|
-| Cancel = memory discard + SSE reset | `POST /turn/cancel` sets cancel flag, waits for generator to return (via `finally`), then sends a `panel_update` SSE event resetting all panels to the pre-turn state. No files touched. | Eliminates the entire snapshot-revert code path. Cancel is O(1) — just stop and push a reset event. |
+| Cancel = memory discard + frontend reset | `POST /turn/cancel` sets cancel flag, waits for generator to return (via `finally`), returns `{"ok": true, "cancelled": true}`. The frontend resets panels to the pre-turn state. No files touched. Lazy cleanup of canceled events happens on next turn start. | Eliminates the entire snapshot-revert code path. Cancel is O(1) — just stop and return a flag. |
 | Cancel signal check points removed | The `is_cancel_requested()` checks at each yield point stay, but they `return` immediately (no persist has happened yet). | The generator exits cleanly via `finally`. No partial-persist concern. |
 | `register_persist` removed | `pop_persist_started` was already removed in completed plan `tooling-infra/dead-code-removal.md`. `register_persist` existed to prevent double-revert in the old cancel path. With no revert needed, it has no purpose. | Dead code removal. |
-| `remove_last_event` not called on cancel | No event was written — nothing to remove. | The cancel endpoint becomes: set flag, await done, send SSE reset, return. |
+| `remove_last_event` not called on cancel | No event was written — nothing to remove. | The cancel endpoint becomes: set flag, await done, return `{"ok": true, "cancelled": true}`. Frontend handles panel reset. |
 | `POST /turn/delete` unchanged | Delete still removes the last turn's event/chronicle/prompts from disk. Since there's only one write block, there is exactly one event and one chronicle entry to remove. | The delete endpoint already works correctly for fully-persisted turns. No change needed. |
 
 ### SSE progressive updates
 
 | Decision | What | Why |
 |---|---|---|
-| New `panel_update` SSE event type | After each extraction phase completes, the pipeline yields `("panel_update", {"panel": "scene"|"state"|"arc", "data": {...}})`. The frontend listens for this event type and swaps the matching panel's HTML. | Decouples panel refreshes from phase lifecycle. Frontend handles one event type uniformly. |
-| Panel data is rendered from in-memory state | Each panel receives the state tree subset relevant to it (scene → NPC compendium + location; state → PC state + conditions + inventory; arc → threads + goals + beats). | No disk reads for UI updates. The data is already in memory. |
+| New `panel_update` SSE event type | After each extraction phase completes, the pipeline yields `("panel_update", {"panel": "scene"|"state"|"arc", "data": {...}})`. The frontend listens for this event type and renders the matching panel from the JSON data. | Decouples panel refreshes from phase lifecycle. Frontend handles one event type uniformly. |
+| Panel data is raw JSON from in-memory state | Each panel receives the state tree subset relevant to it (scene → NPC compendium + location; state → PC state + conditions + inventory; arc → threads + goals + beats). The frontend (Alpine.js) renders the panel from this data. | No template sync fragility. No Jinja2 extraction. The SSE stream already has the connection open — pushing structured data through it is cheaper than HTMX round-trips. |
 | Narrative streaming unchanged | Token SSE events (`type: "narrative"`) continue as today. | No change to the narration streaming path. |
 | `turn_complete` SSE event still fires | The `yield ("complete", turn_result)` at line 530 remains. It carries the final TurnResult and signals narrative drain. | Existing frontend depends on this for finalizing the turn view. |
 
@@ -100,7 +111,7 @@ The UI receives turn data only at `yield ("complete", ...)` (line 530), meaning 
 
 | Decision | What | Why |
 |---|---|---|
-| `prompt_context.py` uses `prev_snap` for turn N's prompt | Turn N's prompt was built using turn N-1's state. With `last_turn_state` including sanitizer, turn N's prompt context must still use turn N-1's `last_turn_state` for all fields except turn-specific metadata (band, scene_phase). | Using turn N's `last_turn_state` would include turn N's own sanitizer mutations in turn N's prompt — semantically wrong. The engine fed turn N-1's state to the LLM for turn N's prompt. |
+| `prompt_context.py` uses `prev_snap` for turn N's prompt | Turn N's prompt was built using turn N-1's state. With `last_turn_state` including sanitizer, turn N's prompt context must use turn N-1's `last_turn_state` for all state fields; turn-specific metadata (band, scene_phase, curtain_call, allowed_beat_types) comes from turn N's event. | Using turn N's `last_turn_state` would include turn N's own sanitizer mutations in turn N's prompt — semantically wrong. The engine fed turn N-1's state to the LLM for turn N's prompt. |
 
 ### Checker correction
 
@@ -130,23 +141,34 @@ No `load_state` call needed — the state dict is already in memory at the write
 # After scene extraction applied to in-memory state:
 yield ("panel_update", {
     "panel": "scene",
-    "data": _render_scene_panel(state),
+    "data": {
+        "npcs": state.get("compendium", {}).get("npcs", {}),
+        "location": state.get("location"),
+    },
 })
 
 # After state extraction applied to in-memory state:
 yield ("panel_update", {
     "panel": "state",
-    "data": _render_state_panel(state),
+    "data": {
+        "pc": state.get("pc"),
+        "inventory": state.get("inventory"),
+        "conditions": state.get("pc", {}).get("conditions"),
+    },
 })
 
 # After storytell extraction applied to in-memory state (before sanitizer):
 yield ("panel_update", {
     "panel": "arc",
-    "data": _render_arc_panel(state),
+    "data": {
+        "arc": state.get("arc"),
+        "scene": state.get("scene"),
+        "meta": state.get("meta"),
+    },
 })
 ```
 
-Panel render functions are extracted from the existing template rendering path — they read from the state dict and return the HTML fragment for that panel.
+Panel data is raw JSON. The frontend (Alpine.js) renders panels from this data, matching the current Jinja2 templates. This avoids template-sync fragility — no need to extract Jinja2 logic into Python functions.
 
 ### Cancel endpoint change
 
@@ -154,7 +176,9 @@ Current (`routes.py:400-425`):
 - Request cancel → await turn done → read last event → get state_snapshot → remove event → remove chronicle → save state from snapshot
 
 New:
-- Request cancel → await turn done → send `panel_update` reset SSE → return
+- Request cancel → await turn done → return `{"ok": true, "cancelled": true}`
+- Frontend interprets `cancelled: true` and resets all panels to the pre-turn state (from previous turn's `last_turn_state`)
+- Lazy cleanup of canceled events happens on next successful turn start (removes events with `turn > meta.turn`)
 
 ### Delete endpoint
 
@@ -175,21 +199,21 @@ Removed entirely. `pop_persist_started` was already removed in completed plan `t
 
 ## Risks, Ambiguities, and Blockers
 
-- **Atomic write block — cancel vs crash.** The atomic write block handles cancel mid-write (check flag, skip block). But `events.jsonl` and `chronicle.md` are append-only files — you can't `os.replace` them with a temp file without losing every prior turn's events. `state.yaml` works because it's a single-file snapshot. `prompts.jsonl` is small enough to treat like `state.yaml` (write to temp, rename). **Mitigation:** write `events.jsonl` and `chronicle.md` to temp files first, then rename all files in sequence. If a crash hits mid-sequence, you get a mismatch (e.g., `state.yaml` updated but `events.jsonl` not), but this is astronomically rare — requires a crash *between* two `os.replace` calls, not during a write. `server_errors.jsonl` is written by `ccya/server/app.py` (route-level error handlers), not by `turn.py`, so it cannot be part of turn's atomic write.
-- **Panel render HTML generation.** The `_render_scene_panel(state)` etc. functions must produce HTML matching the current Jinja2 templates. These are extracted from the existing template rendering path (e.g., HTMX partial swaps). If templates change, panel render functions must be kept in sync.
+- **Atomic write block — cancel vs crash.** The best-effort atomic write block handles cancel mid-write (check flag, skip block). But `events.jsonl` and `chronicle.md` are append-only files — you can't `os.replace` them with a temp file without losing every prior turn's events. `state.yaml` works because it's a single-file snapshot. `prompts.jsonl` is small enough to treat like `state.yaml` (write to temp, rename). **Mitigation:** write `events.jsonl` and `chronicle.md` to temp files first, then rename all files in sequence. If a crash hits mid-sequence, you get a mismatch (e.g., `state.yaml` updated but `events.jsonl` not), but this is astronomically rare — requires a crash *between* two `os.replace` calls, not during a write. `server_errors.jsonl` is written by `ccya/server/app.py` (route-level error handlers), not by `turn.py`, so it cannot be part of turn's atomic write.
 - **SSE event ordering.** The frontend receives narrative tokens interleaved with `panel_update` events. The frontend must handle `panel_update` independently of narrative streaming — no ordering assumption beyond "panel_update for panel X arrives after its phase completes."
 - **EV tooling migration.** Renaming `state_snapshot` to `last_turn_state` touches ~15 files. Each change is a mechanical find-and-replace, but the `prompt_context.py` reader logic must be carefully verified: the semantics change from "frozen copy of pre-sanitizer state" to "complete post-turn state including sanitizer."
+- **Frontend panel rendering accuracy.** The frontend must render panels from raw JSON to match the current Jinja2 templates. If templates change, the frontend rendering logic must be kept in sync. **Mitigation:** the frontend rendering logic should be extracted into reusable functions (not inline in the SSE handler) so it can be compared against the Jinja2 templates during review.
 
 ## Files to change
 
 ### Core engine
 - `ccya/engine/turn.py` — restructure write block, add `panel_update` yields, remove `register_persist` usage
-- `ccya/engine/config.py` — remove `register_persist` (and `_persist_started` dict). `pop_persist_started` was already removed in completed plan `tooling-infra/dead-code-removal.md`.
+- `ccya/engine/config.py` — remove `register_persist` (and `_persist_started` dict). `pop_persist_started` was already removed in completed plan `tooling-infra/dead-code-removal.md`. Also remove `_persist_started.pop(save_dir, None)` from `clear_all_turn_locks()` (line 83).
 - `ccya/engine/__init__.py` — remove deleted symbols from exports
 
 ### Server
-- `ccya/server/routes.py` — simplify `cancel_turn()` (remove snapshot revert logic), update `delete_last_turn()` field reference
-- `ccya/templates/index.html` — add `panel_update` SSE event handler in frontend JS
+- `ccya/server/routes.py` — simplify `cancel_turn()` (remove snapshot revert logic, return `{"ok": true, "cancelled": true}`), update `delete_last_turn()` field reference (`state_snapshot` → `last_turn_state`)
+- `ccya/templates/index.html` — add `panel_update` SSE event handler in frontend JS (renders panels from JSON), add cancel handling (reset panels on `cancelled: true` response)
 
 ### State management
 - `ccya/state/io.py` — `restore_snapshot_state` was already removed in completed plan `tooling-infra/dead-code-removal.md`. Consider removing the orphaned `state_snapshot.yaml` cleanup at line 136 (no file is ever written by that name anymore).
@@ -211,36 +235,44 @@ Removed entirely. `pop_persist_started` was already removed in completed plan `t
 
 ```
 ruling ──→ narrate ──→ scene extract ──→ state extract ──→ storytell extract
-                │              │                 │                │
-            SSE tokens      panel_update      panel_update    panel_update
-                            (scene)           (state)          (arc)
+                 │
+             SSE tokens
+             (narrative)
 
+                                                     │
+                                                     ↓
+                                           apply to in-memory state
+                                           prior_history computed
+                                           sanitizer runs in-memory
+                                                     │
+                                    ┌───────────────┼───────────────┐
+                                    │               │               │
+                              panel_update    panel_update    panel_update
+                              (scene)         (state)         (arc)
+                                    │               │               │
+                                    └───────────────┼───────────────┘
                                                     │
                                                     ↓
-                                          apply to in-memory state
-                                          prior_history computed
-                                          sanitizer runs in-memory
+                                       ┌─────────────────────────┐
+                                       │  Best-effort atomic     │
+                                       │  write block            │
+                                       │  ─ save_state           │
+                                       │  ─ write_event*         │
+                                       │  ─ write_chronicle*     │
+                                       │  ─ write_prompts        │
+                                       └─────────────────────────┘
+                                       * Write to temp file, then os.replace
+                                       * events.jsonl and chronicle.md are
+                                       * append-only — true atomicity not
+                                       * possible, but crash gap is negligible
                                                     │
                                                     ↓
-                                           ┌─────────────────────┐
-                                           │  Atomic write block │
-                                           │  ─ save_state       │
-                                           │  ─ write_event*     │
-                                           │  ─ write_chronicle* │
-                                           │  ─ write_prompts    │
-                                           └─────────────────────┘
-                                           * Write to temp file, then os.replace
-                                           * events.jsonl and chronicle.md are
-                                           * append-only — true atomicity not
-                                           * possible, but crash gap is negligible
-                                                    │
-                                                    ↓
-                                            yield ("complete", ...)
+                                             yield ("complete", ...)
 ```
 
 ## Cancel behavioral change
 
-Currently, `cancel_turn()` (routes.py:395-425) **does** remove files: `remove_last_event()` and `remove_last_chronicle_turn()`. The new design removes this cleanup entirely. Canceled turns' events and chronicle entries will accumulate on disk indefinitely. This is a deliberate tradeoff (simpler cancel path), not a regression, but it means `events.jsonl` and `chronicle.md` grow without bound for games with many cancellations. Consider whether a periodic cleanup or lazy cleanup on turn start is needed.
+Currently, `cancel_turn()` (routes.py:395-425) **does** remove files: `remove_last_event()` and `remove_last_chronicle_turn()`. The new design defers this cleanup: canceled turns' events and chronicle entries accumulate on disk until the next successful turn start, when the engine removes events whose `turn` number exceeds the current `meta.turn` (excluding sanitizer events). The turn viewer (`tv.py`) should also filter out canceled turns from its display. This keeps the cancel path simple (O(1) flag return) while keeping `events.jsonl` bounded.
 
 ## EV tooling impact analysis
 
@@ -258,7 +290,7 @@ This checker has `_apply_sanitizer_changes_to_arc()` (lines 12-89) that explicit
 
 `build_prompt_context(events, turn_no, stream)` uses `turn_ev.get("state_snapshot")` (turn N's event) for most fields when re-rendering turn N's prompt. Currently this is pre-sanitizer state (what the engine actually fed to the LLM). With `last_turn_state` (post-sanitizer), turn N's prompt context would include turn N's own sanitizer mutations — **semantically wrong**. Turn N's prompt should be built from turn N-1's `last_turn_state`.
 
-**Fix:** Use `prev_snap` (turn N-1's `last_turn_state`) for all fields except turn-specific metadata (band, scene_phase, curtain_call, allowed_beat_types). The current code already correctly uses `prev_snap` for `pending_beat` and `recent_beats` (lines 171-173, 250-251). Extend this pattern: for `storytell` stream, use `prev_snap` for `arc`, `inventory`, `conditions`, `location`, `compendium`, `pc`. For `scene` stream, use `prev_snap` for `pc`, `compendium`, `location`. For `state` stream, use `prev_snap` for `pc`, `inventory`, `conditions`, `location`. For `ruling` and `narrate` streams, use `prev_snap` for `arc`, `compendium`, `pc`, `location`, `inventory`, `scene`, `meta`. The `turn_ev.get("state_snapshot")` should only be used for turn-specific metadata that is set during turn N itself (band from ruling outcome, scene_phase from pacing_context).
+**Fix:** Use `prev_snap` (turn N-1's `last_turn_state`) for all state fields. Use `turn_ev` only for turn-specific metadata set during turn N itself (band from ruling outcome, scene_phase from pacing_context, curtain_call from scene phase logic, allowed_beat_types from pacing). Implementation details (which exact fields per stream branch) belong in the plan document.
 
 ### Checkers likely unaffected or improved
 
@@ -292,22 +324,68 @@ This checker has `_apply_sanitizer_changes_to_arc()` (lines 12-89) that explicit
 
 Extending `prev_snap` usage across 5 stream branches (scene, state, storytell, ruling, narrate) is a large refactoring with many individual field-level decisions. Easy to miss one field or use the wrong source (prev_snap vs turn_ev). This is not a find-and-replace — it's a logic change that could silently produce wrong prompt context for LLM evals. **Mitigation:** write a regression test or `ev.py` comparison that renders turn N's prompt before and after the change and diffs the output.
 
-### 2. Canceled turns accumulate without bound
+### 2. Frontend panel rendering accuracy
 
-The design removes cleanup on cancel. In practice, a user who cancels and retries 20 times gets 20 extra events and 20 extra chronicle entries. The turn viewer (`tv.py`) loads all events for analysis. This could get slow or break UI for games with heavy cancel/retry usage. **Mitigation:** consider lazy cleanup on turn start (remove events with `turn > current_turn` and `kind == "turn"` that don't have a corresponding `state.yaml` entry), or a periodic cleanup command.
+The frontend must render panels from raw JSON to match the current Jinja2 templates. If templates change, the frontend rendering logic must be kept in sync. **Mitigation:** extract rendering logic into reusable functions (not inline in the SSE handler) so it can be compared against the Jinja2 templates during plan review.
 
-### 3. Panel render extraction is fragile
+### 3. Atomic write block handles cancel but not crashes
 
-The design says `_render_scene_panel(state)` etc. are "extracted from the existing template rendering path." The current frontend uses HTMX to fetch `/panels/state-left` and `/panels/state-right` via HTTP GET, which calls `_render("_state_left.html", ...)` with Jinja2. Extracting HTML generation from Jinja2 templates into Python functions that take a raw state dict is non-trivial. Jinja2 templates have logic (loops, conditionals, filters) that must be replicated in Python. If templates change and render functions don't, the UI will show stale or incorrect data. **Mitigation:** consider sending raw JSON state data in `panel_update` events and letting the frontend render via JS, rather than pushing pre-rendered HTML.
+The best-effort atomic write block handles cancel mid-write (check flag, skip block). But `events.jsonl` and `chronicle.md` are append-only files — you can't `os.replace` them with a temp file without losing every prior turn's events. `state.yaml` works because it's a single-file snapshot. `prompts.jsonl` is small enough to treat like `state.yaml` (write to temp, rename). **Mitigation:** write `events.jsonl` and `chronicle.md` to temp files first, then rename all files in sequence. If a crash hits mid-sequence, you get a mismatch (e.g., `state.yaml` updated but `events.jsonl` not), but this is astronomically rare — requires a crash *between* two `os.replace` calls, not during a write. Accept this limitation and document it.
 
-### 4. Atomic write block handles cancel but not crashes
-
-The design mitigates cancel mid-write (check flag, skip block). But `events.jsonl` and `chronicle.md` are append-only files — you can't `os.replace` them with a temp file without losing every prior turn's events. `state.yaml` works because it's a single-file snapshot. `prompts.jsonl` is small enough to treat like `state.yaml` (write to temp, rename). **Mitigation:** write `events.jsonl` and `chronicle.md` to temp files first, then rename all files in sequence. If a crash hits mid-sequence, you get a mismatch (e.g., `state.yaml` updated but `events.jsonl` not), but this is astronomically rare — requires a crash *between* two `os.replace` calls, not during a write. Accept this limitation and document it.
-
-### 5. `clear_all_turn_locks()` still references `_persist_started`
-
-Removing `register_persist` means `clear_all_turns_locks()` in `config.py:83` (`_persist_started.pop(save_dir, None)`) becomes dead code. Must be removed too, or it will silently do nothing and confuse future maintainers.
-
-### 6. Delete reverts to post-sanitizer state
+### 4. Delete reverts to post-sanitizer state
 
 With `last_turn_state` including sanitizer mutations, `delete_last_turn()` reverts to a state that includes sanitizer changes. This is actually more correct (undoes the full turn), but it's a behavioral change. Users who delete a turn expect to undo to the state before that turn. With sanitizer mutations included, they undo further. This could surprise users or break workflows that depend on specific pre-sanitizer state. **Mitigation:** document this behavioral change explicitly in the delete endpoint docs or UI.
+
+## Review Findings (2026-06-25)
+
+### Problem framing: VALIDATED
+
+- **3+ saves per turn** — Confirmed in `turn.py:437`, `turn.py:492`, `turn.py:505`. All three `save_state()` calls are in the turn pipeline.
+- **`state_snapshot` is stale** — Confirmed at `turn.py:438`: `event["state_snapshot"] = load_state(save_dir)` reads from disk after write 1, excluding prior_history (write 2) and sanitizer (write 3).
+- **Cancel/delete restore from stale snapshot** — Confirmed in `routes.py:414`: `pre_turn_state = event.get("state_snapshot")` reads the stale snapshot. Both cancel (line 417-418) and delete (line 450-451) restore from it.
+- **UI receives turn data only at yield ("complete")** — Confirmed at `turn.py:530`: `yield ("complete", result_obj)` is the only complete signal. No intermediate panel updates.
+- **`register_persist` is dead code** — Confirmed: `turn.py:436` calls `register_persist(str(save_dir))`, which sets `_persist_started[save_dir] = True` in `config.py:55-56`. `_persist_started` is only read in `clear_all_turn_locks()` at `config.py:83` (pops the key). No other consumer exists.
+- **`_persist_started` in `clear_all_turn_locks`** — Confirmed at `config.py:83`: `_persist_started.pop(save_dir, None)` becomes dead code when `register_persist` is removed.
+
+### Proposed solutions: VALIDATED
+
+- **Single atomic write block** — `io.py:115-121` already uses `os.replace` for atomicity. Consolidating the three `save_state()` calls into one point after all phases is correct. The atomic write block should include: `save_state()`, `append_event()`, `append_chronicle()`, `append_prompts()`.
+- **`panel_update` SSE events** — `routes.py:307-391` yields three event types: `("token", chunk)`, `("phase", payload)`, `("complete", result_obj)`. Adding `("panel_update", {...})` after each extraction phase is correct. The frontend at `index.html:1766-1789` listens for `narrative_token`, `phase`, and `turn_complete` events via EventSource. A new `panel_update` listener should be added.
+- **Cancel = memory discard** — **GAP IDENTIFIED**: The cancel endpoint (`routes.py:394-425`) is a POST endpoint that returns `JSONResponse`. It cannot push SSE events through the open SSE connection (which is a separate GET endpoint). The design says cancel should "send a `panel_update` reset SSE event," but the cancel endpoint has no reference to the SSE stream. **Fix**: The cancel endpoint should return `{"ok": true, "cancelled": true}` and the frontend should interpret this as a signal to reset panels to the previous turn's `last_turn_state`. No SSE push needed.
+- **`register_persist` removal** — Confirmed correct. Remove from: `turn.py:15` (import), `turn.py:436` (call), `config.py:36` (dict), `config.py:55-56` (function), `config.py:83` (pop in `clear_all_turn_locks`), `engine/__init__.py:9,28` (export).
+- **`state_snapshot` → `last_turn_state` rename** — Confirmed ~100 references across EV tooling. The rename is mechanical but the semantics shift (pre-sanitizer → post-sanitizer) is the real concern.
+- **`prompt_context.py` fix** — **VALIDATED**: Current code at `prompt_context.py:101` uses `state_snapshot = turn_ev.get("state_snapshot")` (turn N's event) for most fields. The design correctly identifies that turn N's prompt should use `prev_snap` (turn N-1's state) for all fields except turn-specific metadata. Currently `prev_snap` is only used for `pending_beat` and `recent_beats` in storytell (lines 171-173) and narrate (line 250) streams. The fix should extend `prev_snap` usage to: `arc`, `inventory`, `conditions`, `location`, `compendium`, `pc` across all 5 stream branches.
+- **`_apply_sanitizer_changes_to_arc()` removal** — **VALIDATED**: `thread_resolution_validity.py:12-89` reconstructs sanitizer state from `changes_detail` because `state_snapshot` didn't include sanitizer. With `last_turn_state` including sanitizer, this function would double-apply. Remove entirely. The checker should use `last_turn_state` directly. Also remove `needs_non_turn_events=True` flag at line 96.
+- **`io.py:136` orphaned cleanup** — **VALIDATED**: `(save_dir / "state_snapshot.yaml").unlink(missing_ok=True)` removes a file that is no longer written. Safe to remove.
+
+### Additional findings
+
+- **Cancel endpoint architecture gap** (see above): The cancel endpoint at `routes.py:394-425` currently: (1) loads last events before cancel, (2) sets cancel flag, (3) awaits turn done, (4) loads last events after cancel, (5) if a new turn was written, removes it and restores state. The new design should simplify to: (1) set cancel flag, (2) await turn done, (3) clear cancel, (4) return `{"ok": true, "cancelled": true}`. The frontend handles panel reset.
+- **Delete endpoint field reference** — `routes.py:445`: `pre_turn_state = last_event.get("state_snapshot")` should become `last_event.get("last_turn_state")`.
+- **`register_persist` import in turn.py** — `turn.py:15`: `from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts, is_cancel_requested, register_persist, register_turn, signal_turn_done` — `register_persist` should be removed from this import.
+- **`register_persist` export in engine/__init__.py** — `engine/__init__.py:9,28`: `register_persist` is imported and exported. Both should be removed.
+- **`_persist_started` dict in config.py** — `config.py:36`: `_persist_started: dict[str, bool] = {}` should be removed.
+- **`register_persist` function in config.py** — `config.py:55-56`: The function should be removed.
+- **`clear_all_turn_locks` cleanup** — `config.py:83`: `_persist_started.pop(save_dir, None)` should be removed.
+- **`register_persist` call in turn.py** — `turn.py:436`: `register_persist(str(save_dir))` should be removed.
+- **`load_state` call for event snapshot** — `turn.py:438`: `event["state_snapshot"] = load_state(save_dir)` should become `event["last_turn_state"] = state` (the in-memory dict, no `load_state` call needed).
+- **`prior_history` write** — `turn.py:492`: `save_state(save_dir, state)` after prior_history bullet should be removed (moved to single atomic write block).
+- **Sanitizer write** — `turn.py:505`: `save_state(save_dir, state)` after sanitizer should be removed (moved to single atomic write block).
+- **`_format_ts` in routes.py** — `routes.py:158-164`: Used in cancel endpoint? No, only in `turn_complete` SSE at line 360. Unchanged.
+- **`_load_current_state` in routes.py** — `routes.py:374`: `"_load_current_state()"` is called in the `turn_complete` SSE event. This reads from disk. With progressive panel updates, this could be replaced with in-memory state from the turn result. However, this is a minor optimization — the turn_complete event already has the full state in `result_obj`.
+
+### Risks reassessment
+
+- **Atomic write block cancel vs crash** — Design's mitigation (temp files + os.replace) is correct. `state.yaml` is already atomic. `events.jsonl` and `chronicle.md` are append-only — true atomicity not possible, but crash gap is negligible.
+- **Panel render HTML generation** — Design correctly identifies this as fragile. The mitigation (send raw JSON state data in `panel_update` events, let frontend render via JS) is recommended over extracting Jinja2 templates to Python functions.
+- **SSE event ordering** — Design correctly identifies that frontend must handle `panel_update` independently of narrative streaming.
+- **EV tooling migration** — Design correctly identifies ~15 files to update. The `prompt_context.py` logic change is the highest risk (validated above).
+- **Canceled turns accumulate** — Design correctly identifies this tradeoff. Lazy cleanup on turn start is a good mitigation.
+- **`clear_all_turn_locks` references `_persist_started`** — **CONFIRMED**: `config.py:83` must be updated.
+- **Delete reverts to post-sanitizer state** — Design correctly identifies this behavioral change. Document it.
+
+### Verdict
+
+**Design is sound. Proceed to planning.**
+
+All problem claims are validated against source. All proposed solutions are correct. The one gap (cancel endpoint SSE push) is architectural and easily resolved by having the cancel endpoint return a JSON flag and the frontend handle panel reset. No design decisions need to change.

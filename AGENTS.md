@@ -78,7 +78,7 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 - `roadmap/done.md` — auto-generated done TOC (done/canceled) via `make roadmap`
 - `roadmap/archive-index.md` — auto-generated archive TOC via `make roadmap`
 
-Status lifecycles and YAML frontmatter schema: see `roadmap/README.md`.
+**MANDATORY: Every roadmap file must have YAML frontmatter** (title, status, urgency, size, created, optional labels). Files without frontmatter are skipped by `scripts/generate-roadmap.py` with a warning. Schema and status lifecycles: see `roadmap/README.md`.
 
 Design docs use a separate status lifecycle:
 - `scoping` → `reviewed` → `implemented`

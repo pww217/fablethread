@@ -1,3 +1,14 @@
+---
+title: "Improve Name Generation: Library Selection + Better Location Names"
+status: scoping
+urgency: 3
+size: medium
+created: 2026-06-24
+labels:
+  - engine
+  - seed
+---
+
 # Improve Name Generation: Library Selection + Better Location Names
 
 ## Problem
@@ -59,4 +70,4 @@ Integration path:
 
 ## Status
 
-- `new` (surname+ suffix fix implemented 2026-06-24; pynames integration remaining)
+- `scoping` (surname suffix fix implemented 2026-06-24; pynames integration remaining)
