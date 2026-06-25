@@ -196,21 +196,24 @@ NEW PIPELINE (after split):
             │
             │ ruling selects ONE or NONE
             ▼
-  ┌───────────────────────────────────────────┐
-  │ IF selected_beat present:                 │
-  │   → set pending_gm_beat (expires turn+2)  │
-  │   → append to recent_beats                │
-  │   → discard all beat_candidates           │
-  │                                           │
-  │ IF no selected_beat:                      │
-  │   → pop pending_gm_beat (null-clear)      │
-  │   → discard all beat_candidates           │
-  └───────────────────────────────────────────┘
-            │
-            │ Turn N+2 or N+3: pending_gm_beat expires
-            │ (consumed by Narrate on turn N+1, expires turn N+3)
-            ▼
-  beat_candidates = [] (cleared, World regenerates next turn)
+   ┌───────────────────────────────────────────────────────────────────┐
+   │ Ruling ALWAYS discards all beat_candidates and either sets a      │
+   │ new pending_gm_beat or clears it. No "keep current beat" path.    │
+   │                                                                   │
+   │ IF selected_beat present:                                         │
+   │   → set pending_gm_beat (expires turn+2)                          │
+   │   → append to recent_beats                                        │
+   │   → discard all beat_candidates                                   │
+   │                                                                   │
+   │ IF no selected_beat:                                              │
+   │   → pop pending_gm_beat (null-clear)                              │
+   │   → discard all beat_candidates                                   │
+   └───────────────────────────────────────────────────────────────────┘
+             │
+             │ Turn N+2 or N+3: pending_gm_beat expires
+             │ (consumed by Narrate on turn N+1, expires turn N+3)
+             ▼
+   beat_candidates = [] (cleared, World regenerates next turn)
 ```
 
 ### Pending GM Beat Lifecycle
@@ -220,23 +223,29 @@ NEW PIPELINE (after split):
 │                  PENDING_GM_BEAT LIFECYCLE                           │
 └─────────────────────────────────────────────────────────────────────┘
 
-  Turn N:
-    Ruling selects beat → pending_gm_beat = {type, effect, ..., beat_expires_turn=N+2}
-    │
-    │ (beat_expires_turn = turn_no + 2)
-    ▼
-  Turn N+1:
-    Narrate reads pending_gm_beat ← integrates into narration
-    │
-    │ beat_expires_turn check: if turn_no > expires_turn → clear
-    │ (beat expires AFTER being consumed once)
-    ▼
-  Turn N+2 or N+3:
-    pending_gm_beat expires → cleared from state.meta
-    │
-    │ (beat was consumed on turn N+1, expires on turn N+3)
-    ▼
-  pending_gm_beat = None
+   Turn N:
+     Ruling selects beat → pending_gm_beat = {type, effect, ..., beat_expires_turn=N+2}
+     │
+     │ (beat_expires_turn = turn_no + 2)
+     ▼
+   Turn N+1:
+     Narrate reads pending_gm_beat ← integrates into narration
+     │
+     │ beat_expires_turn check: if turn_no > expires_turn → clear
+     │ (beat expires AFTER being consumed once)
+     ▼
+   Turn N+2 or N+3:
+     pending_gm_beat expires → cleared from state.meta
+     │
+     │ (beat was consumed on turn N+1, expires on turn N+3)
+     ▼
+   pending_gm_beat = None
+
+
+   NOTE — beat_expires_turn is a safety net, not a carry-forward mechanism:
+   Normal flow is: Ruling selects → Narrate consumes on the next turn → beat is done.
+   The 2-turn expiry exists only to clear orphaned state if something goes wrong.
+   It is not a mechanism for intentionally carrying a beat across turns.
 
 
   TIMELINE EXAMPLE:
@@ -485,24 +494,22 @@ All candidates are discarded after ruling selects one. World regenerates fresh c
 |-------|-------|------|-------|
 | `meta.beat_candidates` | Add | `list[dict]`, default `[]` | `world.py` — written by World step; read by ruling |
 
-### D5: Async timing — extension of existing submit guard
+### D5: Async timing — extension of `_inflight` submit guard
 
-World runs async after persist completes. The player can type input but cannot submit until World completes (~4-5s). This extends the existing "no submit while turn is running" mechanism.
+World runs after persist completes as part of the turn. The player can type input but cannot submit until World completes (~4-5s). This is a hard constraint, not best-effort.
 
-**Mechanism:** The UI already prevents submitting while a turn is in progress (tracked by `_inflight`). Extend this with a `beat_generation_in_progress` flag:
+**Mechanism:** World extends the existing `_inflight` submit guard. The turn is not complete until World finishes. There is no separate `beat_generation_in_progress` flag — World simply extends the turn's in-progress window.
 
 ```python
 # In turn.py, after persist (line ~476):
-beat_generation_in_progress = True
 yield ("phase", {"phase": "beat_generation_start"})
 beat_candidates = await _run_world_step(env, state, narration, scene_result, pacing_context, config, trace_id, turn_no)
-beat_generation_in_progress = False
 state.setdefault("meta", {})["beat_candidates"] = beat_candidates or []
 ```
 
-The UI blocks submission while `beat_generation_in_progress` is `True`. If the player somehow submits during this window, ruling proceeds without beat selection (no `selected_beat` in JSON).
+The UI blocks submission while `_inflight` is still active (World has not completed). The player cannot submit while World is running. There is no fallback skip path — World must complete before submission is re-enabled.
 
-**Fallback:** If the player submits before World completes (beat_candidates not ready), ruling proceeds without beat selection (no `selected_beat` in JSON). Narrate receives no beat for that turn.
+**Rationale:** World is expected to do more than beat generation in the future. Allowing submission before World completes would create an unreliable pipeline dependency. The guard must be airtight.
 
 ### D6: Beat selection mechanism — ruling JSON includes selected_beat
 
@@ -736,7 +743,7 @@ In `_ruling_phase()`: After `_call_ruling()` returns, set `pending_gm_beat` + `r
 - **State Extract (2b):** Unchanged. Still produces inventory/conditions/location deltas.
 - **Phase Engine:** Unchanged. Still computes `scene_phase`, `convergence_score`, `PacingContext`.
 - **Beat schema:** `GMBeat` model unchanged (type, effect, npc_id, driver, beat_expires_turn).
-- **Beat TTL mechanics:** `beat_expires_turn = turn_no + 2` unchanged.
+- **Beat TTL mechanics:** `beat_expires_turn = turn_no + 2` unchanged — but re-framed as a safety net for orphaned state only, not a designed multi-turn carry mechanism. Beats are single-turn commitments.
 - **Beat null-clear behavior:** When no beat selected, `pending_gm_beat` is popped from state.
 - **Thread lifecycle:** `_apply_thread_updates()`, `_apply_thread_resolutions()`, `_apply_arc_resolve()` — all unchanged.
 - **Thread sanitizer:** Unchanged.
@@ -762,7 +769,7 @@ The total token count increases modestly (~40-60% more system tokens due to dupl
 
 ### OQ1: Record actions without inventory/conditions
 
-**Decision:** Record generates actions from narration alone. Narration describes what's in the scene — it's richer than inventory lists. Actions are grounded in narration text, not separate inventory/conditions sections.
+**Decision:** Actions generated by Record are arc and thread-focused. They suggest what the player could do next in terms of narrative momentum, not item usage or NPC interaction. Inventory and NPC inputs were removed deliberately — not just for token economy, but because actions should reflect story direction. If action quality proves insufficient without those inputs, they can be re-added, but the default scope is intentionally narrow.
 
 ### OQ2: Recent beats ownership
 
@@ -784,9 +791,13 @@ The total token count increases modestly (~40-60% more system tokens due to dupl
 
 **Decision:** Ruling always pops `beat_candidates` from `state.meta` after selection (or non-selection). Candidates never persist across turns.
 
+### OQ6b: Beats are single-turn commitments
+
+**Decision:** Beats are single-turn commitments. World generates fresh candidates each turn. The phase engine, not TTL carry-forward, is responsible for pacing. `beat_expires_turn` is a state hygiene mechanism only — it clears orphaned beats if something goes wrong. Ruling always discards all candidates and either sets a new `pending_gm_beat` or clears it. No "keep current beat" path exists.
+
 ### OQ7: World failure handling
 
-**Decision:** If World's LLM call times out or returns invalid JSON, log a warning and set `beat_candidates = []`. Ruling proceeds without beat selection (no `selected_beat` in JSON).
+**Decision:** If World's LLM call times out or returns invalid JSON, log a warning and set `beat_candidates = []`. This happens before submission is re-enabled — the turn completes (World resolves one way or another), then the submit guard lifts. Ruling proceeds without beat selection (no `selected_beat` in JSON) on the next turn if candidates are empty.
 
 ### OQ8: malformed selected_beat handling
 

@@ -157,14 +157,17 @@ moral_pressures:
     incompatible_with: []
 
 pc_situation_schema:
-  - key: unit_assignment
-    description: What unit or squad is the PC assigned to?
+  - key: unit
+    description: What unit or platoon is the PC assigned to, and what is its reputation?
     required: false
-  - key: position
-    description: What is the PC's current position or role in the field?
+  - key: theater
+    description: Where has the PC been deployed? (North Africa, Normandy, Pacific island, etc.)
     required: false
-  - key: mission_context
-    description: What is the PC's current mission or operation?
+  - key: family_back_home
+    description: Who is the PC's family back home, and where are they located? Include names and town.
+    required: false
+  - key: chain_of_command
+    description: Who is the PC's commanding officer, and does the PC respect or distrust them?
     required: false
 
 npc_bonds:

@@ -186,19 +186,16 @@ npc_bonds:
 
 pc_situation_schema:
   - key: vessel
-    description: The PC's ship or vessel
+    description: The PC's ship or vessel. Name, type, condition, and armament.
     required: false
-  - key: crew
-    description: The PC's crew situation
+  - key: home_port
+    description: Where is the PC based? Who controls it, and are they welcome there?
     required: false
-  - key: debts
-    description: Debts, obligations, or bounties on the PC
+  - key: reputation
+    description: How is the PC known or unknown? Feared, respected, or unknown?
     required: false
-  - key: alliances
-    description: Faction alliances or contacts the PC relies on
-    required: false
-  - key: home
-    description: The PC's home base or territory
+  - key: alliance_status
+    description: Who does the PC sail under or with? (pirate fleet, navy, independent, merchant guild)
     required: false
 
 scene_detail_bundles:
