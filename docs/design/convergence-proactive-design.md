@@ -1,7 +1,10 @@
 # Convergence Proactive Design
 
-> **Status:** scoping
+> **Status:** reviewed
 > **Source:** `roadmap/bugs/convergence-starvation.md` (validated, root cause confirmed)
+
+> **Review date:** 2026-06-24
+> **Reviewer:** review-design skill
 
 ## Problem Statement
 
@@ -81,51 +84,51 @@ Field: `"scene_age": 0|1`
 +1 if ≥60% of last 5 beats are pressure types. **When a beat entry has `type=None`, carry over the type from the chronologically previous non-null entry in the window.** Reflects the 2-turn TTL: a null beat means the prior beat is still narratively active.
 
 ```
-carried = []
-prev = None
+pressure_types = set(BEAT_BUCKETS["pressure"])
+last_non_null_type = None
+pressure_count = 0
 for b in window:
     bt = b.get("type")
-    if bt is None:
-        bt = prev
-    else:
-        prev = bt
-    carried.append(bt)
-
-pressure_count = count of bt in pressure_types for bt in carried
+    if bt is not None:
+        last_non_null_type = bt
+    if last_non_null_type in pressure_types:
+        pressure_count += 1
 threshold = ceil(n * 0.6) if n < 5 else 3
 score += 1 if pressure_count >= threshold
 ```
 
+If all beats in the window are null (no prior non-null beat exists), `last_non_null_type` stays `None` and `pressure_count` = 0, so beat_streak = 0. This is correct: no pressure beats means no pressure streak. The `stall_floor` component handles deadlock prevention in this case.
+
 Field: `"beat_streak": 0|1`
 
 #### 5. `roll_starvation` — NEW
-+1 if no roll has occurred in 3+ turns. Computed from `recent_rolls` (most-recent-first, capped at 5).
++1 if no roll has occurred in `config.roll_starvation_threshold`+ turns. Computed from `recent_rolls` (most-recent-first, capped at 5).
 
 ```
 turns_since_last_roll = current_turn - recent_rolls[0]["turn"] if recent_rolls else None
-score += 1 if turns_since_last_roll is not None and turns_since_last_roll >= 3
+score += 1 if turns_since_last_roll is not None and turns_since_last_roll >= config.roll_starvation_threshold
 ```
 
-If no roll has ever occurred in the game (`recent_rolls` empty), this stays 0 — not punishing turn-1 avoidance.
+If no roll has ever occurred in the game (`recent_rolls` empty), this stays 0 — not punishing turn-1 avoidance or very slow games.
 
 Field: `"roll_starvation": 0|1`
 Config: `roll_starvation_threshold`, default `3`.
 
 #### 6. `threat_density` — NEW
-+1 if the number of active (non-dormant) threat-type threads ≥ 3. High threat saturation means pressure even without individual urgency.
++1 if the number of active (non-dormant) threat-type threads ≥ `config.threat_density_threshold`. High threat saturation means pressure even without individual urgency.
 
 ```
 active_threat_count = count of t where t.get("type") == "threat" and not t.get("dormant", False)
-score += 1 if active_threat_count >= 3
+score += 1 if active_threat_count >= config.threat_density_threshold
 ```
 
 Field: `"threat_density": 0|1`
 Config: `threat_density_threshold`, default `3`.
 
 #### 7. `stall_floor` — NEW
-Proactive floor that increments when convergence stays below threshold.
+Proactive floor that increments when convergence stays below threshold. **Global across all arcs and scenes** — not reset on arc boundaries or phase transitions. This is intentional: persistent convergence starvation indicates a systemic pacing problem that should accumulate pressure regardless of narrative context.
 
-State tracking: `meta.consecutive_low_convergence` (int, default 0), incremented each turn when `convergence_score < convergence_threshold`, reset to 0 when `>= convergence_threshold`. Reset on turn cancel/retry (revert to pre-turn value).
+State tracking: `meta.consecutive_low_convergence` (int, default 0), incremented in `narrate.py:_narrate_setup()` immediately after `compute_convergence_score()` returns, reset to 0 when `>= convergence_threshold`.
 
 ```
 if consecutive_low_convergence >= 3:
@@ -149,33 +152,38 @@ a thread was resolved this turn AND convergence_score < 2
 
 The thread resolution is the natural narrative endpoint. Convergence < 2 ensures the resolved thread was genuinely the main pressure source — if another thread is still urgent, convergence stays high and the climax continues.
 
+**Implementation note:** `storyteller_result.thread_resolve` is a `list[ThreadResolution]` (never None). The check should be `len(storyteller_result.thread_resolve) > 0`, not `is not None`.
+
 #### Extension
 
 If at turn 4 (`climax_turn_limit`) the climax is still building, extend the cap:
 ```
-if climax_turn_count >= climax_turn_limit AND convergence >= 3 AND any unresolved urgent thread exists:
-    extend by up to 2 additional turns
+if climax_turn_count >= config.climax_turn_limit AND convergence >= 3 AND has_urgent_active_thread:
+    extend by up to config.extension_max additional turns
 ```
+
+`has_urgent_active_thread` is computed inline in `_compute_scene_phase()` by iterating over `state['arc']['threads']` — same pattern as the existing SETUP transition thread count (lines 249-253 of `_pacing.py`). One pass over threads for both checks.
 
 The extension is recalculated each turn. As soon as conditions clear (or the extended cap is reached), transition.
 
+**Convergence=2 gap:** Convergence=2 falls through both early exit (`< 2` required) and extension (`>= 3` required). At convergence=2, the game stays in CLIMAX until turn 4 or 6. This is intentional — convergence=2 is borderline and the design treats it as "stay in CLIMAX."
+
 #### Absolute maximum
 
-`climax_turn_limit + extension_max` = 4 + 2 = **6 total CLIMAX turns maximum**. After turn 6, the engine forces RESOLUTION regardless. This is the hard safety net.
+`config.climax_turn_limit + config.extension_max` = 4 + 2 = **6 total CLIMAX turns maximum**. After turn 6, the engine forces RESOLUTION regardless. This is the hard safety net.
 
 ```
 elif phase == "CLIMAX":
     climax_turn_count += 1
-    limit = climax_turn_limit
-    if climax_turn_count >= climax_turn_limit:
+    if climax_turn_count >= config.climax_turn_limit:
         # Check early exit
-        thread_resolved = (storyteller_result.thread_resolve is not None)
+        thread_resolved = len(storyteller_result.thread_resolve or []) > 0
         if thread_resolved and convergence_score < 2:
             phase = "RESOLUTION"
             climax_turn_count = 0
         # Check extension
         elif convergence >= 3 and has_urgent_active_thread:
-            if climax_turn_count >= climax_turn_limit + extension_max:
+            if climax_turn_count >= config.climax_turn_limit + config.extension_max:
                 phase = "RESOLUTION"
                 climax_turn_count = 0
             # else stay in CLIMAX
@@ -328,3 +336,24 @@ All RISING scenarios use the 7-component score with threshold=2. Components that
 - SETUP → RISING transition logic (3-turn TTL unchanged)
 - RESOLUTION → BREATHER (always, 1 turn)
 - BREATHER → RISING transition logic (3-turn TTL unchanged)
+
+## Review
+
+### Key Blockers
+- **`thread_resolve` is a `list`, not a boolean.** The original pseudocode checked `storyteller_result.thread_resolve is not None` but `thread_resolve` is always a list (default `[]`). Fixed in design: changed to `len(storyteller_result.thread_resolve or []) > 0`.
+- **Source docstring mismatch.** `_pacing.py:96` claims `convergence_threshold` default is 3, but `config.py:168` sets it to 2. The design doc is internally consistent (default=2). This is a source bug to fix during implementation.
+
+### Design Ambiguities
+- **Convergence=2 during CLIMAX.** Falls through both early exit (`< 2`) and extension (`>= 3`). Stays in CLIMAX until turn 4 or 6. This is intentional — convergence=2 is borderline and the design treats it as "stay in CLIMAX." Plan author should explicitly document this behavior.
+
+### Suggested Improvements
+- **`narrate.py` mirroring code needs update.** Lines 238-266 in `narrate.py` mirror `compute_convergence_score()` for `convergence_components`. This code will need to be updated to match the new 7 components (add `roll_starvation`, `threat_density`, `stall_floor`; remove `dice_weight`). The design explicitly calls this out.
+
+### Minor Notes
+- **`PacingContext` docstring says "5-component score".** `turn_context.py:47` comment should be updated to "7-component" or just "convergence score."
+- **`_pacing.py` docstring says "5-component score".** `compute_convergence_score()` docstring at line 94 should be updated to "7-component."
+- **Scenario C stall_floor timing.** The table shows stall_floor=1 at T4, but the formula `floor = 1 + ((consecutive_low_convergence - 3) // 3)` means floor=1 at consecutive=3. If convergence was 0 at T1, T2, T3, then consecutive=3 at T4 and floor=1. This matches the table — confirming the math is correct.
+- **`threat_density` fires at T1 with 3+ threat threads.** Scenario D shows CLIMAX at turn 1, bypassing SETUP→RISING entirely. Confirmed acceptable for high-threat arcs.
+- **`stall_floor` is global.** Clarified in design: not reset on arc boundaries or phase transitions. Persistent convergence starvation accumulates pressure regardless of narrative context.
+- **Beat streak with all-null windows.** Clarified in design: if all beats in the window are null (no prior non-null beat), `last_non_null_type` stays `None` and `pressure_count` = 0, so beat_streak = 0. This is correct — no pressure beats means no pressure streak. The `stall_floor` component handles deadlock prevention in this case.
+- **`roll_starvation` stays 0 if no roll has ever occurred.** Confirmed acceptable — no false positives for very slow games. The `stall_floor` component handles deadlock prevention in this case.
