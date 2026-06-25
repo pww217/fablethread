@@ -31,7 +31,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### gm_beat_lifecycle
 
 - **Type:** deterministic
-- **Fields:** `state_snapshot`, `ruling`, `narrate_prompt`
+- **Fields:** `last_turn_state`, `ruling`, `narrate_prompt`
 - **What it checks:** Pending GM beat is consumed across turns, beat lifecycle is respected, binding block present on rolled turns
 - **CLI:** `ev.py check TURN gm_beat_lifecycle`
 - **Caveats:** Checks that `pending_gm_beat` from one turn is consumed or updated in the next. Verifies that when storyteller emits a GM beat, the state's `pending_gm_beat` matches its type. Rolled turns must include the BINDING block in narrate user prompt.
@@ -39,23 +39,23 @@ When inspecting a game, check one area at a time rather than running all checker
 ### location_change
 
 - **Type:** deterministic
-- **Fields:** `applied.location_change`, `state_snapshot.location` (or `extraction.storytell.rendered_user` for pre-delta location)
+- **Fields:** `applied.location_change`, `last_turn_state.location` (or `extraction.storytell.rendered_user` for pre-delta location)
 - **What it checks:** When a location change is emitted, the post-turn location ID differs from the previous turn's location ID
 - **CLI:** `ev.py check TURN location_change`
-- **Caveats:** Only checks turns where `applied.location_change` is present. First turn is skipped (no previous location to compare). Note: `extraction_context` is NOT stored in events; checkers must use `state_snapshot` or parse the storyteller prompt.
+- **Caveats:** Only checks turns where `applied.location_change` is present. First turn is skipped (no previous location to compare). Note: `extraction_context` is NOT stored in events; checkers must use `last_turn_state` or parse the storyteller prompt.
 
 ### inventory_integrity
 
 - **Type:** deterministic
-- **Fields:** `applied.inventory_add`, `applied.inventory_remove`, `state_snapshot.inventory` (or `extraction.storytell.rendered_user` for pre-delta inventory)
+- **Fields:** `applied.inventory_add`, `applied.inventory_remove`, `last_turn_state.inventory` (or `extraction.storytell.rendered_user` for pre-delta inventory)
 - **What it checks:** No negative inventory amounts, no overdraw (removing from zero-quantity items), no removal of non-existent items
 - **CLI:** `ev.py check TURN inventory_integrity`
-- **Caveats:** Checks state_snapshot inventory for negative amounts. Compares previous turn's inventory against current turn's removals to detect overdraw and removal of items that didn't exist. Note: `extraction_context` is NOT stored in events.
+- **Caveats:** Checks last_turn_state inventory for negative amounts. Compares previous turn's inventory against current turn's removals to detect overdraw and removal of items that didn't exist. Note: `extraction_context` is NOT stored in events.
 
 ### conditions_lifecycle
 
 - **Type:** deterministic
-- **Fields:** `applied.pc_condition_add`, `applied.pc_condition_remove`, `state_snapshot.pc.conditions` (or `extraction.storytell.rendered_user` for pre-delta conditions)
+- **Fields:** `applied.pc_condition_add`, `applied.pc_condition_remove`, `last_turn_state.pc.conditions` (or `extraction.storytell.rendered_user` for pre-delta conditions)
 - **What it checks:** Conditions present in ruling reason, no duplicate condition IDs
 - **CLI:** `ev.py check TURN conditions_lifecycle`
 - **Caveats:** Checks that condition IDs appear in the ruling's reason text (lowercase comparison). Dedup check is case-insensitive. Note: `extraction_context` is NOT stored in events.
@@ -63,15 +63,15 @@ When inspecting a game, check one area at a time rather than running all checker
 ### thread_lifecycle
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `state_snapshot`
+- **Fields:** `extraction.storytell`, `last_turn_state`
 - **What it checks:** thread_add entries appear in state after the turn, thread_update IDs reference existing threads
 - **CLI:** `ev.py check TURN thread_lifecycle`
-- **Caveats:** Checks the next turn's state_snapshot to verify thread_add was applied. thread_update IDs are validated against the current turn's state.arc.threads.
+- **Caveats:** Checks the next turn's last_turn_state to verify thread_add was applied. thread_update IDs are validated against the current turn's state.arc.threads.
 
 ### arc_goal_updates
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `state_snapshot`
+- **Fields:** `extraction.storytell`, `last_turn_state`
 - **What it checks:** When storyteller emits a goal_update string, it matches arc.visible_goal in state
 - **CLI:** `ev.py check TURN arc_goal_updates`
 - **Caveats:** Only checks turns where storyteller emitted a non-empty string goal_update. Skips null or non-string goal_update values.
@@ -79,10 +79,10 @@ When inspecting a game, check one area at a time rather than running all checker
 ### npc_presence
 
 - **Type:** deterministic
-- **Fields:** `state_snapshot.compendium.npcs`, `applied.compendium_npc_update`
+- **Fields:** `last_turn_state.compendium.npcs`, `applied.compendium_npc_update`
 - **What it checks:** All NPC presence values in compendium are valid (`present`, `nearby`, `known`, `departed`). Departed NPCs have required `departed_reason` field.
 - **CLI:** `ev.py check TURN npc_presence`
-- **Caveats:** Only checks state_snapshot compendium entries, not extraction output. Note: `extraction_context` is NOT stored in events.
+- **Caveats:** Only checks last_turn_state compendium entries, not extraction output. Note: `extraction_context` is NOT stored in events.
 
 ### pacing_directives
 
@@ -127,7 +127,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### thread_resolution_validity
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `state_snapshot`
+- **Fields:** `extraction.storytell`, `last_turn_state`
 - **What it checks:** thread_resolve entries have valid id/resolution_state/outcome, referenced threads exist in state
 - **CLI:** `ev.py check TURN thread_resolution_validity`
 - **Caveats:** resolution_state must be one of "resolved", "failed", "abandoned". Thread IDs must exist in arc.threads or arc.completed_threads.
@@ -135,7 +135,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### new_thread_validity
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `state_snapshot`
+- **Fields:** `extraction.storytell`, `last_turn_state`
 - **What it checks:** thread_add entries have id/description/visible_goal, no duplicate thread ids
 - **CLI:** `ev.py check TURN new_thread_validity`
 - **Caveats:** id must be non-empty string. description and visible_goal must be non-empty strings. No duplicate thread ids in state after add.
@@ -143,7 +143,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### compendium_lifecycle
 
 - **Type:** deterministic
-- **Fields:** `applied.compendium_npc_update`, `state_snapshot`
+- **Fields:** `applied.compendium_npc_update`, `last_turn_state`
 - **What it checks:** NPCs added via compendium_npc_update appear in state.compendium.npcs after the turn
 - **CLI:** `ev.py check TURN compendium_lifecycle`
 - **Caveats:** Validates that every NPC id in applied.compendium_npc_update exists in state.compendium.npcs. Catches state application bugs.
@@ -159,7 +159,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### arc_resolution_validity
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `state_snapshot`
+- **Fields:** `extraction.storytell`, `last_turn_state`
 - **What it checks:** arc_resolve has resolution + visible_goal + goal_context, drop_threads reference existing threads
 - **CLI:** `ev.py check TURN arc_resolution_validity`
 - **Caveats:** resolution, visible_goal, and goal_context must be non-empty strings. drop_threads IDs must exist in arc.threads.
@@ -167,7 +167,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### goal_update_validity
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `state_snapshot`
+- **Fields:** `extraction.storytell`, `last_turn_state`
 - **What it checks:** goal_update is non-empty string, must differ from previous visible_goal
 - **CLI:** `ev.py check TURN goal_update_validity`
 - **Caveats:** Skips turns where arc_resolve is also emitted (arc_resolve.visible_goal supersedes goal_update). Validates goal_update differs from next turn's arc.visible_goal.
@@ -191,7 +191,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### beat_narrative_chain
 
 - **Type:** llm
-- **Fields:** `state_snapshot.meta.pending_gm_beat`, `narrate`
+- **Fields:** `last_turn_state.meta.pending_gm_beat`, `narrate`
 - **What it checks:** GM beat produces observable narrative consequence in current and next turn narration
 - **CLI:** `ev.py check TURN beat_narrative_chain --llm`
 - **Caveats:** Uses the configured checker model. Evaluates first event's pending beat type against its narration and next turn's narration if available. A "pressure" beat should create urgency, "complication" should introduce an obstacle, "escalation" should raise stakes.
@@ -199,10 +199,10 @@ When inspecting a game, check one area at a time rather than running all checker
 ### state_fidelity
 
 - **Type:** llm
-- **Fields:** `narrate`, `state_snapshot`, `applied.inventory_add`, `applied.inventory_remove`, `applied.pc_condition_add`, `applied.pc_condition_remove`
+- **Fields:** `narrate`, `last_turn_state`, `applied.inventory_add`, `applied.inventory_remove`, `applied.pc_condition_add`, `applied.pc_condition_remove`
 - **What it checks:** State extraction matches what narration describes — no missing or unsupported changes
 - **CLI:** `ev.py check TURN state_fidelity --llm`
-- **Caveats:** Uses the configured checker model. Evaluates first event only. Narration must explicitly mention or strongly imply each state change. Missing changes described in narration are failures. Extra changes not supported by narration are also failures. Note: `extraction_context` is NOT stored in events; the LLM checker receives state_snapshot as context instead.
+- **Caveats:** Uses the configured checker model. Evaluates first event only. Narration must explicitly mention or strongly imply each state change. Missing changes described in narration are failures. Extra changes not supported by narration are also failures. Note: `extraction_context` is NOT stored in events; the LLM checker receives last_turn_state as context instead.
 
 ### ruling_reason_quality
 
@@ -231,7 +231,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### convergence_components
 
 - **Type:** deterministic
-- **Fields:** `pacing_context.convergence_components`, `pacing_context.convergence_score`, `state_snapshot.arc.threads`, `state_snapshot.meta.recent_beats`, `state_snapshot.scene.scene_phase`, `ruling.band`, `ruling.rolled`
+- **Fields:** `pacing_context.convergence_components`, `pacing_context.convergence_score`, `last_turn_state.arc.threads`, `last_turn_state.meta.recent_beats`, `last_turn_state.scene.scene_phase`, `ruling.band`, `ruling.rolled`
 - **What it checks:** 5-component convergence score matches formula, phase transitions respect threshold
 - **CLI:** `ev.py check TURN convergence_components --save-dir saves/my-game`
 - **Caveats:** Remaps old component names (`thread_weight`, `urgency_depth`) to new names. Validates each component (urgent_thread, threat_thread, scene_age, beat_streak, dice_weight) is correctly computed. Checks `convergence_score` matches sum of components. Checks RISING→CLIMAX only happens when score >= threshold. Requires `--save-dir` for state access.
@@ -239,7 +239,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### location_description_consistency
 
 - **Type:** deterministic
-- **Fields:** `state_snapshot.location.description`
+- **Fields:** `last_turn_state.location.description`
 - **What it checks:** Location description is non-empty and substantive
 - **CLI:** `ev.py check TURN location_description_consistency --save-dir saves/my-game`
 - **Caveats:** Reads post-turn state (location_description stripped from event blobs via `_SKIP_FIELDS`). Checks non-empty, minimum sentences (default 2) and minimum words (default 30). Requires `--save-dir` for state access.
@@ -247,7 +247,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### world_state_facts
 
 - **Type:** deterministic
-- **Fields:** `state_snapshot.scene.world_state`
+- **Fields:** `last_turn_state.scene.world_state`
 - **What it checks:** World state facts are non-empty strings with content
 - **CLI:** `ev.py check TURN world_state_facts --save-dir saves/my-game`
 - **Caveats:** Reads post-turn state. Validates string format (non-empty) or dict format (non-empty `text` field). World state supports both formats — string for legacy, dict with `text`+`tier` for structured facts. Requires `--save-dir` for state access.
@@ -258,7 +258,7 @@ When inspecting a game, check one area at a time rather than running all checker
 - **Fields:** None (takes assertions as parameter)
 - **What it checks:** Validates per-turn structured assertions from YAML scenarios (stream/field/expected/min_amount)
 - **CLI:** Called programmatically by `ev.py eval run`, not in default registry
-- **Caveats:** Supports streams: `ruling`, `extract.state`, `state_snapshot`. Assertions specify a field dotpath, expected value, and optional min_amount threshold. Score is ratio of passed assertions to total. Note: `extraction_context` stream is NOT available (field never stored in events).
+- **Caveats:** Supports streams: `ruling`, `extract.state`, `last_turn_state`. Assertions specify a field dotpath, expected value, and optional min_amount threshold. Score is ratio of passed assertions to total. Note: `extraction_context` stream is NOT available (field never stored in events).
 
 ## Running Checkers
 

@@ -15,7 +15,7 @@ _TEMPLATE_DIR = "ccya/prompts"
 
 @register_checker(
     "gm_beat_lifecycle", "deterministic",
-    requires_fields=["state_snapshot", "ruling"],
+    requires_fields=["last_turn_state", "ruling"],
     description="Verify pending_gm_beat is consumed and binding present on roll",
 )
 def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
@@ -26,8 +26,8 @@ def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
     for i, ev in enumerate(events):
         prev_ev = events[i - 1] if i > 0 else None
 
-        snap = extract_field(ev, "state_snapshot") or {}
-        prev_snap = extract_field(prev_ev, "state_snapshot") or {} if prev_ev else {}
+        snap = extract_field(ev, "last_turn_state") or {}
+        prev_snap = extract_field(prev_ev, "last_turn_state") or {} if prev_ev else {}
 
         cur_beat = (snap.get("meta") or {}).get("pending_gm_beat")
         prev_beat = (prev_snap.get("meta") or {}).get("pending_gm_beat") if prev_snap else None

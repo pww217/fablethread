@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "new_thread_validity", "deterministic",
-    requires_fields=["extraction.storytell", "state_snapshot"],
+    requires_fields=["extraction.storytell", "last_turn_state"],
     description="thread_add entries have id/summary, no duplicates",
 )
 def new_thread_validity(events: list[dict[str, Any]]) -> CheckerResult:
@@ -45,7 +45,7 @@ def new_thread_validity(events: list[dict[str, Any]]) -> CheckerResult:
             all_passed = False
 
         # Check no duplicate thread ids in state
-        snap = extract_field(ev, "state_snapshot") or {}
+        snap = extract_field(ev, "last_turn_state") or {}
         arc = snap.get("arc") or {}
         thread_ids = [
             t.get("id") for t in (arc.get("threads") or [])

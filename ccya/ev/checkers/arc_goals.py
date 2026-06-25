@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "arc_goal_updates", "deterministic",
-    requires_fields=["extraction.storytell", "state_snapshot"],
+    requires_fields=["extraction.storytell", "last_turn_state"],
     description="goal_update overwrites long_term_objective",
 )
 def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
@@ -31,11 +31,11 @@ def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
         if storytell_output.get("arc_resolve"):
             continue
 
-        # state_snapshot is captured post-turn (after goal_update is applied),
-        # so the current turn's state_snapshot already has the goal_update
+        # last_turn_state is captured post-turn (after goal_update is applied),
+        # so the current turn's last_turn_state already has the goal_update
         # reflected. Compare against the CURRENT turn's long_term_objective to verify
         # the engine applied the goal_update correctly.
-        snap = extract_field(ev, "state_snapshot") or {}
+        snap = extract_field(ev, "last_turn_state") or {}
         arc = snap.get("arc") or {}
         long_term_objective = arc.get("long_term_objective", "")
 

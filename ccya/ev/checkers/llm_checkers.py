@@ -117,7 +117,7 @@ Narration of following turn:
 
 @register_checker(
     "beat_narrative_chain", "llm",
-    requires_fields=["state_snapshot.meta.pending_gm_beat", "narrate"],
+    requires_fields=["last_turn_state.meta.pending_gm_beat", "narrate"],
     description="Does the GM beat produce observable narrative consequence?",
 )
 def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
@@ -128,8 +128,8 @@ def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
         )
 
     ev = events[0]
-    state_snapshot = extract_field(ev, "state_snapshot") or {}
-    meta = state_snapshot.get("meta", {})
+    last_turn_state = extract_field(ev, "last_turn_state") or {}
+    meta = last_turn_state.get("meta", {})
     pending_beat = meta.get("pending_gm_beat") or {}
     beat_type = pending_beat.get("type", "")
     effect = pending_beat.get("effect", "")

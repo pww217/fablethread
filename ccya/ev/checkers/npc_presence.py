@@ -22,7 +22,7 @@ def npc_presence(events: list[dict[str, Any]]) -> CheckerResult:
 
     for ev in events:
         turn = ev.get("turn")
-        snap = extract_field(ev, "state_snapshot") or {}
+        snap = extract_field(ev, "last_turn_state") or {}
         compendium = snap.get("compendium") or {}
         npcs = compendium.get("npcs") or {}
 

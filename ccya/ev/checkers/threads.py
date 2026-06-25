@@ -15,7 +15,7 @@ def _is_hashable(v: Any) -> bool:
 
 @register_checker(
     "thread_lifecycle", "deterministic",
-    requires_fields=["extraction.storytell", "state_snapshot"],
+    requires_fields=["extraction.storytell", "last_turn_state"],
     description="thread_add applied, thread_update IDs valid",
 )
 def thread_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
@@ -24,21 +24,21 @@ def thread_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
     prev_snap: dict[str, Any] | None = None
 
     for ev in events:
-        # Capture the previous turn's state_snapshot before updating.
-        # state_snapshot is captured post-turn (after thread_add/updates/removes
-        # are applied), so the current turn's state_snapshot may not reflect
+        # Capture the previous turn's last_turn_state before updating.
+        # last_turn_state is captured post-turn (after thread_add/updates/removes
+        # are applied), so the current turn's last_turn_state may not reflect
         # threads that were added/updated/removed during this turn.
         prev_snap_for_this = prev_snap
-        if "state_snapshot" in ev:
-            prev_snap = ev["state_snapshot"]
+        if "last_turn_state" in ev:
+            prev_snap = ev["last_turn_state"]
 
         storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
         thread_add = storytell_output.get("thread_add")
         if thread_add and isinstance(thread_add, dict):
             tid = thread_add.get("id")
             if tid:
-                # Check against CURRENT turn's state_snapshot (already has thread_add applied)
-                snap = extract_field(ev, "state_snapshot") or {}
+                # Check against CURRENT turn's last_turn_state (already has thread_add applied)
+                snap = extract_field(ev, "last_turn_state") or {}
                 nxt_arc = snap.get("arc") or {}
                 thread_ids: set[str] = set()
                 for t in (nxt_arc.get("threads") or []):
@@ -55,14 +55,14 @@ def thread_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
                     })
                     all_passed = False
 
-        # thread_update IDs valid — compare against CURRENT turn's state_snapshot
+        # thread_update IDs valid — compare against CURRENT turn's last_turn_state
         # (which has initial seeded threads + post-turn changes). If a thread
-        # was removed in the same turn, it won't appear in state_snapshot but
+        # was removed in the same turn, it won't appear in last_turn_state but
         # the thread_update was still valid (the thread existed at turn start).
         # Check changes event for same-turn removals to avoid false positives.
         thread_updates = storytell_output.get("thread_update") or []
         if thread_updates:
-            snap = extract_field(ev, "state_snapshot") or {}
+            snap = extract_field(ev, "last_turn_state") or {}
             state_thread_ids = {
                 t.get("id") for t in ((snap.get("arc") or {}).get("threads") or [])
                 if isinstance(t, dict) and _is_hashable(t.get("id")) and t.get("id")

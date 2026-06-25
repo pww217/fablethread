@@ -75,7 +75,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 | **Persist** | [persist](./persist.md) | Atomic writes (events.jsonl, state.yaml, chronicle.md), readback |
 | **Cross-Pipeline Data Flow** | [cross-pipeline](./cross-pipeline.md) | Full inter-step data flow diagram |
 | **Out-of-Band Pipelines** | [out-of-band](./out-of-band.md) | Character Creation pipeline, Generate Seed pipeline, turn viewer status colors |
-| **Prompt Eval** | [`../ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) | Fast prompt testing CLI (`ev.py prompt-eval`): renders prompts with live data, calls LLM, runs checkers. Two subcommands: `dump` (render only), `call` (render + LLM + check). Uses `state_snapshot` (post-turn) as context. Known limitation: inventory/conditions reflect end of turn. |
+| **Prompt Eval** | [`../ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) | Fast prompt testing CLI (`ev.py prompt-eval`): renders prompts with live data, calls LLM, runs checkers. Two subcommands: `dump` (render only), `call` (render + LLM + check). Uses `last_turn_state` (post-turn) as context. Known limitation: inventory/conditions reflect end of turn. |
 | **Narration UI** | [narration-ui](./narration-ui.md) | Main game interface: SSE streaming, HTMX sidebar refresh, Alpine.js state machine |
 | **Turn Viewer UI** | [turn-viewer-ui](./turn-viewer-ui.md) | Pipeline debug UI: turn cards, stage inspector, diff panel, live updates |
 | **State models** | [state-models](./state-models.md) | state.yaml shape, all Pydantic models, field types, lifecycle notes |
@@ -90,7 +90,7 @@ The pipeline produces several state objects at different points. Understanding w
 |---|---|---|---|
 | `PacingContext` (dataclass) | Step 0, after phase engine | No (serialized as `pacing_context` dict) | Internal pacing signal for Steps 1–2c |
 | `_ExtractionContext` (dataclass) | Step 2c, before storytell LLM call | No | Carries post-delta NPCs/location/candidate_npcs/inventory/conditions into storytell prompt |
-| `state_snapshot` | End of turn (after all processing) | Yes (`event["state_snapshot"]`) | Full persisted state at turn end; used by checkers |
+| `last_turn_state` | End of turn (after all processing) | Yes (`event["last_turn_state"]`) | Full persisted state at turn end; used by checkers |
 | `changes` | After sanitizer | Yes (`event["changes"]`) | What the sanitizer actually changed |
 | `extraction.*.output` | After each extraction stream | Yes (`event["extraction"]`) | LLM extraction results |
 | `sanitizer event` | After sanitizer (every N turns) | Yes (`kind=sanitizer`, `turn=N`) | Separate event on sanitizer turns; must be filtered by UI panels to avoid duplicates |
