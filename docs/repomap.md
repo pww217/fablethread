@@ -12,7 +12,7 @@
 | `ccya/engine/config.py` | EngineConfig dataclass; CheckerConfig threshold fields; turn lock management; Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() orchestrator; 5-call pipeline (rules→narrate→scene/state/storytell); state_snapshot capture |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
-| `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay; LongTermObjective.started_turn on arc resolve |
+| `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay, TTL condition expiration (_expire_conditions); LongTermObjective.started_turn on arc resolve |
 | `ccya/engine/_pacing.py` | Beat constraints, convergence score, spiral detection |
 | `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context |
 | `ccya/engine/pack_gen.py` | LLM-generated ScenarioBrief → packs/custom/ |
@@ -27,7 +27,7 @@
 | `ccya/engine/generate_pack.py` | SSE-driven ephemeral pack generation from world brief |
 | `ccya/state/__init__.py` | Re-exports all state symbols |
 | `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir |
-| `ccya/state/delta_builder.py` | apply_delta(), reconcile_delta(), _merge_arc_update() — condition/inventory dedup |
+| `ccya/state/delta_builder.py` | apply_delta(), reconcile_delta(), _merge_arc_update() — condition/inventory dedup; assigns default TTL when LLM omits turns_remaining
 | `ccya/state/inventory.py` | Inventory ID normalization + fuzzy matching |
 | `ccya/state/npcs.py` | NPC alias map, compendium LRU, scene management |
 | `ccya/state/chronicle.py` | Append events.jsonl, chronicle.md, load_last_narration(), remove_last_event() (removes all events for last turn number including sanitizer events) |

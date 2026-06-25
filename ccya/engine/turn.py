@@ -332,7 +332,7 @@ async def run_turn(
 
         if delta is not None:
             state, delta, applied, rejected, reconcile_warnings, thread_dedup_rejections = _apply_state_updates(
-                state, delta, storyteller_result, config, trace_id, turn_no,
+                state, delta, storyteller_result, config, trace_id, turn_no, str(save_dir),
             )
 
         # Blocking rejection handling (stays in run_turn per design)

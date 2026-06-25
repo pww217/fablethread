@@ -8,6 +8,9 @@ from typing import Any
 from ccya.engine.config import EngineConfig
 from ccya.models import ArcThread, LongTermObjective, ProgressEntry, StorytellerResult, StateDelta
 from ccya.state import resolve_inventory_remove_target
+from pathlib import Path
+
+from ccya.state.chronicle import append_event
 from ccya.state.delta_builder import _merge_arc_update
 
 
@@ -375,6 +378,60 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
     return rejections
 
 
+def _expire_conditions(
+    state: dict[str, Any],
+    turn_no: int,
+    trace_id: str,
+    save_dir: str,
+) -> None:
+    """Decrement turns_remaining on all conditions. Remove expired ones. Log events."""
+    conditions = (state.get("pc") or {}).get("conditions") or []
+    updated_conds = []
+    expired_ids: list[str] = []
+
+    for c in conditions:
+        if not isinstance(c, dict):
+            continue
+        tr = c.get("turns_remaining")
+        if tr == "permanent":
+            updated_conds.append(c)
+            continue
+        if isinstance(tr, int):
+            new_remaining = tr - 1
+            if new_remaining <= 0:
+                expired_ids.append(c.get("id", "?"))
+                append_event(Path(save_dir), {
+                    "kind": "condition_expired",
+                    "condition_id": c.get("id"),
+                    "turn": turn_no,
+                })
+                _log.info(
+                    "condition expired: %s at turn %d",
+                    c.get("id"), turn_no,
+                    extra={"turn": turn_no},
+                )
+                # do not append — condition removed
+            else:
+                updated_conds.append({**c, "turns_remaining": new_remaining})
+        else:
+            # Unknown type — keep as-is with warning
+            _log.warning(
+                "condition unknown turns_remaining type: %s for %s",
+                type(tr).__name__, c.get("id"),
+                extra={"turn": turn_no},
+            )
+            updated_conds.append(c)
+
+    if expired_ids:
+        _log.info(
+            "expired_conditions trace_id=%s ids=%s turn=%d",
+            trace_id, expired_ids, turn_no,
+            extra={"trace_id": trace_id, "turn": turn_no},
+        )
+
+    (state.setdefault("pc", {})["conditions"])[:] = updated_conds
+
+
 def _apply_state_updates(
     state: dict[str, Any],
     delta: StateDelta | None,
@@ -382,6 +439,7 @@ def _apply_state_updates(
     config: EngineConfig,
     trace_id: str,
     turn_no: int,
+    save_dir: str,
 ) -> tuple[dict[str, Any], StateDelta | None, dict[str, Any], list[dict[str, Any]], list[str], list[dict[str, Any]]]:
     """Apply state updates from extraction pipeline: delta, beats, NPCs, arcs.
 
@@ -406,6 +464,9 @@ def _apply_state_updates(
             state = apply_delta(
                 state, delta, trace_id=trace_id,
             )
+
+            # TTL decrement pass: expire conditions whose turns_remaining reached 0
+            _expire_conditions(state, turn_no, trace_id, save_dir)
 
             applied = delta.model_dump(exclude_none=True)
             for r in rejected:

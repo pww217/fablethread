@@ -19,6 +19,7 @@ from ccya.state.inventory import (
 )
 
 _NAME_RE = re.compile(r"[^\x00-\x7F]")
+_DEFAULT_CONDITION_TTL = 10
 
 _log = logging.getLogger(__name__)
 
@@ -263,6 +264,12 @@ def apply_delta(
             "description": ca.description,
             "added_turn": current_turn,
         }
+        if ca.turns_remaining == 0:
+            cond_dict["turns_remaining"] = _DEFAULT_CONDITION_TTL
+        elif ca.turns_remaining == "permanent":
+            cond_dict["turns_remaining"] = "permanent"
+        else:
+            cond_dict["turns_remaining"] = ca.turns_remaining
         existing_conds.append(cond_dict)
         existing_ids.add(cid)
     state["pc"]["conditions"] = existing_conds

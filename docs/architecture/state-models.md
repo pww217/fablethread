@@ -23,8 +23,8 @@ pc:
   tagline: str
   bio: str
   stats: {strength, dexterity, wits, charisma}: int (1-4 each, total 8-12)
-  conditions: list[Condition] — id-based dedup, FIFO cap 5; conditions persist until explicitly removed by extractor
-    - id: str, label: str, description: str, added_turn: int
+  conditions: list[Condition] — id-based dedup, FIFO cap 5; TTL-based auto-expiration (engine decrements turns_remaining each turn, removes at 0); permanent = never expires
+    - id: str, label: str, description: str, added_turn: int, turns_remaining: int | Literal["permanent"]
   actions: [str]               # rolling window of last 10 Storyteller actions, persisted by apply_delta
   situation: dict[str, str]    # structured situational facts (vessel, crew, debts, alliances, home)
 
@@ -68,7 +68,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 
 - **ArcThread**: `id`, `summary`, `dormant`, `type`, `urgency`, `major_updates: list[ProgressEntry]`, `resolution_state`, `outcome`, `resolved_turn`, `last_updated_turn`, `added_turn`, `urgency_set_turn`
 - **LongTermObjective**: `long_term_objective`, `threads: list[ArcThread]`, `completed_threads: list[ArcThread]`, `resolution`, `last_thread_created_turn`, `started_turn`
-- **Condition**: `id`, `label`, `description`, `added_turn`
+- **Condition**: `id`, `label`, `description`, `added_turn`, `turns_remaining: int | Literal["permanent"]` (0 = sentinel, replaced by engine default TTL in apply_delta)
 - **InventoryItem**: `id`, `name`, `notes`, `amount`, `aliases: [str]`
 - **NpcPresence**: `name`, `title`, `bio`, `aliases: [str]`, `presence`, `position`, `motivation`, `fear`, `leverage`, `personality`, `first_seen_turn`, `last_presence_turn`, `last_seen_location`, `departed_reason`, `departed_turn` — note: `party` is NOT a field on this enum (it's a compendium entry field, not a presence value)
 - **ProgressEntry**: `kind: Literal["advancement", "setback"]`, `text`
@@ -124,6 +124,14 @@ world.factions: [str], world.locations: list[KeyLocation]
 
 ### StateDelta actions
 - `actions: list[str]`, max_length=10 — merged from StorytellerResult.actions, persisted to `state["pc"]["actions"]` as rolling window by `apply_delta()`
+
+### Condition TTL system
+- `turns_remaining: int | Literal["permanent"]` on `Condition` and `ConditionAdd`
+- `"permanent"` = never expires (explicit string, not `null`/`None`)
+- Engine assigns default TTL (default 10, from `config.condition_default_ttl`) when LLM omits it (sentinel value `0` replaced in `apply_delta()`)
+- TTL decrement pass in `_expire_conditions()` in `turn_state.py`: runs after delta application, decrements by 1 each turn, removes when reaching 0
+- Duration bands: sensory (1-2), minor (3-4), significant (5-6), major (7+), permanent
+- `condition_expired` events appended to `events.jsonl` when conditions expire
 
 ### Condition change reason
 - `condition_change_reason` required when any condition change is present (Pydantic-enforced, same pattern as `inventory_change_reason`)
