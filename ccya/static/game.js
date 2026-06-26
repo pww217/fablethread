@@ -891,13 +891,9 @@ function game() {
                 }
                 if (payload && payload.phase === 'extract_stream_done' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
                     if (payload.stream === 'record') {
-                        self.asyncRunning = true;
                         self.submitting = false;
                         document.getElementById('player-input')?.removeAttribute('disabled');
                     }
-                }
-                if (payload && payload.phase === 'world_done') {
-                    self.asyncRunning = false;
                 }
                 if (payload && (payload.phase === 'sanitize_start' || payload.phase === 'world_start')) {
                     _setProgressFromPhase(strip, { phase: '', reason: '' });
