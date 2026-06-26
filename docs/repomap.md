@@ -10,15 +10,16 @@
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
 | `ccya/engine/config.py` | EngineConfig dataclass; CheckerConfig threshold fields; turn lock management; Jinja env setup |
-| `ccya/engine/turn.py` | run_turn() orchestrator; 5-call pipeline (rules→narrate→scene/state/storytell); deferred atomic write block with last_turn_state capture |
+| `ccya/engine/turn.py` | run_turn() orchestrator; pipeline (rules→narrate→scene/state/record); end-of-turn async phases (Sanitize + World) after yield("complete"); deferred atomic write block with last_turn_state capture |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
 | `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay, TTL condition expiration (_expire_conditions); LongTermObjective.started_turn on arc resolve |
 | `ccya/engine/_pacing.py` | Beat constraints, convergence score, spiral detection |
-| `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context |
+| `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context; pure reader of `state.meta.pending_gm_beat` |
+| `ccya/engine/world.py` | World: async beat-candidate generation (Step 2d). Validates each candidate via `GMBeat`; runs after Sanitize, before generator returns |
 | `ccya/engine/pack_gen.py` | LLM-generated ScenarioBrief → packs/custom/ |
 | `ccya/engine/names.py` | Name pool generation via Faker |
-| `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; pc.situation in ruling context |
-| `ccya/engine/extraction/` | Scene/state/storytell extraction pipeline (3 streams) |
+| `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; pc.situation in ruling context; beat selection from `state.meta.beat_candidates`; sets/pops `state.meta.pending_gm_beat` and `state.meta.beat_candidates` per turn |
+| `ccya/engine/extraction/` | Scene/state/record extraction pipeline (3 streams); `gm_beat` field removed from `StorytellerResult` |
 | `ccya/engine/hints.py` | Hint generation for ruling context (pc.situation) |
 | `ccya/engine/thread_sanitizer.py` | Batch arc/thread cleanup every N turns; atomic world_state swap |
 | `ccya/engine/seed.py` | Dynamic pack seed generation; personality fallback |
@@ -75,7 +76,7 @@
 
 ## Key entry points
 
-- **run_turn()** → `ccya/engine/turn.py` — 5-call pipeline orchestrator (rules→narrate→scene/state/storytell extract)
+- **run_turn()** → `ccya/engine/turn.py` — pipeline orchestrator (rules→narrate→scene/state/record extract + end-of-turn Sanitize + World)
 - **load_state()** → `ccya/state/io.py` — loads YAML state
 - **save_state()** → `ccya/state/io.py` — atomic write (tmp + rename)
 - **apply_delta()** → `ccya/state/delta_builder.py` — merges extraction results into state
@@ -94,7 +95,8 @@
 | **Step 1 — Narrate** | [step1-narrate.md](./architecture/step1-narrate.md) |
 | **Step 2a — Scene Extract** | [step2a-scene.md](./architecture/step2a-scene.md) |
 | **Step 2b — State Extract** | [step2b-state.md](./architecture/step2b-state.md) |
-| **Step 2c — Storytell** | [step2c-storytell.md](./architecture/step2c-storytell.md) |
+| **Step 2c — Record** | [step2c-record.md](./architecture/step2c-record.md) | Backward-looking scribe (replaces Storytell); threads + actions + outcome_summary |
+| **Step 2d — World** | [step2d-world.md](./architecture/step2d-world.md) | Async beat-candidate generation; runs after yield("complete") in the end-of-turn async window |
 | **Pacing systems** | [pacing-systems.md](./architecture/pacing-systems.md) |
 | **Delta → Validate → Apply** | [delta-validate.md](./architecture/delta-validate.md) |
 | **Persist** | [persist.md](./architecture/persist.md) |
@@ -123,6 +125,6 @@
 - **Error propagation**: LLM failure → typed LlmcError → server middleware → server_errors.jsonl + SSE error event. Engine modules use structured logging via `extra={}` (error_kind, trace_id).
 - **Thread lifecycle**: Three-layer governance (auto-dormant at 8 turns, urgency decay at 8 turns, completion threshold auto-resolve). Scene-scoped threads purged on location change. State key: `state["long_term_objective"]` (renamed from `state["arc"]`). Model: `LongTermObjective` (renamed from `CampaignArc`). See [cross-module-contracts.md](./architecture/cross-module-contracts.md) for full state machine.
 - **World state lifecycle**: `ThreadResolution.world_state_candidate` collected in `_apply_thread_resolutions()`. Two-step promotion: storyteller proposes (stored as `world_state_candidates` in state), thread sanitizer evaluates via atomic `world_state` swap (complete replacement array). TTL expiry pass in `_apply_state_updates()` removes facts whose `expires_turn` has passed. Valence enum: threat, complication, neutral, boon. Tier: global (immutable) or local (may expire). See [state-models.md](./architecture/state-models.md) for model details.
-- **Extraction routing**: SceneExtractResult (tagline, location, NPC updates), StateExtractResult (inventory, conditions), StorytellerResult (threads, goals, arcs, beats). See [state-models.md](./architecture/state-models.md) for field routing details.
+- **Extraction routing**: SceneExtractResult (tagline, location, NPC updates, candidate_npcs), StateExtractResult (inventory, conditions), StorytellerResult (threads, goals, arcs — `gm_beat` field removed; beats are now World→Ruling flow). See [state-models.md](./architecture/state-models.md) for field routing details.
 - **Token budget**: `config.context_window` (default 32768) — trim_messages() drops oldest non-system messages. Affects all pipeline stages.
 - **Prompt architecture**: Two template systems (prompt templates in `ccya/prompts/`, UI templates in `ccya/templates/`). See [prompts-architecture.md](./architecture/prompts-architecture.md) for rendering flow.

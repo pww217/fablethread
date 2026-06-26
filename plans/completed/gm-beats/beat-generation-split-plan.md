@@ -1,5 +1,7 @@
 # Beat Generation Split — Plan
 
+## Status: completed (2026-06-26)
+
 ## Purpose
 
 Split Storytell (Step 2c) into three focused steps: Record (backward-looking scribe), World (async beat-candidate generation), and Ruling (beat selection from candidates). Removes `gm_beat` from StorytellerResult/TurnResult, removes `beat_expires_turn`, and adds an async World step after turn completion.
@@ -434,7 +436,7 @@ async def _run_world_step(
     env: Environment,
     state: dict[str, Any],
     narration: str,
-    scene_result: Any,
+    scene_result: Any | None,
     pacing_context: Any | None,
     config: EngineConfig,
     trace_id: str,
@@ -451,7 +453,7 @@ Implementation:
 6. On any failure (timeout, parse error, invalid JSON): log warning, return `[]`
 
 Inputs sourced from:
-- `candidate_npcs`: from `scene_result.candidate_npcs` (`SceneExtractResult.candidate_npcs` — `list[dict]`, max 3 entries). `scene_result` is passed as a parameter.
+- `candidate_npcs`: from `scene_result.candidate_npcs` if `scene_result is not None` else `[]` (`SceneExtractResult.candidate_npcs` — `list[dict]`, max 3 entries). If extraction pipeline failed, `scene_result` is None and no candidates are available.
 - `arc.threads[]`: from `state["arc"]["threads"]`
 - `narration`: passed in
 - `pacing_context`: passed in
@@ -476,8 +478,11 @@ yield ("complete", result_obj)    # ← UI sees narration immediately
 # --- End-of-turn async window (lock still held) ---
 # 1. Sanitize (moved from synchronous critical path)
 yield ("phase", {"phase": "sanitize_start"})
-if config.sanitize_every > 0:
-    state, _ = await sanitize_threads(save_dir, state, config, trace_id=trace_id)
+try:
+    if config.sanitize_every > 0:
+        state, _ = await sanitize_threads(save_dir, state, config, trace_id=trace_id)
+except Exception as exc:
+    _log.warning("sanitize step failed: %s", exc, extra={"trace_id": trace_id})
 yield ("phase", {"phase": "sanitize_done"})
 
 # 2. World (beat candidates — receives same live `state` Sanitize just mutated)
@@ -561,11 +566,13 @@ else:
 - Line 335: `_apply_state_updates(state, delta, storyteller_result, ...)` → `record_result`
 - Lines 519-521: `gm_beat` construction (removed entirely in Step 4.7)
 
+Also initialize `scene_result = None` at line 230 (alongside `record_result = None`). This ensures `scene_result` is defined even if the extraction pipeline throws an exception. The World step (Step 4.4) passes `scene_result` to `_run_world_step`, which will handle `None` gracefully (no candidates).
+
 Note: `_apply_state_updates` in `turn_state.py` keeps its parameter name `storyteller_result` (it's a local parameter name, not a contract). Only the call-site variable in turn.py changes.
 
-**Why:** Consistency with Phase 2 rename.
+**Why:** Consistency with Phase 2 rename. Prevents NameError if extraction pipeline fails and World step tries to access `scene_result`.
 
-**Validation:** `grep "storyteller_result" ccya/engine/turn.py` returns 0 matches.
+**Validation:** `grep "storyteller_result" ccya/engine/turn.py` returns 0 matches. `grep "scene_result = None" ccya/engine/turn.py` shows initialization at line 230.
 
 ---
 
@@ -620,6 +627,16 @@ Narrate becomes a pure reader of `pending_gm_beat` — no mutation.
 **Why:** `TurnResult.gm_beat` removed.
 
 **Validation:** `grep "gm_beat" ccya/server/routes.py` returns 0 matches.
+
+#### 5.2b — Update routes.py "all streams failed" check
+
+**File:** `ccya/server/routes.py:351`
+
+**What:** Change `storytell_skipped = (streams.get("storytell") or {}).get("skipped", False)` to `record_skipped = (streams.get("record") or {}).get("skipped", False)`. Also update line 353: `if scene_skipped and state_skipped and record_skipped:`.
+
+**Why:** The extraction pipeline renames the stream key from `"storytell"` to `"record"` (Step 2.4). Without this update, the "all extraction streams failed" check will never trigger (it will look for a nonexistent `"storytell"` key), and the UI will show a success state when all streams actually failed.
+
+**Validation:** `grep '"storytell"' ccya/server/routes.py` returns 0 matches.
 
 #### 5.3 — Remove beat display from tv.py
 

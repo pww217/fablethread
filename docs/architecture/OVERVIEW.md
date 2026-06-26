@@ -1,8 +1,9 @@
 # Architecture Overview — CCYA Engine
 
 CCYA is a local-LLM-backed text RPG engine. Every player turn drives a six-step
-pipeline (Rules → Phase Engine → Narrate → Scene Extract → State Extract → Storytell) with
-a pure-Python validation+persist tail. Two additional LLM pipelines handle new-game
+pipeline (Rules → Phase Engine → Narrate → Scene Extract → State Extract → Record) with
+a pure-Python validation+persist tail, followed by an async **Step 2d — World** that
+runs after the turn completes. Two additional LLM pipelines handle new-game
 creation: **Character Creation** (static packs) and **Generate Seed** (dynamic packs).
 
 ## Pipeline Diagram
@@ -14,20 +15,23 @@ flowchart TD
     classDef stageScene    fill:#064e3b,color:#a7f3d0,stroke:#10b981
     classDef stageState    fill:#451a03,color:#fde68a,stroke:#f59e0b
     classDef stageProgress fill:#500724,color:#fbcfe8,stroke:#ec4899
+    classDef stageWorld    fill:#312e81,color:#c7d2fe,stroke:#6366f1
     classDef storageNode   fill:#0f172a,color:#7dd3fc,stroke:#1e40af
     classDef pyNode        fill:#1f2937,color:#9ca3af,stroke:#4b5563
 
     USER["user_input"]
 
     subgraph ENGINE["engine — run_turn()"]
-        STEP0["Step 0<br>Ruling/Intent (LLM)"]:::stageRules
+        STEP0["Step 0<br>Ruling/Intent (LLM)<br>reads beat_candidates<br>sets pending_gm_beat"]:::stageRules
         DICE["Dice Resolution<br>(Python)"]:::pyNode
         PHASE["Phase Engine<br>5-state machine (Python)"]:::pyNode
-        STEP1["Step 1<br>Narrate (LLM)"]:::stageNarrate
+        STEP1["Step 1<br>Narrate (LLM)<br>reads pending_gm_beat"]:::stageNarrate
         STEP2A["Step 2a<br>Scene Extract (LLM)"]:::stageScene
         STEP2B["Step 2b<br>State Extract (LLM)"]:::stageState
-        STEP2C["Step 2c<br>Storytell (LLM)"]:::stageProgress
+        STEP2C["Step 2c<br>Record (LLM)<br>threads only — no beats"]:::stageProgress
         VALIDATE["Validate + Apply Delta<br>(Python)"]:::pyNode
+        SANITIZE["Sanitize (async)<br>end-of-turn phase 1"]:::pyNode
+        STEP2D["Step 2d<br>World (async, LLM)<br>end-of-turn phase 2<br>generates beat_candidates"]:::stageWorld
     end
 
     subgraph PERSISTENCE["persistence"]
@@ -43,23 +47,31 @@ flowchart TD
     STEP1 --> STEP2A & STEP2B & STEP2C
     STEP2A & STEP2B & STEP2C --> VALIDATE
     VALIDATE --> PERSISTENCE
+    STEP0 -. "beat_candidates (prev turn's World)" .-> STEP0
     PERSISTENCE -- "load_state() (incl. prior_history)<br>load_last_narration() (→ recent_turns)" --> ENGINE
+    STEP1 -. "consumes pending_gm_beat" .-> STEP0
+    STEP2C --> SANITIZE --> STEP2D
+    STEP2D --> PERSISTENCE
 ```
 
 ## Pipeline Quick Reference
 
 | Step | Docs | When it runs | Key inputs | Key outputs | Mechanics it owns |
 |---|---|---|---|---|---|
-| **Step 0 — Ruling/Intent** | [step0-ruling](./step0-ruling.md) | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input`, `arc.threads` (urgent only) | `IntentEnvelope`, `RulesOutcome` | Intent classification, impossibility check, dice roll resolution (1d12 + stat_mod + diff_mod → band), LLM-driven difficulty adjustment factoring conditions/inventory, anti-declare-outcome enforcement. Roll criteria tightened to major narrative pivots only. Urgent threads context provided to LLM. When `impossible=true`, no roll occurs and Python synthesizes a `fail` outcome. |
+| **Step 0 — Ruling/Intent** | [step0-ruling](./step0-ruling.md) | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input`, `arc.threads` (urgent only), `state.meta.beat_candidates` | `IntentEnvelope`, `RulesOutcome`, `selected_beat` → `state.meta.pending_gm_beat` | Intent classification, impossibility check, dice roll resolution (1d12 + stat_mod + diff_mod → band), LLM-driven difficulty adjustment factoring conditions/inventory, anti-declare-outcome enforcement. Roll criteria tightened to major narrative pivots only. Urgent threads context provided to LLM. When `impossible=true`, no roll occurs and Python synthesizes a `fail` outcome. **Beat selection** — reads `state.meta.beat_candidates` (prepared by previous turn's World step) and selects one (or null) for the upcoming narration. Always replaces or pops `state.meta.pending_gm_beat`; always pops `state.meta.beat_candidates`. |
 | **Phase Engine** | — | Every turn (always, Python) | `state["scene"]`, `ages`, `EngineConfig`, `convergence_score` | `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER), `climax_turn_count`, `breather_turn_count` in `state["scene"]` | 5-state phase machine driven by convergence score (5-component composite) and scene age. Phase drives directive computation and beat constraints. Convergence threshold default is 2. |
-| **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `prior_history` (last 20 bullets, all but last rendered), `recent_turns[-1:]`, `pacing_context`, `pending_gm_beat`, `npc_roster` (from build_npc_roster()), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption. Scene motion shaped by `PacingContext.outcome_hint`; impossible actions narrated as natural failures. |
+| **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `prior_history` (last 20 bullets, all but last rendered), `recent_turns[-1:]`, `pacing_context`, `pending_gm_beat` (set by Ruling same turn), `npc_roster` (from build_npc_roster()), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption (pure reader of `pending_gm_beat`). Scene motion shaped by `PacingContext.outcome_hint`; impossible actions narrated as natural failures. |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc`, `npc_roster` (from build_npc_roster()), conditions, compendium entries | `SceneExtractResult`: compendium_npc_update, candidate_npcs (per-NPC beat candidates: [{id, type, effect}]) | NPC presence, durable NPC compendium identity, per-NPC beat candidate signals with driver assignment. |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, conditions | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove, location_change, location_description | Inventory delta accuracy, condition lifecycle, location deltas. |
-| **Step 2c — Storytell** | [step2c-storytell](./step2c-storytell.md) | Every turn (always) | `narrative`, `_ExtractionContext` (comp_this_turn, location, candidate_npcs, inventory, conditions), pacing_context, arc.threads[], recent_turns[-10:], band, npc_roster (slimmed), recent_beats | `StorytellerResult`: thread_update/goal_update/arc_resolve/resolve/add, gm_beat, actions, outcome_summary | Storyteller-managed thread lifecycle, arc resolution, scene-driven beat generation (three patterns: deliver as-is, combine, thread-apply), durable history events. |
+| **Step 2c — Record** | [step2c-record](./step2c-record.md) | Every turn (always) | `narrative`, `arc.threads[]`, `recent_turns[-10:]`, `band`, `world_state`, `prior_history` | `StorytellerResult` (gm_beat field removed): thread_update/goal_update/arc_resolve/resolve/add, actions, outcome_summary | Record-managed thread lifecycle, arc resolution, durable history events. Backward-looking scribe — does not generate beats. |
+| **Step 2d — World (async)** | [step2d-world](./step2d-world.md) | Every turn (after `yield("complete")`, lock still held) | `candidate_npcs`, `arc.threads[]`, `pacing_context`, `recent_beats`, `allowed_beat_types`, `narration` | `state.meta.beat_candidates` (0-3 validated candidates) | Async beat-candidate generation. Validates each candidate via `GMBeat(**candidate)`; drops invalid candidates silently. Runs inside the `_inflight` lock; the lock lifts only after World returns. On any failure (LLM timeout, invalid JSON), `beat_candidates = []` and the next turn's Ruling proceeds without a beat. |
 
 After Step 2c: results merge into a `StateDelta`, the validator checks constraints
 (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the
-turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `events.jsonl`.
+turn is persisted. After `yield("complete")` the end-of-turn async window runs Sanitize
+then World; a single end-of-turn `save_state` persists both. The next turn's Step 0
+reads the new `state.yaml` plus `events.jsonl` (and consumes `state.meta.beat_candidates`
+prepared by the previous turn's World).
 
 ## Subsystem Docs
 
@@ -69,7 +81,8 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 | **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Streaming narration pipeline with all context inputs |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Location changes, NPC presence, scene tags |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Inventory and condition extraction |
-| **Step 2c — Storytell** | [step2c-storytell](./step2c-storytell.md) | Pipeline mechanics, GM beat lifecycle, campaign arc system, thread lifecycle mechanics |
+| **Step 2c — Record** | [step2c-record](./step2c-record.md) | Pipeline mechanics, campaign arc system, thread lifecycle mechanics (Record replaces Storytell) |
+| **Step 2d — World** | [step2d-world](./step2d-world.md) | Async beat-candidate generation, end-of-turn lock window, beat lifecycle (single-turn commitments) |
 | **Pacing Systems** | [pacing-systems](./pacing-systems.md) | Phase engine, GM beats, pacing context, thread lifecycle, and their cross-system interactions
 | **Delta → Validate → Apply** | [delta-validate](./delta-validate.md) | StateMerge schema, validation rules, apply_delta mutations |
 | **Persist** | [persist](./persist.md) | Atomic writes (events.jsonl, state.yaml, chronicle.md), readback |
@@ -89,10 +102,12 @@ The pipeline produces several state objects at different points. Understanding w
 | State | When captured | Stored in events? | Purpose |
 |---|---|---|---|
 | `PacingContext` (dataclass) | Step 0, after phase engine | No (serialized as `pacing_context` dict) | Internal pacing signal for Steps 1–2c |
-| `_ExtractionContext` (dataclass) | Step 2c, before storytell LLM call | No | Carries post-delta NPCs/location/candidate_npcs/inventory/conditions into storytell prompt |
+| `_ExtractionContext` (dataclass) | Step 2c, before record LLM call | No | Carries post-delta NPCs/location/candidate_npcs/inventory/conditions into record prompt |
 | `last_turn_state` | End of turn (after all processing) | Yes (`event["last_turn_state"]`) | Full persisted state at turn end; used by checkers |
 | `changes` | After sanitizer | Yes (`event["changes"]`) | What the sanitizer actually changed |
 | `extraction.*.output` | After each extraction stream | Yes (`event["extraction"]`) | LLM extraction results |
+| `beat_candidates` | After Step 2d (World) | No (persisted in `state.meta.beat_candidates`) | Consumed by next turn's Ruling for beat selection |
+| `pending_gm_beat` | After Ruling sets it | No (persisted in `state.meta.pending_gm_beat`) | Consumed by same turn's Narrate |
 | `sanitizer event` | After sanitizer (every N turns) | Yes (`kind=sanitizer`, `turn=N`) | Separate event on sanitizer turns; must be filtered by UI panels to avoid duplicates |
 
 See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for full details on each state type, checker usage, and common pitfalls.
@@ -105,7 +120,7 @@ See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for full details on
 - **RulesOutcome**: `rolled`, `skill`, `difficulty`, `stat_value`, `stat_mod`, `diff_mod`, `dice`, `raw_total`, `final_total`, `band`, `directive`, `intent`, `intent_verb`, `impossible`, `reason`
 - **SceneExtractResult**: `compendium_npc_update`, `candidate_npcs: list[dict]` (per-NPC beat candidates: [{id, type, effect}])
 - **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`, `location_change`, `location_description`, `inventory_change_reason`, `condition_change_reason`
-- **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (dict | None, applied via `goal_update["long_term_objective"]`), `arc_resolve` (ArcResolution | None), `thread_resolve` (list[ThreadResolution] with outcome, resolved_turn, world_state_candidate), `thread_add`, `gm_beat`, `actions`, `outcome_summary`
+- **StorytellerResult** (Record output, formerly Storyteller): `thread_update` (list[ThreadUpdate]), `goal_update` (dict | None, applied via `goal_update["long_term_objective"]`), `arc_resolve` (ArcResolution | None), `thread_resolve` (list[ThreadResolution] with outcome, resolved_turn, world_state_candidate), `thread_add`, `actions`, `outcome_summary`. **The `gm_beat` field has been removed** — beat generation moved to Step 2d (World), beat selection to Step 0 (Ruling). The Pydantic class name is preserved (`StorytellerResult`); only the field is gone.
 - **SeedEnvelope**: `seed_state: SeedState`, `opening_narrative`, `actions`, `arc: CampaignArc | None` (includes `goal_context` — UI-only, not rendered in prompts; unified `threads[]` with `progress: list[ProgressEntry]`, `completed_threads[]`)
 
   The seed owns first-turn emotional framing, not just world and arc scaffolding. It generates `goal_context` (character-specific stake), NPC `relation` fields (narrative job relative to PC), and action text written from the PC's voice and scene pressure — ensuring the opening feels personal and motivated from the start.
@@ -118,10 +133,12 @@ See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for full details on
 
 Computed by `_compute_pacing_context()` in `_pacing.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when Scene Imperative fires), `summary` (human-readable log string), `spiral_detected` (bool, set by `detect_spiral()` from recent roll history before narrate setup), `convergence_score` (int 0-5, computed by `compute_convergence_score()` for RISING→CLIMAX transition).
 
-### GMBeat (see [step2c-storytell](./step2c-storytell.md#gm-beat))
+### GMBeat (see [step2d-world](./step2d-world.md#gmbeat-schema-repurposed))
 
-### CampaignArc (see [step2c-storytell](./step2c-storytell.md#campaign-arc-system))
+`GMBeat` is repurposed as the validation schema for World candidates and Ruling's `selected_beat`. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str), `npc_id` (str | None), `driver` (Literal — silently coerced to `None` if not in valid set). **The `beat_expires_turn` field is removed** — beats are single-turn commitments; Ruling's per-turn "always replace or pop" rule keeps state hygienic.
+
+### CampaignArc (see [step2c-record](./step2c-record.md#campaign-arc-system))
 
 ### StateDelta (see [delta-validate](./delta-validate.md))
 
-Merges all three extraction results. Contains `location_change`, `location_description`, `compendium_npc_update` (NPC changes), `arc_update` (CampaignArc), `inventory_add/remove/update`, `pc_condition_add/remove`, `actions`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`. Thread operations (`thread_update`, `thread_resolve`, `thread_add`, `arc_resolve`) are in `StorytellerResult`, not StateDelta.
+Merges all three extraction results. Contains `location_change`, `location_description`, `compendium_npc_update` (NPC changes), `arc_update` (CampaignArc), `inventory_add/remove/update`, `pc_condition_add/remove`, `actions`. **No beat fields anywhere in StateDelta** — beats flow through `state.meta.pending_gm_beat` (set by Ruling) and `state.meta.beat_candidates` (set by World). Thread operations (`thread_update`, `thread_resolve`, `thread_add`, `arc_resolve`) are in `StorytellerResult`, not StateDelta.

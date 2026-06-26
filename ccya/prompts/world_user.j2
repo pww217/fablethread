@@ -1,0 +1,40 @@
+{% if candidate_npcs %}
+## Candidate NPCs (from Scene Extract)
+{% for c in candidate_npcs %}- **{{ c.id }}** ({{ c.type }}): {{ c.effect }}
+{% endfor %}
+{% else %}
+## Candidate NPCs
+None. Generate beats from narration + threads alone.
+{% endif %}
+
+{% if arc and arc.threads %}
+## Active Threads ({{ arc.threads|length }})
+{% for t in arc.threads %}
+- [{{ (t.type or "THREAD") | upper }}{% if t.urgency %} - {{ t.urgency | upper }}{% endif %}] {{ t.id }} — {{ t.summary }}
+{% endfor %}
+{% endif %}
+
+{% if pacing_context and (pacing_context.directive or pacing_context.outcome_hint) %}
+## Pacing Context
+Directive: {{ pacing_context.directive or "none" }}
+Outcome hint: {{ pacing_context.outcome_hint or "hold" }}
+{% endif %}
+
+{% if recent_beats %}
+## Recent Beats
+{% for b in recent_beats %}T{{ b.turn }}: {% if b.type %}{{ b.type | replace('_', ' ') | upper }} — {{ b.effect }}{% else %}No beat emitted{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if allowed_beat_types %}
+## Allowed Beat Types (this phase)
+{{ allowed_beat_types | join(", ") }}
+{% endif %}
+
+{% if rules_outcome and rules_outcome.rolled %}
+## Roll Outcome
+Band: {{ rules_outcome.band | upper }}
+{% endif %}
+
+## Most Recent Narration
+{{ narration }}

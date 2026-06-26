@@ -30,6 +30,7 @@ from ccya.engine.turn_state import (
 )
 from ccya.engine.ruling import _ruling_phase
 from ccya.engine.narrate import _narrate_setup
+from ccya.engine.world import _run_world_step
 from ccya.llm_client import (
     chat as llm_chat,
     chat_stream as llm_chat_stream,
@@ -227,7 +228,8 @@ async def run_turn(
         outcome_summary: str = ""
         extraction_event: dict[str, Any] = {}
         _extraction_ctx = None
-        storyteller_result = None
+        record_result = None
+        scene_result: Any = None
 
         # Save narrate extraction to events for verification
         extraction_event["narrate"] = {
@@ -265,18 +267,7 @@ async def run_turn(
 
         if _extract_result is not None:
             # mypy cannot express heterogeneous 7-tuple unpack from async generator
-            delta, actions, outcome_summary, extraction_event, storyteller_result, scene_result, _extraction_ctx = _extract_result  # type: ignore[misc]
-        # Beat lifecycle: beat_disposition removed — Python infers from state mutations (gm_beat presence in delta)
-            _new_beat = storyteller_result.gm_beat if storyteller_result else None
-
-            if _new_beat and _new_beat.type:
-                # New beat present → replace/clear pending_gm_beat with new value
-                # Replace or fresh write (includes implicit replace when carry+new_beat)
-                _beat_dict = _new_beat.model_dump(exclude_none=True)
-                _beat_dict["beat_expires_turn"] = turn_no + 2
-                state.setdefault("meta", {})["pending_gm_beat"] = _beat_dict
-            else:
-                state.get("meta", {}).pop("pending_gm_beat", None)
+            delta, actions, outcome_summary, extraction_event, record_result, scene_result, _extraction_ctx = _extract_result  # type: ignore[misc]
 
         if is_cancel_requested(str(save_dir)):
             return
@@ -286,15 +277,15 @@ async def run_turn(
         # Roll up per-stream token counts for the metrics dict
         _tokens_in = sum(
             (extraction_event.get(s) or {}).get("tokens_in", 0)
-            for s in ("scene", "state", "storytell", "narrate")
+            for s in ("scene", "state", "record", "narrate")
         )
         _tokens_out = sum(
             (extraction_event.get(s) or {}).get("tokens_out", 0)
-            for s in ("scene", "state", "storytell", "narrate")
+            for s in ("scene", "state", "record", "narrate")
         )
         # Build per-stream breakdown for UI display
         _streams = {}
-        for s in ("scene", "state", "storytell", "narrate"):
+        for s in ("scene", "state", "record", "narrate"):
             ev = extraction_event.get(s)
             if ev:
                 _streams[s] = {
@@ -309,11 +300,11 @@ async def run_turn(
             "tokens_out": _tokens_out,
             "retries": sum(
                 len((extraction_event.get(s) or {}).get("retry_errors", []))
-                for s in ("scene", "state", "storytell")
+                for s in ("scene", "state", "record")
             ),
             "retry_errors_by_stream": {
                 s: (extraction_event.get(s) or {}).get("retry_errors", [])
-                for s in ("scene", "state", "storytell")
+                for s in ("scene", "state", "record")
             },
             "streams": _streams,
         }
@@ -332,7 +323,7 @@ async def run_turn(
 
         if delta is not None:
             state, delta, applied, rejected, reconcile_warnings, thread_dedup_rejections = _apply_state_updates(
-                state, delta, storyteller_result, config, trace_id, turn_no, str(save_dir),
+                state, delta, record_result, config, trace_id, turn_no, str(save_dir),
             )
 
         # Blocking rejection handling (stays in run_turn per design)
@@ -454,7 +445,7 @@ async def run_turn(
             },
         ]
         # Add extraction stream prompts from context_meta
-        for stream_name in ("scene", "state", "storytell"):
+        for stream_name in ("scene", "state", "record"):
             stream_data = extraction_event.get(stream_name) or {}
             ctx_meta: dict[str, Any] | None = stream_data.get("context_meta")
             if ctx_meta:
@@ -474,7 +465,8 @@ async def run_turn(
             f"\n\n## Turn {state['meta']['turn']} — {user_input}\n\n{narrative.strip()}",
         )
 
-        # Deferred: prior_history + sanitizer + final save_state
+        # Deferred: prior_history + final save_state (sanitizer and World
+        # now run as end-of-turn async phases after yield("complete"))
         if outcome_summary and outcome_summary.strip():
             turn_no = state["meta"]["turn"]
             bullet = f"- [T{turn_no}] {outcome_summary}"
@@ -483,18 +475,6 @@ async def run_turn(
             prior.append(bullet)
             if len(prior) > 20:
                 meta["prior_history"] = prior[-20:]
-
-        # Thread sanitizer (after prior_history, before yield complete)
-        if config.sanitize_every > 0:
-            t_sanitize = asyncio.get_running_loop().time()
-            state, sanitize_ran = await sanitize_threads(
-                save_dir, state, config, trace_id=trace_id,
-            )
-            if sanitize_ran:
-                yield ("phase", {"phase": "sanitize_start", "expected_ms": 0})
-                yield ("phase", {"phase": "sanitize_done", "ms": round(
-                    (asyncio.get_running_loop().time() - t_sanitize) * 1000, 1
-                )})
 
         # Single atomic write block
         event["last_turn_state"] = state
@@ -515,16 +495,39 @@ async def run_turn(
             errors=errors,
             ruling=ruling_event or {},
             outcome_summary=outcome_summary,
-            gm_beat={
-                "type": storyteller_result.gm_beat.type,
-                "effect": storyteller_result.gm_beat.effect,
-            } if (storyteller_result and storyteller_result.gm_beat) else None,
             outcome_hint=_pc.outcome_hint if _pc else None,
             scene_phase=state.get("scene", {}).get("scene_phase", "SETUP"),
             summary=_pc.summary if _pc else "",
             ts=_ts,
         )
         yield ("complete", result_obj)
+
+        # --- End-of-turn async window (lock still held until generator returns) ---
+
+        # 1. Sanitize (moved from synchronous critical path)
+        yield ("phase", {"phase": "sanitize_start"})
+        try:
+            if config.sanitize_every > 0:
+                state, _ = await sanitize_threads(
+                    save_dir, state, config, trace_id=trace_id,
+                )
+        except Exception as exc:
+            _log.warning("sanitize step failed: %s", exc, extra={"trace_id": trace_id})
+        yield ("phase", {"phase": "sanitize_done"})
+
+        # 2. World (beat candidates — receives same live `state` Sanitize just mutated)
+        yield ("phase", {"phase": "world_start"})
+        beat_candidates: list[dict[str, Any]] = []
+        try:
+            beat_candidates = await _run_world_step(
+                env, state, narrative, scene_result, _pc, config, trace_id, turn_no,
+            )
+        except Exception as exc:
+            _log.warning("world step failed: %s", exc, extra={"trace_id": trace_id})
+        state.setdefault("meta", {})["beat_candidates"] = beat_candidates or []
+        save_state(save_dir, state)
+        yield ("phase", {"phase": "world_done"})
+        # generator returns → StopAsyncIteration → finally releases _inflight
 
     except LlmcTimeout as exc:
         _log.error(

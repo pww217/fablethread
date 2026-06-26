@@ -14,7 +14,7 @@
 
 Treat **8k tokens as your effective working context per session.** Do not load more than you need.
 
-Navigation path: 1) This file → 2) `docs/repomap.md` (module index, entry points) → 3) `docs/architecture/OVERVIEW.md` (pipeline overview) → 4) relevant arch subdoc (step2c-storytell.md, pacing-systems.md, state-models.md, etc.) → 5) source files only for the specific functions you are changing.
+Navigation path: 1) This file → 2) `docs/repomap.md` (module index, entry points) → 3) `docs/architecture/OVERVIEW.md` (pipeline overview) → 4) relevant arch subdoc (step2c-record.md, step2d-world.md, pacing-systems.md, state-models.md, etc.) → 5) source files only for the specific functions you are changing.
 
 **Context budget per session:** Load AGENTS.md + the relevant `docs/repomap.md` section(s) + one plan doc. Do not read entire source files unless a step requires it. Use `grep` or `curl` against the running server to confirm specific lines rather than reading whole files.
 
