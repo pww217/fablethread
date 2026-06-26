@@ -82,6 +82,7 @@ async def run_turn(
     narrative_chunks: list[str] = []
     delta: StateDelta | None = None
     actions: list[str] = []
+    released = False
 
     try:
         register_turn(str(save_dir))
@@ -593,8 +594,11 @@ async def run_turn(
             trace_id, state["meta"]["turn"],
             extra={"trace_id": trace_id, "turn": state["meta"]["turn"]},
         )
+        # Release lock BEFORE yielding world_done to avoid holding it hostage to consumer behavior
+        await _inflight.release(str(save_dir))
+        signal_turn_done(str(save_dir))
+        released = True
         yield ("phase", {"phase": "world_done"})
-        # generator returns → StopAsyncIteration → finally releases _inflight
 
     except LlmcTimeout as exc:
         _log.error(
@@ -633,8 +637,9 @@ async def run_turn(
             ),
         )
     finally:
-        await _inflight.release(str(save_dir))
-        signal_turn_done(str(save_dir))
+        if not released:
+            await _inflight.release(str(save_dir))
+            signal_turn_done(str(save_dir))
 
 
 _FALLBACK_SENTINEL = "*That action didn't resolve as expected"
