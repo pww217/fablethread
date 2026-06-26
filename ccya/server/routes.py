@@ -306,7 +306,7 @@ async def get_turn(input: str = ""):
 
     async def event_stream():
         try:
-            async for kind, payload in run_turn(
+            run_turn_generator = run_turn(
                 _app_mod.SAVE_DIR,
                 user_input,
                 config=_app_mod.engine_config,
@@ -315,7 +315,8 @@ async def get_turn(input: str = ""):
                 pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
                 pack_world_rules=_app_mod._active_pack.scenario.world_rules if _app_mod._active_pack.scenario else [],
                 pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],
-            ):
+            )
+            async for kind, payload in run_turn_generator:
                 if kind == "token":
                     yield {
                         "event": "narrative_token",
@@ -358,7 +359,13 @@ async def get_turn(input: str = ""):
                                 "trace_id": result.trace_id,
                             }),
                         }
-                        continue
+                        # Spawn background task to drain remaining events (async window)
+                        # so the generator completes and releases the _inflight lock
+                        async def _drain():
+                            async for _ in run_turn_generator:
+                                pass
+                        asyncio.create_task(_drain())
+                        return
 
                     ch = result.changes if isinstance(result.changes, dict) else {}
                     # Format ts field for display (engine stores UTC ISO, UI gets human-readable)
@@ -388,6 +395,14 @@ async def get_turn(input: str = ""):
                             }
                         ),
                     }
+                    # Frontend closes SSE on turn_complete, but we must keep consuming
+                    # run_turn() events so the async window (sanitize + world) can finish.
+                    # Spawn background task to drain remaining events.
+                    async def _drain():
+                        async for _ in run_turn_generator:
+                            pass
+                    asyncio.create_task(_drain())
+                    return
         except Exception as e:
             _app_mod.logger.exception("Turn failed")
             yield {"event": "turn_error", "data": json.dumps({"error": str(e)})}

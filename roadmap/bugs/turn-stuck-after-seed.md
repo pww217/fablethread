@@ -128,28 +128,72 @@ The frontend shows the extraction result (from `yield ("complete", result_obj)` 
 
 ## Resolution
 
-**Root cause:** The OpenAI client's `timeout` parameter doesn't fire reliably in async generator contexts because it operates at the HTTP transport level (httpx), not the event loop level. When the generator is suspended between yields in SSE streaming, httpx's timeout callbacks don't fire correctly.
+**Root cause identified:** SSE generator lifecycle issue, not connection pool exhaustion.
 
-**Current state:** The world step still hangs and times out after 60s. It should complete in ~4 seconds like every other step. The timeout prevents it from hanging forever, but that's a band-aid, not a fix.
+### The actual problem
 
-**What works:**
-- State is saved before the async window, so turns don't revert on refresh
-- World step has a 60s timeout that prevents it from hanging forever
-- When timeout fires, the turn continues (world_done event fires, input unlocks)
+The frontend closes the SSE connection immediately upon receiving `turn_complete` event (line 972 in game.js). This cancels the `run_turn()` generator before it can complete the async window (sanitize + world steps) and reach the `finally` block that releases the `_inflight` lock.
 
-**What doesn't work:**
-- The world step still hangs and times out after 60s
-- It should complete in ~4 seconds like every other step
-- The timeout is a band-aid, not a fix
+**Sequence of events:**
+1. Turn pipeline runs: ruling → narrate → extraction → `yield ("complete")`
+2. Routes.py yields `turn_complete` event to frontend
+3. Frontend receives `turn_complete`, calls `es.close()` to close SSE connection
+4. SSE connection closure cancels the `run_turn()` generator mid-execution
+5. Generator never reaches async window (sanitize + world) or the `finally` block
+6. `_inflight` lock is never released → UI stays locked
 
-**The mystery:**
-- Same `llm_chat()` call works fine via `ev.py prompt-eval call`
-- Same call hangs when called from the async generator after `yield ("complete")`
-- The httpx timeout doesn't fire in the async generator context
-- `asyncio.timeout()` cancels it correctly, but that's a workaround
+**Why world step appeared to hang:** It wasn't hanging — it was being cancelled before it could run. The logs showed "world LLM call cancelled" immediately after "world.step_before_llm", confirming the generator was cancelled.
 
-**What I don't know:**
-- Why the world step specifically hangs in this context
-- Why other steps (ruling, narrate, extraction) work fine
-- Whether this is a bug in httpx, AsyncOpenAI, or the async generator pattern
-- Whether the singleton client is causing issues after `yield ("complete")`
+### What's been fixed
+
+**1. Background task to drain generator (routes.py)**
+After yielding `turn_complete`, spawn a background task to continue consuming the generator:
+```python
+async def _drain():
+    async for _ in run_turn_generator:
+        pass
+asyncio.create_task(_drain())
+```
+This allows the async window to complete even though the frontend closed the SSE connection.
+
+**2. Explicit stream close in chat_stream() (llm_client.py)**
+Added `try/finally: await stream.response.aclose()` to ensure httpx connections are released even if the consumer breaks out early.
+
+**3. Moved state/event save to after async window (turn.py)**
+Following existing pattern: extraction data goes in the main event, saved once after all extraction (including world) completes. Removed the "save early" workaround that was added when world appeared to hang.
+
+### Current state
+
+- ✅ World step completes successfully (4.7s, 3 beats)
+- ✅ World data appears in events.jsonl
+- ✅ Turn viewer shows world step
+- ❌ UI lock remains after turn completes — `_inflight` lock not releasing
+- ❌ User must manually refresh browser to unlock UI
+
+### Remaining issue: lock release
+
+The `_inflight` lock is released in the `finally` block of `run_turn()`:
+```python
+finally:
+    await _inflight.release(str(save_dir))
+```
+
+When the background task drains the generator, the `finally` block should execute. But it's not releasing the lock. Possible causes:
+- Background task completes but doesn't trigger generator cleanup properly
+- `generator.aclose()` not being called explicitly
+- Asyncio task lifecycle not ensuring finally blocks run
+- Lock release is async but background task exits before it completes
+
+**Next steps:**
+1. Investigate why `finally` block isn't releasing the lock when generator is drained by background task
+2. Consider explicit `await generator.aclose()` in the background task
+3. Add logging to confirm when lock is acquired/released
+4. Test if the lock releases after a delay (race condition?)
+
+### The mystery (solved)
+
+- ✅ Why the world step specifically hangs in this context — frontend closes SSE on turn_complete, cancelling generator before async window
+- ✅ Why other steps (ruling, narrate, extraction) work fine — they run before yield("complete")
+- ✅ Why `ev.py prompt-eval call` works — no SSE connection, no premature cancellation
+- ✅ Whether the singleton client is causing issues — no, connection pool hypothesis was wrong
+- ✅ The real issue: SSE generator lifecycle + frontend closing connection too early
