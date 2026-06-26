@@ -1,0 +1,115 @@
+# Step 2d — World
+
+Async beat-candidate generation step. Runs after the synchronous turn completes (`yield ("complete", ...)`) while the player reads the current turn's narration. Generates 2-3 candidate GM beats for the *next* turn's Ruling phase.
+
+World runs inside the `_inflight` lock (it does not release until the generator returns), so the submit guard remains asserted for the full World window. Ruling on the next turn consumes `state.meta.beat_candidates` to select a single beat.
+
+## Why a separate step?
+
+The pre-split Storytell (Step 2c) generated the GM beat immediately after narration, with no knowledge of the player's intent for the upcoming turn. This produced a recurring mismatch: the narrator would reconcile a beat the player had no intention of acting on. World defers beat generation to an async window after persist — at this point the narrative state is stable and the world layer can think about what should happen next. Ruling then picks the candidate that best matches the player's actual intent.
+
+## Flowchart
+
+```mermaid
+flowchart LR
+    classDef llmNode fill:#0f172a,color:#94a3b8,stroke:#334155
+    classDef xstream fill:#4c1d95,color:#ddd6fe,stroke:#7c3aed
+    classDef outNode fill:#500724,color:#fbcfe8,stroke:#ec4899
+
+    subgraph IN["Inputs (read at start of World)"]
+        S1["candidate_npcs<br>(from scene_result)"]:::xstream
+        S2["arc.threads[]<br>(urgency counts, active threads)"]:::xstream
+        S3["pacing_context<br>(directive, outcome_hint)"]:::xstream
+        S4["recent_beats<br>(state.meta.recent_beats)"]:::xstream
+        S5["allowed_beat_types<br>(phase-derived)"]:::xstream
+        S6["narration (full)"]:::xstream
+    end
+
+    subgraph LLM["LLM — world_system.j2 + world_user.j2"]
+        WL["temp: 0.55 · max_retries: 1<br>output: JSON array of GMBeat"]:::llmNode
+    end
+
+    subgraph OUT["Outputs"]
+        O1["state.meta.beat_candidates<br>[ {type, effect, npc_id, driver}, ... ]<br>0-3 candidates"]:::outNode
+    end
+
+    IN --> LLM --> OUT
+```
+
+## Placement — end-of-turn async window
+
+World runs after `yield ("complete", result_obj)` inside `run_turn`, while the `_inflight` lock is still held. The generator drains through Sanitize → World → return; only when the generator returns does `finally` release `_inflight`. The SSE route already drains the async generator to exhaustion (no `break` after `complete`), so the route handler requires no change.
+
+```python
+yield ("complete", result_obj)        # ← player sees narration
+# --- end-of-turn async window (lock still held) ---
+yield ("phase", {"phase": "sanitize_start"})
+if config.sanitize_every > 0:
+    state, _ = await sanitize_threads(save_dir, state, config, trace_id=trace_id)
+yield ("phase", {"phase": "sanitize_done"})
+yield ("phase", {"phase": "world_start"})
+beat_candidates = await _run_world_step(env, state, narrative, scene_result, _pc, config, trace_id, turn_no)
+state.setdefault("meta", {})["beat_candidates"] = beat_candidates or []
+save_state(save_dir, state)          # single end-of-turn persist (Sanitize + candidates)
+yield ("phase", {"phase": "world_done"})
+# return → finally releases _inflight
+```
+
+**Stale-input invariant.** World receives the same live `state` Python reference that Sanitize just mutated — no reload, no snapshot, no intermediate `save_state`. Sanitize mutates `state["arc"]["threads"]` in place; World's `_run_world_step` reads that exact dict, so it sees sanitized threads by construction.
+
+## Inputs
+
+| Input | Source |
+|-------|--------|
+| `candidate_npcs` | `scene_result.candidate_npcs` (Scene Extract 2a) |
+| `arc.threads[]` | `state["arc"]["threads"]` |
+| `narration` | passed in from `run_turn` |
+| `pacing_context` | passed in from `run_turn` |
+| `recent_beats` | `state.meta.recent_beats` |
+| `allowed_beat_types` | `derive_allowed_beat_types(scene_phase, directive, spiral_detected)` |
+| `rules_outcome.band` | (optional) used for roll-band guidance |
+
+If `scene_result is None` (extraction pipeline failed), `candidate_npcs` defaults to `[]` and World generates from narration + threads alone.
+
+## Outputs
+
+`state.meta.beat_candidates: list[dict]` — 0-3 validated candidate dicts (after `GMBeat(**candidate)` validation; invalid candidates silently dropped, no retry). Storage shape is the same as Ruling will ingest.
+
+**Failure mode.** If the World LLM call times out, returns invalid JSON, or all candidates fail validation, the candidates list is `[]` and the next turn's Ruling proceeds without a beat selection (no `selected_beat` in JSON). The `world_done` event still fires; the lock releases; the next turn can submit. World resolves one way or another before the lock lifts.
+
+## GMBeat schema (repurposed)
+
+The `GMBeat` Pydantic model has been repurposed as the validation schema for both World candidates and Ruling's `selected_beat`. The `beat_expires_turn` field is removed (no TTL — see "Beat lifecycle" below).
+
+```
+GMBeat
+  type: complication | revelation | opportunity | breathing_room |
+        pressure | twist | setback | escalation | callback | None
+  effect: str                       # required
+  npc_id: str | None
+  driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None
+```
+
+Type/driver `Literal` validators silently coerce out-of-enum values to `None`; a candidate whose `type` ends up empty is dropped.
+
+## Temperature
+
+`config.world_temperature` (default `0.55`) — medium temperature for constrained creative generation. The system prompt is lightweight (~200-250 tokens) and the user prompt carries the structured inputs (~1000-2000 tokens).
+
+## Beat lifecycle (after split)
+
+Beats are now single-turn commitments:
+
+1. **World (turn N, async after `complete`):** generates 2-3 candidates → `state.meta.beat_candidates`.
+2. **Ruling (turn N+1, sync at start):** reads `state.meta.beat_candidates`, picks one (or none), sets `state.meta.pending_gm_beat` (if selected) or pops it (if not). Always pops `state.meta.beat_candidates` (no carryover).
+3. **Narrate (turn N+1, sync):** reads `state.meta.pending_gm_beat` (set by Ruling this same turn), integrates it as atmospheric pressure / scene direction. Narrate is a pure reader of `pending_gm_beat` — it does not mutate it.
+4. **Turn boundary:** Ruling's per-turn "always replace or pop" rule keeps `pending_gm_beat` hygienic. No expiry arithmetic — beats are single-turn commitments.
+
+**Why no TTL?** Ruling unconditionally resolves `pending_gm_beat` every turn (replace with new or pop to None). An orphan can never survive a turn boundary, so `beat_expires_turn` is vestigial and was removed.
+
+## See also
+
+- [step0-ruling.md](./step0-ruling.md) — Ruling reads `state.meta.beat_candidates` and outputs `selected_beat`
+- [step2c-record.md](./step2c-record.md) — synchronous extraction pipeline (replaces Storytell)
+- [OUT-OF-BAND.md](./out-of-band.md) — async phase pattern in this codebase
+- [cross-module-contracts.md](./cross-module-contracts.md) — state model contract

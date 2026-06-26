@@ -285,33 +285,6 @@
                             </div>
                         </template>
 
-                        <template x-if="t.gm_beat_type || t.gm_beat_effect || t.gm_beat_allowed_beat_types">
-                            <div class="tv-diff-section">
-                                <div class="tv-diff-section-label">GM Beat</div>
-                                <template x-if="t.gm_beat_type">
-                                    <div class="tv-diff-row">
-                                        <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">type</span>
-                                        <span class="tv-diff-value" x-text="t.gm_beat_type"></span>
-                                    </div>
-                                </template>
-                                <template x-if="t.gm_beat_effect">
-                                    <div class="tv-diff-row">
-                                        <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">effect</span>
-                                        <span class="tv-diff-value" x-text="t.gm_beat_effect"></span>
-                                    </div>
-                                </template>
-                                <template x-if="t.gm_beat_allowed_beat_types && t.gm_beat_allowed_beat_types.length">
-                                    <div class="tv-diff-row">
-                                        <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">allowed_beat_types</span>
-                                        <span class="tv-diff-value" x-text="t.gm_beat_allowed_beat_types.join(', ')"></span>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-
                         <template x-if="t.state_diff && t.state_diff.length">
                             <div class="tv-diff-section">
                                 <div class="tv-diff-section-label">State changes</div>

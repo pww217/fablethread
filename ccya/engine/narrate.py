@@ -160,18 +160,14 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
             male_count=5, female_count=5, seed=state.get("meta", {}).get("turn", 0),
         )
 
-    # pending_gm_beat from the previous turn's storyteller is read here to set
-    # the atmosphere/scene context for this turn's narration. Beats are consumed
-    # on the turn AFTER generation — this is intentional: beats shape ongoing scene
-    # atmosphere rather than providing immediate mechanical feedback.
+    # pending_gm_beat from this turn's ruling is read here to set
+    # the atmosphere/scene context for this turn's narration. Beats are selected
+    # same-turn by Ruling from World candidates and immediately consumed by
+    # Narrate. Beat expiry is no longer tracked — Ruling's per-turn
+    # always-replace-or-pop rule keeps state hygienic.
     # Immediate feedback for roll outcomes is handled by the roll-band narration
     # directive (rules.py build_directive()), not by the beat system.
     _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
-    if _pending_gm_beat:
-        _expires = _pending_gm_beat.get("beat_expires_turn")
-        if _expires is not None and turn_no > _expires:
-            _pending_gm_beat = None
-            state.setdefault("meta", {})["pending_gm_beat"] = None
 
     # PC allegiance and world context
     _pc_allegiance = (state.get("pc") or {}).get("allegiance")

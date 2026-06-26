@@ -469,23 +469,8 @@ def _apply_state_updates(
                         extra={"trace_id": trace_id, "turn": turn_no},
                     )
 
-        # Beat history: snapshot pending_gm_beat after floor relief override.
-        # No entry is added when delta is None (extraction pipeline error) — beat
-        # history will have a gap for this turn, which is intentional for error-path
-        # turns so the next turn's diversity guidance isn't contaminated.
-        _history_beat = state.get("meta", {}).get("pending_gm_beat")
-        meta = state.setdefault("meta", {})
-        meta.setdefault("recent_beats", []).append({
-            "turn": turn_no,
-            "type": _history_beat.get("type") if _history_beat else None,
-            "effect": _history_beat.get("effect") if _history_beat else None,
-        })
-        # Cap at N entries, oldest first
-        max_beats = config.recent_beats_max if config else 5
-        if len(meta["recent_beats"]) > max_beats:
-            meta["recent_beats"] = meta["recent_beats"][-max_beats:]
-
         # Persist inventory change reason for right-panel tooltip
+        meta = state.setdefault("meta", {})
         if delta and (delta.inventory_add or delta.inventory_remove or delta.inventory_update):
             if delta.inventory_change_reason:
                 meta["last_inventory_change_reason"] = delta.inventory_change_reason

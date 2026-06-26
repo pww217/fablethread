@@ -212,7 +212,6 @@ class GMBeat(BaseModel):
     effect: str = ""
     npc_id: str | None = None
     driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None = None
-    beat_expires_turn: int | None = None
 
     @field_validator("driver", mode="before")
     @classmethod
@@ -229,7 +228,6 @@ class StorytellerResult(BaseModel):
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
     goal_update: dict[str, Any] | None = None
-    gm_beat: GMBeat | None = None
     thread_resolve: list[ThreadResolution] = Field(default_factory=list)
     thread_add: ArcThread | None = None
     thread_update: list[ThreadUpdate] = Field(default_factory=list)
@@ -250,13 +248,6 @@ class StorytellerResult(BaseModel):
                     item["major_update_signal"] = "advancement"
             coerced.append(item)
         return coerced
-
-    @model_validator(mode="after")
-    def _nullify_invalid_gm_beat(self) -> "StorytellerResult":
-        if self.gm_beat is not None:
-            if not self.gm_beat.type:
-                self.gm_beat = None
-        return self
 
     @model_validator(mode="after")
     def _nullify_empty_arc_resolve(self) -> "StorytellerResult":

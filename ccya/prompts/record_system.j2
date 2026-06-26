@@ -13,7 +13,6 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
   "thread_add": {"id": "...", "type": "threat", "summary": "...", "urgency": "normal"},
    "arc_resolve": {"resolution": "...", "long_term_objective": "..."},
    "goal_update": {"long_term_objective": "..."},
-   "gm_beat": {"type": "...", "effect": "...", "npc_id": "...", "driver": "..."}
   "outcome_summary": "...",
   "actions": ["...", "...", "...", "..."]
 }
@@ -73,48 +72,6 @@ Emit **only** when the narrative chapter genuinely ends — a decisive win, a fu
 WRONG: `arc_resolve` with unchanged `long_term_objective` (no-op). RIGHT: `arc_resolve` introduces a new goal.
 
 `goal_update` — the arc's direction shifted but the arc isn't over. **Use sparingly; arcs are meant to last 7+ turns.** Only update when: the main objective is impossible (target dead, location destroyed, ally betrayed); a revelation invalidates the current goal; the player's situation changed so drastically a different objective is now primary; the arc has coasted 8+ turns without meaningful progress. **Do NOT update when:** a thread resolved/failed/changed urgency; progress was made; the goal is still viable; a parallel thread became dominant. **Do NOT emit a no-op** — if the goal hasn't genuinely shifted, omit this field entirely. **CRITICAL: Compare your proposed `goal_update` against the current `long_term_objective`. If they are identical or nearly identical (same meaning, different wording), do NOT emit `goal_update`. Omit the field entirely instead.**
-
-## GM Beat
-
-`gm_beat`: one beat to shape the next turn, or `null`. When present, must include `type`, `effect`, and optionally `npc_id` + `driver`.
-
-**Scene-driven beat generation:** Scene has identified 2-3 NPCs with psychological state hints (what they want, fear, leverage, or feel). These are NOT beats — they are raw material. Your job is to blend them into a coherent story beat.
-
-- **Scene is the authority on who matters narratively; you are the authority on how it connects to story structure.**
-- `candidate_npcs` is provided in the user prompt (variable data). Use it as your starting point.
-- **Blend, don't pick.** The ideal beat combines 2-3 psychological hints into a single coherent story point. Example: "Anthony wants to protect his sister" + "David fears exposure" → Anthony offers to shield David from scrutiny in exchange for David's silence about the sister's whereabouts. Two psychological states, one beat.
-- **Three patterns:**
-  1. **Deliver as-is:** One candidate is so strong it stands alone as a beat.
-  2. **Combine (preferred):** Two or more psychological hints interact — fear + leverage, motivation + bond, etc. — into one coherent beat.
-  3. **Thread-apply:** Map a candidate's effect to an active/urgent thread.
-- If scene provided no candidates, generate a beat from scratch based on narration + threads.
-
-**`effect` (required):** A short, concrete sentence describing what is about to happen. Must be narratively specific — name NPCs, reference locations, tie to active threads. NOT a category label. NOT "ambient tension." If you cannot write a concrete sentence, emit `null` for the entire `gm_beat`.
-
-**`npc_id` + `driver` (optional):** When the beat is driven by an NPC's psychology, set `npc_id` to that NPC's ID and `driver` to the psychological field. **Use the `type` from the candidate_npcs entry for the chosen NPC as the driver value.** If the candidate says `(fear)`, set `driver: "fear"`. If the candidate says `(motivation)`, set `driver: "motivation"`. Do not pick a different driver — the scene extractor already identified the relevant psychological field. If you pick a candidate without a matching entry in candidate_npcs, use `motivation` as the driver. Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats.
-
-**Beat flavor by type**
-
-The scene extractor has identified which psychological field is active. Use this mapping:
-
-- **motivation** → NPC pursues their goal. Show them acting — enforcing a rule, pushing an agenda, creating friction with the player.
-- **fear** → NPC avoids something. Show the consequence — pulling back, overcompensating, making a mistake.
-- **leverage** → NPC holds something valuable. Show them exercising it — using it, threatening it, negotiating.
-- **bond** → NPC has shared history. Show it impacting the present — favoritism, resentment, hesitation, unexpected loyalty.
-
-**Action rule:** Every beat must show an NPC or the world taking action. Never start with "nothing happens" or "the atmosphere is tense." If no NPC is acting, show the environment reacting — a door slams, a light flickers, a sound carries. If no psychological pressure is relevant, emit `null`.
-
-**`type`:** See `allowed_beat_types` in the user prompt. Only those types are valid this turn.
-
-**Roll band** (when directive is Tension or absent):
-- **crit_success / success** → prefer a beat that rewards the player or reveals info
-- **partial** → prefer a beat that creates tension or adds an obstacle
-- **setback / fail** → prefer a beat that gives room to recover
-- **No roll** → prefer a neutral or discovery-oriented beat
-
-**Diversity:** Don't repeat the same beat `type` more than twice consecutively.
-
-**Fallback:** If scene provided no candidates and no effect, generate a beat from scratch based on narration + threads.
 
 ## Curtain Call — CLIMAX phase
 

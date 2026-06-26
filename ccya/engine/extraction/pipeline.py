@@ -15,7 +15,7 @@ from ccya.engine.config import EngineConfig
 from ccya.engine.extraction.context import _build_extraction_context
 from ccya.engine.extraction.scene import _extract_scene_messages
 from ccya.engine.extraction.state import _extract_state_messages
-from ccya.engine.extraction.storytell import _storytell_messages
+from ccya.engine.extraction.record import _record_messages
 from ccya.engine.extraction.utils import _call_stream, _capitalize_inventory_names, _context_meta, _dedup_compendium_update
 from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.state import apply_delta
@@ -50,7 +50,7 @@ async def _run_extraction_pipeline(
     _log.debug("extraction.pipeline.start trace_id=%s turn_no=%d", trace_id, turn_no)
     """Run the three extraction streams in sequence.
 
-    Returns: (merged_delta, actions, outcome_summary, per_stream_event_data, storyteller_result, scene_result)
+    Returns: (merged_delta, actions, outcome_summary, per_stream_event_data, record_result, scene_result)
     """
 
     _SKIPPED: dict[str, Any] = {
@@ -65,7 +65,7 @@ async def _run_extraction_pipeline(
     # Defaults if a stream is skipped
     scene_result = SceneExtractResult()
     state_result = StateExtractResult()
-    storytell_result = StorytellerResult()
+    record_result = StorytellerResult()
     extraction_event: dict[str, Any] = {}
 
     # --- Stream 1: Scene ---
@@ -192,17 +192,15 @@ async def _run_extraction_pipeline(
         },
     })
 
-    # --- Stream 3: Storytell (always runs — post-narration storytelling brain) ---
-    yield ("phase", {"phase": "extract_stream_start", "stream": "storytell"})
-    t_storytell = asyncio.get_event_loop().time()
+    # --- Stream 3: Record (always runs — post-narration backward-looking scribe) ---
+    yield ("phase", {"phase": "extract_stream_start", "stream": "record"})
+    t_record = asyncio.get_event_loop().time()
     _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
-    # Build this-turn context from scene + state results for the storyteller stream
+    # Build this-turn context from scene + state results for the record stream
     extraction_ctx = _build_extraction_context(state, scene_result, state_result)
-    storytell_msgs = _storytell_messages(
+    record_msgs = _record_messages(
         env, narration, state,
         extraction_ctx=extraction_ctx,
-        intent=intent,
-        pacing_context=pacing_context,
         recent_turns=(recent_turns or [])[-10:],
         turn_no=turn_no,
         band=_band,
@@ -210,58 +208,20 @@ async def _run_extraction_pipeline(
         config=config,
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes
-    rendered_storytell_system = storytell_msgs[0]["content"] if storytell_msgs else ""
-    rendered_storytell_user = storytell_msgs[-1]["content"] if storytell_msgs else ""
-    strip_trace_markers_in_messages(storytell_msgs)
-    storytell_msgs, storytell_trimmed, storytell_trimmed_chars = trim_messages(storytell_msgs, config.context_window)
+    rendered_record_system = record_msgs[0]["content"] if record_msgs else ""
+    rendered_record_user = record_msgs[-1]["content"] if record_msgs else ""
+    strip_trace_markers_in_messages(record_msgs)
+    record_msgs, record_trimmed, record_trimmed_chars = trim_messages(record_msgs, config.context_window)
 
-    storytell_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    record_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     try:
-        storytell_result, storytell_usage, storytell_attempts, storytell_retry_errors = await _call_stream(
-            storytell_msgs, config, trace_id, "storytell",
+        record_result, record_usage, record_attempts, record_retry_errors = await _call_stream(
+            record_msgs, config, trace_id, "record",
             StorytellerResult, strip_keys=("_reasoning",),
         )
 
-        # Post-parse validation: null effect with non-null npc_id is incoherent
-        if storytell_result.gm_beat and storytell_result.gm_beat.npc_id and not storytell_result.gm_beat.effect:
-            _log.warning(
-                "storytell beat: npc_id '%s' set but effect is empty, retrying",
-                storytell_result.gm_beat.npc_id,
-                extra={"trace_id": trace_id},
-            )
-            retry_msgs = list(storytell_msgs)
-            retry_msgs.append({
-                "role": "user",
-                "content": (
-                    f"IMPORTANT: Your previous attempt set npc_id '{storytell_result.gm_beat.npc_id}' "
-                    f"without effect. Please provide a short, concrete sentence describing what this NPC is doing. "
-                    f"Re-emit JSON."
-                ),
-            })
-            try:
-                storytell_result, storytell_usage, storytell_attempts, storytell_retry_errors = await _call_stream(
-                    retry_msgs, config, trace_id, "storytell",
-                    StorytellerResult, strip_keys=("_reasoning",),
-                )
-                extraction_event["storytell"]["attempts"] = storytell_attempts
-                extraction_event["storytell"]["retry_errors"].extend(storytell_retry_errors)
-                # Exhausted retry — coerce to null
-                if storytell_result.gm_beat and storytell_result.gm_beat.npc_id and not storytell_result.gm_beat.effect:
-                    _log.warning(
-                        "storytell beat: retry also failed — coercing beat to null",
-                        extra={"trace_id": trace_id},
-                    )
-                    storytell_result = storytell_result.model_copy(
-                        update={"gm_beat": None}
-                    )
-            except Exception as exc:
-                _log.warning(
-                    "storytell retry failed: %s", exc, extra={"trace_id": trace_id},
-                )
-                extraction_event["storytell"]["retry_errors"].append(str(exc))
-
         # Generate fallback actions when LLM omits them (prompt requires exactly 4)
-        if not storytell_result.actions:
+        if not record_result.actions:
             narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
             present_npc_names = [entry.get("name", "") for entry in extraction_ctx.comp_this_turn.values() if isinstance(entry, dict) and entry.get("presence") == "present"]
             inventory_items = [item.get("name", item.get("id", "")) if isinstance(item, dict) else str(item) for item in (state.get("inventory") or [])]
@@ -290,30 +250,30 @@ async def _run_extraction_pipeline(
                 actions.append(f"Focus on {arc_goal[:60]} to advance your goal.")
             else:
                 actions.append("Decide what matters most and pursue it.")
-            storytell_result = storytell_result.model_copy(update={"actions": actions})
-        extraction_event["storytell"] = {
-            "output": storytell_result.model_dump(exclude_none=True),
+            record_result = record_result.model_copy(update={"actions": actions})
+        extraction_event["record"] = {
+            "output": record_result.model_dump(exclude_none=True),
             "skipped": False,
-            "attempts": storytell_attempts,
-            "retry_errors": storytell_retry_errors,
-            "tokens_in": storytell_usage.get("prompt_tokens", 0),
-            "tokens_out": storytell_usage.get("completion_tokens", 0),
-            "ms": round((asyncio.get_event_loop().time() - t_storytell) * 1000, 1),
-            "context_meta": _context_meta(rendered_storytell_system, rendered_storytell_user, storytell_trimmed, storytell_trimmed_chars),
+            "attempts": record_attempts,
+            "retry_errors": record_retry_errors,
+            "tokens_in": record_usage.get("prompt_tokens", 0),
+            "tokens_out": record_usage.get("completion_tokens", 0),
+            "ms": round((asyncio.get_event_loop().time() - t_record) * 1000, 1),
+            "context_meta": _context_meta(rendered_record_system, rendered_record_user, record_trimmed, record_trimmed_chars),
         }
     except LlmcTimeout as exc:
-        _log.warning("storytell LLM timeout", extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id})
-        extraction_event["storytell"] = {**_SKIPPED, "error": str(exc)}
+        _log.warning("record LLM timeout", extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id})
+        extraction_event["record"] = {**_SKIPPED, "error": str(exc)}
     except Exception as exc:
         _log.warning(
-            "storytell failed: %s", exc, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
+            "record failed: %s", exc, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
         )
-        extraction_event["storytell"] = {**_SKIPPED, "error": str(exc)}
+        extraction_event["record"] = {**_SKIPPED, "error": str(exc)}
 
-    if not storytell_result.actions:
-        _log.warning("extraction.storytell.empty trace_id=%s turn_no=%d storytell has no actions after retries", trace_id, turn_no)
-    _log.debug("extraction.storytell.done trace_id=%s result_type=%s actions=%d tokens_in=%d tokens_out=%d gm_beat=%s", trace_id, type(storytell_result).__name__, len(storytell_result.actions or []), storytell_usage.get("prompt_tokens", 0), storytell_usage.get("completion_tokens", 0), storytell_result.gm_beat.type if storytell_result.gm_beat else None)
-    yield ("phase", {"phase": "extract_stream_done", "stream": "storytell"})
+    if not record_result.actions:
+        _log.warning("extraction.record.empty trace_id=%s turn_no=%d record has no actions after retries", trace_id, turn_no)
+    _log.debug("extraction.record.done trace_id=%s result_type=%s actions=%d tokens_in=%d tokens_out=%d", trace_id, type(record_result).__name__, len(record_result.actions or []), record_usage.get("prompt_tokens", 0), record_usage.get("completion_tokens", 0))
+    yield ("phase", {"phase": "extract_stream_done", "stream": "record"})
     yield ("panel_update", {
         "panel": "arc",
         "data": {
@@ -377,20 +337,16 @@ async def _run_extraction_pipeline(
         inventory_update=state_result.inventory_update,
         pc_condition_add=state_result.pc_condition_add,
         pc_condition_remove=state_result.pc_condition_remove,
-        actions=storytell_result.actions or [],
+        actions=record_result.actions or [],
     )
-
-    # NOTE: gm_beat is intentionally absent from StateDelta — it is written
-    # directly to state["meta"]["pending_gm_beat"] in turn.py Step 2.5.
-    # Do NOT add gm_beat to the merge block.
 
     # mypy cannot express heterogeneous 7-tuple yield from async generator
     yield (  # type: ignore[misc]
         merged,
-        storytell_result.actions,
-        storytell_result.outcome_summary,
+        record_result.actions,
+        record_result.outcome_summary,
         extraction_event,
-        storytell_result,
+        record_result,
         scene_result,
         extraction_ctx,
     )
