@@ -1,9 +1,10 @@
 ---
 title: "Turn never starts after seed gen — no ruling/narrate calls, state reverts to T0"
-status: validated
+status: done
 urgency: 1
 size: medium
 created: 2026-06-26
+completed: 2026-06-26
 labels:
   - turn-pipeline
   - engine
@@ -125,3 +126,29 @@ The frontend shows the extraction result (from `yield ("complete", result_obj)` 
 - `roadmap/features/async-steps-recording.md` — Design doc for async step recording
 - `roadmap/bugs/beat-candidates-disconnect.md` — Beat generation split (same PR)
 - `roadmap/bugs/orphaned-sanitizer-events.md` — Sanitizer event cleanup
+
+## Resolution
+
+**Root cause:** The OpenAI client's `timeout` parameter doesn't fire reliably in async generator contexts because it operates at the HTTP transport level (httpx), not the event loop level. When the generator is suspended between yields in SSE streaming, httpx's timeout callbacks don't fire correctly.
+
+**Fix:** Implemented production-grade async timeout handling:
+
+1. **Configured httpx client explicitly** (`llm_client.py`):
+   - `connect=10.0`, `read=None`, `write=10.0`, `pool=10.0`
+   - Set `read=None` to let `asyncio.timeout()` handle wall-clock timeout
+   - This prevents httpx's per-chunk read timeout from firing during slow generation
+
+2. **Use `asyncio.timeout()` instead of `asyncio.wait_for()`** (`world.py`):
+   - More efficient (no new task creation)
+   - Composes cleanly with async generators
+   - Enforces timeout at the event loop level, independent of HTTP client
+
+3. **Pass `timeout=None` to AsyncOpenAI** when using `asyncio.timeout()`:
+   - Avoids double-timeout logic
+   - Lets asyncio own the wall-clock budget
+
+4. **Handle `CancelledError` explicitly**:
+   - Ensures proper cleanup when timeout fires
+   - Re-raises so event loop can clean up the task
+
+This follows Python async best practices for timeout enforcement in SSE streaming contexts with FastAPI/Starlette EventSourceResponse.
