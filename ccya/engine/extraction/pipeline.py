@@ -269,6 +269,10 @@ async def _run_extraction_pipeline(
             "record failed: %s", exc, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
         )
         extraction_event["record"] = {**_SKIPPED, "error": str(exc)}
+    # NOTE: Record stream failures are caught (not raised) because record is a
+    # "backward-looking scribe" — it's not critical for state. If it fails, the
+    # turn still completes with scene+state deltas. Beat candidates are generated
+    # from narration (world step), not from record.
 
     if not record_result.actions:
         _log.warning("extraction.record.empty trace_id=%s turn_no=%d record has no actions after retries", trace_id, turn_no)

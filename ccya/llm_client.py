@@ -166,6 +166,7 @@ async def chat(
     est_tokens = sum(int(len(m.get("content", "")) / 3.5) for m in messages)
     _log.info("chat: model=%s messages=%d est_tokens=%d max_tokens=%s", model, len(messages), est_tokens, max_tokens)
     t0 = time.monotonic()
+    _log.debug("chat: sending request host=%s model=%s timeout=%.1f", host, model, timeout)
     try:
         client = _get_client(host)
         kwargs: dict[str, Any] = {
@@ -183,7 +184,9 @@ async def chat(
             kwargs["frequency_penalty"] = float(frequency_penalty)
         if seed is not None:
             kwargs["seed"] = int(seed)
+        _log.debug("chat: request sent, waiting for response...")
         resp = await client.chat.completions.create(**kwargs)
+        _log.debug("chat: response received, extracting content...")
         elapsed = time.monotonic() - t0
         content = resp.choices[0].message.content or ""
         _log.info(
