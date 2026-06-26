@@ -277,6 +277,38 @@ def build_prompt_context(
             "pc_name": pc.get("name", "Unnamed"),
         }
 
+    if stream == "world":
+        arc = prev_snap.get("arc") or {}
+        meta = prev_snap.get("meta") or {}
+        scene_phase = turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP")
+        # Get candidate_npcs from scene extraction
+        scene_ev = turn_ev.get("extraction", {}).get("scene", {})
+        candidate_npcs = scene_ev.get("output", {}).get("candidate_npcs", []) if isinstance(scene_ev.get("output"), dict) else []
+        # Get recent_beats from state
+        recent_beats = list(meta.get("recent_beats") or [])
+        # Get allowed_beat_types from turn event
+        allowed_beat_types = turn_ev.get("allowed_beat_types") or []
+        # Get rules_outcome from state
+        rules_outcome = meta.get("last_rules_outcome") or {}
+        if isinstance(rules_outcome, dict):
+            rules_outcome = {
+                "band": rules_outcome.get("band", ""),
+                "rolled": bool(rules_outcome.get("rolled", False)),
+            }
+        else:
+            rules_outcome = {}
+        return {
+            "narration": narration,
+            "candidate_npcs": candidate_npcs,
+            "arc": arc,
+            "pacing_context": turn_ev.get("pacing_context") or {},
+            "recent_beats": recent_beats,
+            "allowed_beat_types": allowed_beat_types,
+            "rules_outcome": rules_outcome,
+            "turn_no": turn_no,
+            "state": prev_snap,
+        }
+
     # Placeholder for future streams — fail loudly if used
     print(f"Error: stream '{stream}' not yet implemented in build_prompt_context()", file=sys.stderr)
     sys.exit(1)
