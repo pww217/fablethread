@@ -220,7 +220,7 @@ def apply_delta(
     inv.sort(key=lambda x: 0 if x.get("id") == "credits" else 1)
     state["inventory"] = inv
 
-    if delta.location_change:
+    if delta.location_change and (delta.location_change.id or delta.location_change.name):
         state["location"] = {
             "id": delta.location_change.id,
             "name": _strip_non_ascii(delta.location_change.name),

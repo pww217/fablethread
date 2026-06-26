@@ -10,12 +10,12 @@
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
 | `ccya/engine/config.py` | EngineConfig dataclass; CheckerConfig threshold fields; turn lock management; Jinja env setup |
-| `ccya/engine/turn.py` | run_turn() orchestrator; pipeline (rules→narrate→scene/state/record); end-of-turn async phases (Sanitize + World) after yield("complete"); deferred atomic write block with last_turn_state capture |
+| `ccya/engine/turn.py` | run_turn() orchestrator; pipeline (rules→narrate→scene/state/record); end-of-turn async phases (Sanitize + World) after yield("complete"); deferred atomic write block with last_turn_state capture (appended after async window); extraction_event includes world data under extraction.world |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
 | `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay, TTL condition expiration (_expire_conditions); LongTermObjective.started_turn on arc resolve |
 | `ccya/engine/_pacing.py` | Beat constraints, convergence score, spiral detection |
 | `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context; pure reader of `state.meta.pending_gm_beat` |
-| `ccya/engine/world.py` | World: async beat-candidate generation (Step 2d). Validates each candidate via `GMBeat`; runs after Sanitize, before generator returns |
+| `ccya/engine/world.py` | World: async beat-candidate generation (Step 2d). Validates each candidate via `GMBeat`; returns (candidates, system_text, user_text, raw_response) for event recording; runs after Sanitize, before generator returns |
 | `ccya/engine/pack_gen.py` | LLM-generated ScenarioBrief → packs/custom/ |
 | `ccya/engine/names.py` | Name pool generation via Faker |
 | `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; pc.situation in ruling context; beat selection from `state.meta.beat_candidates`; sets/pops `state.meta.pending_gm_beat` and `state.meta.beat_candidates` per turn |
@@ -36,7 +36,8 @@
 | `ccya/server/app.py` | FastAPI bootstrap, Jinja env, startup event, error persistence |
 | `ccya/server/routes.py` | All @app.get / @app.post route handlers; panel builders; save switching |
 | `ccya/server/panels.py` | Panel context builders: debug, state, opening |
-| `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl |
+| `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl; pipeline stage rendering (ruling/narrate/scene/state/record/world) |
+| `ccya/server/tv_mirror.py` | StreamDescriptor registry — single source of truth for pipeline topology (6 stages: ruling→narrate→scene→state→record→world) |
 | `ccya/server/metrics.py` | Turn latency/token formatting |
 | `scripts/debug/ev.py` | CLI tool: inspect events.jsonl (summary, timing, turn, prompt, checkers, play, eval) |
 | `ccya/ev/events.py` | Shared data access: load_events(), find_turn(), filter_turn_events() |

@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "thread_resolution_validity", "deterministic",
-    requires_fields=["extraction.storytell", "last_turn_state"],
+    requires_fields=["extraction.record", "last_turn_state"],
     description="thread_resolve entries have valid id/resolution_state/outcome",
 )
 def thread_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
@@ -24,8 +24,8 @@ def thread_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
         if ev.get("kind") is None and "last_turn_state" in ev:
             prev_snap = ev["last_turn_state"]
 
-        storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
-        thread_resolves = storytell_output.get("thread_resolve") or []
+        record_output = ((extract_field(ev, "extraction") or {}).get("record") or {}).get("output") or {}
+        thread_resolves = record_output.get("thread_resolve") or []
 
         if not thread_resolves:
             continue

@@ -503,7 +503,7 @@ def _apply_state_updates(
             entry["last_seen_location"] = location.get("name", "")
 
         # Arc director: process thread updates and arc resolution
-        if state.get("arc", {}) and storyteller_result:
+        if (state.get("arc", {}) or storyteller_result.thread_add) and storyteller_result:
             thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
             if thread_delta is not None:
                 _merge_arc_update(
@@ -568,19 +568,31 @@ def _apply_state_updates(
                     _new_thread = storyteller_result.thread_add
                     turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
                     arc_raw = state.get("arc")
-                    if arc_raw and delta is not None:
+                    if delta is not None:
                         try:
-                            _existing_arc = LongTermObjective.model_validate(arc_raw)
-                            existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
+                            if arc_raw:
+                                _existing_arc = LongTermObjective.model_validate(arc_raw)
+                                existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
+                            else:
+                                _existing_arc = None
+                                existing_ids = set()
                             if _new_thread.id not in existing_ids:
                                 _updated_t = _new_thread.model_copy(update={
                                     "added_turn": turn_no_for_add,
                                     "urgency_set_turn": turn_no_for_add,
                                 })
-                                arc_with_new_thread = _existing_arc.model_copy(
-                                    update={"threads": list(_existing_arc.threads) + [_updated_t],
-                                            "last_thread_created_turn": turn_no_for_add}
-                                )
+                                if _existing_arc:
+                                    arc_with_new_thread = _existing_arc.model_copy(
+                                        update={"threads": list(_existing_arc.threads) + [_updated_t],
+                                                "last_thread_created_turn": turn_no_for_add}
+                                    )
+                                else:
+                                    arc_with_new_thread = LongTermObjective(
+                                        long_term_objective="",
+                                        threads=[_updated_t],
+                                        completed_threads=[],
+                                        last_thread_created_turn=turn_no_for_add,
+                                    )
                                 if config:
                                     non_dormant = [t for t in arc_with_new_thread.threads if not t.dormant]
                                     if len(non_dormant) > config.thread_max_active:
