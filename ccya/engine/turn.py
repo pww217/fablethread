@@ -82,7 +82,6 @@ async def run_turn(
     narrative_chunks: list[str] = []
     delta: StateDelta | None = None
     actions: list[str] = []
-    released = False
 
     try:
         register_turn(str(save_dir))
@@ -518,12 +517,7 @@ async def run_turn(
         )
         yield ("complete", result_obj)
 
-        # --- End-of-turn async window ---
-        # Release lock before async steps so frontend can proceed immediately
-        await _inflight.release(str(save_dir))
-        signal_turn_done(str(save_dir))
-        released = True
-
+        # --- End-of-turn async window (lock held until generator completes) ---
         _log.debug(
             "turn.pre_complete trace_id=%s turn=%d state_turn=%d",
             trace_id, turn_no, state["meta"]["turn"],
@@ -636,9 +630,8 @@ async def run_turn(
             ),
         )
     finally:
-        if not released:
-            await _inflight.release(str(save_dir))
-            signal_turn_done(str(save_dir))
+        await _inflight.release(str(save_dir))
+        signal_turn_done(str(save_dir))
 
 
 _FALLBACK_SENTINEL = "*That action didn't resolve as expected"

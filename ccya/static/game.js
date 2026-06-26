@@ -891,8 +891,18 @@ function game() {
                 }
                 if (payload && payload.phase === 'extract_stream_done' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
                     if (payload.stream === 'record') {
+                        self.asyncRunning = true;
                         self.submitting = false;
                         document.getElementById('player-input')?.removeAttribute('disabled');
+                    }
+                }
+                if (payload && payload.phase === 'world_done') {
+                    self.asyncRunning = false;
+                    es.close();
+                    self._turnEs = null;
+                    self._turnCancel = null;
+                    if (window.innerWidth > 768) {
+                        setTimeout(() => document.getElementById('player-input')?.focus(), 100);
                     }
                 }
                 if (payload && (payload.phase === 'sanitize_start' || payload.phase === 'world_start')) {
@@ -965,9 +975,6 @@ function game() {
             });
 
             es.addEventListener('turn_complete', (e) => {
-                es.close();
-                self._turnEs = null;
-                self._turnCancel = null;
                 const result = JSON.parse(e.data);
                 this.turnNum = result.turn || this.turnNum;
                 _clearProgressStrip(strip);
