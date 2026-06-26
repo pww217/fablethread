@@ -30,7 +30,22 @@ _client: AsyncOpenAI | None = None
 def _get_client(base_url: str) -> AsyncOpenAI:
     global _client
     if _client is None:
-        _client = AsyncOpenAI(base_url=base_url, api_key="local")
+        # Configure httpx with explicit timeouts
+        # read=None: let asyncio.timeout() handle wall-clock timeout
+        # This prevents httpx's per-chunk read timeout from firing during slow generation
+        http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(
+                connect=10.0,
+                read=None,
+                write=10.0,
+                pool=10.0,
+            ),
+            limits=httpx.Limits(
+                max_keepalive_connections=20,
+                max_connections=50,
+            ),
+        )
+        _client = AsyncOpenAI(base_url=base_url, api_key="local", http_client=http_client)
     return _client
 
 
@@ -125,8 +140,9 @@ async def chat_stream(
         "messages": messages,
         "stream": True,
         "stream_options": {"include_usage": True},
-        "timeout": timeout,
     }
+    if timeout is not None:
+        kwargs["timeout"] = timeout
     if temperature is not None:
         kwargs["temperature"] = temperature
     if top_p is not None:
@@ -172,8 +188,9 @@ async def chat(
         kwargs: dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "timeout": timeout,
         }
+        if timeout is not None:
+            kwargs["timeout"] = timeout
         if temperature is not None:
             kwargs["temperature"] = temperature
         if max_tokens is not None:
