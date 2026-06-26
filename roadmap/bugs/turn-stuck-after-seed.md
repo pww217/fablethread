@@ -149,6 +149,27 @@ The frontend shows the extraction result (from `yield ("complete", result_obj)` 
 
 4. **Handle `CancelledError` explicitly**:
    - Ensures proper cleanup when timeout fires
-   - Re-raises so event loop can clean up the task
+   - Returns empty results so turn can continue
+   - `world_done` event fires and input box unlocks
 
 This follows Python async best practices for timeout enforcement in SSE streaming contexts with FastAPI/Starlette EventSourceResponse.
+
+**Known issues:**
+- The world step still hangs (times out after 60s) when called from the async generator
+- The same call works fine when called directly via `ev.py prompt-eval call`
+- The root cause of the hang is unknown — it's not the LLM, not the prompt, not the timeout
+- The timeout prevents it from hanging forever, but it should complete in 4 seconds like every other step
+- This is a band-aid, not a fix for the underlying hang
+
+**What we know:**
+- `ev.py prompt-eval call` works — same `llm_chat()` function, same model, same prompt
+- Game engine hangs — no response, no timeout error, just stuck
+- The hang happens after `yield ("complete")` in the async generator
+- The httpx client's timeout doesn't fire in this context
+- `asyncio.timeout()` cancels the call correctly, but that's a workaround, not a fix
+
+**What we don't know:**
+- Why the world step hangs specifically when called from the async generator
+- Why other steps (ruling, narrate, extraction) work fine in the same context
+- Whether this is a bug in httpx, AsyncOpenAI, or something about the async generator context
+- Whether the singleton client pattern is causing issues after `yield ("complete")`
