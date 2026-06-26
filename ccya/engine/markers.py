@@ -8,13 +8,13 @@ Design intent:
 
 Contract:
   - strip_trace_markers_in_messages() is called on every message list before the
-    LLM call (ruling, narrate, scene, state, storytell — see call sites).
+    LLM call (ruling, narrate, scene, state, record — see call sites).
   - The rendered_user field in events.jsonl intentionally RETAINS the sentinels
     so the eval harness can locate immutable boundaries.
   - If stripping fails or a call site is missed, <<>> fragments and the
     "Immutable Reference" header text leak into production LLM prompts.
     The regex r"<<<TRACE_IMMUTABLE_(?:START|END)>>>\s*\n?" must match the exact
-    marker format used in all prompt templates (narrate_user.j2, storytell_user.j2,
+    marker format used in all prompt templates (narrate_user.j2, record_user.j2,
     extract_scene_user.j2).
 
 Note on "Immutable Reference" text:

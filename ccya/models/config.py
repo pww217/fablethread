@@ -40,7 +40,6 @@ class TurnResult:
         default_factory=dict
     )  # serialized RulesOutcome + intent for logging/UI
     outcome_summary: str = field(default="")
-    gm_beat: dict[str, str] | None = None
     outcome_hint: str | None = None
     scene_phase: str = field(default="")
     summary: str = field(default="")

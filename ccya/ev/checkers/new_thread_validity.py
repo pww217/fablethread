@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "new_thread_validity", "deterministic",
-    requires_fields=["extraction.storytell", "last_turn_state"],
+    requires_fields=["extraction.record", "last_turn_state"],
     description="thread_add entries have id/summary, no duplicates",
 )
 def new_thread_validity(events: list[dict[str, Any]]) -> CheckerResult:
@@ -19,8 +19,8 @@ def new_thread_validity(events: list[dict[str, Any]]) -> CheckerResult:
     all_passed = True
 
     for ev in events:
-        storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
-        thread_add = storytell_output.get("thread_add")
+        record_output = ((extract_field(ev, "extraction") or {}).get("record") or {}).get("output") or {}
+        thread_add = record_output.get("thread_add")
 
         if not isinstance(thread_add, dict):
             continue

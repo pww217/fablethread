@@ -26,7 +26,8 @@ _STAGE_CSS: dict[str, str] = {
     "narrate": "tv-stage-narrate",
     "scene": "tv-stage-scene",
     "state": "tv-stage-state",
-    "storytell": "tv-stage-storytell",
+    "record": "tv-stage-storytell",
+    "world": "tv-stage-world",
 }
 
 
@@ -176,7 +177,7 @@ def _tv_dict_to_lines(
 def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
     """Produce a flat list of state-change entries from extraction outputs.
 
-    Reads ruling (intent), scene/state/storytell extraction outputs and flattens
+    Reads ruling (intent), scene/state/record extraction outputs and flattens
     them into labelled change entries for the diff right panel.
     """
     rejected_set: set[str] = set()
@@ -203,7 +204,7 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
     _EXTRACTION_STREAMS = [
         ("scene", "extraction.scene"),
         ("state", "extraction.state"),
-        ("storytell", "extraction.storytell"),
+        ("record", "extraction.record"),
     ]
 
     for stream_key, path in _EXTRACTION_STREAMS:
@@ -542,16 +543,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         pacing_ctx = ev.get("pacing_context") or {}
         band_label = (ev.get("ruling") or {}).get("band", "")
 
-        # GM beat type/effect from storytell extraction output.
-        gm_beat_dict: dict[str, Any] | None = None
-        storytell_blob = _get_nested(ev, "extraction.storytell") or {}
-        if isinstance(storytell_blob, dict):
-            raw_out = storytell_blob.get("output")
-            parsed_storytell = _tv_parse_json_blob(raw_out) if isinstance(raw_out, str) else (raw_out if isinstance(raw_out, dict) else None)
-            gm_beat_dict = (parsed_storytell or {}).get("gm_beat") if isinstance(parsed_storytell, dict) else None
-
         # Top-level pacing fields written by turn.py
-        allowed_beat_types = ev.get("allowed_beat_types")
         convergence_score = ev.get("convergence_score")
 
         # ruling_intent for template (parsed from ruling_prompt.output)
@@ -589,9 +581,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                     "convergence_score": convergence_score,
                 },
                 "band_label": band_label,
-                "gm_beat_type": gm_beat_dict.get("type") if isinstance(gm_beat_dict, dict) else None,
-                "gm_beat_effect": gm_beat_dict.get("effect") if isinstance(gm_beat_dict, dict) else None,
-                "gm_beat_allowed_beat_types": allowed_beat_types,
                 "inputs_snapshot": inputs_snapshot,
                 "state_diff": state_diff,
                 "failures": row_failures,

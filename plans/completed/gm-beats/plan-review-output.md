@@ -23,6 +23,30 @@ This plan splits Storytell (Step 2c) into three focused steps: Record (backward-
 
 **Design doc alignment:** The design doc (D5) explicitly states: "If World runs *inside* `run_turn`'s body after `yield ("complete")`, the lock is NOT released until `run_turn`'s generator fully returns (the `finally` at turn.py:568 only fires when the generator is closed/exhausted)." The plan now matches this.
 
+### Critical Fix: Step 5.2b — Added missing routes.py stream key update
+
+**What was wrong:** The plan didn't mention updating `routes.py:351` where `storytell_skipped = (streams.get("storytell") or {}).get("skipped", False)` references the old stream key. After renaming to `"record"`, this check would never trigger, breaking the "all extraction streams failed" error handling.
+
+**What I changed:** Added Step 5.2b to update `routes.py:351` and `routes.py:353` to use `"record"` instead of `"storytell"`.
+
+**Impact:** Without this fix, if all extraction streams fail, the UI would show a success state instead of an error message.
+
+### Critical Fix: Step 4.8 — Initialize `scene_result` to prevent NameError
+
+**What was wrong:** The plan's Step 4.4 passes `scene_result` to `_run_world_step` after `yield("complete")`. But `scene_result` is only defined if the extraction pipeline succeeds (line 268 unpack). If the pipeline throws, `scene_result` is undefined, causing a NameError.
+
+**What I changed:** Updated Step 4.8 to initialize `scene_result = None` at line 230 alongside other variable initializations. Updated Step 4.3's `_run_world_step` signature to accept `scene_result: Any | None` and handle None gracefully (empty `candidate_npcs`).
+
+**Impact:** Without this fix, an extraction pipeline failure would cause a NameError in the World step, preventing the turn from completing cleanly.
+
+### Critical Fix: Step 4.4 — Wrap Sanitize in try/except
+
+**What was wrong:** The plan wrapped World in try/except but not Sanitize. If `sanitize_threads` throws after `yield("complete")`, the outer except block would catch it and yield a second `("complete", ...)`, causing the UI to receive two `turn_complete` events.
+
+**What I changed:** Added try/except wrapper around the Sanitize step in Step 4.4's code snippet.
+
+**Impact:** Without this fix, a Sanitize failure would send duplicate `turn_complete` events to the UI.
+
 ### Minor Fix: Step 2.4 — Added missing metrics rollup updates
 
 **What was wrong:** Step 2.4 didn't mention updating `turn.py` metrics rollup tuples that reference `"storytell"` as a stream key (lines 289, 293, 297, 312, 316, 457). Without this, metrics would silently report zeros for the record stream.
@@ -54,12 +78,13 @@ None. All issues were fixable without design decisions.
 ## Contract Checks
 
 - [x] **Signature of `_record_messages` matches call sites** — pass. The signature in Step 2.3 matches the call site in Step 2.4.
-- [x] **Signature of `_run_world_step` matches call sites** — pass. The signature in Step 4.3 matches the call site in Step 4.4.
+- [x] **Signature of `_run_world_step` matches call sites** — pass. The signature in Step 4.3 (updated to accept `scene_result: Any | None`) matches the call site in Step 4.4.
 - [x] **Signature of `_call_ruling` 5-tuple matches call sites** — pass. Only one call site at line 234, updated in Step 3.5.
 - [x] **Signature of `_ruling_messages` matches call sites** — pass. Only one call site at line 214, updated in Step 3.3.
 - [x] **Template variables all provided by render calls** — pass. Step 2.3 lists all context variables for Record templates. Step 4.3 lists all context variables for World templates. Step 3.3 adds `beat_candidates` to ruling.
 - [x] **Schema keys match** — pass. `selected_beat` schema in Step 3.1 matches the extraction logic in Step 3.4. `beat_candidates` schema in Step 4.2 matches the validation in Step 4.3.
 - [x] **Field names match access points** — pass. All `gm_beat`, `beat_expires_turn`, `pending_gm_beat`, `beat_candidates`, `recent_beats` references are consistent.
+- [x] **Stream key consistency** — pass. All references to `"storytell"` stream key are updated to `"record"` in pipeline.py, turn.py, routes.py, and extraction/__init__.py.
 
 ## Scope Violations
 
@@ -85,4 +110,10 @@ All mandatory documentation updates are in scope.
 
 ## Conclusion
 
-The plan is ready for execution. The critical async generator lock behavior issue has been corrected to match the design doc's intent. All minor issues (missing metrics rollup updates, missing call sites, ambiguous sourcing) have been fixed. No blocks to execution remain.
+The plan is ready for execution. All critical issues have been fixed:
+1. Async generator lock behavior corrected to match design doc
+2. routes.py stream key update added
+3. `scene_result` initialization added to prevent NameError
+4. Sanitize wrapped in try/except to prevent duplicate `turn_complete` events
+
+No blocks to execution remain.

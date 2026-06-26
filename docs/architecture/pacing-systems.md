@@ -16,15 +16,17 @@ flowchart TD
     PE["Phase Engine<br>compute_convergence_score, derive_allowed_beat_types"]:::system
     PC["PacingContext<br>directive · outcome_hint · summary"]:::system
     N["Narrator<br>prose generation"]:::output
-    SB["Storytell<br>beat/thread selection"]:::output
+    W["World (async, end-of-turn)<br>beat-candidate generation"]:::output
+    R["Ruling<br>beat selection + intent"]:::output
 
     S --- shared1["scene_phase"]:::shared
     S --- shared2["arc.threads[] urgency counts"]:::shared
 
     S --> PE --> PC
     PC -. "feeds outcome_hint" .-> N
-    PC -. "feeds directive" .-> SB
-    SB -. "feeds pending_gm_beat" .-> N
+    PC -. "feeds directive" .-> W
+    W -. "writes beat_candidates" .-> R
+    R -. "feeds pending_gm_beat" .-> N
 ```
 
 ## 2. Phase Engine
@@ -49,7 +51,7 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 
 ## 2.5. Curtain Call — CLIMAX phase soft close
 
-Two-tier soft close guides the storyteller toward thread resolution in CLIMAX:
+Two-tier soft close guides the record toward thread resolution in CLIMAX:
 
 | Tier | Trigger | User prompt signal | System prompt guidance |
 |------|---------|--------------------|------------------------|
@@ -62,7 +64,7 @@ Hard cutoff at `climax_turn_limit` unchanged (phase machine handles it). For def
 
 ### Definition
 
-Forward-facing storytelling beats emitted by the storyteller, consumed by the narrator, managed via `state.meta.pending_gm_beat`. Each beat has a `type`, `effect`, `npc_id`, `driver`, and TTL of 2 turns.
+Forward-facing storytelling beats emitted by **World** (Step 2d, async) as candidates, selected by **Ruling** (Step 0) for the upcoming turn, consumed by the narrator the same turn. Lifecycle state lives in `state.meta.pending_gm_beat` (the selected beat) and `state.meta.beat_candidates` (the world-prepared candidates). Each beat has a `type`, `effect`, `npc_id`, `driver`. **No TTL** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic.
 
 ### Beat types
 
@@ -87,32 +89,34 @@ flowchart TD
     classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
     classDef system fill:#3b0764,color:#e9d5ff,stroke:#7c3aed,strokeWidth:2px
 
-    START["Turn begins"]:::pyNode --> EXPIRY{"beat_expires_turn set<br>AND turn_no > expires?"}:::decision
-    EXPIRY -- yes --> NULL["Beat expired<br>pending_gm_beat = None"]:::output
-    EXPIRY -- no --> NARRATE["Narrator receives<br>pending_gm_beat"]:::pyNode
-    NULL --> NARRATE
+    WORLD_ASYNC["World (async, end of prev turn)<br>generates 2-3 candidates"]:::pyNode
+    WRITE_CANDS["state.meta.beat_candidates<br>= candidates"]:::output
 
-    NARRATE --> EXTRACTION["Extraction pipeline runs<br>pending_gm_beat persists<br>unchanged"]:::pyNode
-    EXTRACTION --> STORYLLM{"Storytell emits<br>gm_beat with<br>non-null type?"}:::decision
-    STORYLLM -- yes --> STORED["pending_gm_beat =<br>storyteller beat<br>expires = turn_no + 2"]:::output
-    STORYLLM -- no --> POPPED["pending_gm_beat = None<br>(popped from meta)"]:::output
+    RULING["Ruling (start of turn N)<br>reads beat_candidates"]:::pyNode
+    RULING_DECIDE{"selected_beat?"}:::decision
+    SET_BEAT["state.meta.pending_gm_beat<br>= beat (no beat_expires_turn)"]:::output
+    POP_BEAT["state.meta.pending_gm_beat<br>popped"]:::output
+    APPEND_HIST["recent_beats.append<br>(capped at 5)"]:::pyNode
+    CLEAN_CANDS["state.meta.beat_candidates<br>popped (always)"]:::output
 
-    STORED --> HISTORY["recent_beats.append<br>(capped at 5)"]:::pyNode
-    POPPED --> HISTORY
+    NARRATE["Narrate (same turn)<br>reads pending_gm_beat"]:::pyNode
+    PERSIST["Persist (end of turn)<br>pending_gm_beat persists"]:::pyNode
 
-    HISTORY --> END["Turn ends"]:::pyNode
-    STORED -. "next turn" .-> START
+    WORLD_ASYNC --> WRITE_CANDS --> RULING --> RULING_DECIDE
+    RULING_DECIDE -- yes --> SET_BEAT --> APPEND_HIST
+    RULING_DECIDE -- no --> POP_BEAT --> APPEND_HIST
+    APPEND_HIST --> CLEAN_CANDS --> NARRATE --> PERSIST
+    PERSIST -. "next turn's Ruling" .-> RULING
 
-    style STORYLLM fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
-    style EXPIRY fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    style RULING_DECIDE fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
 ```
 
 ### How beats feed into other systems
 
 ```mermaid
 flowchart LR
-    BEAT["gm_beat.type"] -. "narrative guidance" .-> NARR["Narrator<br>weaves beat into prose"]
-    BEAT -. "diversity guidance" .-> ST["Storytell<br>avoid repeat types"]
+    BEAT["pending_gm_beat.type"] -. "narrative guidance" .-> NARR["Narrator<br>weaves beat into prose"]
+    WORLD["World" ] -. "diversity guidance (recent_beats)" .-> WORLD_GEN["World<br>avoid repeat types"]
 
     style BEAT fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
 ```
@@ -122,16 +126,16 @@ flowchart LR
 | File | Line(s) | What |
 |------|---------|------|
 | `turn.py` | 57 | `PRESSURE_BEAT_TYPES` definition |
-| `narrate.py` | 170-175 | Pre-narration expiry check |
-| `turn.py` | 255-262 | New beat replacement / null-clear |
-| `turn_state.py` | 472-480 | Beat history snapshot |
+| `narrate.py` | 168-170 | Narrate reads `pending_gm_beat` (pure reader, no mutation) |
+| `ruling.py` | `_ruling_phase` | Ruling sets/pops `pending_gm_beat`, appends `recent_beats`, pops `beat_candidates` |
+| `world.py` | `_run_world_step` | World generates beat candidates, validates via `GMBeat` |
 | `changes.py` | 333-373 | General change summarization (conditions, facts, threads, inventory) |
 
 ## 4. Pacing Context
 
 ### Definition
 
-`PacingContext` is a Python-computed struct that collapses all pacing signals into one authoritative value, passed to both Narrator and Storytell pipelines.
+`PacingContext` is a Python-computed struct that collapses all pacing signals into one authoritative value, passed to Narrator (Step 1) and World (Step 2d, async via the same live `state` reference). Record (Step 2c) does not receive PacingContext — its scope is backward-looking.
 
 ### Struct fields
 
@@ -176,25 +180,28 @@ flowchart TD
 ```mermaid
 flowchart LR
     PC["PacingContext"] --> NARR["Narrator<br>step1-narrate.md"]
-    PC --> STORY["Storytell<br>step2c-storytell.md"]
+    PC --> WORLD["World (async, end-of-turn)<br>step2d-world.md"]
 
     subgraph NARR_CONSUMPTION["Narrator uses"]
         N1["outcome_hint → scene motion guidance"]
         N2["pacing_context → directive"]
     end
 
-    subgraph STORY_CONSUMPTION["Storytell uses"]
-        S1["directive → thread/beat guidance"]
-        S2["recent_beats → diversity guidance"]
-        S3["pending_gm_beat → beat selection guidance"]
-        S4["scene_phase → allowed_beat_types"]
+    subgraph WORLD_CONSUMPTION["World uses"]
+        W1["directive → beat-candidate guidance"]
+        W2["outcome_hint → roll-band alignment"]
+        W3["recent_beats → diversity guidance"]
+        W4["scene_phase → allowed_beat_types"]
+        W5["candidate_npcs → NPC-driven beats"]
     end
 
     PC --> NARR_CONSUMPTION
-    PC --> STORY_CONSUMPTION
+    PC --> WORLD_CONSUMPTION
 
     style PC fill:#3b0764,color:#e9d5ff,stroke:#7c3aed,strokeWidth:2px
 ```
+
+**Note:** Record (Step 2c, replaces Storytell) does not receive PacingContext. Its scope is backward-looking: it reads narration + threads + arc and emits thread_update/resolve/add + actions + outcome_summary. Beat-related concerns moved to World.
 
 ### Code locations
 
@@ -206,17 +213,15 @@ flowchart LR
 | `turn.py` | 317 | `_apply_state_updates()` calls thread operations (via turn_state.py) |
 | `narrate.py` | 220-267 | `_narrate_setup()` calls `_compute_pacing_context()`, sets spiral_detected/convergence_score/convergence_components on PacingContext |
 | `narrate_user.j2` | 100-103 | `outcome_hint`, `pacing_context` |
-| `storytell_user.j2` | 27-28 | `directive`, `outcome_hint` |
-| `storytell_user.j2` | 30-31 | `scene_phase`, `allowed_beat_types` |
-| `storytell_user.j2` | 32-41 | `pending_gm_beat` |
-| `storytell_user.j2` | 42-46 | `recent_beats` |
-| `storytell_user.j2` | 13-17 | `threads` |
+| `world_user.j2` | — | `directive`, `outcome_hint`, `recent_beats`, `allowed_beat_types` |
+| `record_user.j2` | — | (no PacingContext — Record is backward-looking) |
+| `record_user.j2` | 13-17 | `threads` |
 
 ## 5. Thread Lifecycle
 
 ### Definition
 
-`arc.threads[]` tracks story threads across turns. Thread state is storyteller-managed via `thread_update`, `thread_add`, `thread_resolve`, and `arc_resolve`. The engine enforces structural constraints (caps, staleness, urgency decay).
+`arc.threads[]` tracks story threads across turns. Thread state is record-managed (formerly storyteller-managed — the rename is from Storytell → Record, same ownership) via `thread_update`, `thread_add`, `thread_resolve`, and `arc_resolve`. The engine enforces structural constraints (caps, staleness, urgency decay).
 
 ### Thread urgency and phase transitions
 
@@ -231,7 +236,7 @@ flowchart LR
     style CLIMAX fill:#7f1d1d,color:#fca5a5,stroke:#ef4444
 ```
 
-### Engine-enforced constraints (not storyteller-managed)
+### Engine-enforced constraints (not record-managed)
 
 | Constraint | Condition | Effect |
 |------------|-----------|--------|
@@ -276,14 +281,15 @@ flowchart TD
     PHASE & DIR & CS["convergence_score"] --> PC["_compute_pacing_context<br>→ PacingContext struct"]:::system
 
     PC --> NARRATE["Step 1: Narrate<br>prose generation"]:::system
-    PC --> EXTRACTION["Step 2: Extraction<br>scene + state + storytell"]:::system
+    PC --> EXTRACTION["Step 2: Extraction<br>scene + state + record"]:::system
+    PC -. "async (end-of-turn)" .-> WORLD["Step 2d: World<br>beat candidates"]:::system
 
-    NARRATE -. "consumes" .-> N_GM["pending_gm_beat<br>from previous turn"]:::output
+    NARRATE -. "consumes" .-> N_GM["pending_gm_beat<br>set by Ruling same turn"]:::output
     NARRATE -. "consumes" .-> N_PC["PacingContext<br>outcome_hint + directive"]:::output
 
-    EXTRACTION --> STORYLLM["Storytell emits gm_beat"]:::output
-    STORYLLM --> BEAT_STORE["Store pending_gm_beat<br>expires = turn_no + 2"]:::output
-    STORYLLM --> THREADS2["thread_add/thread_update/<br>thread_resolve"]:::output
+    EXTRACTION --> RULING_EARLY["Ruling (Step 0)<br>selects beat from candidates"]:::output
+    RULING_EARLY --> BEAT_STORE["state.meta.pending_gm_beat<br>(no beat_expires_turn)"]:::output
+    RULING_EARLY --> THREADS2["thread_add/thread_update/<br>thread_resolve"]:::output
 
     BEAT_STORE --> HISTORY["recent_beats.append"]:::output
 
@@ -300,7 +306,7 @@ flowchart TD
 |----------|--------|-------------|--------|
 | `convergence_score` | Narrate setup (thread urgency, age, beats, dice) | RISING→CLIMAX transition | 5-component composite score |
 | `scene_phase` | Phase engine | Directive, beat constraints, outcome_hint | Primary pacing signal |
-| `pending_gm_beat` | Storytell | Narrator, beat history | Forward-facing storytelling beat |
+| `pending_gm_beat` | Ruling (selects from `state.meta.beat_candidates`) | Narrator (same turn), beat history | Forward-facing storytelling beat |
 | `arc.threads[].urgency` | Storytell (thread_update) + Python decay | Phase transitions, directive computation | Scene tension level |
 | `PacingContext.directive` | `_compute_pacing_context()` | Narrator, Storytell, prompt rendering | Primary scene instruction |
 | `PacingContext.outcome_hint` | `_compute_pacing_context()` (scene_age ≥ imperative_threshold) | Narrator scene motion | How the scene should progress |
@@ -311,7 +317,7 @@ flowchart TD
 
 ```
 T1:  phase=SETUP, no pressure beat → directive=""
-T2:  storyteller emits pressure beat
+T2:  World generates pressure beat candidate; Ruling selects it
 T3:  urgent thread appears → phase=RISING
 T4:  convergence_score=3 (1 urgent + age 3 + beat streak) → CLIMAX
 T5:  phase transitions to RESOLUTION → BREATHER
@@ -333,7 +339,7 @@ T6:  normal rhythm continues
 
 ```
 T1:  phase=BREATHER, convergence_score=0, no urgent threads
-T2:  phase=BREATHER, storyteller surfaces opportunity beat
+T2:  phase=BREATHER, World surfaces opportunity beat; Ruling selects it
 T3:  latent thread becomes urgent → phase=RISING
 T4:  phase=RISING, convergence_score=3 → phase=CLIMAX
 T5:  phase=CLIMAX, climax_turn_count=1
@@ -375,15 +381,15 @@ T6:  normal climax rhythm continues
 
 | Function | File | Line(s) | What |
 |----------|------|---------|------|
-| Pre-narration expiry | `narrate.py` | 170-175 | Expire stale beats |
-| New beat replacement | `turn.py` | 255-262 | Store storyteller beat |
-| Beat history snapshot | `turn_state.py` | 472-480 | Append to recent_beats |
+| World step | `world.py` | `_run_world_step` | Generate 2-3 beat candidates → `state.meta.beat_candidates` |
+| Ruling beat selection | `ruling.py` | `_ruling_phase` | Validate `selected_beat` via `GMBeat`; set/pop `pending_gm_beat`; append `recent_beats`; pop `beat_candidates` |
+| Narrate beat read | `narrate.py` | 168-170 | Pure reader of `pending_gm_beat` (no mutation, no expiry) |
 
 ### Thread lifecycle functions
 
 | Function | File | Line(s) | What |
 |----------|------|---------|------|
-| `_apply_thread_updates()` | `turn_state.py` | 17-188 | Apply storyteller updates |
+| `_apply_thread_updates()` | `turn_state.py` | 17-188 | Apply record updates (Record replaces the old Storytell — same ownership) |
 | `_apply_thread_resolutions()` | `turn_state.py` | 278-367 | Move threads to completed |
 | `_apply_arc_resolve()` | `turn_state.py` | 192-275 | Resolve arc, create successor |
 | Thread add gate | `turn_state.py` | 575-649 | Gate check + cap eviction (inside _apply_state_updates) |
@@ -396,20 +402,22 @@ T6:  normal climax rhythm continues
 
 | `recent_beats` | `ccya/ev/checkers/recent_beats.py` | recent_beats list structure, cap, monotonic turn numbers |
 | `pacing_directives` | `ccya/ev/checkers/pacing.py` | Outcome hint, directive render, removed directives, beat variety, phase constraints |
-| `gm_beat_lifecycle` | `ccya/ev/checkers/gm_beat.py` | Beat consumption, lifecycle, binding |
 | `phase_persistence` | `ccya/ev/checkers/phase_persistence.py` | scene_phase field present and valid on every turn (regression guard) |
 | `scene_age_tracking` | `ccya/ev/checkers/scene_age_tracking.py` | scene_age increments by 1 each turn, resets on location change |
 | `climax_turn_counting` | `ccya/ev/checkers/climax_turn_counting.py` | climax_turn_count increments in CLIMAX, resets on phase exit |
 
 | `breather_enforcement` | `ccya/ev/checkers/breather_enforcement.py` | breather auto-transitions to RISING after breather_max_turns |
 | `roll_band_consistency` | `ccya/ev/checkers/roll_band_consistency.py` | band matches dice roll using rules engine, skill/difficulty valid |
-| `beat_phase_validity` | `ccya/ev/checkers/beat_phase_validity.py` | gm_beat.type is allowed for the current phase |
+
+> **EV checkers `gm_beat_lifecycle` and `beat_phase_validity` are deferred cleanup** — they read `extraction.storytell.gm_beat` which no longer exists. Tracked in `roadmap/bugs/ev-side-cleanup-storytell-gm-beat-rename.md`. Until that's done, these checkers produce vacuous output but do not crash.
 
 ### Prompt rendering
 
 | Template | What it renders |
 |----------|----------------|
 | `narrate_user.j2` | `outcome_hint`, `pacing_context` |
-| `narrate_system.j2` | Beat integration guidance (includes `pending_gm_beat`), priority ordering |
-| `storytell_user.j2` | `directive`, `outcome_hint`, `scene_phase`, `allowed_beat_types`, `pending_gm_beat`, `recent_beats`, `threads` |
+| `narrate_system.j2` | Beat integration guidance (reads `pending_gm_beat`), priority ordering |
+| `record_user.j2` | (no PacingContext — Record is backward-looking) `threads`, `narration` |
+| `world_user.j2` | `directive`, `outcome_hint`, `scene_phase`, `allowed_beat_types`, `recent_beats`, `candidate_npcs` |
+| `ruling_user.j2` | `beat_candidates` (for ruling's beat selection) |
 | `storytell_system.j2` | Thread operations, beat schema, directive-beat alignment, phase constraints |

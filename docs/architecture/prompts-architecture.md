@@ -32,19 +32,29 @@ Two entirely separate template systems exist — do not conflate them:
 - `outcome_hint` replaces `directive` as narrator's scene-motion signal: renders `**Outcome:** hold/advance/transition` with value-specific guidance
 - Scene phase display added after Scene Context section: `## Scene phase: {{ state.scene.scene_phase }}` for narrator tone calibration
 
-### Storyteller system prompt (`ccya/prompts/storytell_system.j2`)
+### Record system prompt (`ccya/prompts/record_system.j2`)
 
-- Restructured into 4-section hierarchy: (1) Task/role, (2) Hard rules (Output schema, Output discipline, State-presence rule), (3) Behavioral guidance (Actions, Outcome summary, Thread operations, Rules-outcome, World state rules, Latent threads, PacingContext), (4) GM Beat guidance (longest section, placed last for recency benefit)
-- Contradiction fixed: "empty arrays for fields with no changes" removed from task line (conflicted with Output discipline "omit null or empty fields")
-- Duplicate beat diversity rules (Beat type diversity + Crisis-aware beat selection) coalesced into single Crisis-aware beat diversity section
-- Phase→beat constraints table replaces old directive→beat mapping: phase table (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER) with allowed beat types per phase, driven by `scene_phase` and `allowed_beat_types` context variables. Roll-band table becomes secondary constraint. Phase overrides roll band.
-- Choice momentum section added: instructs LLM to escalate from prior turns, connect pacing context to choice urgency, and avoid passive options
+- Replaces `storytell_system.j2` (deleted in the beat generation split). 4-section hierarchy preserved: (1) Task/role, (2) Hard rules (Output schema, Output discipline, State-presence rule), (3) Behavioral guidance (Actions, Outcome summary, Thread operations, Rules-outcome, World state rules, Latent threads), (4) Campaign arc system. **The GM Beat guidance section is gone** — beat generation moved to World (Step 2d).
+- The `gm_beat` field has been removed from the `StorytellerResult` schema; Record no longer emits beats. Thread management (update/resolve/add) and action/outcome_summary generation remain in Record.
 
-### Storyteller user prompt (`ccya/prompts/storytell_user.j2`)
+### Record user prompt (`ccya/prompts/record_user.j2`)
 
-- Renders all threads in unified list with scope tags ([SCENE]/[ARC]), dormant markers for threads with dormant=True, urgency levels; completed_threads rendered via `_arc.j2` include as "### Completed Threads" section (for continuity — do not re-open resolved tensions)
-- Sections reordered by recency: inventory → conditions → characters → location → arc/threads → past resolutions → world_state → pacing_context → scene_phase → rules_outcome → player_intent → CURRENT TURN NARRATION (most important signal last)
-- `pacing_context` section no longer renders `gate` field (always "allow" after Plan 2); `scene_phase` and `allowed_beat_types` rendered as separate section after pacing_context
+- Replaces `storytell_user.j2` (deleted in the beat generation split). Threads and arc context still render; the prompt is now significantly slimmer — forward-looking sections removed:
+  - ~~`pacing_context`~~ — moved to World
+  - ~~`candidate_npcs`~~ — moved to World
+  - ~~`allowed_beat_types`~~ — moved to World
+  - ~~`pending_beat` / `recent_beats`~~ — moved to World
+  - ~~`player_intent`~~ — not needed for backward-looking analysis
+- Sections reordered for record's backward-looking scope: player character → arc/threads → past resolutions → world_state → recent_turns → prior_history → band → CURRENT TURN NARRATION
+
+### World system prompt (`ccya/prompts/world_system.j2`)
+
+- New template added in the beat generation split. Constrained beat-candidate generation instructions: schema (array of 2-3 GMBeat), generation rules (blend candidate_npcs, prefer NPC-driven beats, action rule), diversity (no same type twice consecutively), phase-beat alignment (`allowed_beat_types` constraint), roll-band guidance.
+- ~200-250 system tokens, lightweight.
+
+### World user prompt (`ccya/prompts/world_user.j2`)
+
+- New template. Renders `candidate_npcs` (from Scene Extract), active threads, `pacing_context`, `recent_beats`, `allowed_beat_types`, roll band, and the most recent narration. ~1000-2000 user tokens.
 
 ### Seed system prompt (`ccya/prompts/generate_seed_system.j2`)
 
@@ -58,7 +68,7 @@ Two entirely separate template systems exist — do not conflate them:
 
 ### NPC roster template (`ccya/prompts/sections/_npc_roster.j2`)
 
-- Shared include rendered by narrate_user.j2, storytell_user.j2, extract_scene_user.j2; renders personality block (`| personality: **Label** (traits). Speech: hint.`) when `build_npc_roster()` resolves archetype data via `personality_registry` parameter; NPCs without `personality` key render without the block
+- Shared include rendered by narrate_user.j2, record_user.j2, extract_scene_user.j2; renders personality block (`| personality: **Label** (traits). Speech: hint.`) when `build_npc_roster()` resolves archetype data via `personality_registry` parameter; NPCs without `personality` key render without the block
 
 ### Thread list include (`ccya/prompts/sections/_thread_list.j2`)
 
@@ -69,11 +79,11 @@ Two entirely separate template systems exist — do not conflate them:
 ## Latent thread handling in system prompts
 
 - narrate_system.j2: instructs narrator to push players toward latent threads through narration, environmental detail, NPC behaviour — show don't tell (NPC glancing at locked door, torchlight from tunnel, curious sounds); build 4 choices toward discovery; increase pressure for unsurfaced threads
-- storytell_system.j2: instructs storyteller to use dormant thread knowledge when generating suggestions and beats — craft situations where dormant threads naturally surface (character's past catching up, long-silent threat stirring); steer player via choices/suggestions/complications without exposing dormant content directly
+- record_system.j2: instructs record to use dormant thread knowledge when generating actions and outcome_summary — craft situations where dormant threads naturally surface (character's past catching up, long-silent threat stirring); steer player via choices/suggestions/complications without exposing dormant content directly. Note: beat generation is no longer in Record's scope.
 
 ## Prompt rendering flow
 
-1. **System prompt rendered** once per pipeline stage (ruling, narrate, scene extract, state extract, storytell) via `_render()` in `narrate.py` / `extraction.py`
+1. **System prompt rendered** once per pipeline stage (ruling, narrate, scene extract, state extract, record, world) via `_render()` in `narrate.py` / `extraction.py` / `world.py`
 2. **User prompt rendered** per turn with live state data (state, recent_turns, pacing_context, etc.)
 3. **Shared includes** (`_npc_roster.j2`, `_thread_list.j2`) rendered via Jinja2 `{% include %}`
 4. **Messages assembled** into OpenAI-compatible format (system + user messages)
@@ -85,7 +95,7 @@ Two entirely separate template systems exist — do not conflate them:
 Fast prompt testing via `ev.py prompt-eval`:
 - `cmd_prompt_eval_dump()` — renders prompts (no LLM)
 - `cmd_prompt_eval_call()` — renders + LLM + check
-- `build_prompt_context()` — builds context dict from `last_turn_state` for prompt rendering (scene, storytell streams)
+- `build_prompt_context()` — builds context dict from `last_turn_state` for prompt rendering (scene, record streams)
 - Three inline checkers: `_run_golden_match()`, `_run_prose_quality()`, `_run_extraction_format()`
-- Supports `scene` and `storytell` streams
+- Supports `scene` and `record` streams (record replaces the old `storytell` stream key)
 - Uses `last_turn_state` (post-turn) as context

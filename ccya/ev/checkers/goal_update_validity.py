@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "goal_update_validity", "deterministic",
-    requires_fields=["extraction.storytell", "last_turn_state"],
+    requires_fields=["extraction.record", "last_turn_state"],
     description="goal_update is non-empty string, differs from previous long_term_objective",
 )
 def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
@@ -29,8 +29,8 @@ def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
         if "last_turn_state" in ev:
             prev_snap = ev["last_turn_state"]
 
-        storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
-        goal_update = storytell_output.get("goal_update")
+        record_output = ((extract_field(ev, "extraction") or {}).get("record") or {}).get("output") or {}
+        goal_update = record_output.get("goal_update")
 
         if not goal_update or not isinstance(goal_update, dict):
             continue
@@ -38,7 +38,7 @@ def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
         goal_lto = goal_update.get("long_term_objective", "")
 
         # If this turn also resolved the arc, arc_resolve.long_term_objective supersedes goal_update
-        if storytell_output.get("arc_resolve"):
+        if record_output.get("arc_resolve"):
             continue
 
         # goal_update must be non-empty (already checked above)

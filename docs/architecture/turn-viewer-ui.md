@@ -30,7 +30,7 @@ flowchart TD
 
     TVDATA["tv.py · _turn_viewer_data()<br>────────────────────────<br>_tv_failures() — LLM errors/retries/rejections<br>_tv_state_diff() — state-change ops<br>_tv_dict_to_lines() — KV rendering<br>_tv_extract_stream_status() — status derivation"]:::py
 
-    MIRROR["tv_mirror.py · StreamDescriptor[]<br>────────────────────────<br>5-stage pipeline topology:<br>ruling → narrate → scene → state → storytell<br>Each: metrics_path, prompt_path,<br>  output_subkey, inputs[], is_text_output"]:::py
+    MIRROR["tv_mirror.py · StreamDescriptor[]<br>────────────────────────<br>5-stage pipeline topology:<br>ruling → narrate → scene → state → record<br>Each: metrics_path, prompt_path,<br>  output_subkey, inputs[], is_text_output"]:::py
 
     REQ --> SSR
     SSR --> TV --> INIT
@@ -70,7 +70,7 @@ Five stage rows, one per pipeline step:
 | `narrate` | `--stage-narrate` (blue) | ruling |
 | `scene` | `--stage-scene` (green) | ruling, narrate |
 | `state` | `--stage-state` (amber) | ruling, narrate, scene |
-| `storytell` | `--stage-progress` (pink) | ruling, narrate, scene, state |
+| `record` | `--stage-progress` (pink) | ruling, narrate, scene, state |
 
 **Per stage (collapsible):**
 - Stage name + status badge (`ok`/`retried`/`rejected`/`skipped`/`error`) + attempt count
@@ -141,12 +141,12 @@ flowchart LR
     NARRATE["narrate"]:::stageNarrate
     SCENE["scene"]:::stageScene
     STATE["state"]:::stageState
-    STORY["storytell"]:::stageProgress
+    RECORD["record"]:::stageProgress
 
     RULING --> NARRATE
     RULING --> SCENE
     RULING --> STATE
-    RULING --> STORY
+    RULING --> RECORD
     NARRATE --> SCENE
     NARRATE --> STATE
     NARRATE --> STORY

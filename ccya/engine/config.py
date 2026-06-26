@@ -116,6 +116,7 @@ class EngineConfig:
     request_timeout_s: int = 1200
     ruling_temperature: float = 0.2
     extract_temperature: float = 0.4
+    world_temperature: float = 0.55
     narrate_temperature: float = 0.9
     generate_seed_temperature: float = 0.7
 
@@ -258,6 +259,7 @@ def build_engine_config(
         request_timeout_s=int(llm.get("request_timeout_s", 1200)),
         narrate_temperature=narrate_t,
         extract_temperature=extract_t,
+        world_temperature=float(game.get("world_temperature", 0.55)),
         ruling_temperature=ruling_t,
         generate_seed_temperature=seed_t,
         ruling_top_p=ruling_top_p,

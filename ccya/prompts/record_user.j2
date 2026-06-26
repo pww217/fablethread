@@ -1,0 +1,36 @@
+## Player Character: {{ pc_name or "Unnamed" }}
+
+{% set show_age = true %}
+
+{% include "sections/_arc.j2" %}
+{% if all_threads %}
+## threads ({{ all_threads|length }} total)
+{% set threads = all_threads %}
+{% include "sections/_thread_list.j2" %}{% else %}
+## threads
+None currently. Generate actions that could introduce new story directions or explore the environment.
+{% endif %}
+{% if world_state %}
+<<<TRACE_IMMUTABLE_START>>>
+## world_state (read-only context)
+{% for f in world_state %}{% if f is string %}- {{ f }}
+{% else -%}- [{% if "tier" in f and f["tier"] == "global" %}global{% else %}local{% endif %}{% if "valence" in f %}|{{ f["valence"] }}{% endif %}] {% if "text" in f %}{{ f["text"] }}{% else %}(no text){% endif %}
+{% endif %}
+{% endfor %}
+<<<TRACE_IMMUTABLE_END>>>
+{% endif %}
+
+{% if band %}
+## rules_outcome
+Band: {{ band | upper }}. Apply thread advancement freely on success/crit_success. On fail/setback/partial, do NOT mark threads as advanced for the attempted action; prefer breathing_room/null beats on fail.
+{% endif %}
+{% if prior_history %}
+## Recent Outcomes
+{% for b in prior_history %}{{ b }}
+
+{% endfor -%}
+{% endif %}
+{% include "sections/_recent_turns.j2" %}
+## CURRENT TURN {{ turn_no }} NARRATION
+{{ narration }}
+## END CURRENT TURN NARRATION
