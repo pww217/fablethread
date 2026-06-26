@@ -167,28 +167,33 @@ Following existing pattern: extraction data goes in the main event, saved once a
 - ✅ World step completes successfully (4.7s, 3 beats)
 - ✅ World data appears in events.jsonl
 - ✅ Turn viewer shows world step
-- ❌ UI lock remains after turn completes — `_inflight` lock not releasing
-- ❌ User must manually refresh browser to unlock UI
+- ✅ UI lock releases after normal pipeline (ruling → narrate → extraction → complete)
+- ✅ Async steps (sanitize + world) run without blocking UI
 
-### Remaining issue: lock release
+### Final fix: release lock before async window
 
-The `_inflight` lock is released in the `finally` block of `run_turn()`:
+The `_inflight` lock is now released **before** the async window starts, not in the `finally` block. This ensures the frontend can proceed immediately after the normal pipeline completes, without waiting for sanitize/world steps.
+
 ```python
+# After yield("complete"), before async window:
+await _inflight.release(str(save_dir))
+signal_turn_done(str(save_dir))
+released = True
+
+# Async window runs without lock held
+yield ("phase", {"phase": "sanitize_start"})
+# ... sanitize ...
+yield ("phase", {"phase": "world_start"})
+# ... world ...
+yield ("phase", {"phase": "world_done"})
+
 finally:
-    await _inflight.release(str(save_dir))
+    if not released:
+        await _inflight.release(str(save_dir))
+        signal_turn_done(str(save_dir))
 ```
 
-When the background task drains the generator, the `finally` block should execute. But it's not releasing the lock. Possible causes:
-- Background task completes but doesn't trigger generator cleanup properly
-- `generator.aclose()` not being called explicitly
-- Asyncio task lifecycle not ensuring finally blocks run
-- Lock release is async but background task exits before it completes
-
-**Next steps:**
-1. Investigate why `finally` block isn't releasing the lock when generator is drained by background task
-2. Consider explicit `await generator.aclose()` in the background task
-3. Add logging to confirm when lock is acquired/released
-4. Test if the lock releases after a delay (race condition?)
+The `finally` block still handles error paths where the lock wasn't released yet.
 
 ### The mystery (solved)
 
@@ -197,3 +202,4 @@ When the background task drains the generator, the `finally` block should execut
 - ✅ Why `ev.py prompt-eval call` works — no SSE connection, no premature cancellation
 - ✅ Whether the singleton client is causing issues — no, connection pool hypothesis was wrong
 - ✅ The real issue: SSE generator lifecycle + frontend closing connection too early
+- ✅ Final solution: release lock before async window, not after
