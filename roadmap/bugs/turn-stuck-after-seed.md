@@ -1,6 +1,6 @@
 ---
 title: "Turn never starts after seed gen — no ruling/narrate calls, state reverts to T0"
-status: done
+status: new
 urgency: 1
 size: medium
 created: 2026-06-26
@@ -170,37 +170,11 @@ Following existing pattern: extraction data goes in the main event, saved once a
 - ✅ UI lock releases after normal pipeline (ruling → narrate → extraction → complete)
 - ✅ Async steps (sanitize + world) run without blocking UI
 
-### Final fix: release lock BEFORE yielding complete event
+### Final fix: remove asyncRunning frontend flag
 
-The `_inflight` lock is now released **before** yielding the complete event, not after. This ensures the frontend can proceed immediately when it receives the complete event.
+The real UI lock was the frontend `asyncRunning` flag in game.js, not the backend `_inflight` lock. When the `record` stream finished, the frontend set `asyncRunning = true` expecting a `world_done` event later to set it back to `false`. But since the SSE connection closes on `turn_complete`, `world_done` was never received, so `asyncRunning` stayed `true` forever — locking the UI.
 
-```python
-# Build result object
-result_obj = TurnResult(...)
-
-# Release lock BEFORE yielding complete
-await _inflight.release(str(save_dir))
-signal_turn_done(str(save_dir))
-released = True
-
-# Now yield complete event
-yield ("complete", result_obj)
-
-# Frontend closes SSE connection here, but lock is already released
-# Async window runs without lock held
-yield ("phase", {"phase": "sanitize_start"})
-# ... sanitize ...
-yield ("phase", {"phase": "world_start"})
-# ... world ...
-yield ("phase", {"phase": "world_done"})
-
-finally:
-    if not released:
-        await _inflight.release(str(save_dir))
-        signal_turn_done(str(save_dir))
-```
-
-The `finally` block still handles error paths where the lock wasn't released yet.
+Fix: removed the `asyncRunning = true` assignment and the `world_done` handler. The async steps (sanitize + world) now run entirely server-side without sending phase events to the frontend, so the frontend doesn't need to track them.
 
 ### The mystery (solved)
 
@@ -209,4 +183,4 @@ The `finally` block still handles error paths where the lock wasn't released yet
 - ✅ Why `ev.py prompt-eval call` works — no SSE connection, no premature cancellation
 - ✅ Whether the singleton client is causing issues — no, connection pool hypothesis was wrong
 - ✅ The real issue: SSE generator lifecycle + frontend closing connection too early
-- ✅ Final solution: release lock before async window, not after
+- ✅ Final solution: async steps run server-side, frontend doesn't track them
