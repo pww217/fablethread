@@ -35,9 +35,9 @@ The current workflow has no trunk-based discipline. All work lands directly on `
 | Merge to main via PR | review-code skill suggests merging the PR. Human approves and merges. No auto-merge. | Keeps human in the loop for the integration decision. |
 | flesh-design merged into review-design | Delete flesh-design skill. review-design absorbs its action-bias into a single output mode. | They validate the same things against source. The split is artificial. |
 | review-design single mode | Single mode: update and refine the existing design doc, surfacing key blockers, design ambiguities, and suggested improvements. No separate "report" vs "sharpen" modes. | One mode is sufficient. The output goes both to the file (restructured sections) and to chat (verdict + summary + blockers). |
-| In-repo planning system | `roadmap/` directory with individual MD files for bugs and features. Status in YAML frontmatter, not directory paths. Auto-generated `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md`. Slug-based status values: bugs (new, validated, up-next, testing, done, canceled), features (idea, scoping, up-next, done, canceled). | Agent-readable, agent-writable. Slug ties roadmap entry → design → plan → branch → PR. |
+| In-repo planning system | `roadmap/` directory with individual MD files for bugs and features. Status in YAML frontmatter, not directory paths. Auto-generated `roadmap/backlog.md`, `roadmap/active.md`, `roadmap/done.md`. Slug-based status values: bugs (new, validated, up-next, validating, done, canceled), features (idea, scoping, up-next, done, canceled). | Agent-readable, agent-writable. Slug ties roadmap entry → design → plan → branch → PR. |
 | Status in file, not in path | Status is a frontmatter field. Files stay in `bugs/` or `features/` regardless of status. Completed items move to `archive/`. | Moving files between directories per status change is friction. A field update is one edit. |
-| Planning lifecycle tied to skills | Skills update roadmap status spontaneously at each phase transition (scoping → validated → up-next → testing → done for bugs; scoping → up-next → done for features). Design docs update their own status (scoping → reviewed → implemented). | Self-tracking. No separate status-update workflow. |
+| Planning lifecycle tied to skills | Skills update roadmap status spontaneously at each phase transition (scoping → validated → up-next → validating → done for bugs; scoping → up-next → done for features). Design docs update their own status (scoping → reviewed → implemented). | Self-tracking. No separate status-update workflow. |
 | "Stay in your lane" as cross-skill rule | Only touch files the plan or design explicitly names. Do not restore deleted files, revert prior work, or modify anything outside your stated scope. | Prevents agents from undoing intentional deletions or reverting other agents' work. |
 | "Assume parallel work" as cross-skill rule | Assume other agents work concurrently. Never revert code you didn't write. Investigate via `git log`, `git diff`, `git status`. If you don't understand a change, ask the user — do not act. | Prevents the primary failure mode: one agent reverting another's commits. |
 | Authority hierarchy | Design doc > plan > source. Implementers treat the design doc as ground truth when source and plan conflict. | Design captures final decisions. Plan inherits from design. |
@@ -118,7 +118,7 @@ roadmap/
 ```yaml
 ---
 title: <human-readable title>
-status: new                # Bugs: new | validated | up-next | testing | done | canceled
+status: new                # Bugs: new | validated | up-next | validating | done | canceled
                            # Features: idea | scoping | up-next | done | canceled
 urgency: 3                 # 1=urgent | 2=high | 3=medium | 4=low
 size: small               # small | medium | large | xlarge
@@ -167,7 +167,7 @@ Wired as a make target (`make roadmap`). The index is informational only — the
 | Bug validated | bug-triage | Update status: `new` → `validated` |
 | Design reviewed | review-design | Update status: approved → `up-next`, rejected → `canceled` |
 | Work begins | execute | Update status: `validated` → `up-next` (bugs) or already `up-next` (features) |
-| PR merged | (human) | Update status to `testing` (bugs with eval needed) or `done`, set `completed` date, move file to `roadmap/archive/` |
+| PR merged | (human) | Update status to `validating` (bugs with eval needed) or `done`, set `completed` date, move file to `roadmap/archive/` |
 | Eval passes | ev-review | Update status to `done`, set `completed` date, move file to `roadmap/archive/` |
 
 The roadmap self-tracks. Status updates happen spontaneously as the skill does its work — no separate step.

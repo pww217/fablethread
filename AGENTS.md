@@ -142,7 +142,7 @@ Defined in full in global AGENTS.md. Key rules:
 - **review-design** → review a design doc against source, update and refine it (single mode); outputs key blockers, ambiguities, improvements
 - **review-code** → review a diff or PR for ccya (correctness, contracts, quality); creates PR after review passes
 - **ev-run** → launch a full 5-pack eval, run sequentially, produce per-run auto-reports; hands off to ev-review
-- **ev-review** → inspect eval runs, check testing items against current run data, run full rubric, update testing bugs to done or up-next, file new bugs as `new`, write consolidated report
+- **ev-review** → inspect eval runs, check validating items against current run data, run full rubric, update validating bugs to done or up-next, file new bugs as `new`, write consolidated report
 - **bug-triage** → validate bug candidates, reproduce, assess severity, set `validated` or `canceled`
 - **customize-opencode** → editing opencode's own config/agents/skills/plugins only (not user app code)
 

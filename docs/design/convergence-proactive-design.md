@@ -106,7 +106,7 @@ Field: `"beat_streak": 0|1`
 +1 if no roll has occurred in `config.roll_starvation_threshold`+ turns. Computed from `recent_rolls` (most-recent-first, capped at 5).
 
 ```
-turns_since_last_roll = current_turn - recent_rolls[0]["turn"] if recent_rolls else None
+turns_since_last_roll = turn_no - recent_rolls[0]["turn"] if recent_rolls else None
 score += 1 if turns_since_last_roll is not None and turns_since_last_roll >= config.roll_starvation_threshold
 ```
 
@@ -114,6 +114,8 @@ If no roll has ever occurred in the game (`recent_rolls` empty), this stays 0 �
 
 Field: `"roll_starvation": 0|1`
 Config: `roll_starvation_threshold`, default `3`.
+
+**Signature note:** This component requires `turn_no` (the current turn number) to compute `turns_since_last_roll`. The existing `compute_convergence_score()` signature (`_pacing.py:86-93`: `scene_phase, active_threads, scene_age, recent_beats, current_outcome, config`) must be extended with a `turn_no: int` parameter. Call site: `narrate.py:204` already has `turn_no` in scope. (`threat_density` uses `active_threads` only — no new parameter needed for it.)
 
 #### 6. `threat_density` — NEW
 +1 if the number of active (non-dormant) threat-type threads ≥ `config.threat_density_threshold`. High threat saturation means pressure even without individual urgency.
@@ -127,9 +129,11 @@ Field: `"threat_density": 0|1`
 Config: `threat_density_threshold`, default `3`.
 
 #### 7. `stall_floor` — NEW
-Proactive floor that increments when convergence stays below threshold. **Global across all arcs and scenes** — not reset on arc boundaries or phase transitions. This is intentional: persistent convergence starvation indicates a systemic pacing problem that should accumulate pressure regardless of narrative context.
+Proactive floor that increments when convergence stays below threshold. **Global across BREATHER→RISING cycles** — the counter is not reset when a new RISING phase begins after a BREATHER. This is intentional: persistent convergence starvation across scene recoveries indicates a systemic pacing problem that should accumulate pressure regardless of narrative context.
 
-State tracking: `meta.consecutive_low_convergence` (int, default 0), incremented in `narrate.py:_narrate_setup()` immediately after `compute_convergence_score()` returns, reset to 0 when `>= convergence_threshold`.
+The counter IS reset when convergence reaches threshold (which coincides with the RISING→CLIMAX transition) — reaching CLIMAX means pressure was found, so the stall counter clears. It is also reset on cancel/retry (see State Model Changes below). Stated precisely: **global across BREATHER→RISING; resets on reaching threshold (= RISING→CLIMAX) or on cancel/retry.**
+
+State tracking: `meta.consecutive_low_convergence` (int, default 0), incremented in `narrate.py:_narrate_setup()` immediately after `compute_convergence_score()` returns, reset to 0 when `convergence_score >= convergence_threshold`.
 
 ```
 if consecutive_low_convergence >= 3:
@@ -163,11 +167,11 @@ if climax_turn_count >= config.climax_turn_limit AND convergence >= 3 AND has_ur
     extend by up to config.extension_max additional turns
 ```
 
-`has_urgent_active_thread` is computed inline in `_compute_scene_phase()` by iterating over `state['arc']['threads']` — same pattern as the existing SETUP transition thread count (lines 249-253 of `_pacing.py`). One pass over threads for both checks.
+`has_urgent_active_thread = any(t for t in state["arc"]["threads"] if t.get("urgency") == "urgent" and not t.get("dormant", False))`. Computed inline in `_compute_scene_phase()`. **Do not copy the existing `_pacing.py:249-253` `thread_urgency_count` pattern verbatim** — that pattern does not filter dormant threads (a pre-existing latent bug: dormant urgent threads can trigger early SETUP/BREATHER exit). The explicit `not dormant` filter is required for `has_urgent_active_thread` and for any convergence component that needs active threads. (Fixing the latent bug in SETUP/BREATHER is out of scope for this design — flag for a follow-up.)
 
 The extension is recalculated each turn. As soon as conditions clear (or the extended cap is reached), transition.
 
-**Convergence=2 gap:** Convergence=2 falls through both early exit (`< 2` required) and extension (`>= 3` required). At convergence=2, the game stays in CLIMAX until turn 4 or 6. This is intentional — convergence=2 is borderline and the design treats it as "stay in CLIMAX."
+**Convergence=2 gap:** Convergence=2 falls through early exit (`< 2` required) and extension (`>= 3` required). Precise behavior: at convergence=2, the early-exit branch is skipped, the extension branch is skipped, and the `else` (no urgent active thread) / inner check (has urgent active thread) is evaluated at/after the limit. With no urgent active thread → RESOLUTION at turn 4 (the `else` branch). With an urgent active thread but convergence < 3 → also RESOLUTION at turn 4 (the extension condition `convergence >= 3` is false). So **convergence=2 always → RESOLUTION at turn 4**, never extended to 6. The "6" extension only applies when convergence ≥ 3 AND `has_urgent_active_thread`. This is intentional — convergence=2 is borderline pressure and the design treats it as "run the standard CLIMAX cap, do not extend."
 
 #### Absolute maximum
 
@@ -227,8 +231,6 @@ Removed. Dead code — defined in `EngineConfig` but never consumed anywhere. No
 ### `PacingContext`
 
 No new fields. `convergence_components: dict[str, int]` accommodates arbitrary keys. Export new keys (`roll_starvation`, `threat_density`, `stall_floor`), remove `dice_weight`.
-
-### Templates
 
 ### Templates
 
@@ -369,26 +371,26 @@ Second-pass review against `docs/discovery/convergence-pacing-evidence.md` and c
 
 2. **[OK — resolved] Early-exit timing.** First-pass pseudocode placed the early-exit check inside `if climax_turn_count >= config.climax_turn_limit` so it could only fire at/after turn 4 — contradicting the Problem Statement's "thread resolves on CLIMAX turn 1, game stalls 3 more turns" motivation. User decision: evaluate early-exit on **every** CLIMAX turn (1-6), with the 4-turn cap acting only as part of the hard fallback. Pseudocode updated above to evaluate the thread-resolve check before the limit gate.
 
-3. **[CRITICAL] Scenario tables B and C have incorrect arithmetic; the design's evidence for `stall_floor` is internally inconsistent.** Working through the increment ordering (floor uses the *previous* turn's `consecutive_low_convergence`; counter increments *after* `compute_convergence_score` and resets when `>= threshold`):
-   - **Scenario B ("Stealth rogue, no rolls, null beats"):** table shows `roll_starvation` (R) firing at T3, but the design's own rule (lines 108-112) says R stays 0 when no roll has ever occurred. It also shows `beat_streak` (B) firing at T2, but with "null beats" and no prior non-null beat to carry over, B is 0 per lines 100. Corrected trajectory: T1 Σ=0 (clc=1), T2 Σ=0 (clc=2), T3 Σ=1 (scene_age only, clc=3), T4 Σ=2 via **stall_floor=1** → CLIMAX at **T4, not T3**.
-   - **Scenario C ("social/political, no threats"):** table shows `stall_floor`=1 at T4, but at T3 convergence reached 2 (scene_age + beat_streak) and transitioned RISING→CLIMAX, which resets `consecutive_low_convergence` to 0 (per the design's reset rule). At T4, `compute_convergence_score` uses clc=0 → stall_floor=0. So T4 Σ = 2 (scene_age + beat_streak), NOT 3. The first-pass review "confirmed the math is correct" by wrongly assuming convergence was 0 at T2/T3 — it was not. The claim "Stall floor catches at turn 4" for scenario C is **false**; stall_floor cannot fire there because other components reach threshold first and reset the counter.
-   - **Implication:** `stall_floor` only actually contributes in the narrow case where *no other component fires for 3+ consecutive turns* (pure stealth: no rolls ever, no threat threads, all-null beats, only scene_age eventually firing alone — insufficient to reach threshold). The design should add that isolating scenario and stop claiming stall_floor "catches" in C. The corrected B is the real stall_floor case (T4 climax), not T3.
+3. **[OK — resolved] Scenario tables B and C had incorrect arithmetic; the design's evidence for `stall_floor` was internally inconsistent.** First-pass analysis showed:
+   - **Scenario B** claimed `roll_starvation` (R) firing at T3 despite no roll ever occurring, and `beat_streak` (B) firing at T2 despite null beats with no prior non-null beat to carry. Both impossible per the design's own rules.
+   - **Scenario C** claimed `stall_floor` fires at T4, but T3 reached threshold (= 2: scene_age + beat_streak) → RISING→CLIMAX transition → `consecutive_low_convergence` resets to 0 → T4's stall_floor input is 0. The first-pass review's claim "stall_floor catches at turn 4" for C was false; stall_floor cannot fire there because the threshold reset fires first.
+   - **Implication:** `stall_floor` only actually contributes in the narrow case where *no other component besides scene_age fires for 3+ consecutive RISING turns* (pure stealth: no rolls ever, no threat/urgent threads, all-null beats).
+   - **Resolved:** Both scenarios corrected in the Scenario Math section above. B is now the pure-starvation isolating case (T4 climax via stall_floor). C correctly reaches CLIMAX at T3 via scene_age + beat_streak, with stall_floor not firing. The RISING→CLIMAX summary table and the "Note on stall_floor's actual contribution" capture the corrected behavior.
 
 4. **[OK — resolved] Reform 2 thread-resolve reliability.** First-pass flagged that early-exit depends on `thread_resolve` the LLM rarely emits (Cycle 1-3 rates ~10-17%), so early-exit would rarely fire. User decision reframes the root cause: the narrator is authoritative on when a thread ends (it decides the story); the storyteller is a recorder. The fix is therefore narrator-side: strengthen the existing `curtain_call` nudge so the narrator actually resolves the climax thread in the prose; `thread_resolve` then flows naturally as the extractor's record of the narrator's decision. A light secondary storyteller nudge (lower the threshold for emitting `thread_resolve` in CLIMAX/RESOLUTION) catches the case where the narrator resolves in prose but the storyteller fails to record it. The hard cap at turn 6 advances phase without forcing the thread closed — the narrator narrates the aftermath; an unresolved thread can carry into the next arc. The "no prompt template changes" claim is dropped; the Templates section above now documents both nudges.
 
 ### Design Ambiguities
 
-- **`has_urgent_active_thread` dormant filtering.** The design says to compute this "same pattern as the existing SETUP transition thread count (lines 249-253 of `_pacing.py`)." That existing pattern (`thread_urgency_count`) does **not** filter dormant threads — it counts every urgent thread including dormant ones. "Active" implies non-dormant. Plan author must add a `not dormant` filter; do not copy the existing pattern verbatim. (There is also a pre-existing latent bug this reveals: the current `_compute_scene_phase` SETUP/BREATHER urgent-thread triggers use `thread_urgency_count` including dormant urgent threads, which can trigger early RISING exit on a dormant-only urgent set. Out of scope for this design but worth noting.)
-- **`compute_convergence_score` signature change not stated.** `roll_starvation` needs `current_turn`/`turn_no` to compute `turns_since_last_roll`, which is not in the current signature (`scene_phase, active_threads, scene_age, recent_beats, current_outcome, config`). Plan author must add a `turn_no` (or `current_turn`) parameter. `threat_density` uses `active_threads` (already passed) — OK.
-- **`_compute_scene_phase` signature change not stated.** Reform 2's early-exit needs `turn_no` (to filter `completed_threads` by `resolved_turn == turn_no - 1`) and the `state` dict (already passed). No signature redesign needed beyond adding `turn_no`.
-- **`stall_floor` "global" property is partly moot.** The counter resets when `convergence >= threshold`, which is exactly the RISING→CLIMAX condition, so it *does* reset on that phase transition despite the prose saying "not reset on phase transitions." The global property only meaningfully applies across BREATHER→RISING cycles (a stall in the next RISING continues accumulating). Design should state this precisely: "global across BREATHER→RISING; resets on reaching threshold (which coincides with RISING→CLIMAX)."
-- **`convergence=2` during CLIMAX.** Falls through early exit (`< 2`) and extension (`>= 3`); hits the `else` branch → RESOLUTION at turn 4. So convergence=2 resolves at the limit, not "stays until 4 or 6" as the design's note implies — "6" only applies at convergence≥3+urgent. Plan author should document: convergence=2 → RESOLUTION at turn 4 (the else branch), convergence≥3+urgent → possible extension to 6.
+All ambiguities resolved in this pass and folded into the design body:
+- `has_urgent_active_thread` dormant filter — specified inline in pseudocode and extension section.
+- `compute_convergence_score` signature — `turn_no: int` parameter added to the roll_starvation component spec.
+- `_compute_scene_phase` signature — `turn_no` added (already in scope at call site); no restructuring.
+- `stall_floor` global property — restated precisely: "global across BREATHER→RISING; resets on reaching threshold (= RISING→CLIMAX) or on cancel/retry."
+- `convergence=2` CLIMAX gap — restated precisely: always → RESOLUTION at turn 4; never extended to 6.
 
 ### Suggested Improvements
 
-- **Add a "pure starvation" scenario that actually exercises `stall_floor`.** Construct: stealth persona, no rolls ever, no threat/urgent threads, all-null beats. Show T1 Σ=0, T2 Σ=0, T3 Σ=1 (scene_age), T4 Σ=2 via stall_floor → CLIMAX. This is the only scenario where stall_floor is the deciding component; the current tables don't isolate it.
-- **Fix the existing `dice_weight` mirror bug while rewriting.** `narrate.py:260-264` mirror uses `thread_urgency_count >= 1` (no dormant filter) whereas the real `compute_convergence_score` uses `any_urgent` (filters dormant). The mirror is being rewritten for 7 components anyway; make the new mirror compute each component from the same primitives as the core function (or, better, have the core function return both score and components to eliminate the mirror entirely).
-- **Eliminate the narrate.py mirror by returning components from `compute_convergence_score`.** The design notes the mirror "MUST match" the core function (narrate.py:238 comment). Two sources of truth is a recurring bug source (this pre-existing dormant-filter divergence is the proof). Recommended: `compute_convergence_score` returns `(score, components_dict)`; narrate.py just uses the returned dict. Removes ~30 lines of duplicated logic and the entire class of mirror-drift bugs.
+- **Eliminate the narrate.py mirror by returning components from `compute_convergence_score`.** The design notes the mirror "MUST match" the core function (narrate.py:238 comment). Two sources of truth is a recurring bug source (this pre-existing dormant-filter divergence in `dice_weight` — narrate.py:264 uses `thread_urgency_count >= 1` without dormant filter, the core uses `any_urgent` with filter — is the proof). Recommended: `compute_convergence_score` returns `(score, components_dict)`; narrate.py just uses the returned dict. Removes ~30 lines of duplicated logic and the entire class of mirror-drift bugs. The mirror is being rewritten for 7 components anyway — the plan should fold this refactor in.
 - **Add a `convergence_dead_spot` checker.** Per the evidence doc, `ccya/ev/checkers/convergence.py` only validates internal consistency (sum matches, transition at threshold) — that's why all recent evals pass 1.0 while the system has documented score=0 dead spots. Without a checker that fails on >2 consecutive RISING turns with score < 1, the same silent deadlock will recur after this reform. Not strictly a design-doc concern but the design should call it out as a required follow-up.
 
 ### Minor Notes

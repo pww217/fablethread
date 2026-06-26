@@ -32,13 +32,11 @@ Remove `gm_beat` and `beat_expires_turn` from models. Create Record (Storytell m
 1. `StorytellerResult` model is kept (not renamed); only `gm_beat` field is removed. Variable names change from `storytell_result` to `record_result` at call sites.
 2. `GMBeat` is repurposed as validation schema for World candidates and Ruling's `selected_beat`. `beat_expires_turn` field removed from `GMBeat`.
 3. Ruling always replaces or pops `pending_gm_beat` each turn — no expiry arithmetic needed.
-4. World runs after `yield("complete")` but BEFORE the `finally` that releases `_inflight`. Requires restructuring turn.py's try/finally (see Step 4.4).
+4. World runs AFTER `yield("complete")` — lock stays held because the generator hasn't returned yet. `finally` only runs when the generator is exhausted. The SSE route already drains the generator (no `break` after `complete`), so no route change needed (D5 already satisfied).
 5. Sanitize and World are two separate end-of-turn phases. Single `save_state` after both.
-6. SSE route already drains the generator via `async for` — no route change needed (D5 already satisfied).
 
 ## Risks, Ambiguities, and Blockers
 
-- **Try/finally restructure complexity (Step 4.4).** Moving World inside the try block before `finally` changes the error-handling flow. World failures must not prevent the lock from releasing. The plan specifies a try/except wrapper around the post-complete block.
 - **World prompt fidelity.** D2 allocates ~200-250 system tokens but the current beat logic in `storytell_system.j2:77-117` exceeds that. The executor must decide which instructions to keep vs. cut. The plan lists what to include but doesn't prescribe exact wording.
 - **`selected_beat` extraction from ruling JSON.** Using `j.pop("selected_beat", None)` before `IntentEnvelope(**j)` avoids relying on Pydantic's default extra-ignore behavior. If `IntentEnvelope` adds `model_config = {"extra": "forbid"}` in the future, the pop approach is safe.
 
@@ -464,42 +462,18 @@ Inputs sourced from:
 
 **Validation:** `python -c "from ccya.engine.world import _run_world_step"` imports. Function returns `list[dict]` on success and `[]` on failure.
 
-#### 4.4 — Restructure try/finally and add end-of-turn phases to `turn.py`
+#### 4.4 — Add end-of-turn phases to `turn.py`
 
 **File:** `ccya/engine/turn.py`
 
-**What:** This step has two parts: (A) restructure the try/finally so the lock stays held through World, and (B) add the Sanitize + World phases.
+**What:** After `yield ("complete", result_obj)` (line 527), add two end-of-turn async phases. The `_inflight` lock stays held because the generator hasn't returned yet — `finally` (line 565) only runs when the generator is exhausted.
 
-**Problem:** Currently the synchronous `sanitize_threads` runs at lines 487-497 (before persist at 500-502). The plan moves sanitize + World to after persist but before `yield("complete")`. The `finally` at lines 565-567 releases `_inflight` immediately after `yield("complete")` resumes — so World must be INSIDE the try block, before `yield("complete")`, to keep the lock held.
-
-**Insertion point:** After the persist block (`save_state(save_dir, state)` at line 502) and BEFORE `TurnResult` construction (line 504). The existing sanitize block at lines 487-497 is deleted (Step 4.5).
-
-**Fix (A):** Move the World/Sanitize block INSIDE the try, BEFORE `yield("complete")`. The generator flow becomes:
-
-```
-try:
-    ... all existing pipeline code ...
-    # End-of-turn async window (lock still held)
-    yield ("phase", {"phase": "sanitize_start"})
-    ... sanitize ...
-    yield ("phase", {"phase": "sanitize_done"})
-    yield ("phase", {"phase": "world_start"})
-    ... world ...
-    save_state(...)
-    yield ("phase", {"phase": "world_done"})
-    yield ("complete", result_obj)    # ← UI sees narration AFTER world completes
-    # fall through to end of try → finally releases lock
-except ...
-finally:
-    await _inflight.release(...)
-```
-
-The SSE route's `async for` loop (routes.py:309) receives phase events during World (informational), then receives `complete` (UI shows narration), then the generator returns → `StopAsyncIteration` → `finally` releases lock. The lock is held for the entire World window.
-
-**Fix (B):** After the persist block (after `event["last_turn_state"] = state` / `append_event` / `save_state` at lines 500-502) and BEFORE `TurnResult` construction (line 504), insert:
+**Insertion point:** After `yield ("complete", result_obj)` at line 527, BEFORE the `except` blocks (line 529). The generator flow:
 
 ```python
-# --- End-of-turn async window (lock held) ---
+yield ("complete", result_obj)    # ← UI sees narration immediately
+
+# --- End-of-turn async window (lock still held) ---
 # 1. Sanitize (moved from synchronous critical path)
 yield ("phase", {"phase": "sanitize_start"})
 if config.sanitize_every > 0:
@@ -518,6 +492,7 @@ except Exception as exc:
 state.setdefault("meta", {})["beat_candidates"] = beat_candidates or []
 save_state(save_dir, state)  # single persist of sanitize + candidates
 yield ("phase", {"phase": "world_done"})
+# generator returns → StopAsyncIteration → finally releases _inflight
 ```
 
 **Variable scope at insertion point** (all defined earlier in the same try block):
@@ -527,9 +502,11 @@ yield ("phase", {"phase": "world_done"})
 
 Add import: `from ccya.engine.world import _run_world_step`.
 
+**Lock behavior:** The SSE route's `async for` loop (routes.py:309) receives `complete` (UI shows narration), then continues iterating. The generator resumes, runs Sanitize + World, yields phase events (informational — UI ignores post-`complete` events), then returns. When the generator returns, `StopAsyncIteration` is raised, the loop ends, and `finally` releases `_inflight`. The lock is held for the entire World window (~5s). The player sees narration immediately but cannot submit until World finishes.
+
 **Stale-input invariant:** World receives the same live `state` Python reference Sanitize just mutated. No reload, no snapshot, no intermediate `save_state`.
 
-**Why:** World runs async after turn completion, gated by `_inflight` (D5/D8). Single end-of-turn `save_state` persists both sanitizer edits and beat candidates. The try/finally restructure ensures the lock stays held.
+**Why:** World runs async after turn completion, gated by `_inflight` (D5/D8). Single end-of-turn `save_state` persists both sanitizer edits and beat candidates. The lock stays held because the generator hasn't returned yet.
 
 **Validation:** After turn completes, `state.meta.beat_candidates` contains 0-3 candidate dicts. Next turn's ruling reads them. `_inflight` lock is held during World (verify: submitting during World window returns "Turn already in progress").
 
@@ -541,7 +518,7 @@ Add import: `from ccya.engine.world import _run_world_step`.
 
 **Why:** Sanitize moves off the synchronous critical path (D8).
 
-**Validation:** `grep -n "sanitize_threads" ccya/engine/turn.py` shows only the end-of-turn call (after persist, before `yield("complete")`).
+**Validation:** `grep -n "sanitize_threads" ccya/engine/turn.py` shows only the end-of-turn call (after `yield("complete")`).
 
 #### 4.6 — Remove beat lifecycle from turn.py
 
