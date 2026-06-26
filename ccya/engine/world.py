@@ -105,7 +105,7 @@ async def _run_world_step(
             extra={"trace_id": trace_id, "turn": turn_no},
         )
         _log.debug("world.step_failed trace_id=%s turn=%d error=cancelled", trace_id, turn_no)
-        raise  # re-raise so event loop can clean up
+        return [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}
     except Exception as exc:
         _log.warning(
             "world LLM call failed: %s", exc,
