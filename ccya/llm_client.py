@@ -182,7 +182,7 @@ async def chat(
     est_tokens = sum(int(len(m.get("content", "")) / 3.5) for m in messages)
     _log.info("chat: model=%s messages=%d est_tokens=%d max_tokens=%s", model, len(messages), est_tokens, max_tokens)
     t0 = time.monotonic()
-    _log.debug("chat: sending request host=%s model=%s timeout=%.1f", host, model, timeout)
+    _log.debug("chat: sending request host=%s model=%s timeout=%s", host, model, timeout)
     try:
         client = _get_client(host)
         kwargs: dict[str, Any] = {
