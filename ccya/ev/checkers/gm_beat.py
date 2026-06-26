@@ -42,23 +42,22 @@ def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
             all_passed = False
 
         # pending_gm_beat lifecycle respected
-        extraction = extract_field(ev, "extraction") or {}
-        storytell = extraction.get("storytell") or {}
-        storytell_gm_beat = storytell.get("gm_beat")
+        ruling = extract_field(ev, "ruling") or {}
+        ruling_gm_beat = ruling.get("selected_beat") or {}
 
-        if storytell_gm_beat and isinstance(storytell_gm_beat, dict) and storytell_gm_beat.get("type"):
+        if ruling_gm_beat and isinstance(ruling_gm_beat, dict) and ruling_gm_beat.get("type"):
             if cur_beat is None:
                 findings.append({
                     "turn": ev.get("turn"),
                     "check": "beat_lifecycle",
-                    "detail": f"new gm_beat emitted but pending_gm_beat is None in state: {storytell_gm_beat.get('type')}",
+                    "detail": f"new gm_beat emitted but pending_gm_beat is None in state: {ruling_gm_beat.get('type')}",
                 })
                 all_passed = False
-            elif cur_beat.get("type") != storytell_gm_beat.get("type"):
+            elif cur_beat.get("type") != ruling_gm_beat.get("type"):
                 findings.append({
                     "turn": ev.get("turn"),
                     "check": "beat_lifecycle",
-                    "detail": f"new gm_beat type mismatch: storytell={storytell_gm_beat.get('type')}, state={cur_beat.get('type')}",
+                    "detail": f"new gm_beat type mismatch: ruling={ruling_gm_beat.get('type')}, state={cur_beat.get('type')}",
                 })
                 all_passed = False
 

@@ -43,37 +43,12 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
                 })
                 all_passed = False
 
-        # directive rendered storytell
-        directive_value = pacing_ctx.get("directive", "")
-        if directive_value:
-            turn = ev.get("turn")
-            if turn is None:
-                continue
-            ctx = build_prompt_context(events, turn, "storytell")
-            storytell_rendered = _render(env, "storytell_user.j2", ctx)
-            if not storytell_rendered:
-                # extraction failed — can't validate rendering
-                pass
-            else:
-                _directive_re = re.compile(
-                    r"(?i)(?:directive[:\s]+|[\*\*]?)\b" + re.escape(directive_value) + r"\b",
-                )
-                if not _directive_re.search(storytell_rendered):
-                    findings.append({
-                        "turn": turn,
-                        "check": "directive_rendered",
-                        "detail": f"computed directive '{directive_value}' not found in storytell user prompt",
-                    })
-                    all_passed = False
-
         # no removed directives
         turn = ev.get("turn")
         if turn is None:
             continue
         ctx_narr = build_prompt_context(events, turn, "narrate")
-        ctx_storytell = build_prompt_context(events, turn, "storytell")
         narr_user = _render(env, "narrate_user.j2", ctx_narr)
-        storytell_rendered = _render(env, "storytell_user.j2", ctx_storytell)
 
         removed_directives = [
             (r"\bOverwhelm\b", "Overwhelm"),
@@ -85,8 +60,6 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
         for pattern, name in removed_directives:
             if re.search(pattern, narr_user, re.IGNORECASE):
                 found_removed.append(f"{name} (narrate)")
-            if re.search(pattern, storytell_rendered, re.IGNORECASE):
-                found_removed.append(f"{name} (storytell)")
         if found_removed:
             findings.append({
                 "turn": turn,

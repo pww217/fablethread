@@ -12,16 +12,16 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "beat_phase_validity", "deterministic",
-    requires_fields=["extraction.storytell", "pacing_context"],
-    description="gm_beat.type is allowed for the current phase",
+    requires_fields=["ruling", "pacing_context"],
+    description="selected beat type is allowed for the current phase",
 )
 def beat_phase_validity(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 
     for ev in events:
-        storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
-        gm_beat = storytell_output.get("gm_beat")
+        ruling = extract_field(ev, "ruling") or {}
+        gm_beat = ruling.get("selected_beat") or {}
 
         if not isinstance(gm_beat, dict) or not gm_beat.get("type"):
             continue

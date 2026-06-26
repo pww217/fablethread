@@ -15,7 +15,7 @@ def _is_hashable(v: Any) -> bool:
 
 @register_checker(
     "thread_lifecycle", "deterministic",
-    requires_fields=["extraction.storytell", "last_turn_state"],
+    requires_fields=["extraction.record", "last_turn_state"],
     description="thread_add applied, thread_update IDs valid",
 )
 def thread_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
@@ -32,8 +32,8 @@ def thread_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
         if "last_turn_state" in ev:
             prev_snap = ev["last_turn_state"]
 
-        storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
-        thread_add = storytell_output.get("thread_add")
+        record_output = ((extract_field(ev, "extraction") or {}).get("record") or {}).get("output") or {}
+        thread_add = record_output.get("thread_add")
         if thread_add and isinstance(thread_add, dict):
             tid = thread_add.get("id")
             if tid:
@@ -60,7 +60,7 @@ def thread_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
         # was removed in the same turn, it won't appear in last_turn_state but
         # the thread_update was still valid (the thread existed at turn start).
         # Check changes event for same-turn removals to avoid false positives.
-        thread_updates = storytell_output.get("thread_update") or []
+        thread_updates = record_output.get("thread_update") or []
         if thread_updates:
             snap = extract_field(ev, "last_turn_state") or {}
             state_thread_ids = {
