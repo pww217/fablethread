@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
 import re
 from collections.abc import AsyncIterator
@@ -17,6 +18,7 @@ from ccya.engine.extraction.state import _extract_state_messages
 from ccya.engine.extraction.storytell import _storytell_messages
 from ccya.engine.extraction.utils import _call_stream, _capitalize_inventory_names, _context_meta, _dedup_compendium_update
 from ccya.engine.markers import strip_trace_markers_in_messages
+from ccya.state import apply_delta
 from ccya.errors import ErrorKind, LlmcTimeout
 from ccya.llm_client import trim_messages
 from ccya.models import (
@@ -105,12 +107,20 @@ async def _run_extraction_pipeline(
 
     _log.debug("extraction.scene.done trace_id=%s result_type=%s tokens_in=%d tokens_out=%d", trace_id, type(scene_result).__name__, scene_usage.get("prompt_tokens", 0), scene_usage.get("completion_tokens", 0))
 
+    # Build preview state for panel_update without mutating the real state dict
+    _scene_preview = copy.deepcopy(state)
+    if not extraction_event.get("scene", {}).get("skipped", True):
+        _scene_delta = StateDelta(
+            compendium_npc_update=scene_result.compendium_npc_update or []
+        )
+        _scene_preview = apply_delta(_scene_preview, _scene_delta, trace_id=trace_id)
+
     yield ("phase", {"phase": "extract_stream_done", "stream": "scene"})
     yield ("panel_update", {
         "panel": "scene",
         "data": {
-            "npcs": state.get("compendium", {}).get("npcs", {}),
-            "location": state.get("location"),
+            "npcs": _scene_preview.get("compendium", {}).get("npcs", {}),
+            "location": _scene_preview.get("location"),
         },
     })
 
@@ -157,12 +167,28 @@ async def _run_extraction_pipeline(
         _log.warning("extraction.state.empty trace_id=%s turn_no=%d state has no inventory or condition changes after retries", trace_id, turn_no)
     _log.debug("extraction.state.done trace_id=%s result_type=%s inv_add=%d inv_remove=%d inv_update=%d conds_add=%d conds_remove=%d tokens_in=%d tokens_out=%d", trace_id, type(state_result).__name__, len(state_result.inventory_add or []), len(state_result.inventory_remove or []), len(state_result.inventory_update or []), len(state_result.pc_condition_add or []), len(state_result.pc_condition_remove or []), state_usage.get("prompt_tokens", 0), state_usage.get("completion_tokens", 0))
     yield ("phase", {"phase": "extract_stream_done", "stream": "state"})
+
+    # Build preview state for panel_update without mutating the real state dict
+    _state_preview = copy.deepcopy(state)
+    if not extraction_event.get("state", {}).get("skipped", True):
+        _state_delta = StateDelta(
+            inventory_add=state_result.inventory_add or [],
+            inventory_remove=state_result.inventory_remove or [],
+            inventory_update=state_result.inventory_update or [],
+            pc_condition_add=state_result.pc_condition_add or [],
+            pc_condition_remove=state_result.pc_condition_remove or [],
+            location_change=state_result.location_change,
+            inventory_change_reason=state_result.inventory_change_reason or "",
+            condition_change_reason=state_result.condition_change_reason or "",
+        )
+        _state_preview = apply_delta(_state_preview, _state_delta, trace_id=trace_id)
+
     yield ("panel_update", {
         "panel": "state",
         "data": {
-            "pc": state.get("pc"),
-            "inventory": state.get("inventory"),
-            "conditions": state.get("pc", {}).get("conditions"),
+            "pc": _state_preview.get("pc"),
+            "inventory": _state_preview.get("inventory"),
+            "location": _state_preview.get("location"),
         },
     })
 

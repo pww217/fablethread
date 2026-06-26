@@ -135,12 +135,12 @@ function game() {
         input: '',
         submitting: false,
         starting: false,
-        gameStarted: {{ 'false' if no_save else ('true' if state.location.id else 'false') }},
-        turnNum: {{ 0 if no_save else (state.meta.turn | default(0)) }},
-        hasNarrative: {{ 'true' if has_narrative else 'false' }},
-        characterCreationEnabled: {{ 'true' if character_creation_enabled else 'false' }},
-        activeSaveName: '{{ active_save_name }}',
-        noSave: {{ 'true' if no_save else 'false' }},
+        gameStarted: window.__CCYA_INITIAL_STATE__.gameStarted,
+        turnNum: window.__CCYA_INITIAL_STATE__.turnNum,
+        hasNarrative: window.__CCYA_INITIAL_STATE__.hasNarrative,
+        characterCreationEnabled: window.__CCYA_INITIAL_STATE__.characterCreationEnabled,
+        activeSaveName: window.__CCYA_INITIAL_STATE__.activeSaveName,
+        noSave: window.__CCYA_INITIAL_STATE__.noSave,
 
         // Width state (px or null for collapsed/using default).
         leftW: (() => {
@@ -889,6 +889,68 @@ function game() {
                     }
                 }
                 _setProgressFromPhase(strip, payload);
+            });
+
+            es.addEventListener('panel_update', (e) => {
+                const data = JSON.parse(e.data);
+                if (data.panel === 'scene' && data.data) {
+                    const sceneCard = document.getElementById('card-scene');
+                    if (sceneCard) {
+                        const npcs = data.data.npcs || {};
+                        const present = Object.values(npcs).filter(n => n && n.presence === 'present');
+                        present.sort((a, b) => (a.display_name || a.name || '').localeCompare(b.display_name || b.name || ''));
+                        const listEl = sceneCard.querySelector('.npc-list');
+                        if (listEl && present.length > 0) {
+                            listEl.innerHTML = present.map(n => _renderNpcListItem(n)).join('');
+                        } else if (listEl) {
+                            listEl.innerHTML = '<span class="empty-state">No one else is around.</span>';
+                        }
+                    }
+                    const locName = document.querySelector('#card-location .location-name');
+                    if (locName && data.data.location) {
+                        locName.textContent = data.data.location.name || '—';
+                    }
+                    const locDesc = document.querySelector('#card-location .card-desc');
+                    if (locDesc && data.data.location) {
+                        locDesc.innerHTML = data.data.location.description
+                            ? `<span data-md>${_escapeHtml(data.data.location.description)}</span>`
+                            : '';
+                    }
+                } else if (data.panel === 'state' && data.data) {
+                    const invBody = document.querySelector('#card-inventory .sidebar-card-body');
+                    if (invBody) {
+                        const items = data.data.inventory || [];
+                        if (items.length > 0) {
+                            invBody.innerHTML = items.map(i => _renderInventoryItem(i)).join('');
+                        } else {
+                            invBody.innerHTML = '<span class="empty-state">You aren\'t carrying anything!</span>';
+                        }
+                    }
+                    const locName = document.querySelector('#card-location .location-name');
+                    if (locName && data.data.location) {
+                        locName.textContent = data.data.location.name || '—';
+                    }
+                    const locDesc = document.querySelector('#card-location .card-desc');
+                    if (locDesc && data.data.location) {
+                        locDesc.innerHTML = data.data.location.description
+                            ? `<span data-md>${_escapeHtml(data.data.location.description)}</span>`
+                            : '';
+                    }
+                    const playerCard = document.querySelector('#card-player .sidebar-card-body');
+                    if (playerCard && data.data.pc) {
+                        const conds = data.data.pc.conditions || [];
+                        const oldConds = playerCard.querySelector('[style*="margin-top: 8px"]');
+                        if (oldConds) oldConds.remove();
+                        if (conds.length > 0) {
+                            const div = document.createElement('div');
+                            div.style.cssText = 'margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;';
+                            div.innerHTML = conds.map(c => _renderConditionPill(c)).join('');
+                            playerCard.appendChild(div);
+                        }
+                    }
+                } else if (data.panel === 'arc' && data.data) {
+                    htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
+                }
             });
 
             es.addEventListener('turn_complete', (e) => {
