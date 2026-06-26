@@ -359,18 +359,6 @@ async def get_turn(input: str = ""):
                                 "trace_id": result.trace_id,
                             }),
                         }
-                        # Spawn background task to drain remaining events (async window)
-                        # so the generator completes and releases the _inflight lock
-                        async def _drain():
-                            try:
-                                async for _ in run_turn_generator:
-                                    pass
-                            except Exception as exc:
-                                logger.warning("background drain failed: %s", exc)
-                            finally:
-                                await run_turn_generator.aclose()
-                        asyncio.create_task(_drain())
-                        return
 
                     ch = result.changes if isinstance(result.changes, dict) else {}
                     # Format ts field for display (engine stores UTC ISO, UI gets human-readable)
@@ -400,19 +388,7 @@ async def get_turn(input: str = ""):
                             }
                         ),
                     }
-                    # Frontend closes SSE on turn_complete, but we must keep consuming
-                    # run_turn() events so the async window (sanitize + world) can finish.
-                    # Spawn background task to drain remaining events.
-                    async def _drain():
-                        try:
-                            async for _ in run_turn_generator:
-                                pass
-                        except Exception as exc:
-                            logger.warning("background drain failed: %s", exc)
-                        finally:
-                            await run_turn_generator.aclose()
-                    asyncio.create_task(_drain())
-                    return
+                    # Keep SSE open — frontend waits for world_done before closing
         except Exception as e:
             _app_mod.logger.exception("Turn failed")
             yield {"event": "turn_error", "data": json.dumps({"error": str(e)})}
