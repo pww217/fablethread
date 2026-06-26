@@ -77,7 +77,7 @@ def _recent_turn_metrics(save_dir: Path | None, n: int = 10) -> list[dict[str, A
         n_in, n_out = narr.get("tokens_in"), narr.get("tokens_out")
         tin, tout = ext.get("tokens_in"), ext.get("tokens_out")
         raw_streams: dict[str, dict[str, Any]] = {}
-        for s in ("scene", "state", "storytell"):
+        for s in ("scene", "state", "record"):
             sev = extraction.get(s) or {}
             raw_streams[s] = {
                 "ms": sev.get("ms"),
@@ -118,8 +118,8 @@ def _recent_turn_metrics(save_dir: Path | None, n: int = 10) -> list[dict[str, A
                     "Sc_tok": _tok(raw_streams["scene"]["tokens_in"], raw_streams["scene"]["tokens_out"]) if not raw_streams["scene"]["skipped"] else "\u2014",
                     "St_tt": _fmt_ms_seconds(raw_streams["state"]["ms"]) if not raw_streams["state"]["skipped"] else "\u2014",
                     "St_tok": _tok(raw_streams["state"]["tokens_in"], raw_streams["state"]["tokens_out"]) if not raw_streams["state"]["skipped"] else "\u2014",
-                    "So_tt": _fmt_ms_seconds(raw_streams["storytell"]["ms"]) if not raw_streams["storytell"]["skipped"] else "\u2014",
-                    "So_tok": _tok(raw_streams["storytell"]["tokens_in"], raw_streams["storytell"]["tokens_out"]) if not raw_streams["storytell"]["skipped"] else "\u2014",
+                    "Re_tt": _fmt_ms_seconds(raw_streams["record"]["ms"]) if not raw_streams["record"]["skipped"] else "\u2014",
+                    "Re_tok": _tok(raw_streams["record"]["tokens_in"], raw_streams["record"]["tokens_out"]) if not raw_streams["record"]["skipped"] else "\u2014",
                 },
                 "total_ms": (
                     (ruling_ev.get("total_ms") or 0)
