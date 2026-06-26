@@ -282,13 +282,13 @@
                           x-model="input"
                           placeholder="What do you do? (Enter to send, Shift+Enter for newline)"
                            rows="1"
-                          :disabled="submitting || !gameStarted"
+                          :disabled="submitting || asyncRunning || !gameStarted"
                           @keydown.enter="onEnter($event)"></textarea>
                 <button class="send-btn"
                         :class="{ 'send-btn--stop': submitting }"
-                        :title="submitting ? 'Click to stop' : 'Send turn'"
+                        :title="submitting ? 'Click to stop' : (asyncRunning ? 'Async steps in progress' : 'Send turn')"
                         @click="submitting ? stopTurn() : submitTurn()"
-                        :disabled="!submitting && (!input.trim() || !gameStarted)">
+                        :disabled="!submitting && (!input.trim() || !gameStarted || asyncRunning)">
                     <span x-show="!submitting">Send&nbsp;&rarr;</span>
                     <i x-show="submitting" class="send-spinner send-spinner--stop"></i>
                 </button>
