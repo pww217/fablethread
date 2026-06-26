@@ -26,7 +26,7 @@ _STAGE_CSS: dict[str, str] = {
     "narrate": "tv-stage-narrate",
     "scene": "tv-stage-scene",
     "state": "tv-stage-state",
-    "storytell": "tv-stage-storytell",
+    "record": "tv-stage-storytell",
 }
 
 
@@ -176,7 +176,7 @@ def _tv_dict_to_lines(
 def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
     """Produce a flat list of state-change entries from extraction outputs.
 
-    Reads ruling (intent), scene/state/storytell extraction outputs and flattens
+    Reads ruling (intent), scene/state/record extraction outputs and flattens
     them into labelled change entries for the diff right panel.
     """
     rejected_set: set[str] = set()
@@ -203,7 +203,7 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
     _EXTRACTION_STREAMS = [
         ("scene", "extraction.scene"),
         ("state", "extraction.state"),
-        ("storytell", "extraction.storytell"),
+        ("record", "extraction.record"),
     ]
 
     for stream_key, path in _EXTRACTION_STREAMS:

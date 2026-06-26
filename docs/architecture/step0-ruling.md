@@ -136,21 +136,24 @@ flowchart LR
     classDef extractor fill:#500724,color:#fbcfe8,stroke:#ec4899
 
     NARRATE["engine/narrate.py<br>_narrate_setup() calls _compute_pacing_context()"]:::pyNode
-    PIPELINE["_run_extraction_pipeline()<br>pass PacingContext struct"]:::pyNode
-    EXTRACT_FN["_storytell_messages()<br>extraction/storytell.py"]:::pyNode
-    USER_TMPL["storytell_user.j2<br>pacing_context.directive"]:::prompt
-    SYS_TMPL["storytell_system.j2<br>PacingContext guidance"]:::prompt
+    PIPELINE["_run_extraction_pipeline()<br>pass PacingContext struct (Record only)"]:::pyNode
+    EXTRACT_FN["_record_messages()<br>extraction/record.py"]:::pyNode
+    USER_TMPL["record_user.j2<br>no pacing context"]:::prompt
+    SYS_TMPL["record_system.j2<br>no PacingContext guidance"]:::prompt
     NARRATE_TMPL["narrate_user.j2<br>pacing_context.outcome_hint"]:::prompt
+    WORLD["engine/world.py<br>_run_world_step (async, end-of-turn)<br>reads pacing_context"]:::pyNode
+    WORLD_TMPL["world_user.j2<br>pacing_context.directive"]:::prompt
 
     NARRATE --> PIPELINE --> EXTRACT_FN --> USER_TMPL
-    USER_TMPL --> SYS_TMPL --> EXTRACTOR["Storytell LLM"]:::extractor
+    USER_TMPL --> SYS_TMPL --> EXTRACTOR["Record LLM"]:::extractor
     NARRATE -. "also passed to" .-> NARRATE_TMPL
+    NARRATE -. "passed to World (async)" .-> WORLD --> WORLD_TMPL
 ```
 
 1. **Computed** once in `run_turn()` via `_compute_pacing_context()`.
-2. **Passed through** `_run_extraction_pipeline()` → both `_narrate_messages()` and `_storytell_messages()`.
+2. **Passed through** `_run_extraction_pipeline()` → Record only (Record's `record_user.j2` does not render PacingContext — those inputs moved to World).
 3. **Narrator template** (`narrate_user.j2`) renders `outcome_hint` (scene motion: hold/advance/transition) with value-specific guidance. No Jinja2 pacing computation remains — all pacing computed by Python.
-4. **Storytell template** ((`storytell_system.j2` + `user.j2`)) receives the full struct; guidance maps each directive to appropriate thread/beat actions:
+4. **World template** (`world_user.j2`) reads `pacing_context.directive` and `pacing_context.outcome_hint` from the live state (passed via `state` reference, end-of-turn async). World uses these to constrain beat-candidate generation (roll-band guidance, phase derivation). Guidance maps each directive to appropriate beat actions:
 
 | Directive | Trigger | Thread action |
 |-----------|---------|---------------|
