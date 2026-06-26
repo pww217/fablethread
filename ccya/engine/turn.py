@@ -516,13 +516,14 @@ async def run_turn(
             summary=_pc.summary if _pc else "",
             ts=_ts,
         )
-        # Release lock BEFORE yielding complete so frontend can proceed immediately
-        await _inflight.release(str(save_dir))
-        signal_turn_done(str(save_dir))
-        released = True
         yield ("complete", result_obj)
 
         # --- End-of-turn async window ---
+        # Release lock before async steps so frontend can proceed immediately
+        await _inflight.release(str(save_dir))
+        signal_turn_done(str(save_dir))
+        released = True
+
         _log.debug(
             "turn.pre_complete trace_id=%s turn=%d state_turn=%d",
             trace_id, turn_no, state["meta"]["turn"],
