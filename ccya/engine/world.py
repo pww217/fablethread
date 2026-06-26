@@ -26,10 +26,14 @@ async def _run_world_step(
     config: EngineConfig,
     trace_id: str,
     turn_no: int,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], str, str, str]:
     """Generate 2-3 candidate GM beats for the next turn.
 
-    Returns a list of validated beat dicts (model_dump shape), or [] on any failure.
+    Returns (beat_candidates, system_text, user_text, raw_response).
+    beat_candidates is a list of validated beat dicts (model_dump shape).
+    system_text and user_text are the rendered template strings.
+    raw_response is the raw LLM response text.
+    On any failure, returns ([], system_text, user_text, "").
     """
     candidate_npcs: list[dict[str, Any]] = []
     if scene_result is not None:
@@ -87,7 +91,7 @@ async def _run_world_step(
             "world LLM call failed: %s", exc,
             extra={"trace_id": trace_id, "turn": turn_no},
         )
-        return []
+        return [], system_text, user_text, ""
 
     raw = result.get("response", "") if isinstance(result, dict) else ""
     candidates_raw = _parse_candidate_array(raw)
@@ -96,7 +100,7 @@ async def _run_world_step(
             "world: no valid JSON array in response",
             extra={"trace_id": trace_id, "turn": turn_no},
         )
-        return []
+        return [], system_text, user_text, raw
 
     valid_beats: list[dict[str, Any]] = []
     for entry in candidates_raw:
@@ -112,7 +116,7 @@ async def _run_world_step(
         if len(valid_beats) >= 3:
             break
 
-    return valid_beats
+    return valid_beats, system_text, user_text, raw
 
 
 def _parse_candidate_array(raw: str) -> list[dict[str, Any]] | None:

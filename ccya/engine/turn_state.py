@@ -503,7 +503,7 @@ def _apply_state_updates(
             entry["last_seen_location"] = location.get("name", "")
 
         # Arc director: process thread updates and arc resolution
-        if (state.get("arc", {}) or storyteller_result.thread_add) and storyteller_result:
+        if storyteller_result and (state.get("arc", {}) or storyteller_result.thread_add):
             thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
             if thread_delta is not None:
                 _merge_arc_update(

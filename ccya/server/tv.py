@@ -27,6 +27,7 @@ _STAGE_CSS: dict[str, str] = {
     "scene": "tv-stage-scene",
     "state": "tv-stage-state",
     "record": "tv-stage-storytell",
+    "world": "tv-stage-world",
 }
 
 

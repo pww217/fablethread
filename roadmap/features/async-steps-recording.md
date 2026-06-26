@@ -1,6 +1,6 @@
 ---
 title: "Async Steps (World + Sanitizer) — Full Event/Prompt Recording"
-status: implemented
+status: done
 created: 2026-06-26
 labels:
   - engine

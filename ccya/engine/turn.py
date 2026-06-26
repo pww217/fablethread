@@ -277,15 +277,15 @@ async def run_turn(
         # Roll up per-stream token counts for the metrics dict
         _tokens_in = sum(
             (extraction_event.get(s) or {}).get("tokens_in", 0)
-            for s in ("scene", "state", "record", "narrate")
+            for s in ("scene", "state", "record", "narrate", "world")
         )
         _tokens_out = sum(
             (extraction_event.get(s) or {}).get("tokens_out", 0)
-            for s in ("scene", "state", "record", "narrate")
+            for s in ("scene", "state", "record", "narrate", "world")
         )
         # Build per-stream breakdown for UI display
         _streams = {}
-        for s in ("scene", "state", "record", "narrate"):
+        for s in ("scene", "state", "record", "narrate", "world"):
             ev = extraction_event.get(s)
             if ev:
                 _streams[s] = {
@@ -476,10 +476,8 @@ async def run_turn(
             if len(prior) > 20:
                 meta["prior_history"] = prior[-20:]
 
-        # Single atomic write block
-        event["last_turn_state"] = state
-        append_event(save_dir, event)
-        save_state(save_dir, state)
+        # Single atomic write block (deferred past async window to include world data)
+        # event["last_turn_state"] and append_event/save_state moved to after async window
 
         result_obj = TurnResult(
             turn=state["meta"]["turn"],
@@ -517,14 +515,42 @@ async def run_turn(
 
         # 2. World (beat candidates — receives same live `state` Sanitize just mutated)
         yield ("phase", {"phase": "world_start"})
+        world_system_text = ""
+        world_user_text = ""
+        world_raw_response = ""
         beat_candidates: list[dict[str, Any]] = []
+        t_world = asyncio.get_event_loop().time()
         try:
-            beat_candidates = await _run_world_step(
+            beat_candidates, world_system_text, world_user_text, world_raw_response = await _run_world_step(
                 env, state, narrative, scene_result, _pc, config, trace_id, turn_no,
             )
         except Exception as exc:
             _log.warning("world step failed: %s", exc, extra={"trace_id": trace_id})
+        world_ms = (asyncio.get_event_loop().time() - t_world) * 1000
         state.setdefault("meta", {})["beat_candidates"] = beat_candidates or []
+        save_state(save_dir, state)
+
+        # Build world extraction event and write prompts (deferred past async window)
+        extraction_event["world"] = {
+            "output": beat_candidates or [],
+            "skipped": False,
+            "tokens_in": 0,
+            "tokens_out": 0,
+            "ms": round(world_ms, 1),
+        }
+        _ts_world = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        prompts_list.append({
+            "ts": _ts_world,
+            "trace_id": trace_id,
+            "turn": state["meta"]["turn"],
+            "stream": "world",
+            "rendered_system": world_system_text,
+            "rendered_user": world_user_text,
+        })
+        append_prompts(save_dir, prompts_list)
+
+        event["last_turn_state"] = state
+        append_event(save_dir, event)
         save_state(save_dir, state)
         yield ("phase", {"phase": "world_done"})
         # generator returns → StopAsyncIteration → finally releases _inflight

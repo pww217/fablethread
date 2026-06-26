@@ -4,7 +4,7 @@
 
 **Slug:** async-steps-recording
 
-**Plan status:** ready
+**Plan status:** completed
 
 ## Deviation from Design
 

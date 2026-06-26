@@ -64,12 +64,14 @@ flowchart TD
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc`, `npc_roster` (from build_npc_roster()), conditions, compendium entries | `SceneExtractResult`: compendium_npc_update, candidate_npcs (per-NPC beat candidates: [{id, type, effect}]) | NPC presence, durable NPC compendium identity, per-NPC beat candidate signals with driver assignment. |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, conditions | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove, location_change, location_description | Inventory delta accuracy, condition lifecycle, location deltas. |
 | **Step 2c — Record** | [step2c-record](./step2c-record.md) | Every turn (always) | `narrative`, `arc.threads[]`, `recent_turns[-10:]`, `band`, `world_state`, `prior_history` | `StorytellerResult` (gm_beat field removed): thread_update/goal_update/arc_resolve/resolve/add, actions, outcome_summary | Record-managed thread lifecycle, arc resolution, durable history events. Backward-looking scribe — does not generate beats. |
-| **Step 2d — World (async)** | [step2d-world](./step2d-world.md) | Every turn (after `yield("complete")`, lock still held) | `candidate_npcs`, `arc.threads[]`, `pacing_context`, `recent_beats`, `allowed_beat_types`, `narration` | `state.meta.beat_candidates` (0-3 validated candidates) | Async beat-candidate generation. Validates each candidate via `GMBeat(**candidate)`; drops invalid candidates silently. Runs inside the `_inflight` lock; the lock lifts only after World returns. On any failure (LLM timeout, invalid JSON), `beat_candidates = []` and the next turn's Ruling proceeds without a beat. |
+| **Step 2d — World (async)** | [step2d-world](./step2d-world.md) | Every turn (after `yield("complete")`, lock still held) | `candidate_npcs`, `arc.threads[]`, `pacing_context`, `recent_beats`, `allowed_beat_types`, `narration` | `state.meta.beat_candidates` (0-3 validated candidates) | Async beat-candidate generation. Validates each candidate via `GMBeat(**candidate)`; drops invalid candidates silently. Runs inside the `_inflight` lock; the lock lifts only after World returns. On any failure (LLM timeout, invalid JSON), `beat_candidates = []` and the next turn's Ruling proceeds without a beat. **Event recording:** `extraction.world` added to main turn event with output/tokens/ms; prompts written to `prompts.jsonl` with `stream: "world"`. |
 
 After Step 2c: results merge into a `StateDelta`, the validator checks constraints
 (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the
 turn is persisted. After `yield("complete")` the end-of-turn async window runs Sanitize
-then World; a single end-of-turn `save_state` persists both. The next turn's Step 0
+then World; `extraction.world` is added to the event dict and prompts are written to
+`prompts.jsonl`; a single `append_event` + `save_state` persists both the event (with
+world data) and state. The next turn's Step 0
 reads the new `state.yaml` plus `events.jsonl` (and consumes `state.meta.beat_candidates`
 prepared by the previous turn's World).
 
@@ -107,6 +109,7 @@ The pipeline produces several state objects at different points. Understanding w
 | `changes` | After sanitizer | Yes (`event["changes"]`) | What the sanitizer actually changed |
 | `extraction.*.output` | After each extraction stream | Yes (`event["extraction"]`) | LLM extraction results |
 | `beat_candidates` | After Step 2d (World) | No (persisted in `state.meta.beat_candidates`) | Consumed by next turn's Ruling for beat selection |
+| `extraction.world` | After Step 2d (World) | Yes (`event["extraction"]["world"]`) | World step output with beat candidates, timing, and token metrics |
 | `pending_gm_beat` | After Ruling sets it | No (persisted in `state.meta.pending_gm_beat`) | Consumed by same turn's Narrate |
 | `sanitizer event` | After sanitizer (every N turns) | Yes (`kind=sanitizer`, `turn=N`) | Separate event on sanitizer turns; must be filtered by UI panels to avoid duplicates |
 
