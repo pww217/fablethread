@@ -37,6 +37,8 @@ def _get_template_name(stream: str) -> str:
         return "ruling_user.j2"
     elif stream == "storytell":
         return "storytell_user.j2"
+    elif stream == "world":
+        return "world_user.j2"
     else:
         return f"extract_{stream}_user.j2"
 
@@ -49,6 +51,8 @@ def _get_system_template_name(stream: str) -> str:
         return "ruling_system.j2"
     elif stream == "storytell":
         return "storytell_system.j2"
+    elif stream == "world":
+        return "world_system.j2"
     else:
         return f"extract_{stream}_system.j2"
 
