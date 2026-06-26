@@ -68,15 +68,15 @@ The `--auto-report` flag writes a per-run `report.md` inside each run directory.
 
 The report file is your **long-term memory**. You cannot hold all checkers + all findings in context at once. Work through the template section by section. After each section, write findings to the report file before continuing. If context runs low, stop, write what you have, and resume from the report file on the next invocation.
 
-### Step 1: Validating Tickets
+### Step 1: Testing Tickets
 
-Scan `roadmap/bugs/*.md` for `status: validating`. List them in the report. For each:
+Scan `roadmap/bugs/*.md` for `status: testing`. List them in the report. For each:
 - Run targeted checkers against relevant runs
 - Assess: confirmed fixed / regressed / inconclusive
 - Update the bug file directly:
   - Confirmed fixed → `status: done`, `completed: YYYY-MM-DD`
   - Regressed or still broken → `status: up-next`
-  - Inconclusive → leave as `validating`
+  - Inconclusive → leave as `testing`
 - After updating all bug files, run `make roadmap` to regenerate the backlog/done indices
 
 ### Step 2: Changes Since Last Eval

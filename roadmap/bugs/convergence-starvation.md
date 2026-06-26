@@ -1,6 +1,6 @@
 ---
 title: "Convergence Starvation — Pacing Engine"
-status: up-next
+status: up-next  # design reviewed 2026-06-25, no fatal blockers — ready for planning
 urgency: 2
 size: large
 created: 2026-06-22

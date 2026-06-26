@@ -432,9 +432,6 @@ async def run_turn(
                 "context_meta": _context_meta(rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars),
             },
         }
-        # Append event (without last_turn_state yet — captured after all modifications)
-        append_event(save_dir, event)
-
         # Write stripped prompts to prompts.jsonl
         prompts_list = [
             {
@@ -501,6 +498,7 @@ async def run_turn(
 
         # Single atomic write block
         event["last_turn_state"] = state
+        append_event(save_dir, event)
         save_state(save_dir, state)
 
         result_obj = TurnResult(

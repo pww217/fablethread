@@ -1,6 +1,6 @@
 ---
 title: "[User-Reported] Highlighting/UI Rendering Issues"
-status: validating
+status: testing
 urgency: 4
 size: small
 created: 2026-06-24
