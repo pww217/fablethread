@@ -26,14 +26,15 @@ async def _run_world_step(
     config: EngineConfig,
     trace_id: str,
     turn_no: int,
-) -> tuple[list[dict[str, Any]], str, str, str]:
+) -> tuple[list[dict[str, Any]], str, str, str, dict[str, int]]:
     """Generate 2-3 candidate GM beats for the next turn.
 
-    Returns (beat_candidates, system_text, user_text, raw_response).
+    Returns (beat_candidates, system_text, user_text, raw_response, usage).
     beat_candidates is a list of validated beat dicts (model_dump shape).
     system_text and user_text are the rendered template strings.
     raw_response is the raw LLM response text.
-    On any failure, returns ([], system_text, user_text, "").
+    usage is a dict with tokens_in and tokens_out.
+    On any failure, returns ([], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}).
     """
     candidate_npcs: list[dict[str, Any]] = []
     if scene_result is not None:
@@ -78,29 +79,37 @@ async def _run_world_step(
     ]
 
     try:
+        _log.debug("world.step_start trace_id=%s turn=%d candidate_npcs=%d", trace_id, turn_no, len(candidate_npcs))
+        _log.debug("world.step_before_llm trace_id=%s turn=%d host=%s model=%s timeout=%.1f", trace_id, turn_no, config.host, config.model, 60.0)
         result = await llm_chat(
             config.host,
             config.model,
             messages,
             temperature=config.world_temperature,
             top_p=config.extract_top_p,
-            timeout=float(config.request_timeout_s),
+            timeout=60.0,
         )
+        _log.debug("world.step_llm_complete trace_id=%s turn=%d", trace_id, turn_no)
     except Exception as exc:
         _log.warning(
             "world LLM call failed: %s", exc,
             extra={"trace_id": trace_id, "turn": turn_no},
         )
-        return [], system_text, user_text, ""
+        _log.debug("world.step_failed trace_id=%s turn=%d error=%s", trace_id, turn_no, exc)
+        return [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}
 
     raw = result.get("response", "") if isinstance(result, dict) else ""
+    usage = result.get("usage", {}) if isinstance(result, dict) else {}
+    tokens_in = int(usage.get("prompt_tokens", 0))
+    tokens_out = int(usage.get("completion_tokens", 0))
     candidates_raw = _parse_candidate_array(raw)
     if candidates_raw is None:
         _log.warning(
             "world: no valid JSON array in response",
             extra={"trace_id": trace_id, "turn": turn_no},
         )
-        return [], system_text, user_text, raw
+        _log.debug("world.step_no_json trace_id=%s turn=%d", trace_id, turn_no)
+        return [], system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}
 
     valid_beats: list[dict[str, Any]] = []
     for entry in candidates_raw:
@@ -116,7 +125,8 @@ async def _run_world_step(
         if len(valid_beats) >= 3:
             break
 
-    return valid_beats, system_text, user_text, raw
+    _log.debug("world.step_complete trace_id=%s turn=%d valid_beats=%d", trace_id, turn_no, len(valid_beats))
+    return valid_beats, system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}
 
 
 def _parse_candidate_array(raw: str) -> list[dict[str, Any]] | None:

@@ -119,6 +119,14 @@ async def run_turn(
         ruling_trimmed_chars = ctx._ruling_trimmed_chars
 
         turn_no = state.get("meta", {}).get("turn", 0) + 1
+        # NOTE: turn_no is pre-increment (before state["meta"]["turn"] is updated at line ~355).
+        # It's used for LLM calls (ruling/narrate/extraction) which need the "current" turn number.
+        # The canonical state update happens at line ~355: state["meta"]["turn"] = state.get("meta", {}).get("turn", 0) + 1
+        _log.info(
+            "turn.ruling_complete trace_id=%s turn=%d intent=%s outcome=%s",
+            trace_id, turn_no, _intent.intent, _outcome.reason,
+            extra={"trace_id": trace_id, "turn": turn_no},
+        )
 
         # TTL expiry: remove world state facts whose expires_turn has passed (before any LLM call)
         ws = state.get("scene", {}).get("world_state", [])
@@ -215,8 +223,11 @@ async def run_turn(
         if is_cancel_requested(str(save_dir)):
             return
         yield ("phase", {"phase": "narrate_done"})
-
-        # === Extraction pipeline (3 streams) ===
+        _log.info(
+            "turn.narrate_complete trace_id=%s turn=%d narr_ms=%d narr_tokens_in=%d narr_tokens_out=%d",
+            trace_id, turn_no, narr_ms, narr_metrics.get("tokens_in", 0), narr_metrics.get("tokens_out", 0),
+            extra={"trace_id": trace_id, "turn": turn_no},
+        )
         exp_ms = _avg_event_ms(save_dir, "extract.total_ms")
         if is_cancel_requested(str(save_dir)):
             return
@@ -274,6 +285,7 @@ async def run_turn(
         yield ("phase", {"phase": "extract_done"})
 
         ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
+
         # Roll up per-stream token counts for the metrics dict
         _tokens_in = sum(
             (extraction_event.get(s) or {}).get("tokens_in", 0)
@@ -313,6 +325,11 @@ async def run_turn(
             "narrate": narr_metrics,
             "extract": ext_metrics,
         }
+        _log.info(
+            "turn.extraction_complete trace_id=%s turn=%d ext_ms=%d ext_tokens_in=%d ext_tokens_out=%d",
+            trace_id, turn_no, round(ext_ms, 1), _tokens_in, _tokens_out,
+            extra={"trace_id": trace_id, "turn": turn_no},
+        )
 
         # === Validate & apply delta ===
         state_pre_apply = copy.deepcopy(state)
@@ -501,46 +518,72 @@ async def run_turn(
         yield ("complete", result_obj)
 
         # --- End-of-turn async window (lock still held until generator returns) ---
+        # CRITICAL: Save event/state FIRST, before sanitize/world.
+        # This ensures state is persisted even if world step hangs.
+        # The _inflight lock is held until this generator returns (StopAsyncIteration),
+        # preventing concurrent turns from starting.
+        _log.debug(
+            "turn.pre_complete trace_id=%s turn=%d state_turn=%d",
+            trace_id, turn_no, state["meta"]["turn"],
+            extra={"trace_id": trace_id, "turn": state["meta"]["turn"]},
+        )
+
+        # Save event/state immediately (before async steps)
+        _log.debug("turn.async_save_start trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
+        event["last_turn_state"] = state
+        append_event(save_dir, event)
+        save_state(save_dir, state)
+        _log.debug("turn.async_save_complete trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
 
         # 1. Sanitize (moved from synchronous critical path)
+        _log.debug("turn.async_window_start trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
         yield ("phase", {"phase": "sanitize_start"})
         try:
             if config.sanitize_every > 0:
-                state, _ = await sanitize_threads(
+                state, sanitize_ran = await sanitize_threads(
                     save_dir, state, config, trace_id=trace_id,
                 )
+                _log.debug("turn.sanitize_complete trace_id=%s turn=%d sanitize_ran=%s", trace_id, state["meta"]["turn"], sanitize_ran)
+            else:
+                _log.debug("turn.sanitize_skipped trace_id=%s turn=%d sanitize_every=0", trace_id, state["meta"]["turn"])
         except Exception as exc:
             _log.warning("sanitize step failed: %s", exc, extra={"trace_id": trace_id})
+            _log.debug("turn.sanitize_failed trace_id=%s turn=%d error=%s", trace_id, state["meta"]["turn"], exc)
         yield ("phase", {"phase": "sanitize_done"})
 
         # 2. World (beat candidates — receives same live `state` Sanitize just mutated)
+        # NOTE: World step runs after yield("complete") so it's truly async from frontend.
+        # It generates beat candidates for the NEXT turn. If it fails, current turn is still saved.
         yield ("phase", {"phase": "world_start"})
+        _log.debug("turn.world_start trace_id=%s turn=%d candidate_npcs=%d", trace_id, state["meta"]["turn"], len(scene_result.candidate_npcs) if scene_result and scene_result.candidate_npcs else 0)
         world_system_text = ""
         world_user_text = ""
         world_raw_response = ""
         beat_candidates: list[dict[str, Any]] = []
+        world_usage: dict[str, int] = {"tokens_in": 0, "tokens_out": 0}
         t_world = asyncio.get_event_loop().time()
         try:
-            beat_candidates, world_system_text, world_user_text, world_raw_response = await _run_world_step(
+            beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
                 env, state, narrative, scene_result, _pc, config, trace_id, turn_no,
             )
         except Exception as exc:
             _log.warning("world step failed: %s", exc, extra={"trace_id": trace_id})
+            _log.debug("turn.world_failed trace_id=%s turn=%d error=%s", trace_id, state["meta"]["turn"], exc)
         world_ms = (asyncio.get_event_loop().time() - t_world) * 1000
+        _log.debug("turn.world_complete trace_id=%s turn=%d beats=%d world_ms=%d", trace_id, state["meta"]["turn"], len(beat_candidates or []), round(world_ms, 1))
         state.setdefault("meta", {})["beat_candidates"] = beat_candidates or []
-        save_state(save_dir, state)
 
         # Build world extraction event and write prompts (deferred past async window)
         extraction_event["world"] = {
             "output": beat_candidates or [],
             "skipped": False,
-            "tokens_in": 0,
-            "tokens_out": 0,
+            "tokens_in": world_usage.get("tokens_in", 0),
+            "tokens_out": world_usage.get("tokens_out", 0),
             "ms": round(world_ms, 1),
         }
-        _ts_world = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        _ts_WORLD = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         prompts_list.append({
-            "ts": _ts_world,
+            "ts": _ts_WORLD,
             "trace_id": trace_id,
             "turn": state["meta"]["turn"],
             "stream": "world",
@@ -549,9 +592,13 @@ async def run_turn(
         })
         append_prompts(save_dir, prompts_list)
 
-        event["last_turn_state"] = state
-        append_event(save_dir, event)
+        # Save again with beat_candidates (if world step succeeded)
         save_state(save_dir, state)
+        _log.info(
+            "turn.complete trace_id=%s turn=%d",
+            trace_id, state["meta"]["turn"],
+            extra={"trace_id": trace_id, "turn": state["meta"]["turn"]},
+        )
         yield ("phase", {"phase": "world_done"})
         # generator returns → StopAsyncIteration → finally releases _inflight
 
