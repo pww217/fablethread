@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -81,15 +82,25 @@ async def _run_world_step(
     try:
         _log.debug("world.step_start trace_id=%s turn=%d candidate_npcs=%d", trace_id, turn_no, len(candidate_npcs))
         _log.debug("world.step_before_llm trace_id=%s turn=%d host=%s model=%s timeout=%.1f", trace_id, turn_no, config.host, config.model, 60.0)
-        result = await llm_chat(
-            config.host,
-            config.model,
-            messages,
-            temperature=config.world_temperature,
-            top_p=config.extract_top_p,
-            timeout=60.0,
+        result = await asyncio.wait_for(
+            llm_chat(
+                config.host,
+                config.model,
+                messages,
+                temperature=config.world_temperature,
+                top_p=config.extract_top_p,
+                timeout=60.0,
+            ),
+            timeout=60.0
         )
         _log.debug("world.step_llm_complete trace_id=%s turn=%d", trace_id, turn_no)
+    except asyncio.TimeoutError:
+        _log.warning(
+            "world LLM call timed out after 60s",
+            extra={"trace_id": trace_id, "turn": turn_no},
+        )
+        _log.debug("world.step_failed trace_id=%s turn=%d error=timeout", trace_id, turn_no)
+        return [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}
     except Exception as exc:
         _log.warning(
             "world LLM call failed: %s", exc,
