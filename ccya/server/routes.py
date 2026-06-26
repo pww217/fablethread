@@ -362,8 +362,13 @@ async def get_turn(input: str = ""):
                         # Spawn background task to drain remaining events (async window)
                         # so the generator completes and releases the _inflight lock
                         async def _drain():
-                            async for _ in run_turn_generator:
-                                pass
+                            try:
+                                async for _ in run_turn_generator:
+                                    pass
+                            except Exception as exc:
+                                logger.warning("background drain failed: %s", exc)
+                            finally:
+                                await run_turn_generator.aclose()
                         asyncio.create_task(_drain())
                         return
 
@@ -399,8 +404,13 @@ async def get_turn(input: str = ""):
                     # run_turn() events so the async window (sanitize + world) can finish.
                     # Spawn background task to drain remaining events.
                     async def _drain():
-                        async for _ in run_turn_generator:
-                            pass
+                        try:
+                            async for _ in run_turn_generator:
+                                pass
+                        except Exception as exc:
+                            logger.warning("background drain failed: %s", exc)
+                        finally:
+                            await run_turn_generator.aclose()
                     asyncio.create_task(_drain())
                     return
         except Exception as e:
