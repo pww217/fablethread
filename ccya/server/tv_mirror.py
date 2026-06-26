@@ -94,6 +94,18 @@ _STREAMS: list[StreamDescriptor] = [
         inputs=["ruling", "narrate", "scene", "state"],
         skip_token_display=True,
     ),
+    StreamDescriptor(
+        key="world",
+        label="World",
+        stage_css="world",
+        metrics_path="extraction.world",
+        prompt_path="extraction.world",
+        output_subkey="output",
+        is_text_output=False,
+        ms_key="ms",
+        inputs=["narrate"],
+        skip_token_display=False,
+    ),
 ]
 
 # O(1) lookup by key — used by tv.py connector generation

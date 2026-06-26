@@ -96,6 +96,45 @@ Type/driver `Literal` validators silently coerce out-of-enum values to `None`; a
 
 `config.world_temperature` (default `0.55`) — medium temperature for constrained creative generation. The system prompt is lightweight (~200-250 tokens) and the user prompt carries the structured inputs (~1000-2000 tokens).
 
+## Event and prompt recording
+
+World data is recorded in the main turn event under `extraction.world` (not as a separate event type). This matches the existing pattern for scene/state/record extraction steps and keeps the turn viewer pipeline unified.
+
+**events.jsonl** — After the async window completes, `extraction_event["world"]` is added to the main turn event with the following shape:
+
+```
+extraction.world = {
+    "output": beat_candidates,       # list[dict] — validated GMBeat dicts
+    "skipped": False,
+    "tokens_in": 0,                  # reserved for future LLM token tracking
+    "tokens_out": 0,                 # reserved for future LLM token tracking
+    "ms": <world_ms>,                # total wall-clock ms for world step
+}
+```
+
+The main turn event is appended to `events.jsonl` and `state.yaml` is saved **after** the async window (previously they were appended before), ensuring `extraction.world` is included in the persisted event.
+
+**prompts.jsonl** — World prompts are written via `append_prompts(save_dir, [...])` with a single entry:
+
+```
+{
+    "ts": "<ISO timestamp>",
+    "trace_id": "<trace_id>",
+    "turn": <turn_number>,
+    "stream": "world",
+    "rendered_system": "<world_system.j2 rendered>",
+    "rendered_user": "<world_user.j2 rendered>",
+}
+```
+
+The `turn_viewer_prompts` route automatically includes world prompts since it reads all prompts with matching `turn` from `prompts.jsonl`.
+
+**Turn viewer pipeline** — World appears as the 6th stage in the pipeline view, with its `StreamDescriptor` in `tv_mirror.py` defining:
+- `metrics_path="extraction.world"` — resolves to the world metrics blob
+- `prompt_path="extraction.world"` — resolves to the world prompt/output blob
+- `inputs=["narrate"]` — drives connector generation from narrate stage
+- `stage_css="world"` — maps to `tv-stage-world` CSS class
+
 ## Beat lifecycle (after split)
 
 Beats are now single-turn commitments:
