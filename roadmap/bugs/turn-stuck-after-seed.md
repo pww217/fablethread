@@ -1,10 +1,9 @@
 ---
 title: "Turn never starts after seed gen — no ruling/narrate calls, state reverts to T0"
-status: done
+status: new
 urgency: 1
 size: medium
 created: 2026-06-26
-completed: 2026-06-26
 labels:
   - turn-pipeline
   - engine
@@ -131,45 +130,26 @@ The frontend shows the extraction result (from `yield ("complete", result_obj)` 
 
 **Root cause:** The OpenAI client's `timeout` parameter doesn't fire reliably in async generator contexts because it operates at the HTTP transport level (httpx), not the event loop level. When the generator is suspended between yields in SSE streaming, httpx's timeout callbacks don't fire correctly.
 
-**Fix:** Implemented production-grade async timeout handling:
+**Current state:** The world step still hangs and times out after 60s. It should complete in ~4 seconds like every other step. The timeout prevents it from hanging forever, but that's a band-aid, not a fix.
 
-1. **Configured httpx client explicitly** (`llm_client.py`):
-   - `connect=10.0`, `read=None`, `write=10.0`, `pool=10.0`
-   - Set `read=None` to let `asyncio.timeout()` handle wall-clock timeout
-   - This prevents httpx's per-chunk read timeout from firing during slow generation
+**What works:**
+- State is saved before the async window, so turns don't revert on refresh
+- World step has a 60s timeout that prevents it from hanging forever
+- When timeout fires, the turn continues (world_done event fires, input unlocks)
 
-2. **Use `asyncio.timeout()` instead of `asyncio.wait_for()`** (`world.py`):
-   - More efficient (no new task creation)
-   - Composes cleanly with async generators
-   - Enforces timeout at the event loop level, independent of HTTP client
+**What doesn't work:**
+- The world step still hangs and times out after 60s
+- It should complete in ~4 seconds like every other step
+- The timeout is a band-aid, not a fix
 
-3. **Pass `timeout=None` to AsyncOpenAI** when using `asyncio.timeout()`:
-   - Avoids double-timeout logic
-   - Lets asyncio own the wall-clock budget
+**The mystery:**
+- Same `llm_chat()` call works fine via `ev.py prompt-eval call`
+- Same call hangs when called from the async generator after `yield ("complete")`
+- The httpx timeout doesn't fire in the async generator context
+- `asyncio.timeout()` cancels it correctly, but that's a workaround
 
-4. **Handle `CancelledError` explicitly**:
-   - Ensures proper cleanup when timeout fires
-   - Returns empty results so turn can continue
-   - `world_done` event fires and input box unlocks
-
-This follows Python async best practices for timeout enforcement in SSE streaming contexts with FastAPI/Starlette EventSourceResponse.
-
-**Known issues:**
-- The world step still hangs (times out after 60s) when called from the async generator
-- The same call works fine when called directly via `ev.py prompt-eval call`
-- The root cause of the hang is unknown — it's not the LLM, not the prompt, not the timeout
-- The timeout prevents it from hanging forever, but it should complete in 4 seconds like every other step
-- This is a band-aid, not a fix for the underlying hang
-
-**What we know:**
-- `ev.py prompt-eval call` works — same `llm_chat()` function, same model, same prompt
-- Game engine hangs — no response, no timeout error, just stuck
-- The hang happens after `yield ("complete")` in the async generator
-- The httpx client's timeout doesn't fire in this context
-- `asyncio.timeout()` cancels the call correctly, but that's a workaround, not a fix
-
-**What we don't know:**
-- Why the world step hangs specifically when called from the async generator
-- Why other steps (ruling, narrate, extraction) work fine in the same context
-- Whether this is a bug in httpx, AsyncOpenAI, or something about the async generator context
-- Whether the singleton client pattern is causing issues after `yield ("complete")`
+**What I don't know:**
+- Why the world step specifically hangs in this context
+- Why other steps (ruling, narrate, extraction) work fine
+- Whether this is a bug in httpx, AsyncOpenAI, or the async generator pattern
+- Whether the singleton client is causing issues after `yield ("complete")`
