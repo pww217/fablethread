@@ -1,6 +1,6 @@
 ---
 title: "Turn never starts after seed gen — no ruling/narrate calls, state reverts to T0"
-status: new
+status: done
 urgency: 1
 size: medium
 created: 2026-06-26
@@ -170,16 +170,23 @@ Following existing pattern: extraction data goes in the main event, saved once a
 - ✅ UI lock releases after normal pipeline (ruling → narrate → extraction → complete)
 - ✅ Async steps (sanitize + world) run without blocking UI
 
-### Final fix: release lock before async window
+### Final fix: release lock BEFORE yielding complete event
 
-The `_inflight` lock is now released **before** the async window starts, not in the `finally` block. This ensures the frontend can proceed immediately after the normal pipeline completes, without waiting for sanitize/world steps.
+The `_inflight` lock is now released **before** yielding the complete event, not after. This ensures the frontend can proceed immediately when it receives the complete event.
 
 ```python
-# After yield("complete"), before async window:
+# Build result object
+result_obj = TurnResult(...)
+
+# Release lock BEFORE yielding complete
 await _inflight.release(str(save_dir))
 signal_turn_done(str(save_dir))
 released = True
 
+# Now yield complete event
+yield ("complete", result_obj)
+
+# Frontend closes SSE connection here, but lock is already released
 # Async window runs without lock held
 yield ("phase", {"phase": "sanitize_start"})
 # ... sanitize ...
