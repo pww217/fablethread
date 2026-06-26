@@ -515,20 +515,18 @@ async def new_game(request: Request):
             )
 
     try:
-        if has_hints:
-            # Hints provided — use static pack seed as fallback
-            _log.info("new_game hints provided, using static pack seed pack=%s", _app_mod._pack_id)
-            pack = _app_mod._active_pack
-            if pack.seed is None:
-                return HTMLResponse("<p class='text-red-400'>This pack has no static seed state. Provide no hints to generate a custom game.</p>", status_code=400)
-            seed = pack.seed.model_dump(mode="json")
+        if _app_mod._active_pack.seed is not None and not has_hints:
+            # Static seed path — only when no hints provided and static seed exists
+            _log.info("new_game no hints, using static pack seed pack=%s", _app_mod._pack_id)
+            seed = _app_mod._active_pack.seed.model_dump(mode="json")
             seed["meta"]["setting_pack"] = _app_mod._pack_id
             if pc_stats_dict:
                 seed.setdefault("pc", {})["stats"] = pc_stats_dict
             actions = _generate_seed_actions(seed)
             _apply_seed_to_save_dir(seed, None, actions, pack_type="static", pack_source=_app_mod._pack_id)
         else:
-            # No hints — generate seed via LLM
+            # Dynamic seed path — always uses overrides (empty or not)
+            _log.info("new_game dynamic seed pack=%s has_hints=%s", _app_mod._pack_id, has_hints)
             envelope, pool_selection = await generate_seed(
                 _app_mod._active_pack,
                 _app_mod.engine_config,

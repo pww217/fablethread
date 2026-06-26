@@ -1,6 +1,6 @@
 ---
 title: Turn cancel/retry does not fully restore previous state atomically
-status: testing
+status: validated
 urgency: 2
 size: medium
 created: 2026-06-22

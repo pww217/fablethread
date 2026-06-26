@@ -457,11 +457,11 @@ ev.py check 5 ruling_intent_match --llm --save-dir saves/my-game
 
 ---
 
-## Testing Items Review
+## Validating Items Review
 
-When reviewing an eval group for testing items (bugs in `testing` status awaiting confirmation):
+When reviewing an eval group for validating items (bugs in `validating` status awaiting confirmation):
 
-1. **Scan roadmap** — read all `roadmap/bugs/*.md` with `status: testing`
+1. **Scan roadmap** — read all `roadmap/bugs/*.md` with `status: validating`
 2. **Match to relevant runs** — determine which scenario(s) are relevant to each bug based on bug labels (e.g., `pacing` → convergence issues, `narrative` → beat/story issues)
 3. **Run targeted checkers** — check the specific mechanics related to the bug:
    ```bash
@@ -471,7 +471,7 @@ When reviewing an eval group for testing items (bugs in `testing` status awaitin
    - Bug behavior absent → update status to `done`, set `completed: YYYY-MM-DD`, run `make roadmap`
    - Bug still present → update status to `up-next`, note regression in report
 5. **Report** — in consolidated report under "Validating Items":
-    - List each testing item with status (confirmed/done or regressed/up-next)
+   - List each validating item with status (confirmed/done or regressed/up-next)
    - Note which run(s) were checked and what checker/command was used
 
 ## Git Log Change Assessment
