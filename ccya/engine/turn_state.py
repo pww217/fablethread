@@ -469,23 +469,8 @@ def _apply_state_updates(
                         extra={"trace_id": trace_id, "turn": turn_no},
                     )
 
-        # Beat history: snapshot pending_gm_beat after floor relief override.
-        # No entry is added when delta is None (extraction pipeline error) — beat
-        # history will have a gap for this turn, which is intentional for error-path
-        # turns so the next turn's diversity guidance isn't contaminated.
-        _history_beat = state.get("meta", {}).get("pending_gm_beat")
-        meta = state.setdefault("meta", {})
-        meta.setdefault("recent_beats", []).append({
-            "turn": turn_no,
-            "type": _history_beat.get("type") if _history_beat else None,
-            "effect": _history_beat.get("effect") if _history_beat else None,
-        })
-        # Cap at N entries, oldest first
-        max_beats = config.recent_beats_max if config else 5
-        if len(meta["recent_beats"]) > max_beats:
-            meta["recent_beats"] = meta["recent_beats"][-max_beats:]
-
         # Persist inventory change reason for right-panel tooltip
+        meta = state.setdefault("meta", {})
         if delta and (delta.inventory_add or delta.inventory_remove or delta.inventory_update):
             if delta.inventory_change_reason:
                 meta["last_inventory_change_reason"] = delta.inventory_change_reason
@@ -518,7 +503,7 @@ def _apply_state_updates(
             entry["last_seen_location"] = location.get("name", "")
 
         # Arc director: process thread updates and arc resolution
-        if state.get("arc", {}) and storyteller_result:
+        if storyteller_result and (state.get("arc", {}) or storyteller_result.thread_add):
             thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
             if thread_delta is not None:
                 _merge_arc_update(
@@ -583,19 +568,31 @@ def _apply_state_updates(
                     _new_thread = storyteller_result.thread_add
                     turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
                     arc_raw = state.get("arc")
-                    if arc_raw and delta is not None:
+                    if delta is not None:
                         try:
-                            _existing_arc = LongTermObjective.model_validate(arc_raw)
-                            existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
+                            if arc_raw:
+                                _existing_arc = LongTermObjective.model_validate(arc_raw)
+                                existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
+                            else:
+                                _existing_arc = None
+                                existing_ids = set()
                             if _new_thread.id not in existing_ids:
                                 _updated_t = _new_thread.model_copy(update={
                                     "added_turn": turn_no_for_add,
                                     "urgency_set_turn": turn_no_for_add,
                                 })
-                                arc_with_new_thread = _existing_arc.model_copy(
-                                    update={"threads": list(_existing_arc.threads) + [_updated_t],
-                                            "last_thread_created_turn": turn_no_for_add}
-                                )
+                                if _existing_arc:
+                                    arc_with_new_thread = _existing_arc.model_copy(
+                                        update={"threads": list(_existing_arc.threads) + [_updated_t],
+                                                "last_thread_created_turn": turn_no_for_add}
+                                    )
+                                else:
+                                    arc_with_new_thread = LongTermObjective(
+                                        long_term_objective="",
+                                        threads=[_updated_t],
+                                        completed_threads=[],
+                                        last_thread_created_turn=turn_no_for_add,
+                                    )
                                 if config:
                                     non_dormant = [t for t in arc_with_new_thread.threads if not t.dormant]
                                     if len(non_dormant) > config.thread_max_active:

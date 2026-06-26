@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "arc_resolution_validity", "deterministic",
-    requires_fields=["extraction.storytell", "last_turn_state"],
+    requires_fields=["extraction.record", "last_turn_state"],
     description="arc_resolve has resolution + long_term_objective",
     needs_non_turn_events=True,
 )
@@ -20,8 +20,8 @@ def arc_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
     all_passed = True
 
     for ev in events:
-        storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
-        arc_resolve = storytell_output.get("arc_resolve")
+        record_output = ((extract_field(ev, "extraction") or {}).get("record") or {}).get("output") or {}
+        arc_resolve = record_output.get("arc_resolve")
 
         if not isinstance(arc_resolve, dict):
             continue

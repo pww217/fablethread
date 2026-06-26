@@ -7,13 +7,15 @@ import logging
 from jinja2 import Environment
 from typing import TYPE_CHECKING, Any
 
+from pydantic import ValidationError
+
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _PROMPTS_LOG_PATH, _render
 from ccya.engine.extraction import _avg_event_ms
 from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine._pacing import _compute_ages
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
-from ccya.models import Band, IntentEnvelope, RulesCheck, RulesOutcome
+from ccya.models import Band, GMBeat, IntentEnvelope, RulesCheck, RulesOutcome
 from ccya.personality import ARCHETYPES
 from ccya.rules import resolve_check, build_directive
 
@@ -33,11 +35,12 @@ def _ruling_messages(
     inventory: list[dict[str, Any]] | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
     scene_phase: str = "SETUP",
+    beat_candidates: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     pc = state.get("pc") or {}
     location = state.get("location") or {}
     system_text = _render(env, "ruling_system.j2", {})
-    
+
     # Build urgent_threads from arc.threads with urgency == "urgent"
     arc = state.get("arc") or {}
     threads = arc.get("threads") or []
@@ -49,7 +52,7 @@ def _ruling_messages(
                 "summary": t.get("summary", ""),
                 "progress": t.get("major_updates", []),
             })
-    
+
     user_text = _render(
         env,
         "ruling_user.j2",
@@ -66,6 +69,7 @@ def _ruling_messages(
             "conditions": list(pc.get("conditions") or []),
             "state": state,
             "pc_situation": pc.get("situation") or {},
+            "beat_candidates": beat_candidates or [],
         },
     )
     return [
@@ -79,7 +83,7 @@ async def _call_ruling(
     config: EngineConfig,
     trace_id: str,
     turn: int = 0,
-) -> tuple[IntentEnvelope, dict[str, int], str, str]:
+) -> tuple[IntentEnvelope, dict[str, int], str, str, dict[str, Any] | None]:
     _no_intent = IntentEnvelope(
         intent="",
         intent_verb="act",
@@ -124,6 +128,7 @@ async def _call_ruling(
             j = _find_json(cleaned)
             if j is None:
                 raise ValueError("No JSON found in ruling response")
+            selected_beat = j.pop("selected_beat", None)
             intent = IntentEnvelope(**j)
             if not intent.reason.strip():
                 raise ValueError(f"reason is empty — must use [Ruling] [connector] [Reason] structure in 5-7 words (got reason={j.get('reason', '')!r})")
@@ -133,7 +138,7 @@ async def _call_ruling(
                 "prompt_tokens": usage.get("prompt_tokens", 0),
                 "completion_tokens": usage.get("completion_tokens", 0),
                 "total_tokens": usage.get("total_tokens", 0),
-            }, raw, ""
+            }, raw, "", selected_beat
         except Exception as exc:
             parse_error = str(exc)
             _log.warning(
@@ -155,7 +160,7 @@ async def _call_ruling(
         "ruling call failed after all attempts — defaulting to no-roll",
         extra={"trace_id": trace_id, "turn": turn, "error_kind": "RULING_PARSE_FAILED"},
     )
-    return _no_intent, _no_usage, "", parse_error
+    return _no_intent, _no_usage, "", parse_error, None
 
 
 
@@ -211,6 +216,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     # Build ruling messages
     _comp = state.get("compendium", {}).get("npcs", {})
     scene_phase = (state.get("scene") or {}).get("scene_phase", "SETUP")
+    beat_candidates = (state.get("meta") or {}).get("beat_candidates") or []
     ruling_messages = _ruling_messages(
         ctx._env, state, ctx.user_input,
         turn_no=turn_no,
@@ -218,6 +224,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
         inventory=state.get("inventory") or None,
         recent_turns=ctx.recent_turns[-1:],
         scene_phase=scene_phase,
+        beat_candidates=beat_candidates,
     )
     rendered_ruling_system = ruling_messages[0]["content"] if ruling_messages else ""
     rendered_ruling_user = ruling_messages[-1]["content"] if ruling_messages else ""
@@ -231,7 +238,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     if config.log_prompts:
         _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "ruling", ruling_messages)
 
-    intent, ruling_usage, ruling_raw_response, ruling_parse_error = await _call_ruling(
+    intent, ruling_usage, ruling_raw_response, ruling_parse_error, selected_beat = await _call_ruling(
         ruling_messages, config, trace_id,
     )
     ctx.intent = intent
@@ -239,6 +246,33 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     ctx._ruling_parse_error = ruling_parse_error
     ctx._ruling_trimmed = ruling_trimmed
     ctx._ruling_trimmed_chars = ruling_trimmed_chars
+
+    # Beat lifecycle: validate selected_beat, set pending_gm_beat, append recent_beats,
+    # and always discard beat_candidates (no orphan across turn boundary).
+    beat: GMBeat | None = None
+    if selected_beat:
+        try:
+            beat = GMBeat(**selected_beat)
+        except ValidationError:
+            beat = None
+
+    if beat and beat.type:
+        beat_dict = beat.model_dump(exclude_none=True)
+        state.setdefault("meta", {})["pending_gm_beat"] = beat_dict
+        meta = state.setdefault("meta", {})
+        meta.setdefault("recent_beats", []).append({
+            "turn": turn_no,
+            "type": beat.type,
+            "effect": beat.effect,
+        })
+        max_beats = config.recent_beats_max or 5
+        if len(meta["recent_beats"]) > max_beats:
+            meta["recent_beats"] = meta["recent_beats"][-max_beats:]
+    else:
+        state.get("meta", {}).pop("pending_gm_beat", None)
+
+    # Always discard candidates
+    state.get("meta", {}).pop("beat_candidates", None)
 
     # Handle impossible actions: no dice roll, synthesize failure outcome
     if intent.impossible:

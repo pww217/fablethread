@@ -10,8 +10,9 @@ meta:
   setting_pack: str
   model: str
   compendium_touch_order: [str]  # LRU order for NPC selection
-  pending_gm_beat: dict | None  # GM beat from scene extractor, consumed by next turn's narrator (runtime-only)
-  prior_history: list[str]     # incremental history bullets (- [T{n}] text), appended per storyteller turn, capped at 20 newest
+  pending_gm_beat: dict | None  # GM beat selected by Ruling from beat_candidates, consumed by same turn's Narrate (runtime-only, no TTL — single-turn commitment)
+  beat_candidates: list[dict]  # 0-3 candidate beats prepared by World step (async, end-of-prev-turn), consumed and popped by Ruling
+  prior_history: list[str]     # incremental history bullets (- [T{n}] text), appended per record turn (formerly per storyteller turn), capped at 20 newest
   _seed_type: str | None       # "static" or "dynamic" — set by seed application, read by turn viewer
   _pack_source: str | None     # pack ID that was used to generate this state
 
@@ -61,7 +62,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 - **RulesOutcome**: `rolled`, `skill`, `difficulty`, `stat_value`, `stat_mod`, `diff_mod`, `dice`, `raw_total`, `final_total`, `band`, `directive`, `intent`, `intent_verb`, `impossible`, `reason`
 - **SceneExtractResult**: `compendium_npc_update`, `candidate_npcs: list[dict]` (per-NPC beat candidates: [{id, type, effect}])
 - **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`, `location_change`, `location_description`
-- **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (dict | None, applied directly to arc dict), `arc_resolve` (ArcResolution | None), `thread_resolve` (with outcome sentence + world_state_candidate), `thread_add`, `gm_beat`, `actions`, `outcome_summary`
+- **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (dict | None, applied directly to arc dict), `arc_resolve` (ArcResolution | None), `thread_resolve` (with outcome sentence + world_state_candidate), `thread_add`, `actions`, `outcome_summary`. **The `gm_beat` field has been removed** — beat generation moved to Step 2d (World), beat selection to Step 0 (Ruling). The Pydantic class name is preserved (`StorytellerResult`); only the field is gone.
 - **SeedEnvelope**: `seed_state: SeedState`, `opening_narrative`, `actions`, `arc: LongTermObjective | None` (unified `threads[]` with `major_updates: list[ProgressEntry]`, `completed_threads[]`)
 
 ### State models (ccya/models/state.py)
@@ -96,7 +97,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 
 ### Config models (ccya/models/config.py)
 
-- **TurnResult** dataclass: `turn`, `trace_id`, `narrative`, `state_delta`, `applied`, `rejected`, `actions`, `diff`, `changes`, `metrics`, `errors`, `ruling`, `outcome_summary`, `gm_beat`, `outcome_hint`, `scene_phase`, `summary`, `ts`
+- **TurnResult** dataclass: `turn`, `trace_id`, `narrative`, `state_delta`, `applied`, `rejected`, `actions`, `diff`, `changes`, `metrics`, `errors`, `ruling`, `outcome_summary`, `outcome_hint`, `scene_phase`, `summary`, `ts`. The `gm_beat` field has been removed; beats flow through `state.meta.pending_gm_beat` and `state.meta.beat_candidates`.
 - **SkillName**: 4 skills (strength, dexterity, wits, charisma)
 - **Difficulty**: 5 difficulty levels with modifiers in DIFFICULTY_MOD
 - **Band**: crit_fail, fail, setback, partial, success, crit_success (1d12 natural: 1=crit_fail, 12=crit_success)
@@ -109,8 +110,9 @@ world.factions: [str], world.locations: list[KeyLocation]
 ## Non-obvious model behavior
 
 ### GMBeat
-- Only `type` validated by `StorytellerResult._nullify_invalid_gm_beat`: beat nullified if `type` is None/falsy
-- `beat_expires_turn`: turn number at which pending beat expires (set to `turn_no + 2` in turn.py)
+- Repurposed as the validation schema for World candidates and Ruling's `selected_beat`. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str), `npc_id` (str | None), `driver` (Literal — silently coerced to `None` if not in valid set).
+- **`beat_expires_turn` field removed** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic. No orphan can survive a turn boundary.
+- The old `StorytellerResult._nullify_invalid_gm_beat` validator is gone; its logic (drop beat if `type` is None/falsy) now lives inline in `ruling.py:_ruling_phase`.
 
 ### WorldStateFact
 - `tier: Literal["global", "local"]` — global facts are immutable world constraints (seed-authored or confirmed by sanitizer); local facts are area-specific and may be temporary

@@ -1,6 +1,8 @@
-# Step 2c — Storytell
+# Step 2c — Record
 
-Extracts thread updates, arc actions, and durable NPC compendium changes. World state changes use a two-step promotion: storyteller flags `world_state_candidate` in ThreadResolution, collected in `state["world_state_candidates"]`; sanitizer confirms with full array replacement authority (seed worldbuilding plan).
+Backward-looking scribe step. Extracts thread updates, arc actions, and the durable player-facing recap (`outcome_summary`, `actions`). Runs as part of the synchronous extraction pipeline after Scene (2a) and State (2b).
+
+> **Beat generation moved to Step 2d (World).** Beat selection moved to Step 0 (Ruling). The `gm_beat` field has been removed from `StorytellerResult`; the `GMBeat` Pydantic model is repurposed as the validation schema for World candidates and Ruling's `selected_beat`. See [step2d-world.md](./step2d-world.md) and [step0-ruling.md](./step0-ruling.md).
 
 ## Flowchart
 
@@ -12,22 +14,15 @@ flowchart LR
 
     subgraph IN["Inputs"]
         S1["narrative (from Step 1)"]:::xstream
-        S2["_ExtractionContext<br>(comp_this_turn, location,<br>candidate_npcs, inventory,<br>conditions)<br>built by _build_extraction_context()"]:::xstream
-        S3["npc_roster<br>(from build_npc_roster())"]:::xstream
-        S4["pacing_context<br>(directive · outcome_hint)"]:::xstream
-        S4b["scene_phase<br>(SETUP/RISING/CLIMAX/RESOLUTION/BREATHER)"]:::xstream
-        S4c["allowed_beat_types<br>(phase-derived list of permitted beat types)"]:::xstream
         S5["pc_name<br>(player character name)"]:::xstream
         S6["arc.threads[]<br>(unified scope=scene + scope=arc)"]:::xstream
-        S7["rules_outcome"]:::xstream
-        S8["intent (from Step 0)"]:::xstream
+        S7["rules_outcome.band"]:::xstream
         S9["recent_turns[-10:]<br>(prior narration, last 10 turns)"]:::xstream
         S10["prior_history[:-1]<br>(all history bullets except last,<br>already shown as full text)"]:::xstream
-        S11["recent_beats<br>(beat history for diversity)"]:::xstream
     end
 
-    subgraph LLM2C["LLM — storytell_system.j2 + storytell_user.j2"]
-        SL["temp: 0.4 · max_retries: 1<br>output: StorytellerResult JSON"]:::llmNode
+    subgraph LLM2C["LLM — record_system.j2 + record_user.j2"]
+        SL["temp: 0.4 · max_retries: 1<br>output: StorytellerResult JSON<br>(gm_beat field removed)"]:::llmNode
     end
 
     subgraph OUT["Outputs — StorytellerResult"]
@@ -35,10 +30,9 @@ flowchart LR
         O1b["goal_update: dict | None<br>  new long_term_objective, mid-arc pivot<br>  applied via goal_update['long_term_objective']"]:::outNode
         O1c["arc_resolve: ArcResolution | None<br>  resolution, long_term_objective"]:::outNode
         O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state, outcome,<br>resolved_turn, world_state_candidate"]:::outNode
-        O3["thread_add: ArcThread | None<br>  new thread, gated by phase-derived allowed_beat_types"]:::outNode
+        O3["thread_add: ArcThread | None"]:::outNode
         O4["actions: list[str]<br>  exactly 4 suggested player choices, grounded in game state (NPCs, inventory, location)"]:::outNode
         O5["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
-        O6["gm_beat: GMBeat | None<br>  forward-facing storytelling beat"]:::outNode
     end
 
     IN --> LLM2C
@@ -47,114 +41,9 @@ flowchart LR
 
 ## Always runs
 
-Storytell is the post-narration storytelling brain. It always executes every turn (never skipped) and feeds next turn's rules call via `thread_update/goal_update/arc_resolve/thread_resolve/thread_add` (storyteller-managed thread lifecycle), and `gm_beat` (forward-facing beats stored in `state.meta.pending_gm_beat`). World state candidates are collected in `state["world_state_candidates"]` from ThreadResolution.world_state_candidate; sanitizer evaluation is handled by the seed worldbuilding plan.
+Record is the post-narration backward-looking scribe. It always executes every turn (never skipped) and feeds the next turn's rules call via `thread_update/goal_update/arc_resolve/thread_resolve/thread_add` (record-managed thread lifecycle). World state candidates are collected in `state["world_state_candidates"]` from ThreadResolution.world_state_candidate; sanitizer evaluation is handled by the seed worldbuilding plan.
 
-## GM Beat
-
-Forward-facing storytelling beats that shape scene progression across turns. Beats are emitted by Storytell (Step 2c), consumed by Narrator (Step 1) the following turn, and managed via a write/expiry lifecycle in `state.meta.pending_gm_beat`.
-
-### GMBeat Schema
-
-```
-GMBeat
-  type: complication | revelation | opportunity | breathing_room | pressure | twist | setback | escalation | callback
-  effect: str (required — terse signpost ~5-7 words, not a full sentence)
-  npc_id: str | None
-   driver: Literal["motivation", "fear", "leverage", "bond"] | None
-  beat_expires_turn: int | None — turn number at which the beat expires; set to turn_no + 2 when stored
-```
-
-**Scene-driven beats:** Scene provides `candidate_npcs: [{id, type, effect}]` as starting signals. Storytell maps them to specific NPCs and threads using three patterns: (1) deliver as-is — use the candidate's driver and effect directly; (2) combine — merge multiple drivers into a single beat; (3) thread-apply — apply the effect to an existing thread. If scene provided no candidates, storytell generates a beat from scratch based on narration + threads.
-
-**Validation:** Only `type` is validated by `StorytellerResult._nullify_invalid_gm_beat` — nullified if type is falsy or not in the valid set. `effect` is required (empty string default). Python accepts whatever gm_beat the LLM emits with no correction or override.
-
-### PacingContext Fields
-
-The beat system intersects with pacing via the `directive` field in `PacingContext` (see [step0-ruling](./step0-ruling.md#pacing-context)):
-
-| Field | Type | Meaning |
-|-------|------|---------|
-| `directive` | str | Narration directive (e.g., "Breathe", "Scene Imperative", "Scene Pressure", or empty). Drives storytell guidance for beat type selection. |
-
-> **Note:** `beat_locked` and `gate` fields were removed from `PacingContext` in the phase engine overhaul. Phase-derived `allowed_beat_types` is the gating mechanism for beat type selection.
-
-### Beat Lifecycle — Turn Sequence
-
-```mermaid
-flowchart TD
-    classDef pyNode fill:#1f2937,color:#9ca3af,stroke:#4b5563
-    classDef decision fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
-    classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
-
-    START["Turn begins"]:::pyNode --> EXPIRY{"beat_expires_turn set<br>AND turn_no > expires?"}:::decision
-    EXPIRY -- yes --> NULLIFIED["Beat nullified (expired)<br>state.meta.pending_gm_beat = None"]:::output
-    EXPIRY -- no --> KEEPBEAT["Beat kept<br>stays in state"]:::pyNode
-
-    NULLIFIED --> NARRATE["Narrate receives pending_gm_beat<br>(None if expired, beat dict if kept)"]
-    KEEPBEAT --> NARRATE
-
-    NARRATE --> EXTRACTION["Extraction pipeline (scene → state → storytell)<br>pending_gm_beat persists unchanged<br>through this phase"]:::pyNode
-
-    EXTRACTION --> STORYLLM{"Storytell emits gm_beat<br>with non-null type?"}:::decision
-    STORYLLM -- "yes" --> STORED["state.meta.pending_gm_beat = storyteller beat<br>beat_expires_turn = turn_no + 2 (TTL: 2 turns)"]:::output
-
-    STORYLLM -- "no / null" --> POPPED["state.meta.pending_gm_beat = None<br>(key popped from meta)"]:::pyNode
-    POPPED --> APPEND_BEATS["recent_beats.append(snapshot)"]:::pyNode
-    STORED --> APPEND_BEATS
-
-    APPEND_BEATS --> DONE["Turn ends"]:::pyNode
-
-    STORED -. "next turn" .-> START
-
-    style EXPIRY fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
-    style STORYLLM fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
-    style FLOOR fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
-```
-
-**Step 1 — Pre-narration expiry check.** At the start of each turn, the engine reads `state.meta.pending_gm_beat` from the previous turn. If `beat_expires_turn` is set and the current turn number exceeds it, the beat is nullified (key set to None). Otherwise it proceeds to narration.
-
-Note: This expiry runs early enough that the beat is gone before the extraction phase begins. This creates clean state for the storyteller to emit a new beat.
-
-**Step 2 — Narration consumption.** The beat is passed to the narrator via `_narrate_messages(pending_gm_beat=...)`. The narrator uses the beat's `type` and `effect` as creative guidance alongside the pacing directive. The beat is NOT cleared after narration — it persists through the extraction phase.
-
-**Step 3 — Storytell writes or clears the beat.** After extraction completes:
-- If Storytell emits a valid `gm_beat` (non-null `type`): replaces `pending_gm_beat` with `beat_expires_turn = turn_no + 2`.
-- If Storytell emits `null` or an invalid beat: pops `pending_gm_beat` from state (null-clear). The old beat does NOT carry forward.
-
-**Step 4 — Beat history snapshot.** `pending_gm_beat` is appended to `state.meta.recent_beats` (capped at 5 entries). The snapshot reflects the beat the next turn's narrator will consume.
-
-
-
-### Phase-Beat Constraints
-
-The storyteller prompt (`storytell_system.j2`) uses a phase→beat constraints table driven by `scene_phase` and `allowed_beat_types` context variables. Each phase (SETUP, RISING, CLIMAX, RESOLUTION, BREATHER) specifies which beat types are permitted. The roll-band table becomes the secondary constraint when phase allows multiple types. Phase overrides roll band. This alignment is **guidance only** — Python accepts whatever gm_beat the LLM emits with no validation, correction, or override. Design rationale: forcing phase-beat alignment would constrain storytelling flexibility and create brittleness if the LLM makes contextually appropriate but phase-divergent beat choices.
-
-### Beat History
-
-`state.meta.recent_beats` stores the last 5 beats (including null entries) with `turn`, `type`, and `effect`. This history is rendered in both the storyteller system prompt (behavioral guidance) and the user prompt (current-turn context, more salient). Each entry shows `T{N}: {BEAT TYPE} — {effect}` or `T{N}: No beat emitted this turn`.
-
-The LLM uses this history to follow beat diversity guidance: avoid repeating the same type more than twice in a sequence; at least one in three beats should be a non-pressure type.
-
-### TTL Mechanics Summary
-
-| Source | Default TTL | Expiry Calculation |
-|--------|-------------|-------------------|
-| Storytell-emitted beat | 2 turns | `beat_expires_turn = turn_no + 2` |
-| Floor relief (Python-injected) | 2 turns | `beat_expires_turn = turn_no + 2` |
-
-### Null-Clear Behavior
-
-When Storytell emits a null beat (or an invalid beat whose type is nullified), `pending_gm_beat` is popped from `state.meta`. The beat does NOT carry forward. This replaced the old carryover behavior where stale beats persisted through null turns.
-
-The storyteller user prompt always renders the GM Beat section — on null-following turns it shows "No beat currently carried over from the previous turn. Choose freely." This ensures the LLM has consistent beat awareness on every turn.
-
-### GM Beat Section in UI
-
-The storyteller user prompt renders the `## GM Beat` section unconditionally:
-- **Beat present:** Shows type, effect, expiration turn.
-- **No beat:** Shows fallback text — "No beat currently carried over from the previous turn. Choose freely."
-
-This was changed from the previous conditional rendering (where the section vanished on ~38% of turns), ensuring full beat awareness coverage.
+Record's prompt was previously the unified "Storytell" prompt. The split removed forward-looking inputs (pacing_context, candidate_npcs, npc_roster, intent, recent_beats) and forward-looking outputs (gm_beat). Beat generation now lives in Step 2d (World) and beat selection in Step 0 (Ruling).
 
 ## Campaign Arc System
 

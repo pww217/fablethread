@@ -6,16 +6,16 @@ Cross-reference mapping every user template to its section includes and context 
 
 | Section template | Callers | Required vars | Optional vars | Emits header |
 |---|---|---|---|---|
-| `_pc_header.j2` | ruling, narrate, extract_state, storytell | `pc` (dict) | — | `## Player Character` |
-| `_conditions.j2` | ruling, narrate, extract_state, storytell | — | `conditions`, `show_age`, `turn_no` | `## active_conditions` |
-| `_inventory.j2` | ruling, narrate, extract_state, storytell | — | `inventory` (→`state.inventory`) | `## Inventory` |
-| `_location.j2` | narrate, storytell | — | `location` (→`state.location`) | `## Location` |
-| `_npc_roster.j2` | narrate, scene, storytell | `npc_roster` (list) | `turn_no`, `show_all_fields` (bool, defaults to present-only when absent) | `## Characters` |
-| `_npc_names.j2` | storytell | `npc_roster` (list) | — | `## NPC Names` |
-| `_thread_list.j2` | narrate, storytell | `threads` (list) | `turn_no` | `### Active Threads` / `### Dormant Threads` |
-| `_arc.j2` | narrate, storytell | — | `current_arc`, `resolved_arcs` | `### Campaign Arc`, `### Previously Resolved Arcs`, `### Completed Threads` |
-| `_recent_turns.j2` | ruling, narrate, storytell | — | `recent_turns` | `## Prior Turn` |
-| `_world_state.j2` | narrate | `state` (dict) | — | none (caller provides) |
+| `_pc_header.j2` | ruling, narrate, extract_state, record | `pc` (dict) | — | `## Player Character` |
+| `_conditions.j2` | ruling, narrate, extract_state, record | — | `conditions`, `show_age`, `turn_no` | `## active_conditions` |
+| `_inventory.j2` | ruling, narrate, extract_state, record | — | `inventory` (→`state.inventory`) | `## Inventory` |
+| `_location.j2` | narrate, record | — | `location` (→`state.location`) | `## Location` |
+| `_npc_roster.j2` | narrate, scene, record | `npc_roster` (list) | `turn_no`, `show_all_fields` (bool, defaults to present-only when absent) | `## Characters` |
+| `_npc_names.j2` | record | `npc_roster` (list) | — | `## NPC Names` |
+| `_thread_list.j2` | narrate, record | `threads` (list) | `turn_no` | `### Active Threads` / `### Dormant Threads` |
+| `_arc.j2` | narrate, record | — | `current_arc`, `resolved_arcs` | `### Campaign Arc`, `### Previously Resolved Arcs`, `### Completed Threads` |
+| `_recent_turns.j2` | ruling, narrate, record | — | `recent_turns` | `## Prior Turn` |
+| `_world_state.j2` | narrate, record | `state` (dict) | — | none (caller provides) |
 
 ## Caller → Template Contracts
 
@@ -51,10 +51,20 @@ Cross-reference mapping every user template to its section includes and context 
 
 **Inline (not section):** Player character header, intent block, narration blocks
 
-### `_storytell_messages()` → `storytell_user.j2`
+### `_record_messages()` → `record_user.j2`
 
-**Context vars passed:** `narration`, `npc_roster`, `candidate_npcs`, `comp_this_turn`, `location`, `inventory`, `conditions`, `current_arc`, `all_threads`, `world_state`, `resolved_arcs`, `intent`, `pacing_context`, `recent_turns`, `prior_history`, `pending_beat`, `recent_beats`, `turn_no`, `band`, `scene_phase`, `curtain_call`, `allowed_beat_types`, `pc_name`
+**Context vars passed:** `narration`, `current_objective` (arc), `all_threads`, `world_state`, `resolved_arcs`, `recent_turns`, `prior_history`, `turn_no`, `band`, `pc_name`
 
-**Section includes:** `_inventory.j2`, `_conditions.j2`, `_npc_roster.j2`, `_npc_names.j2`, `_location.j2`, `_arc.j2`, `_thread_list.j2`, `_recent_turns.j2`
+**Section includes:** `_arc.j2`, `_thread_list.j2`, `_recent_turns.j2`
 
-**Inline (not section):** Scene Input (candidate_npcs as formatted list), Threads section, world_state block, pacing_context, scene_phase, curtain_call, GM beat, recent beats, rules_outcome, prior_history, player_intent, narration blocks, beat type reminder
+**Inline (not section):** Threads section, world_state block, rules_outcome (band), prior_history, narration block
+
+**Note:** This contract replaces the old `_storytell_messages()` → `storytell_user.j2` contract. The forward-looking inputs (`candidate_npcs`, `pacing_context`, `intent`, `pending_beat`, `recent_beats`, `allowed_beat_types`, `scene_phase`, `curtain_call`, `comp_this_turn`) are no longer passed to Record; they moved to World (Step 2d) and Ruling (Step 0).
+
+### `_run_world_step()` → `world_user.j2`
+
+**Context vars passed:** `candidate_npcs`, `arc` (threads), `pacing_context`, `recent_beats`, `allowed_beat_types`, `rules_outcome`, `narration`
+
+**Section includes:** none (World is a self-contained prompt with no shared section includes)
+
+**Inline (not section):** Candidate NPCs, active threads, pacing context, recent beats, allowed beat types, roll outcome, most recent narration

@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "arc_goal_updates", "deterministic",
-    requires_fields=["extraction.storytell", "last_turn_state"],
+    requires_fields=["extraction.record", "last_turn_state"],
     description="goal_update overwrites long_term_objective",
 )
 def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
@@ -19,8 +19,8 @@ def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
     all_passed = True
 
     for ev in events:
-        storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
-        goal_update = storytell_output.get("goal_update")
+        record_output = ((extract_field(ev, "extraction") or {}).get("record") or {}).get("output") or {}
+        goal_update = record_output.get("goal_update")
 
         if not goal_update or not isinstance(goal_update, dict):
             continue
@@ -28,7 +28,7 @@ def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
         goal_lto = goal_update.get("long_term_objective", "")
 
         # If this turn also resolved the arc, arc_resolve.long_term_objective supersedes goal_update
-        if storytell_output.get("arc_resolve"):
+        if record_output.get("arc_resolve"):
             continue
 
         # last_turn_state is captured post-turn (after goal_update is applied),
@@ -43,7 +43,7 @@ def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
             findings.append({
                 "turn": ev.get("turn"),
                 "check": "goal_update_applied",
-                "detail": f"storytell emitted goal_update.long_term_objective='{goal_lto}' at turn {ev.get('turn')}, but state's long_term_objective='{long_term_objective}'",
+                "detail": f"record emitted goal_update.long_term_objective='{goal_lto}' at turn {ev.get('turn')}, but state's long_term_objective='{long_term_objective}'",
             })
             all_passed = False
 

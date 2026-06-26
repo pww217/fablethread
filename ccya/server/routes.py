@@ -348,9 +348,9 @@ async def get_turn(input: str = ""):
                     streams = extract_metrics.get("streams", {}) or {}
                     scene_skipped = (streams.get("scene") or {}).get("skipped", False)
                     state_skipped = (streams.get("state") or {}).get("skipped", False)
-                    storytell_skipped = (streams.get("storytell") or {}).get("skipped", False)
+                    record_skipped = (streams.get("record") or {}).get("skipped", False)
 
-                    if scene_skipped and state_skipped and storytell_skipped:
+                    if scene_skipped and state_skipped and record_skipped:
                         yield {
                             "event": "turn_error",
                             "data": json.dumps({
@@ -381,7 +381,6 @@ async def get_turn(input: str = ""):
                                 "ruling": result.ruling,
                                 "outcome_summary": result.outcome_summary,
                                 "debug_mode": _app_mod.engine_config.debug_mode,
-                                "gm_beat": result.gm_beat,
                                 "outcome_hint": result.outcome_hint,
                                 "scene_phase": result.scene_phase,
                                 "summary": result.summary,

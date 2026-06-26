@@ -20,15 +20,17 @@ flowchart TD
     STEP0 -- "IntentEnvelope<br>RulesOutcome" --> STEP1
     STEP1 -- "narrative: str" --> STEP2A["Step 2a<br>Scene"]:::stageScene
     STEP1 -- "narrative" --> STEP2B["Step 2b<br>State"]:::stageState
-    STEP1 -- "narrative" --> STEP2C["Step 2c<br>Storytell"]:::stageProgress
+    STEP1 -- "narrative" --> STEP2C["Step 2c<br>Record"]:::stageProgress
+    STEP2D["Step 2d<br>World (async, end-of-turn)"]:::stageProgress
     STATE -- "pc, inventory, compendium" --> STEP2A
     STATE -- "pc, inventory, conditions" --> STEP2B
     STATE -- "arc.threads, compendium" --> STEP2C
-    STEP2A -- "compendium_npc_update, candidate_npcs" --> STEP2C
+    STEP2A -- "compendium_npc_update, candidate_npcs" --> STEP2D
     STEP2B -- "location_change" --> STEP2C
     STEP2A & STEP2B & STEP2C -- "merge" --> DELTA["StateDelta"]:::mergeNode
     DELTA -- "validate + apply" --> STATE
     DELTA -- "event record" --> EVENTS
     DELTA -- "narrative" --> CHRONICLE
-    STEP2C -- "thread_update/goal_update/arc_resolve/resolve/add<br>gm_beat" --> STATE
+    STEP2C -- "thread_update/goal_update/arc_resolve/resolve/add" --> STATE
+    STEP2D --> STATE
 ```

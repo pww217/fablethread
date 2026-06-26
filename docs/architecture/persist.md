@@ -6,11 +6,11 @@ Atomic writes to disk. No LLM calls.
 
 - `narrate_prompt` is saved at the event level (with `rendered_system`, `rendered_user`, `output`, `context_meta`)
 - `ruling_prompt` is saved at the event level (with `rendered_system`, `rendered_user`, `output`, `parse_error`, `context_meta`)
-- `storytell_prompt` is NOT saved at the event level — it's available in `extraction.storytell.rendered_user` and `extraction.storytell.rendered_system`
+- `record_prompt` is NOT saved at the event level — it's available in `extraction.record.rendered_user` and `extraction.record.rendered_system` (record replaces the old storytell stream; see [step2c-record](./step2c-record.md))
 - `pacing_context` is saved at the event level (serialized dict with `directive`, `outcome_hint`, `summary`, `scene_phase`, etc.)
 - `last_turn_state` is saved at the event level (full state at end of turn, used by checkers for state-at-turn verification)
 - `changes` is saved at the event level (sanitizer output: inventory, player, facts, threads)
-- `extraction_context` is NOT saved at the event level — it's an internal dataclass used only during extraction to build the storyteller prompt. Checkers that need this data must parse `extraction.storytell.rendered_user` or use `applied.*`/`last_turn_state`.
+- `extraction_context` is NOT saved at the event level — it's an internal dataclass used only during extraction to build the record prompt. Checkers that need this data must parse `extraction.record.rendered_user` or use `applied.*`/`last_turn_state`.
 
 ### last_turn_state timing
 
