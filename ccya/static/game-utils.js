@@ -388,8 +388,8 @@ function _setProgressFromPhase(strip, payload) {
             label.textContent = 'Refreshing scene…';
         } else if (stream === 'state') {
             label.textContent = 'Updating state…';
-        } else if (stream === 'storytell') {
-            label.textContent = 'Writing the next page…';
+        } else if (stream === 'record') {
+            label.textContent = 'Recording Outcome…';
         } else {
             label.textContent = 'Updating game state…';
         }
@@ -404,7 +404,6 @@ function _setProgressFromPhase(strip, payload) {
         label.textContent = 'Sanitizing state…';
         if (eta) eta.textContent = '';
     } else if (p === 'sanitize_done') {
-        label.textContent = 'Saving…';
         if (eta) eta.textContent = '';
     }
 }

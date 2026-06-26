@@ -134,6 +134,7 @@ function game() {
     return {
         input: '',
         submitting: false,
+        asyncRunning: false,
         starting: false,
         gameStarted: window.__CCYA_INITIAL_STATE__.gameStarted,
         turnNum: window.__CCYA_INITIAL_STATE__.turnNum,
@@ -888,7 +889,21 @@ function game() {
                         try { _highlightEntities(textDiv, JSON.parse(stateScript.textContent)); } catch (e) { /* skip */ }
                     }
                 }
-                _setProgressFromPhase(strip, payload);
+                if (payload && payload.phase === 'extract_stream_done' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
+                    if (payload.stream === 'record') {
+                        self.asyncRunning = true;
+                        self.submitting = false;
+                        document.getElementById('player-input')?.removeAttribute('disabled');
+                    }
+                }
+                if (payload && payload.phase === 'world_done') {
+                    self.asyncRunning = false;
+                }
+                if (payload && (payload.phase === 'sanitize_start' || payload.phase === 'world_start')) {
+                    _setProgressFromPhase(strip, { phase: '', reason: '' });
+                } else {
+                    _setProgressFromPhase(strip, payload);
+                }
             });
 
             es.addEventListener('panel_update', (e) => {
