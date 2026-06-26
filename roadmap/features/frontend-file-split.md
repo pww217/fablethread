@@ -58,6 +58,39 @@ Replace the inline `<script>` block in `index.html` with three script tags (in `
 4. **`_configureMarked()` timing** — idempotent, returns early if `marked` not loaded. No risk.
 5. **CSS extraction** — `app.src.css` stays monolithic; split CSS files are mirrors for human readability. Tailwind v4 CLI doesn't resolve `@import`, so CDD approach avoids build changes entirely.
 
+## Post-merge fix
+
+The original split committed Jinja2 template syntax (`{{ }}`) directly inside `game.js`, which is served as a static file and never processed by Jinja2. This caused a JavaScript syntax error that broke all Alpine initialization (`game is not defined`).
+
+Fix: moved Jinja2-rendered initialization values into a small inline `<script>` block at the top of `<head>` that defines `window.__CCYA_INITIAL_STATE__`, then had `game.js` read from that object. Also reordered scripts so `game.js` loads before Alpine (Alpine was loading first and trying to evaluate `x-data="game()"` before the function was defined).
+
+## Follow-up fix: SSE panel updates
+
+The frontend file split also broke mid-turn SSE panel updates. All extraction results (NPC position changes, inventory updates, condition changes) were only visible at `turn_complete`, not incrementally after each extraction stream.
+
+**Root causes:**
+
+1. **No `panel_update` listener in `game.js`** — The pipeline yielded `panel_update` events after each stream, but the frontend had no handler. Events were silently dropped.
+
+2. **`panel_update` events carried pre-mutation state** — The state dict wasn't updated with extraction results until `_apply_state_updates` in `turn.py` (after all 3 streams). Position changes from scene extraction weren't visible in panel_update data.
+
+3. **`apply_delta` returns a new dict, never mutates in-place** — Building a preview state with `apply_delta` required capturing the return value. Discarding it left the preview unmodified.
+
+4. **`StateDelta` validators rejected the event** — `inventory_change_reason` and `condition_change_reason` are required when there are inventory/condition changes. Missing them caused `ValueError`, which was swallowed by the outer exception handler in `turn.py`, silently aborting all state panel updates.
+
+5. **Manual inventory/condition application was buggy** — `inventory_remove` has an `amount` field (`amount: 1` means "subtract 1", not "remove entire stack"). Manual code ignored `amount`, so ammo stacks disappeared mid-turn.
+
+6. **Location changes come from state extractor** — The state panel_update didn't include location data, so location changes weren't visible until turn end.
+
+**Fix:** Apply extraction results to a deep-copied preview state per-stream using the real `apply_delta` function, then yield `panel_update` events with the preview data. Frontend `panel_update` listener renders DOM directly from event data. Added `_renderInventoryItem`, `_renderConditionPill`, `_renderNpcListItem` helpers.
+
+**Commit:** `4a4e60e`
+
+**Files changed:**
+- `ccya/engine/extraction/pipeline.py`
+- `ccya/static/game.js`
+- `ccya/static/game-utils.js`
+
 ## Systems Affected
 
 * — `ccya/templates/index.html`

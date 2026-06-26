@@ -4,11 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if no_save %}Choose Your Own Adventure{% elif state.meta.session_name %}CCYA: {{ state.meta.session_name }}{% elif state.location.id %}{{ state.pc.get('name') or 'Player' }} @ {{ state.location.get('name') or state.location.get('id', '') }}{% else %}Choose Your Own Adventure{% endif %}</title>
+    <script>
+        window.__CCYA_INITIAL_STATE__ = {
+            noSave: {{ 'true' if no_save else 'false' }},
+            gameStarted: {{ 'false' if no_save else ('true' if state.location.id else 'false') }},
+            turnNum: {{ 0 if no_save else (state.meta.turn | default(0)) }},
+            hasNarrative: {{ 'true' if has_narrative else 'false' }},
+            characterCreationEnabled: {{ 'true' if character_creation_enabled else 'false' }},
+            activeSaveName: '{{ active_save_name }}',
+        };
+    </script>
     <script src="/static/vendor/htmx.min.js" defer></script>
+    <script defer src="/static/game.js"></script>
+    <script defer src="/static/game-utils.js"></script>
     <script src="/static/vendor/alpine.min.js" defer></script>
     <script src="/static/vendor/marked.min.js"></script>
-    <script defer src="/static/game-utils.js"></script>
-    <script defer src="/static/game.js"></script>
     <script defer src="/static/app-init.js"></script>
     <link rel="icon" type="image/png" href="/static/flavicon.png">
     <link rel="stylesheet" href="/static/app.css?v={{ css_v|default(0) }}">

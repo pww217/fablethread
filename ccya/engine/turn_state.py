@@ -8,9 +8,6 @@ from typing import Any
 from ccya.engine.config import EngineConfig
 from ccya.models import ArcThread, LongTermObjective, ProgressEntry, StorytellerResult, StateDelta
 from ccya.state import resolve_inventory_remove_target
-from pathlib import Path
-
-from ccya.state.chronicle import append_event
 from ccya.state.delta_builder import _merge_arc_update
 
 
@@ -400,11 +397,6 @@ def _expire_conditions(
             new_remaining = tr - 1
             if new_remaining <= 0:
                 expired_ids.append(c.get("id", "?"))
-                append_event(Path(save_dir), {
-                    "kind": "condition_expired",
-                    "condition_id": c.get("id"),
-                    "turn": turn_no,
-                })
                 _log.info(
                     "condition expired: %s at turn %d",
                     c.get("id"), turn_no,

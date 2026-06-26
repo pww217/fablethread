@@ -779,3 +779,45 @@ function initTurnLogUi() {
         if (e.key === 'Escape' && !shell.hidden) closeShell();
     });
 }
+
+function _renderNpcListItem(npc) {
+    const name = npc.display_name || npc.name || npc.id || '?';
+    const title = npc.title || '';
+    const position = npc.position || '';
+    const bio = npc.bio || '';
+    const pl = npc.personality_label || '';
+    const pt = npc.personality_traits || '';
+    const mot = npc.motivation || '';
+    const bond = (npc.bond_label || npc.bond || '');
+    const hasTooltip = bio || pl || mot || bond;
+    const nameHtml = title ? `${_escapeHtml(name)}<span class="npc-title"> — ${_escapeHtml(title)}</span>` : _escapeHtml(name);
+    const posHtml = position ? `<span class="npc-position-inline">${_escapeHtml(position)}</span>` : '';
+    let tipHtml = '';
+    if (hasTooltip) {
+        if (bio) tipHtml += `<p>${bio}</p>`;
+        if (pl) tipHtml += `<p><strong>Personality:</strong> ${_escapeHtml(pl)}${pt ? ' — ' + _escapeHtml(pt) : ''}</p>`;
+        if (mot) tipHtml += `<p><strong>Motivation:</strong> ${_escapeHtml(mot)}</p>`;
+        if (bond) tipHtml += `<p><strong>Bond:</strong> ${_escapeHtml(bond)}</p>`;
+    }
+    return `<div class="npc-item${hasTooltip ? ' has-tooltip' : ''}"><span class="npc-name">${nameHtml}</span>${posHtml}${hasTooltip ? `<div class="tooltip-body" data-md-compendium>${tipHtml}</div>` : ''}</div>`;
+}
+
+function _renderInventoryItem(item) {
+    if (!item) return '';
+    const name = item.name || item.id || '?';
+    const amt = item.amount || 1;
+    const notes = item.notes || '';
+    const cls = 'inventory-item' + (item.id === 'credits' ? ' inventory-item-credits' : '') + (notes ? ' has-tooltip has-tooltip-right' : '');
+    const amtHtml = (amt > 1 || item.id === 'credits') ? ` <span class="inventory-item-amount">×${amt}</span>` : '';
+    const tipHtml = notes ? `<div class="tooltip-body" data-md>${_escapeHtml(notes)}</div>` : '';
+    return `<div class="${cls}"><span class="inventory-item-name">${_escapeHtml(name)}${amtHtml}</span>${tipHtml}</div>`;
+}
+
+function _renderConditionPill(cond) {
+    if (!cond) return '';
+    const label = cond.label || (typeof cond === 'string' ? cond : '');
+    const desc = cond.description || '';
+    const cls = 'condition-pill' + (desc ? ' has-tooltip' : '');
+    const tipHtml = desc ? `<div class="tooltip-body">${_escapeHtml(desc)}</div>` : '';
+    return `<span class="${cls}">${_escapeHtml(label)}${tipHtml}</span>`;
+}
