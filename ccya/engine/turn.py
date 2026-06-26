@@ -518,9 +518,12 @@ async def run_turn(
         )
         yield ("complete", result_obj)
 
-        # --- End-of-turn async window (lock still held until generator returns) ---
-        # The _inflight lock is held until this generator returns (StopAsyncIteration),
-        # preventing concurrent turns from starting.
+        # --- End-of-turn async window ---
+        # Release lock before async steps so frontend can proceed immediately
+        await _inflight.release(str(save_dir))
+        signal_turn_done(str(save_dir))
+        released = True
+
         _log.debug(
             "turn.pre_complete trace_id=%s turn=%d state_turn=%d",
             trace_id, turn_no, state["meta"]["turn"],
@@ -594,10 +597,6 @@ async def run_turn(
             trace_id, state["meta"]["turn"],
             extra={"trace_id": trace_id, "turn": state["meta"]["turn"]},
         )
-        # Release lock BEFORE yielding world_done to avoid holding it hostage to consumer behavior
-        await _inflight.release(str(save_dir))
-        signal_turn_done(str(save_dir))
-        released = True
         yield ("phase", {"phase": "world_done"})
 
     except LlmcTimeout as exc:
