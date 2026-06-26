@@ -152,16 +152,18 @@ async def chat_stream(
     if seed is not None:
         kwargs["seed"] = int(seed)
     stream = await client.chat.completions.create(**kwargs)
-
-    async for chunk in stream:
-        if not chunk.choices:
-            if stream_stats is not None and chunk.usage is not None:
-                stream_stats["prompt_eval_count"] = chunk.usage.prompt_tokens or 0
-                stream_stats["eval_count"] = chunk.usage.completion_tokens or 0
-            continue
-        content = chunk.choices[0].delta.content
-        if content is not None:
-            yield content
+    try:
+        async for chunk in stream:
+            if not chunk.choices:
+                if stream_stats is not None and chunk.usage is not None:
+                    stream_stats["prompt_eval_count"] = chunk.usage.prompt_tokens or 0
+                    stream_stats["eval_count"] = chunk.usage.completion_tokens or 0
+                continue
+            content = chunk.choices[0].delta.content
+            if content is not None:
+                yield content
+    finally:
+        await stream.response.aclose()
 
 
 async def chat(

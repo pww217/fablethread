@@ -518,8 +518,6 @@ async def run_turn(
         yield ("complete", result_obj)
 
         # --- End-of-turn async window (lock still held until generator returns) ---
-        # CRITICAL: Save event/state FIRST, before sanitize/world.
-        # This ensures state is persisted even if world step hangs.
         # The _inflight lock is held until this generator returns (StopAsyncIteration),
         # preventing concurrent turns from starting.
         _log.debug(
@@ -527,13 +525,6 @@ async def run_turn(
             trace_id, turn_no, state["meta"]["turn"],
             extra={"trace_id": trace_id, "turn": state["meta"]["turn"]},
         )
-
-        # Save event/state immediately (before async steps)
-        _log.debug("turn.async_save_start trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
-        event["last_turn_state"] = state
-        append_event(save_dir, event)
-        save_state(save_dir, state)
-        _log.debug("turn.async_save_complete trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
 
         # 1. Sanitize (moved from synchronous critical path)
         _log.debug("turn.async_window_start trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
@@ -592,8 +583,11 @@ async def run_turn(
         })
         append_prompts(save_dir, prompts_list)
 
-        # Save again with beat_candidates (if world step succeeded)
+        # Save event/state AFTER async window (with world data included)
+        event["last_turn_state"] = state
+        append_event(save_dir, event)
         save_state(save_dir, state)
+        _log.debug("turn.async_save_complete trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
         _log.info(
             "turn.complete trace_id=%s turn=%d",
             trace_id, state["meta"]["turn"],
