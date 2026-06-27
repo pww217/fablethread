@@ -13,11 +13,10 @@ meta:
   pending_gm_beat: dict | None  # GM beat selected by Ruling from beat_candidates, consumed by same turn's Narrate (runtime-only, no TTL — single-turn commitment)
   beat_candidates: list[dict]  # 0-3 candidate beats prepared by World step (async, end-of-prev-turn), consumed and popped by Ruling
   prior_history: list[str]     # incremental history bullets (- [T{n}] text), appended per record turn (formerly per storyteller turn), capped at 20 newest
-  _seed_type: str | None       # "static" or "dynamic" — set by seed application, read by turn viewer
   _pack_source: str | None     # pack ID that was used to generate this state
 
-# Root-level keys only present when a game has been seeded (not in default empty state)
-__seed_meta__:                 # {opening_narrative: str, actions: [str]} — dynamic packs only; set by _apply_seed_to_save_dir()
+# Root-level keys only present when a game has been seeded
+__seed_meta__:                 # {opening_narrative: str, actions: [str]}; set by _apply_seed_to_save_dir()
 
 pc:
   name: str

@@ -1,6 +1,6 @@
 ---
 title: "EV-side cleanup: rename storytell stream to record + migrate gm_beat readers"
-status: validated
+status: testing
 urgency: 3
 size: medium
 created: 2026-06-26

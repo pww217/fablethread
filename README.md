@@ -108,7 +108,6 @@ Packs live in `packs/<id>/` and declare their mode in `pack.yaml`.
 | Mode | How it works | Files required |
 |------|-------------|----------------|
 | `dynamic` | LLM generates a fresh seed (character, location, NPCs, quest, opening) on every New Game | `pack.yaml`, `world.md`, `scenario.yaml`, `style.md`, `extract_examples.yaml` |
-| `static` | Hand-authored seed loaded directly | `pack.yaml`, `seed_state.yaml`, `opening_scene.md` (optional `style.md`, `extract_examples.yaml`) |
 
 To switch packs, click **New Game** and select from the picker, or set `game.setting_pack` in `config.yaml`.
 

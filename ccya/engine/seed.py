@@ -215,8 +215,8 @@ async def generate_seed(
     seed: int | None = None,
     template_dir: str | None = None,
 ) -> tuple[SeedEnvelope, dict[str, Any] | None]:
-    if pack.seed is not None and pack.scenario is None:
-        raise ValueError("generate_seed() requires a generated pack (scenario.yaml), got static seed pack")
+    if pack.scenario is None:
+        raise ValueError("generate_seed() requires a scenario.yaml pack")
 
     template_dir = template_dir or str(Path(__file__).parent.parent / "prompts")
     env = _build_jinja_env(template_dir)

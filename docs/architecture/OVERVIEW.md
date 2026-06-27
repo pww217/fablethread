@@ -3,8 +3,8 @@
 CCYA is a local-LLM-backed text RPG engine. Every player turn drives a six-step
 pipeline (Rules → Phase Engine → Narrate → Scene Extract → State Extract → Record) with
 a pure-Python validation+persist tail, followed by an async **Step 2d — World** that
-runs after the turn completes. Two additional LLM pipelines handle new-game
-creation: **Character Creation** (static packs) and **Generate Seed** (dynamic packs).
+runs after the turn completes. An async **Generate Seed** pipeline handles new-game
+creation from scenario.yaml packs.
 
 ## Pipeline Diagram
 

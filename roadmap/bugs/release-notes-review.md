@@ -1,6 +1,6 @@
 ---
 title: "Release Notes Need Review — Wrong Game Name, Accuracy Check"
-status: new
+status: done
 urgency: 2
 size: medium
 created: 2026-06-26
