@@ -42,22 +42,21 @@ def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
             all_passed = False
 
         # pending_gm_beat lifecycle respected
-        ruling = extract_field(ev, "ruling") or {}
-        ruling_gm_beat = ruling.get("selected_beat") or {}
-
-        if ruling_gm_beat and isinstance(ruling_gm_beat, dict) and ruling_gm_beat.get("type"):
-            if cur_beat is None:
+        # Note: selected_beat is not stored in ruling events, so we verify
+        # that pending_gm_beat has just {type, effect} shape (no npc_id/driver).
+        if cur_beat is not None:
+            if "npc_id" in cur_beat:
                 findings.append({
                     "turn": ev.get("turn"),
-                    "check": "beat_lifecycle",
-                    "detail": f"new gm_beat emitted but pending_gm_beat is None in state: {ruling_gm_beat.get('type')}",
+                    "check": "beat_shape",
+                    "detail": "pending_gm_beat contains npc_id (should be just {type, effect})",
                 })
                 all_passed = False
-            elif cur_beat.get("type") != ruling_gm_beat.get("type"):
+            if "driver" in cur_beat:
                 findings.append({
                     "turn": ev.get("turn"),
-                    "check": "beat_lifecycle",
-                    "detail": f"new gm_beat type mismatch: ruling={ruling_gm_beat.get('type')}, state={cur_beat.get('type')}",
+                    "check": "beat_shape",
+                    "detail": "pending_gm_beat contains driver (should be just {type, effect})",
                 })
                 all_passed = False
 

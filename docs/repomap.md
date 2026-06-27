@@ -15,10 +15,10 @@
 | `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay, TTL condition expiration (_expire_conditions); LongTermObjective.started_turn on arc resolve |
 | `ccya/engine/_pacing.py` | Beat constraints, 6-component convergence score (+stall_floor externally), spiral detection; `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls) -> tuple[int, dict[str, int]]`; `_compute_scene_phase(state, ages, config, total_convergence_score, turn_no)` |
 | `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context; convergence score computation + stall_floor tracking via `consecutive_low_convergence`; pure reader of `state.meta.pending_gm_beat` |
-| `ccya/engine/world.py` | World: async beat-candidate generation (Step 2d). Validates each candidate via `GMBeat`; returns (candidates, system_text, user_text, raw_response) for event recording; runs after Sanitize, before generator returns |
+| `ccya/engine/world.py` | World: async beat-candidate generation (Step 2d). Validates each candidate via `GMBeat`; strips to `{type, effect}` for ruling; returns (candidates, system_text, user_text, raw_response) for event recording; runs after Sanitize, before generator returns |
 | `ccya/engine/pack_gen.py` | LLM-generated ScenarioBrief → packs/custom/ |
 | `ccya/engine/names.py` | Name pool generation via Faker |
-| `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; pc.situation in ruling context; beat selection from `state.meta.beat_candidates`; sets/pops `state.meta.pending_gm_beat` and `state.meta.beat_candidates` per turn |
+| `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; pc.situation in ruling context; index-based beat selection from `state.meta.beat_candidates`; sets/pops `state.meta.pending_gm_beat` and `state.meta.beat_candidates` per turn |
 | `ccya/engine/extraction/` | Scene/state/record extraction pipeline (3 streams); `gm_beat` field removed from `StorytellerResult` |
 | `ccya/engine/hints.py` | Hint generation for ruling context (pc.situation) |
 | `ccya/engine/thread_sanitizer.py` | Batch arc/thread cleanup every N turns; atomic world_state swap |

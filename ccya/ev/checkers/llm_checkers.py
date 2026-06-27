@@ -104,8 +104,6 @@ Return JSON:
     """GM Beat:
   Type: {beat_type}
   Effect: {effect}
-  NPC: {npc_id}
-  Driver: {driver}
 
 Narration where beat was generated:
 {beat_narrate}
@@ -133,8 +131,6 @@ def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
     pending_beat = meta.get("pending_gm_beat") or {}
     beat_type = pending_beat.get("type", "")
     effect = pending_beat.get("effect", "")
-    npc_id = pending_beat.get("npc_id", "")
-    driver = pending_beat.get("driver", "")
     narrate = extract_field(ev, "narrate.prose") or ""
 
     # Look for next turn's narration if available
@@ -145,8 +141,6 @@ def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
     user_prompt = f"""GM Beat:
   Type: {beat_type}
   Effect: {effect}
-  NPC: {npc_id}
-  Driver: {driver}
 
 Narration where beat was generated:
 {narrate}"""

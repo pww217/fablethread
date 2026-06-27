@@ -210,18 +210,6 @@ class GMBeat(BaseModel):
         return v
 
     effect: str = ""
-    npc_id: str | None = None
-    driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None = None
-
-    @field_validator("driver", mode="before")
-    @classmethod
-    def _coerce_gm_beat_driver(cls, v: Any) -> Any:
-        valid_drivers = {"motivation", "fear", "leverage", "bond", "personality"}
-        if isinstance(v, str):
-            v = v.lower()
-            if v not in valid_drivers:
-                return None
-        return v
 
 
 class StorytellerResult(BaseModel):

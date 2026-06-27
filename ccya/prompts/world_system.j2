@@ -6,7 +6,7 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 
 ```json
 [
-  {"type": "complication|revelation|opportunity|breathing_room|pressure|twist|setback|escalation|callback", "effect": "...", "npc_id": "...", "driver": "motivation|fear|leverage|bond|personality"}
+  {"type": "complication|revelation|opportunity|breathing_room|pressure|twist|setback|escalation|callback", "effect": "..."}
 ]
 ```
 
@@ -16,7 +16,7 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 - **Action rule.** Every beat must show an NPC or the world taking action. Never start with "nothing happens" or "the atmosphere is tense." If no NPC is acting, show the environment reacting — a door slams, a light flickers, a sound carries.
 - **`effect` (required).** Short concrete sentence describing what is about to happen. Name NPCs, reference locations, tie to active threads. NOT a category label. NOT "ambient tension." If you cannot write a concrete sentence, omit that candidate.
 - **Phase alignment.** `type` MUST be from `allowed_beat_types` (provided in user prompt). Drop candidates whose type violates the phase constraint.
-- **Driver.** Set `driver` to the psychological field driving this beat (`motivation`, `fear`, `leverage`, `bond`, `personality`). When the candidate ties to an NPC, prefer that NPC's candidate_npcs `type` field as the driver.
+
 - **NPC preference.** Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats. Only fall back to environment when no candidate_npcs are available.
 - **Quantity.** Emit 2-3 candidates. Zero is acceptable if no good beat fits.
 
@@ -25,7 +25,7 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 - Look at the last 2 entries in `recent_beats` above. If both share the same `type`, you MUST NOT pick that type for any candidate.
 - If the last 2 entries have different types, avoid repeating either of those types.
 - In short: pick types that are NOT in the last 2 entries of `recent_beats`.
-- Vary drivers across candidates — don't emit three `motivation`-driven beats.
+
 
 ## Roll band guidance (from rules_outcome)
 
