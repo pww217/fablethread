@@ -638,17 +638,17 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
             pressure_count = sum(1 for b in recent_beats if b.get("type") in pressure_types)
             beat_streak = 1 if pressure_count >= 3 else 0
 
-            ruling = ev.get("ruling") or {}
-            band = ruling.get("band", "")
-            dice_weight = 1 if band in ("crit_fail", "fail") and urgent_thread else 0
+            roll_starvation = 0  # Would need recent_rolls data; estimated as 0 for EV display
+            threat_density = 0   # Would need active threat count; estimated as 0 for EV display
 
-            est_score = urgent_thread + threat_thread + scene_age_component + beat_streak + dice_weight
+            est_score = urgent_thread + threat_thread + scene_age_component + beat_streak + roll_starvation + threat_density
             comps = {
                 "urgent_thread": urgent_thread,
                 "threat_thread": threat_thread,
                 "scene_age": scene_age_component,
                 "beat_streak": beat_streak,
-                "dice_weight": dice_weight,
+                "roll_starvation": roll_starvation,
+                "threat_density": threat_density,
             }
             score = est_score
 
@@ -659,7 +659,7 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
             "depth": comps.get("threat_thread", "?"),
             "age": comps.get("scene_age", "?"),
             "beat": comps.get("beat_streak", "?"),
-            "dice": comps.get("dice_weight", "?"),
+            "roll": comps.get("roll_starvation", "?"),
             "score": score,
             "entry": phase == "CLIMAX" and prev_phase != "CLIMAX",
         })

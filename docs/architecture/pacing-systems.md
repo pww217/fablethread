@@ -27,6 +27,9 @@ flowchart TD
     PC -. "feeds directive" .-> W
     W -. "writes beat_candidates" .-> R
     R -. "feeds pending_gm_beat" .-> N
+
+    note1["_compute_scene_phase +<br>compute_convergence_score run<br>in turn.py before ruling<br>(deduped via _phase_computed flag)"]:::shared
+    S -.-> note1
 ```
 
 ## 2. Phase Engine
@@ -49,7 +52,7 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 
 `compute_convergence_score()` computes a 6-component score (0-6) each turn to drive RISING→CLIMAX transition. Components: (1) any urgent thread (dormant-aware) (+1), (2) any threat thread (dormant-aware) (+1), (3) scene age ≥ threshold (+1), (4) beat streak: ≥60% pressure beats in recent window with carry-over for null types (+1), (5) roll_starvation: turns since last roll ≥ threshold (+1), (6) threat_density: active threat threads ≥ threshold (+1). Returns `(score, components_dict)`.
 
-`stall_floor` is computed externally in `narrate.py` from `meta.consecutive_low_convergence` (global counter across BREATHER→RISING cycles). When `consecutive_low_convergence ≥ 3`, `stall_floor = min(1 + ((clc - 3) // 3), config.stall_floor_max)`. Total score = convergence_score + stall_floor (7th component, integer floor). `consecutive_low_convergence` resets on reaching threshold or cancel/retry.
+`stall_floor` is computed externally in `turn.py` from `meta.consecutive_low_convergence` (global counter across BREATHER→RISING cycles). When `consecutive_low_convergence ≥ 3`, `stall_floor = min(1 + ((clc - 3) // 3), config.stall_floor_max)`. Total score = convergence_score + stall_floor (7th component, integer floor). `consecutive_low_convergence` resets on reaching threshold or cancel/retry.
 
 ## 2.5. Curtain Call — CLIMAX phase soft close
 
@@ -149,7 +152,7 @@ PacingContext:
   outcome_hint: str | None # "hold" | "transition"
   summary: str             # Human-readable log, never sent to LLM
   spiral_detected: bool    # Death spiral flag from recent rolls (set in narrate.py, not _compute_pacing_context)
-  convergence_score: int   # 6 components + stall_floor for RISING→CLIMAX transition (set in narrate.py, not _compute_pacing_context)
+  convergence_score: int   # 6 components + stall_floor for RISING→CLIMAX transition (set in turn.py, not _compute_pacing_context)
 ```
 
 ### How each field is computed
@@ -213,7 +216,8 @@ flowchart LR
 | `_pacing.py` | 171-205 | `_compute_pacing_context()` |
 | `_pacing.py` | 145-168 | `_compute_narration_directive()` |
 | `turn.py` | 317 | `_apply_state_updates()` calls thread operations (via turn_state.py) |
-| `narrate.py` | 199-262 | `_narrate_setup()` calls `compute_convergence_score()`, computes stall_floor from consecutive_low_convergence, sets spiral_detected/convergence_score/convergence_components on PacingContext |
+| `turn.py` | ~100-150 | Phase machine: calls `_compute_ages`, `compute_convergence_score`, `_compute_scene_phase`, computes stall_floor; sets convergence_score on PacingContext |
+| `narrate.py` | 199-262 | `_narrate_setup()` sets spiral_detected on PacingContext; reads convergence_score from ctx (no recomputation if _phase_computed flag is True) |
 | `narrate_user.j2` | 100-103 | `outcome_hint`, `pacing_context` |
 | `world_user.j2` | — | `directive`, `outcome_hint`, `recent_beats`, `allowed_beat_types` |
 | `record_user.j2` | — | (no PacingContext — Record is backward-looking) |
@@ -272,11 +276,11 @@ flowchart TD
     classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
     classDef system fill:#3b0764,color:#e9d5ff,stroke:#7c3aed,strokeWidth:2px
 
-    INPUT["Player input"]:::input --> RULING["Step 0: Ruling<br>intent + outcome + band"]:::system
-
-    RULING --> PHASE["Phase Engine<br>scene_phase transitions"]:::system
+    INPUT["Player input"]:::input --> PHASE["Phase Engine<br>scene_phase transitions<br>(in turn.py before ruling)"]:::system
 
     THREADS["arc.threads[]<br>urgency counts"]:::input --> PHASE
+
+    PHASE --> RULING["Step 0: Ruling<br>intent + outcome + band"]:::system
 
     PHASE --> DIR["_compute_narration_directive<br>phase + age → directive"]:::system
 
@@ -289,7 +293,7 @@ flowchart TD
     NARRATE -. "consumes" .-> N_GM["pending_gm_beat<br>set by Ruling same turn"]:::output
     NARRATE -. "consumes" .-> N_PC["PacingContext<br>outcome_hint + directive"]:::output
 
-    EXTRACTION --> RULING_EARLY["Ruling (Step 0)<br>selects beat from candidates"]:::output
+    RULING --> RULING_EARLY["Ruling (Step 0)<br>selects beat from candidates"]:::output
     RULING_EARLY --> BEAT_STORE["state.meta.pending_gm_beat<br>(no beat_expires_turn)"]:::output
     RULING_EARLY --> THREADS2["thread_add/thread_update/<br>thread_resolve"]:::output
 
@@ -306,7 +310,7 @@ flowchart TD
 
 | Variable | Set by | Consumed by | Effect |
 |----------|--------|-------------|--------|
-| `convergence_score` | Narrate setup (thread urgency, age, beats, roll_starvation, threat_density + stall_floor from consecutive_low_convergence) | RISING→CLIMAX transition | 6 boolean components + integer floor |
+| `convergence_score` | turn.py (thread urgency, age, beats, roll_starvation, threat_density + stall_floor from consecutive_low_convergence) | RISING→CLIMAX transition | 6 boolean components + integer floor |
 | `scene_phase` | Phase engine | Directive, beat constraints, outcome_hint | Primary pacing signal |
 | `pending_gm_beat` | Ruling (selects from `state.meta.beat_candidates`) | Narrator (same turn), beat history | Forward-facing storytelling beat |
 | `arc.threads[].urgency` | Storytell (thread_update) + Python decay | Phase transitions, directive computation | Scene tension level |
@@ -378,7 +382,7 @@ T6:  normal climax rhythm continues
 | `_compute_narration_directive()` | `_pacing.py` | 145-168 | scene_age → directive (Scene Imperative purely age-based) |
 | `_compute_pacing_context()` | `_pacing.py` | 171-205 | scene_phase + urgency + age → PacingContext |
 | `_compute_ages()` | `_pacing.py` | 208-219 | Scene age computation |
-| `compute_convergence_score()` | `_pacing.py` | 86-148 | 6-component score (any_urgent, any_threat, scene_age, beat_streak with carry-over, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
+| `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls)` | `_pacing.py` | 86-148 | 6-component score (any_urgent, any_threat, scene_age, beat_streak with carry-over, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
 | `derive_allowed_beat_types()` | `_pacing.py` | 61-83 | Phase + directive + spiral → allowed beat types |
 | `detect_spiral()` | `_pacing.py` | 33-58 | Recent roll bands → spiral flag (consecutive/ratio thresholds) |
 | `sanitize_threads()` | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
@@ -387,7 +391,7 @@ T6:  normal climax rhythm continues
 
 | Function | File | Line(s) | What |
 |----------|------|---------|------|
-| World step | `world.py` | `_run_world_step` | Generate 2-3 beat candidates → `state.meta.beat_candidates` |
+| World step | `world.py` | `_run_world_step` | Phase validation (purge invalid types) → Generate 2-3 beat candidates → `state.meta.beat_candidates`; returns purged list |
 | Ruling beat selection | `ruling.py` | `_ruling_phase` | Validate `selected_beat` via `GMBeat`; set/pop `pending_gm_beat`; append `recent_beats`; pop `beat_candidates` |
 | Narrate beat read | `narrate.py` | 168-170 | Pure reader of `pending_gm_beat` (no mutation, no expiry) |
 
