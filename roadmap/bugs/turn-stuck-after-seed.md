@@ -1,6 +1,6 @@
 ---
 title: "Turn never starts after seed gen — no ruling/narrate calls, state reverts to T0"
-status: new
+status: done
 urgency: 1
 size: medium
 created: 2026-06-26
@@ -128,59 +128,39 @@ The frontend shows the extraction result (from `yield ("complete", result_obj)` 
 
 ## Resolution
 
-**Root cause identified:** SSE generator lifecycle issue, not connection pool exhaustion.
+**Root cause:** Frontend closed SSE connection on `turn_complete`, cancelling the `run_turn()` generator before async steps (sanitize + world) could run.
 
-### The actual problem
+### The fix
 
-The frontend closes the SSE connection immediately upon receiving `turn_complete` event (line 972 in game.js). This cancels the `run_turn()` generator before it can complete the async window (sanitize + world steps) and reach the `finally` block that releases the `_inflight` lock.
+**Frontend (game.js):**
+- `turn_complete` handler no longer calls `es.close()` — SSE stays open
+- `asyncRunning = true` set when record stream finishes (locks UI during async steps)
+- `world_done` handler sets `asyncRunning = false`, closes SSE, focuses input
+- Input disabled via `asyncRunning` flag while async steps run
 
-**Sequence of events:**
-1. Turn pipeline runs: ruling → narrate → extraction → `yield ("complete")`
-2. Routes.py yields `turn_complete` event to frontend
-3. Frontend receives `turn_complete`, calls `es.close()` to close SSE connection
-4. SSE connection closure cancels the `run_turn()` generator mid-execution
-5. Generator never reaches async window (sanitize + world) or the `finally` block
-6. `_inflight` lock is never released → UI stays locked
+**Backend (routes.py):**
+- Removed background drain task — events flow normally to frontend since SSE stays open
 
-**Why world step appeared to hang:** It wasn't hanging — it was being cancelled before it could run. The logs showed "world LLM call cancelled" immediately after "world.step_before_llm", confirming the generator was cancelled.
+**Backend (turn.py):**
+- Lock released in `finally` block only — held during entire async window
+- State/event saved after async window completes (world data included)
+- Removed `released` flag and early lock release
 
-### What's been fixed
+**Backend (llm_client.py):**
+- Added `try/finally: await stream.response.aclose()` in `chat_stream()` to ensure httpx connections are released
 
-**1. Background task to drain generator (routes.py)**
-After yielding `turn_complete`, spawn a background task to continue consuming the generator:
-```python
-async def _drain():
-    async for _ in run_turn_generator:
-        pass
-asyncio.create_task(_drain())
-```
-This allows the async window to complete even though the frontend closed the SSE connection.
+### Final event flow
 
-**2. Explicit stream close in chat_stream() (llm_client.py)**
-Added `try/finally: await stream.response.aclose()` to ensure httpx connections are released even if the consumer breaks out early.
-
-**3. Moved state/event save to after async window (turn.py)**
-Following existing pattern: extraction data goes in the main event, saved once after all extraction (including world) completes. Removed the "save early" workaround that was added when world appeared to hang.
-
-### Current state
-
-- ✅ World step completes successfully (4.7s, 3 beats)
-- ✅ World data appears in events.jsonl
-- ✅ Turn viewer shows world step
-- ✅ UI lock releases after normal pipeline (ruling → narrate → extraction → complete)
-- ✅ Async steps (sanitize + world) run without blocking UI
-
-### Final fix: remove asyncRunning frontend flag
-
-The real UI lock was the frontend `asyncRunning` flag in game.js, not the backend `_inflight` lock. When the `record` stream finished, the frontend set `asyncRunning = true` expecting a `world_done` event later to set it back to `false`. But since the SSE connection closes on `turn_complete`, `world_done` was never received, so `asyncRunning` stayed `true` forever — locking the UI.
-
-Fix: removed the `asyncRunning = true` assignment and the `world_done` handler. The async steps (sanitize + world) now run entirely server-side without sending phase events to the frontend, so the frontend doesn't need to track them.
+1. Turn pipeline: ruling → narrate → extraction → `yield("complete")`
+2. Frontend receives `turn_complete`, updates UI, sets `asyncRunning = true`
+3. Backend continues: `yield("sanitize_start")` → sanitize → `yield("world_start")` → world → `yield("world_done")`
+4. Frontend receives `world_done`, sets `asyncRunning = false`, closes SSE
+5. Backend generator reaches StopAsyncIteration, `finally` releases `_inflight` lock
 
 ### The mystery (solved)
 
-- ✅ Why the world step specifically hangs in this context — frontend closes SSE on turn_complete, cancelling generator before async window
-- ✅ Why other steps (ruling, narrate, extraction) work fine — they run before yield("complete")
-- ✅ Why `ev.py prompt-eval call` works — no SSE connection, no premature cancellation
-- ✅ Whether the singleton client is causing issues — no, connection pool hypothesis was wrong
-- ✅ The real issue: SSE generator lifecycle + frontend closing connection too early
-- ✅ Final solution: async steps run server-side, frontend doesn't track them
+- ✅ World step wasn't hanging — it was being cancelled before it could run
+- ✅ Other steps worked because they ran before `yield("complete")`
+- ✅ `ev.py prompt-eval call` worked because no SSE connection to close
+- ✅ Connection pool hypothesis was wrong — real issue was SSE lifecycle
+- ✅ Final solution: keep SSE open after `turn_complete`, close on `world_done`
