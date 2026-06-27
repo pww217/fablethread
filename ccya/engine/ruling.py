@@ -246,6 +246,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     ctx._ruling_parse_error = ruling_parse_error
     ctx._ruling_trimmed = ruling_trimmed
     ctx._ruling_trimmed_chars = ruling_trimmed_chars
+    ctx._selected_beat = selected_beat
 
     # Beat lifecycle: index-based selection from beat_candidates
     beat_candidates = (state.get("meta") or {}).get("beat_candidates") or []

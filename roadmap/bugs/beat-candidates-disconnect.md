@@ -132,7 +132,42 @@ The beat-generation-split design is **fully realized** in the engine:
 
 Full report: `evals/runs/2026-06-26_0.30.0-2-g7a309d9_7a309d9/REPORT.md`
 
-## Follow-up: Simplify Beat Pipeline (Post-Merge)
+## Follow-up: Turn Viewer Delta Panel — Pacing/Beats + State Changes Sections
+
+### Problem
+Turn viewer delta panel was flat — no distinction between pacing data and state mutations. Beat candidates appeared but without clear grouping. State changes didn't show what fields were actually modified in structured data.
+
+### Changes
+
+**tv.py `_tv_state_diff`:**
+- Split return into `(pacing_items, state_changes)` tuple instead of one flat list
+- Pacing/Beats section: pacing_context fields first (scene_phase, band, convergence_score, etc.), then pacing_items (beat candidates, selection, recent beats, convergence components, allowed beat types, spiral_detected)
+- State changes section: organized by concern with sub-headers (threads, inventory, conditions, arc, location, NPCs)
+- inventory_change_reason and condition_change_reason shown as reason lines when non-empty
+
+**_format_value refactored:**
+- Dicts → comma-separated keys (e.g., `id, name, position, motivation`)
+- Lists of dicts → count + union of all keys (e.g., `[3] id, motivation, name, position`)
+- Lists of primitives → values (unchanged)
+- Strings → truncated (unchanged)
+- Default op passed through for correct +/-/~/= display
+
+**Pipeline `exclude_none` → `exclude_unset`:**
+- Changed all three extraction outputs (scene, state, record) from `model_dump(exclude_none=True)` to `model_dump(exclude_unset=True)`
+- Only fields the LLM actually set appear in extraction output — empty strings, empty lists, and None values no longer pollute the event
+
+**Turn viewer HTML:**
+- Single Pacing/Beats section with conditional rendering for both data sources
+- State changes with concern labels as sub-headers between groups
+- Added `.tv-diff-concern-label` CSS styling (capitalized, muted, subtle underline)
+
+### Files Changed
+- `ccya/server/tv.py` — `_tv_state_diff` tuple return, `_format_value` refactor, state changes by concern
+- `ccya/templates/_turn_viewer.html` — Pacing/Beats + State changes sections, concern labels
+- `ccya/static/turn-viewer.css` — `.tv-diff-concern-label` styling
+- `ccya/engine/extraction/pipeline.py` — `exclude_none` → `exclude_unset` on all three extraction outputs
+
+### Follow-up: Simplify Beat Pipeline (Post-Merge)
 
 Eval review revealed the beat pipeline passes more data than needed between stages. Proposed simplification:
 
@@ -157,11 +192,12 @@ Record reads: type, effect
 ```
 
 ### Changes Required
-1. **World prompt** — remove driver from candidate generation instructions. World just produces `type` + `effect`.
-2. **Ruling prompt** — simplify beat candidates display to numbered list. Ruling just picks an index.
-3. **Ruling code** (`ruling.py:260`) — store just `{"type": beat.type, "effect": beat.effect}` instead of full `beat.model_dump()`.
-4. **GMBeat model** — `driver` field becomes unused (can be removed from model or kept for future use). `npc_id` removed from GMBeat entirely.
-5. **Ruling prompt driver constraint** — explicitly restrict driver to enum values (`motivation`/`fear`/`leverage`/`bond`/`personality`) if driver is kept for future use.
+1. **World prompt** — remove driver/npc_id from candidate generation instructions. World just produces `type` + `effect`.
+2. **Ruling prompt** — simplify beat candidates display to numbered list (0-based). Ruling just picks an index.
+3. **Ruling code** (`ruling.py:260`) — index lookup into beat_candidates, store just `{type, effect}` as `pending_gm_beat`.
+4. **GMBeat model** — remove `npc_id` and `driver` fields entirely. Keep `type` + `effect`.
+5. **Scene** — no changes. Still produces `[{id, type, effect}]`. World reads `id` to identify NPC but just passes `type` + `effect` downstream.
+6. **Narrate** — no changes. Already just reads `pending_beat.effect`.
 
 ### Rationale
 - `npc_id` is useful for world to identify which NPC a beat relates to, but never needed downstream — just the effect text matters for narration.

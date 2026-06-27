@@ -35,6 +35,7 @@ class TurnContext:
     intent: IntentEnvelope | None = None
     outcome: RulesOutcome | None = None
     _spiral_detected: bool = False
+    _selected_beat: Any = None
 
 
 @dataclass

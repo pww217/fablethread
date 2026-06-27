@@ -39,7 +39,7 @@ Every session directory can contain an `ev.yaml`. Resolution: CLI flags > `ev.ya
 | Specific stream prompt/output | `ev.py prompt <N> <stream> [--system] [--field FIELD] --save-dir DIR` |
 | All JSON outputs for a turn | `ev.py turn <N> --json --save-dir DIR` |
 
-**Stream names:** `ruling` (or `rules`), `narrate`, `scene`, `state`, `storytell` (or `progress`).
+**Stream names:** `ruling` (or `rules`), `narrate`, `scene`, `state`, `record` (or `storytell`/`progress`), `world`.
 
 ## State & diff tracking
 
@@ -131,7 +131,7 @@ Signals: `extract.retries`, `retry_errors`, `rejected`, `reconcile_warnings`.
 ev.py prompt-sizes --save-dir DIR
 ```
 
-Stages: ruling, narrate, scene, state, storytell.
+Stages: ruling, narrate, scene, state, record, world.
 
 ## Prompt testing
 
@@ -149,9 +149,9 @@ ev.py prompt-eval call <scenario.yaml> --from-events
 
 | Command | What it does |
 |---|---|
-| `storyteller-audit` | Checks storyteller output: thread_add/thread_resolve/arc_resolve consistency, missing goal_updates, GM beat validity against scene phase |
+| `storyteller-audit` | Checks record output: thread_update/thread_resolve/actions format compliance |
 | `ruling-audit` | Validates ruling.reason non-empty, condition IDs present, band distribution |
-| `thread-audit` | Thread lifecycle across all turns: created by thread_add, updated, referenced by sanitizer |
+| `thread-audit` | Thread lifecycle across all turns: created by thread_add, updated, resolved, orphan detection |
 | `npc-ghosting` | Detects NPC disappearance from compendium without departure tracking |
 | `state-history` | Tracks conditions or inventory over time |
 | `active-conditions` | Current conditions with max concurrent count |
@@ -167,10 +167,10 @@ ev.py trace pacing_context.scene_phase --save-dir DIR
 ev.py mechanics 12 --pacing --dice --save-dir DIR
 ```
 
-**"The storyteller generated a wrong action"**
+**"The record extractor generated a wrong action"**
 ```bash
-ev.py prompt 8 storytell user --save-dir DIR   # what the LLM saw
-ev.py prompt 8 storytell output --save-dir DIR  # what it returned
+ev.py prompt 8 record user --save-dir DIR   # what the LLM saw
+ev.py prompt 8 record output --save-dir DIR  # what it returned
 ```
 
 **"An NPC disappeared from the compendium"**
@@ -193,7 +193,8 @@ Events are one JSON line per turn in `events.jsonl`. Key fields:
 | `.narrate_prompt.*` | Narrate stream: system, user, prose output |
 | `.extraction.scene.*` | Scene extractor: system, user, NPC/location JSON |
 | `.extraction.state.*` | State extractor: system, user, inventory/condition JSON |
-| `.extraction.storytell.*` | Storyteller: system, user, GM beat + thread JSON |
+| `.extraction.record.*` | Record extractor: system, user, thread/actions JSON |
+| `.extraction.world.*` | World step: system, user, beat suggestions |
 | `.applied` | State deltas that were applied |
 | `.rejected` | State deltas that were rejected with reasons |
 | `.pacing_context` | scene_phase, directive, outcome_hint, convergence |
@@ -207,10 +208,10 @@ Events are one JSON line per turn in `events.jsonl`. Key fields:
 | Turn data | `.turn`, `.input`, `.ruling_prompt`, `.narrate_prompt`, `.extraction.*` | summary, timing, turn, prompt |
 | State deltas | `.applied`, `.rejected` | deltas, mechanics, diff, trace, search |
 | Active state | `state.yaml` in save dir | state |
-| Threads | `.extraction.storytell.output.*`, sanitizer events | threads, thread-audit |
-| Beat data | `.extraction.storytell.output.gm_beat`, `.pacing_context` | beats, mechanics |
+| Threads | `.extraction.record.output.*`, sanitizer events, `state.arc.threads` | threads, thread-audit |
+| Beat data | `state.meta.pending_gm_beat`, `state.meta.beat_candidates`, `.pacing_context` | beats, mechanics |
 | Pacing | `.pacing_context` | beats, mechanics --pacing, convergence |
-| Goals | `.extraction.storytell.output.goal_update`, `.last_turn_state` | goals, arc_goal_updates |
+| Goals | sanitizer `changes_detail.goal`, `state.arc.long_term_objective` | goals, arc_goal_updates |
 | Sanitizer | `kind="sanitizer"` events | thread-audit, sanitizer_lifecycle |
 
 ---

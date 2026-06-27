@@ -174,20 +174,182 @@ def _tv_dict_to_lines(
     return lines
 
 
-def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
-    """Produce a flat list of state-change entries from extraction outputs.
+def _tv_state_diff(ev: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Produce pacing_items and state_changes from extraction outputs.
 
-    Reads ruling (intent), scene/state/record extraction outputs and flattens
-    them into labelled change entries for the diff right panel.
+    Pacing/Beats: scene candidates, world output (beat candidates), ruling
+    beat selection, convergence, phase, allowed_beat_types, recent_beats.
+
+    State changes: threads, inventory, conditions, NPCs, locations, arc
+    operations — non-narrative mutations with reasons.
     """
     rejected_set: set[str] = set()
     for r in (ev.get("rejected") or []):
         if isinstance(r, dict) and r.get("field"):
             rejected_set.add(str(r["field"]))
 
+    pacing_items: list[dict[str, Any]] = []
     changes: list[dict[str, Any]] = []
 
-    # Player intent from rules stream — shown at top
+    # --- Pacing/Beats ---
+
+    # Ruling beat selection
+    ruling_event = ev.get("ruling") or {}
+    selected_beat_idx = ruling_event.get("selected_beat")
+    if selected_beat_idx is not None:
+        beat_candidates = (ev.get("last_turn_state") or {}).get("meta") or {}
+        beat_candidates = beat_candidates.get("beat_candidates") or []
+        if isinstance(selected_beat_idx, int) and 0 <= selected_beat_idx < len(beat_candidates):
+            chosen = beat_candidates[selected_beat_idx]
+            beat_type = chosen.get("type", "?")
+            beat_effect = chosen.get("effect", "")
+            pacing_items.append({
+                "section": "ruling_beat_selection",
+                "label": f"selected_beat: {selected_beat_idx} → {beat_type} / {beat_effect}",
+            })
+        else:
+            pacing_items.append({
+                "section": "ruling_beat_selection",
+                "label": f"selected_beat: {selected_beat_idx} (no candidates available)",
+            })
+    else:
+        pacing_items.append({
+            "section": "ruling_beat_selection",
+            "label": "selected_beat: null — no fit",
+        })
+
+    # World output — beat candidates generated
+    world_output = _get_nested(ev, "extraction.world") or {}
+    if isinstance(world_output, dict):
+        world_out = world_output.get("output")
+        if isinstance(world_out, list) and world_out:
+            labels = []
+            for i, bc in enumerate(world_out):
+                if isinstance(bc, dict):
+                    bt = bc.get("type", "?")
+                    be = bc.get("effect", "")
+                    labels.append(f"[{i}] {bt} / {be}")
+                else:
+                    labels.append(f"[{i}] {str(bc)[:80]}")
+            pacing_items.append({
+                "section": "world_beat_candidates",
+                "label": f"World — Beat Candidates Generated ({len(labels)})",
+                "sublines": labels,
+            })
+
+    # Scene candidate_npcs
+    scene_output = _get_nested(ev, "extraction.scene") or {}
+    if isinstance(scene_output, dict):
+        scene_out = scene_output.get("output")
+        if isinstance(scene_out, dict):
+            cnp = scene_out.get("candidate_npcs")
+            if isinstance(cnp, list) and cnp:
+                labels = []
+                for npc in cnp:
+                    if isinstance(npc, dict):
+                        name = npc.get("name", npc.get("id", "?"))
+                        role = npc.get("role", "")
+                        labels.append(f"{name}" + (f" ({role})" if role else ""))
+                pacing_items.append({
+                    "section": "scene_candidate_npcs",
+                    "label": f"Scene — Candidate NPCs ({len(labels)})",
+                    "sublines": labels,
+                })
+
+    # Recent beats history
+    last_state = ev.get("last_turn_state") or {}
+    meta = last_state.get("meta") or {}
+    recent_beats = meta.get("recent_beats") or []
+    if isinstance(recent_beats, list) and recent_beats:
+        parts = []
+        for rb in recent_beats[-5:]:
+            if isinstance(rb, dict):
+                turn = rb.get("turn", "?")
+                btype = rb.get("type", "?")
+                parts.append(f"T{turn}:{btype}")
+            else:
+                parts.append(str(rb))
+        pacing_items.append({
+            "section": "recent_beats",
+            "label": f"Recent Beats: {', '.join(parts)}",
+        })
+
+    # Pacing context extras
+    pacing_ctx = ev.get("pacing_context") or {}
+    convergence_components = pacing_ctx.get("convergence_components")
+    if isinstance(convergence_components, dict) and convergence_components:
+        parts = []
+        for k, v in convergence_components.items():
+            if v:
+                parts.append(f"{k}: {v}")
+        if parts:
+            pacing_items.append({
+                "section": "convergence_components",
+                "label": f"components: {{{', '.join(parts)}}}",
+            })
+
+    allowed_beat_types = ev.get("allowed_beat_types")
+    if isinstance(allowed_beat_types, list) and allowed_beat_types:
+        pacing_items.append({
+            "section": "allowed_beat_types",
+            "label": f"allowed_beat_types: [{', '.join(str(x) for x in allowed_beat_types)}]",
+        })
+
+    spiral_detected = pacing_ctx.get("spiral_detected")
+    if spiral_detected:
+        pacing_items.append({
+            "section": "spiral_detected",
+            "label": "spiral_detected: true",
+        })
+
+    # --- State changes (organized by concern) ---
+
+    # Helper: extract parsed output from a stream path
+    def _extract_parsed(path: str) -> dict[str, Any] | None:
+        blob = _get_nested(ev, path) or {}
+        if not isinstance(blob, dict):
+            return None
+        raw_out = blob.get("output")
+        if not raw_out:
+            return None
+        if isinstance(raw_out, str):
+            return _tv_parse_json_blob(raw_out)
+        elif isinstance(raw_out, dict):
+            return raw_out
+        return None
+
+    # Helper: format a value for display
+    def _format_value(field_key: str, val: Any, default_op: str = "set") -> tuple[str, str]:
+        """Returns (value_str, op) for a field."""
+        # For dicts: show field names instead of full JSON
+        if isinstance(val, dict):
+            keys = list(val.keys())
+            if keys:
+                return ", ".join(keys), default_op
+            return "\u2014", default_op
+
+        # For lists of dicts: show count + union of all keys
+        if isinstance(val, list) and val and all(isinstance(x, dict) for x in val):
+            all_keys: set[str] = set()
+            for item in val:
+                all_keys.update(item.keys())
+            key_str = ", ".join(sorted(all_keys))
+            return f"[{len(val)}] {key_str}", default_op
+
+        # For lists of primitives: show values
+        if isinstance(val, list):
+            value_str = ", ".join(str(x) for x in val[:4])
+            if len(val) > 4:
+                value_str += "\u2026"
+            return value_str, default_op
+
+        # For strings: truncate
+        if isinstance(val, str):
+            return val[:120] + ("\u2026" if len(val) > 120 else ""), default_op
+
+        return str(val), default_op
+
+    # 1. Intent (from ruling)
     ruling_intent = _tv_parse_json_blob(ev.get("ruling_prompt", {}).get("output") or "")
     if ruling_intent:
         val = ruling_intent.get("intent")
@@ -201,97 +363,171 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
                 "from_stream": "ruling",
             })
 
-    _EXTRACTION_STREAMS = [
-        ("scene", "extraction.scene"),
-        ("state", "extraction.state"),
-        ("record", "extraction.record"),
+    # 2. Threads (from record)
+    record_parsed = _extract_parsed("extraction.record") or {}
+    thread_fields = [
+        ("thread_update", "set"),
+        ("thread_resolve", "set"),
+        ("thread_add", None),
     ]
+    for field_key, default_op in thread_fields:
+        val = record_parsed.get(field_key)
+        if val is None:
+            continue
+        if isinstance(val, list) and not val:
+            continue
+        if isinstance(val, dict) and not val:
+            continue
+        value_str, op = _format_value(field_key, val, default_op or "set")
+        changes.append({
+            "domain": "record",
+            "op": op,
+            "field": field_key,
+            "value": value_str,
+            "rejected": field_key in rejected_set,
+            "from_stream": "record",
+            "concern": "threads",
+        })
 
-    for stream_key, path in _EXTRACTION_STREAMS:
-        blob = _get_nested(ev, path) or {}
-        if not isinstance(blob, dict):
+    # 3. Inventory (from state)
+    state_parsed = _extract_parsed("extraction.state") or {}
+    inventory_fields = [
+        ("inventory_change_reason", None),
+        ("inventory_add", "add"),
+        ("inventory_remove", "remove"),
+        ("inventory_update", "update"),
+    ]
+    for field_key, default_op in inventory_fields:
+        val = state_parsed.get(field_key)
+        if val is None:
             continue
-        raw_out = blob.get("output")
-        if not raw_out:
+        if isinstance(val, list) and not val:
             continue
-        parsed: dict[str, Any] | None = None
-        if isinstance(raw_out, str):
-            parsed = _tv_parse_json_blob(raw_out)
-        elif isinstance(raw_out, dict):
-            parsed = raw_out
-        if not parsed:
+        if isinstance(val, dict) and not val:
             continue
-        _SKIP_FIELDS = {"actions", "location_description"}
-        for field_key, val in parsed.items():
-            if field_key in _SKIP_FIELDS:
-                continue
-            if val is None:
-                continue
-            if isinstance(val, list) and not val:
-                continue
-            if isinstance(val, dict) and not val:
-                continue
-
-            # Special display for unified thread operations (not covered by _add/_update/_remove suffixes)
-            if field_key == "thread_update":
-                value_str = "; ".join(f"{t.get('id', '?')}:{t.get('urgency','?')}" for t in (val or [])[:4]) + ("\u2026" if len(val) > 4 else "")
-                op = "set"
-            elif field_key == "arc_resolve":
-                arc_res = val if isinstance(val, dict) else {}
-                resolution_text = arc_res.get("resolution", "")[:120] if arc_res else ""
-                value_str = f"resolved: {resolution_text}" if resolution_text else "\u2014"
-                op = "set"
-            elif field_key == "thread_resolve" and isinstance(val, list):
-                value_str = ", ".join(str(x) for x in val[:6]) + ("\u2026" if len(val) > 6 else "")
-                op = "set"
-            elif field_key == "thread_resolve" and isinstance(val, list):
-                parts = []
-                for entry in (val or [])[:4]:
-                    if isinstance(entry, dict):
-                        rid = entry.get("id", "?")
-                        rstate = entry.get("resolution_state", "")
-                        parts.append(f"{rid}: {rstate}")
-                value_str = "; ".join(parts) if parts else "\u2014"
-                op = "set"
-            elif field_key == "thread_add":
-                # thread_add is a single ArcThread object or null — show summary
-                if isinstance(val, dict):
-                    tid = val.get("id", "?")
-                    tsummary = val.get("summary", "")[:80]
-                    value_str = f"{tid}: {tsummary}"
-                else:
-                    value_str = "null (gate blocked)"
-                op = "add"
-            elif field_key.endswith("_add") or field_key.endswith("_update"):
-                op = "add" if field_key.endswith("_add") else "update"
-            elif field_key.endswith("_remove"):
-                op = "remove"
-            else:
-                op = "set"
-            if isinstance(val, list):
-                if all(isinstance(x, dict) for x in val):
-                    summary = ", ".join(_tv_label(x) for x in val if _tv_label(x))
-                    value_str = f"[{len(val)}] {summary}" if summary else f"[{len(val)}]"
-                else:
-                    value_str = ", ".join(str(x) for x in val[:4])
-                    if len(val) > 4:
-                        value_str += "\u2026"
-            elif isinstance(val, dict):
-                value_str = _json.dumps(val)[:120]
-            elif isinstance(val, str):
-                value_str = val[:120] + ("\u2026" if len(val) > 120 else "")
-            else:
-                value_str = str(val)
+        # inventory_change_reason: show as reason line
+        if field_key == "inventory_change_reason":
+            if val and val != "none":
+                changes.append({
+                    "domain": "state",
+                    "op": "=",
+                    "field": "inventory_change_reason",
+                    "value": str(val)[:120],
+                    "rejected": False,
+                    "from_stream": "state",
+                    "concern": "inventory",
+                })
+        else:
+            value_str, op = _format_value(field_key, val, default_op or "update")
             changes.append({
-                "domain": stream_key,
+                "domain": "state",
                 "op": op,
                 "field": field_key,
                 "value": value_str,
                 "rejected": field_key in rejected_set,
-                "from_stream": stream_key,
-                "op_css_class": "update" if field_key.startswith("inventory_") else None,
+                "from_stream": "state",
+                "op_css_class": "update",
+                "concern": "inventory",
             })
-    return changes
+
+    # 4. Conditions (from state)
+    condition_fields = [
+        ("condition_change_reason", None),
+        ("pc_condition_add", "add"),
+        ("pc_condition_remove", "remove"),
+    ]
+    for field_key, default_op in condition_fields:
+        val = state_parsed.get(field_key)
+        if val is None:
+            continue
+        if isinstance(val, list) and not val:
+            continue
+        if isinstance(val, dict) and not val:
+            continue
+        if field_key == "condition_change_reason":
+            if val and val != "none":
+                changes.append({
+                    "domain": "state",
+                    "op": "=",
+                    "field": "condition_change_reason",
+                    "value": str(val)[:120],
+                    "rejected": False,
+                    "from_stream": "state",
+                    "concern": "conditions",
+                })
+        else:
+            value_str, op = _format_value(field_key, val, default_op or "set")
+            changes.append({
+                "domain": "state",
+                "op": op,
+                "field": field_key,
+                "value": value_str,
+                "rejected": field_key in rejected_set,
+                "from_stream": "state",
+                "concern": "conditions",
+            })
+
+    # 5. Arc (from record)
+    arc_resolve = record_parsed.get("arc_resolve")
+    if arc_resolve is not None:
+        if isinstance(arc_resolve, dict) and not arc_resolve:
+            pass
+        elif arc_resolve:
+            value_str, op = _format_value("arc_resolve", arc_resolve, "set")
+            changes.append({
+                "domain": "record",
+                "op": op,
+                "field": "arc_resolve",
+                "value": value_str,
+                "rejected": False,
+                "from_stream": "record",
+                "concern": "arc",
+            })
+
+    # 6. Location (from state)
+    location_change = state_parsed.get("location_change")
+    location_description = state_parsed.get("location_description")
+    if location_change and isinstance(location_change, dict):
+        value_str, op = _format_value("location_change", location_change, "set")
+        changes.append({
+            "domain": "state",
+            "op": op,
+            "field": "location_change",
+            "value": value_str,
+            "rejected": False,
+            "from_stream": "state",
+            "concern": "location",
+        })
+    if location_description and location_description != "none":
+        changes.append({
+            "domain": "state",
+            "op": "set",
+            "field": "location_description",
+            "value": location_description[:120],
+            "rejected": False,
+            "from_stream": "state",
+            "concern": "location",
+        })
+
+    # 7. NPCs (from scene/state)
+    npc_update_fields = []
+    for path in ("extraction.scene", "extraction.state"):
+        sp = _extract_parsed(path) or {}
+        cnpc = sp.get("compendium_npc_update")
+        if cnpc and isinstance(cnpc, list) and cnpc:
+            npc_update_fields.extend(cnpc)
+    if npc_update_fields:
+        value_str, op = _format_value("compendium_npc_update", npc_update_fields, "update")
+        changes.append({
+            "domain": "scene",
+            "op": op,
+            "field": "compendium_npc_update",
+            "value": value_str,
+            "rejected": False,
+            "from_stream": "scene",
+            "concern": "npcs",
+        })
+    return pacing_items, changes
 
 
 def _tv_failures(
@@ -536,8 +772,8 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         has_rejections = any(f["kind"] == "rejection" for f in row_failures)
         has_skipped = any(streams[sd.key].get("skipped") for sd in _STREAMS)
 
-        # State diff
-        state_diff = _tv_state_diff(ev)
+        # Pacing items + state diff
+        pacing_items, state_diff = _tv_state_diff(ev)
 
         # Pacing context from event data
         pacing_ctx = ev.get("pacing_context") or {}
@@ -582,6 +818,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 },
                 "band_label": band_label,
                 "inputs_snapshot": inputs_snapshot,
+                "pacing_items": pacing_items,
                 "state_diff": state_diff,
                 "failures": row_failures,
                 "row_kind": "turn",

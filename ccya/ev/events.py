@@ -9,7 +9,7 @@ import yaml
 
 from ccya.state.io import load_state as _engine_load_state
 
-STREAMS = ("ruling", "narrate", "scene", "state", "storytell")
+STREAMS = ("ruling", "narrate", "scene", "state", "record", "world")
 
 
 def load_events(path: Path) -> list[dict[str, Any]]:
@@ -314,6 +314,30 @@ def extract_field_from_event(ev: dict[str, Any], field: str) -> Any | None:
         for n in updates:
             if isinstance(n, dict) and n.get("id") == npc_id:
                 return {k: v for k, v in n.items() if k != "bio"}
+        return None
+
+    elif field == "thread_resolve":
+        record = ev.get("extraction") or {}
+        record_output = record.get("record") or {}
+        output = record_output.get("output") or {}
+        if isinstance(output, dict):
+            return output.get("thread_resolve") or []
+        return None
+
+    elif field == "thread_update":
+        record = ev.get("extraction") or {}
+        record_output = record.get("record") or {}
+        output = record_output.get("output") or {}
+        if isinstance(output, dict):
+            return output.get("thread_update") or []
+        return None
+
+    elif field == "actions":
+        record = ev.get("extraction") or {}
+        record_output = record.get("record") or {}
+        output = record_output.get("output") or {}
+        if isinstance(output, dict):
+            return output.get("actions") or []
         return None
 
     elif field == "location":

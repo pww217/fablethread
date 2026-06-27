@@ -99,6 +99,7 @@ def cmd_trace(
     to_turn: int | None = None,
     show_unchanged: bool = False,
 ) -> None:
+    from ccya.ev.events import is_compaction_event
     filtered = []
     for ev in events:
         if not isinstance(ev.get("turn"), int):
@@ -107,6 +108,8 @@ def cmd_trace(
         if from_turn is not None and t < from_turn:
             continue
         if to_turn is not None and t > to_turn:
+            continue
+        if is_compaction_event(ev):
             continue
         filtered.append(ev)
 
@@ -341,15 +344,13 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
             "phase": "",
         }
 
-        # From storytell extraction output
-        extraction = ev.get("extraction") or {}
-        storytell = extraction.get("storytell") or {}
-        st_output = storytell.get("output") or {}
-        if isinstance(st_output, dict):
-            gm_beat = st_output.get("gm_beat") or {}
-            if gm_beat and isinstance(gm_beat, dict) and gm_beat.get("type"):
-                beat_entry["type"] = gm_beat.get("type", "")
-                beat_entry["effect"] = gm_beat.get("effect", "")
+        # From state.meta.pending_gm_beat (moved from record extraction)
+        last_state = ev.get("last_turn_state") or {}
+        meta = last_state.get("meta") or {}
+        pending_gm = meta.get("pending_gm_beat") or {}
+        if isinstance(pending_gm, dict) and pending_gm.get("type"):
+            beat_entry["type"] = pending_gm.get("type", "")
+            beat_entry["effect"] = pending_gm.get("effect", "")
 
         # From pacing_context in event
         pacing = ev.get("pacing_context") or {}
@@ -470,22 +471,6 @@ def cmd_goals(events: list[dict[str, Any]], include_compaction: bool = False) ->
                     "after": after,
                     "source": "sanitizer",
                 })
-
-    # Fallback: read extraction.storytell.output for turns without sanitizer events
-    for ev in events:
-        sev_turn = ev.get("turn")
-        if sev_turn is None or sev_turn in sanitizer_turns:
-            continue
-        storytell = (ev.get("extraction") or {}).get("storytell") or {}
-        output = storytell.get("output") or {}
-        goal = output.get("goal_update") or output.get("arc_resolve", {}).get("long_term_objective")
-        if goal:
-            goal_changes.append({
-                "turn": sev_turn,
-                "before": "",
-                "after": goal,
-                "source": "extraction",
-            })
 
     if not goal_changes:
         print("(no goal changes found)")
@@ -689,7 +674,7 @@ def _format_convergence_table(rows: list[dict[str, Any]], had_components: bool, 
         else:
             score_display = score_padded
         ok_str = f"YES{marker}" if score_ok else "NO "
-        out_lines.append(f"{r['turn']:>5} | {r['phase']:<10} |   {r['thread']}    |   {r['depth']}   |  {r['age']}  |  {r['beat']}   |   {r['dice']}  |  {score_display} | {ok_str}")
+        out_lines.append(f"{r['turn']:>5} | {r['phase']:<10} |   {r['thread']}    |   {r['depth']}   |  {r['age']}  |  {r['beat']}   |   {r['roll']}  |  {score_display} | {ok_str}")
     if not had_components and not estimate:
         out_lines.append("")
         out_lines.append("[Note: convergence_components not recorded in this save. Use --estimate to retro-compute.]")
@@ -1544,6 +1529,31 @@ def _match_single_query(
         except re.error:
             print(f"Error: invalid regex '{value}'", file=sys.stderr)
             sys.exit(1)
+
+    elif field == "scene_phase":
+        pc = ev.get("pacing_context") or {}
+        phase = pc.get("scene_phase", "")
+        if op == "eq" and isinstance(value, str):
+            return phase.lower() == value.lower()
+        return False
+
+    elif field.startswith("pacing_context."):
+        pc = ev.get("pacing_context") or {}
+        subfield = field[len("pacing_context."):]
+        result = pc.get(subfield)
+        if result is None:
+            return False
+        if op == "eq":
+            return str(result).lower() == str(value).lower()
+        elif op == "regex":
+            try:
+                pattern = re.compile(str(value))
+                return bool(pattern.search(str(result)))
+            except re.error:
+                return False
+        elif op == "bool":
+            return bool(result)
+        return False
 
     # Generic fallback: dot-notation fields go through extract_field_from_event
     if "." in field:
