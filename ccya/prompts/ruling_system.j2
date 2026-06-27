@@ -69,7 +69,7 @@ Set `required=false` for: idle observation, unimpeded movement, item inspection,
     "skill": "...",
     "difficulty": "trivial|easy|normal|hard|extreme"
   },
-  "selected_beat": {"type": "...", "effect": "...", "npc_id": "...", "driver": "..."}
+  "selected_beat": 0
 }
 ```
 
@@ -86,10 +86,10 @@ Set `required=false` for: idle observation, unimpeded movement, item inspection,
 
 ## Beat Selection
 
-The world has prepared 2-3 candidate beats for the next turn. Choose the one that best fits the player's intent and the current narration.
+The world has prepared 2-3 candidate beats for the next turn. Choose ONE by index.
 
 - `beat_candidates` is provided in the user prompt (variable data).
-- Pick ONE beat that meshes with the player's intent.
+- Pick ONE beat by its index (0-based): `0`, `1`, or `2`.
 - If no beat fits well, omit `selected_beat` (emit null).
 
 Omit empty fields. Empty strings are never valid.

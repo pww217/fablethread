@@ -1,6 +1,6 @@
 ---
 title: "Creation Hints Discarded in Static Seed Path"
-status: new
+status: done
 urgency: 2
 size: small
 created: 2026-06-26
@@ -8,6 +8,7 @@ labels:
   - seed
   - routes
   - player-overrides
+  - static-removal
 ---
 
 ## Problem

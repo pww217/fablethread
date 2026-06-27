@@ -21,12 +21,24 @@ def beat_phase_validity(events: list[dict[str, Any]]) -> CheckerResult:
 
     for ev in events:
         ruling = extract_field(ev, "ruling") or {}
-        gm_beat = ruling.get("selected_beat") or {}
+        selected_beat_idx = ruling.get("selected_beat")
 
-        if not isinstance(gm_beat, dict) or not gm_beat.get("type"):
+        if not isinstance(selected_beat_idx, int):
             continue
 
-        beat_type = gm_beat["type"]
+        # Get beat candidates from state.meta or pacing_context
+        last_state = ev.get("last_turn_state") or {}
+        meta = last_state.get("meta") or {}
+        beat_candidates = meta.get("beat_candidates") or []
+
+        if not isinstance(beat_candidates, list) or selected_beat_idx >= len(beat_candidates):
+            continue
+
+        beat = beat_candidates[selected_beat_idx]
+        if not isinstance(beat, dict) or not beat.get("type"):
+            continue
+
+        beat_type = beat["type"]
 
         pacing_ctx = extract_field(ev, "pacing_context") or {}
         scene_phase = pacing_ctx.get("scene_phase", "SETUP")

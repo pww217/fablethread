@@ -6,7 +6,6 @@ import uvicorn
 from ccya.cli import print_banner
 from ccya.logging_setup import setup_logging
 from ccya.server import app, config
-from ccya.server.app import SAVE_DIR
 
 setup_logging()
 
@@ -26,18 +25,8 @@ def main() -> None:
     port = args.port or config["server"]["bind_port"]
 
     if args.new_game:
-        import yaml
-        from ccya.state import init_save_dir
-
-        if SAVE_DIR is None:
-            print("Error: save directory not configured", file=sys.stderr)
-            sys.exit(1)
-        pack = config.get("game", {}).get("setting_pack", "zombie-survival")
-        seed_path = f"packs/{pack}/seed_state.yaml"
-        with open(seed_path) as f:
-            seed = yaml.safe_load(f) or {}
-        init_save_dir(SAVE_DIR, seed)
-        print(f"New game started in {SAVE_DIR}")
+        print("Error: --new-game requires a scenario.yaml pack. Static packs are no longer supported.", file=sys.stderr)
+        sys.exit(1)
 
     print_banner(host, port)
 

@@ -28,7 +28,7 @@ def _remap_components(components: dict[str, Any]) -> dict[str, Any]:
 @register_checker(
     "convergence_components", "deterministic",
     requires_fields=["pacing_context.convergence_components", "pacing_context.convergence_score"],
-    description="Verify 5-component convergence score matches stored value, drive phase transitions",
+    description="Verify 6-component convergence score + stall_floor matches stored value, drive phase transitions",
 )
 def convergence_components(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
@@ -49,20 +49,23 @@ def convergence_components(events: list[dict[str, Any]]) -> CheckerResult:
 
         components = _remap_components(raw_components)
 
-        # Extract 5 component values
+        # Extract 6 component values + stall_floor
         urgent_thread = components.get("urgent_thread", 0)
         threat_thread = components.get("threat_thread", 0)
         scene_age = components.get("scene_age", 0)
         beat_streak = components.get("beat_streak", 0)
-        dice_weight = components.get("dice_weight", 0)
+        roll_starvation = components.get("roll_starvation", 0)
+        threat_density = components.get("threat_density", 0)
+        stall_floor = components.get("stall_floor", 0)
 
-        # Check for negative components
+        # Check for negative components (all except stall_floor which is int >= 0)
         for name, value in [
             ("urgent_thread", urgent_thread),
             ("threat_thread", threat_thread),
             ("scene_age", scene_age),
             ("beat_streak", beat_streak),
-            ("dice_weight", dice_weight),
+            ("roll_starvation", roll_starvation),
+            ("threat_density", threat_density),
         ]:
             if value < 0:
                 findings.append({
@@ -72,8 +75,8 @@ def convergence_components(events: list[dict[str, Any]]) -> CheckerResult:
                 })
                 all_passed = False
 
-        # Compute expected score
-        expected_score = urgent_thread + threat_thread + scene_age + beat_streak + dice_weight
+        # Compute expected score (6 components + stall_floor)
+        expected_score = urgent_thread + threat_thread + scene_age + beat_streak + roll_starvation + threat_density + stall_floor
 
         # Check score match (floating point tolerance)
         if convergence_score is not None:

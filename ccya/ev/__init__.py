@@ -21,8 +21,10 @@ if sys.version_info < (3, 13):
 STREAM_ALIASES: dict[str, str] = {
     "rules": "ruling",
     "ruling": "ruling",
-    "progress": "storytell",
-    "storytell": "storytell",
+    "progress": "record",
+    "storytell": "record",
+    "record": "record",
+    "world": "world",
     "narrate": "narrate",
     "scene": "scene",
     "state": "state",
@@ -266,6 +268,9 @@ def main() -> None:
         case "storyteller-audit":
             from ccya.ev.audit import cmd_storyteller_audit
             cmd_storyteller_audit(events)
+        case "thread-audit":
+            from ccya.ev.audit import cmd_thread_audit
+            cmd_thread_audit(events)
         case "ruling-audit":
             from ccya.ev.audit import cmd_ruling_audit
             cmd_ruling_audit(events)

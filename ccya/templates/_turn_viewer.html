@@ -230,57 +230,75 @@
                             </div>
                         </template>
 
-                        <template x-if="t.pacing_context">
+                        <template x-if="t.pacing_items && t.pacing_items.length || t.pacing_context">
                             <div class="tv-diff-section">
-                                <div class="tv-diff-section-label">Pacing Context</div>
-                                <template x-if="t.pacing_context.scene_phase">
-                                    <div class="tv-diff-row">
-                                        <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">scene_phase</span>
-                                        <span class="tv-diff-value" x-text="t.pacing_context.scene_phase"></span>
-                                    </div>
+                                <div class="tv-diff-section-label">Pacing/Beats</div>
+                                <template x-if="t.pacing_context">
+                                    <template x-if="t.pacing_context.scene_phase">
+                                        <div class="tv-diff-row">
+                                            <span class="tv-diff-op"></span>
+                                            <span class="tv-diff-field">scene_phase</span>
+                                            <span class="tv-diff-value" x-text="t.pacing_context.scene_phase"></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="t.pacing_context.climax_turn_count !== undefined && t.pacing_context.climax_turn_count > 0">
+                                        <div class="tv-diff-row">
+                                            <span class="tv-diff-op"></span>
+                                            <span class="tv-diff-field">climax_turn_count</span>
+                                            <span class="tv-diff-value" x-text="t.pacing_context.climax_turn_count"></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="t.pacing_context.breather_turn_count !== undefined && t.pacing_context.breather_turn_count > 0">
+                                        <div class="tv-diff-row">
+                                            <span class="tv-diff-op"></span>
+                                            <span class="tv-diff-field">breather_turn_count</span>
+                                            <span class="tv-diff-value" x-text="t.pacing_context.breather_turn_count"></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="t.pacing_context.summary">
+                                        <div class="tv-diff-row">
+                                            <span class="tv-diff-op"></span>
+                                            <span class="tv-diff-field">summary</span>
+                                            <span class="tv-diff-value" x-text="t.pacing_context.summary"></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="t.band_label">
+                                        <div class="tv-diff-row">
+                                            <span class="tv-diff-op"></span>
+                                            <span class="tv-diff-field">band</span>
+                                            <span class="tv-diff-value" x-text="t.band_label"></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="t.pacing_context.outcome_hint">
+                                        <div class="tv-diff-row">
+                                            <span class="tv-diff-op"></span>
+                                            <span class="tv-diff-field">outcome_hint</span>
+                                            <span class="tv-diff-value" x-text="t.pacing_context.outcome_hint"></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="t.pacing_context.convergence_score !== undefined && t.pacing_context.convergence_score > 0">
+                                        <div class="tv-diff-row">
+                                            <span class="tv-diff-op"></span>
+                                            <span class="tv-diff-field">convergence_score</span>
+                                            <span class="tv-diff-value" x-text="t.pacing_context.convergence_score"></span>
+                                        </div>
+                                    </template>
                                 </template>
-                                <template x-if="t.pacing_context.climax_turn_count !== undefined && t.pacing_context.climax_turn_count > 0">
-                                    <div class="tv-diff-row">
+                                <template x-for="(pi, pi_i) in (t.pacing_items || [])" :key="pi_i">
+                                    <div class="tv-diff-row" :class="'tv-diff-pacing-' + (pi.section || '')">
                                         <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">climax_turn_count</span>
-                                        <span class="tv-diff-value" x-text="t.pacing_context.climax_turn_count"></span>
+                                        <span class="tv-diff-field" x-text="pi.section"></span>
+                                        <span class="tv-diff-value" x-text="pi.label"></span>
                                     </div>
-                                </template>
-                                <template x-if="t.pacing_context.breather_turn_count !== undefined && t.pacing_context.breather_turn_count > 0">
-                                    <div class="tv-diff-row">
-                                        <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">breather_turn_count</span>
-                                        <span class="tv-diff-value" x-text="t.pacing_context.breather_turn_count"></span>
-                                    </div>
-                                </template>
-                                <template x-if="t.pacing_context.summary">
-                                    <div class="tv-diff-row">
-                                        <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">summary</span>
-                                        <span class="tv-diff-value" x-text="t.pacing_context.summary"></span>
-                                    </div>
-                                </template>
-                                <template x-if="t.band_label">
-                                    <div class="tv-diff-row">
-                                        <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">band</span>
-                                        <span class="tv-diff-value" x-text="t.band_label"></span>
-                                    </div>
-                                </template>
-                                <template x-if="t.pacing_context.outcome_hint">
-                                    <div class="tv-diff-row">
-                                        <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">outcome_hint</span>
-                                        <span class="tv-diff-value" x-text="t.pacing_context.outcome_hint"></span>
-                                    </div>
-                                </template>
-                                <template x-if="t.pacing_context.convergence_score !== undefined && t.pacing_context.convergence_score > 0">
-                                    <div class="tv-diff-row">
-                                        <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">convergence_score</span>
-                                        <span class="tv-diff-value" x-text="t.pacing_context.convergence_score"></span>
-                                    </div>
+                                    <template x-if="pi.sublines && pi.sublines.length">
+                                        <template x-for="(sl, sl_i) in pi.sublines" :key="sl_i">
+                                            <div class="tv-diff-row tv-diff-subline">
+                                                <span class="tv-diff-op"></span>
+                                                <span class="tv-diff-field"></span>
+                                                <span class="tv-diff-value" x-text="sl"></span>
+                                            </div>
+                                        </template>
+                                    </template>
                                 </template>
                             </div>
                         </template>
@@ -299,7 +317,7 @@
                             </div>
                         </template>
 
-                        <template x-if="(!t.failures || !t.failures.length) && (!t.state_diff || !t.state_diff.length)">
+                        <template x-if="(!t.pacing_items || !t.pacing_items.length) && (!t.state_diff || !t.state_diff.length)">
                             <div class="tv-diff-empty">No changes this turn</div>
                         </template>
                     </div>

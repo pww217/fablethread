@@ -594,6 +594,7 @@ def cmd_eval_compare(
 
 
 def cmd_eval_list() -> None:
+    from ccya.ev.scenario import load_prompt_scenario
     scenarios = discover_scenarios()
     if not scenarios:
         print("No YAML scenarios found in packs/")
@@ -609,6 +610,19 @@ def cmd_eval_list() -> None:
             print(f"    description: {sc.description}")
             print(f"    turns: {len(sc.turns)}")
             print()
+        except ValueError:
+            try:
+                sc = load_prompt_scenario(sp)
+                print(f"  {sp.name}")
+                print(f"    id: {sc.id}")
+                print(f"    save: {sc.save}")
+                print(f"    turn: {sc.turn}")
+                print(f"    stream: {sc.stream}")
+                print(f"    description: {sc.description}")
+                print()
+            except Exception as e2:
+                print(f"  {sp.name}: error: {e2}")
+                print()
         except Exception as e:
             print(f"  {sp.name}: error: {e}")
             print()

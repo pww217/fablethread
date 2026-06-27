@@ -464,6 +464,15 @@
   color: var(--text-muted);
   margin-bottom: 8px;
 }
+.tv-diff-concern-label {
+  font-size: 0.72rem;
+  text-transform: capitalize;
+  color: var(--text-muted);
+  opacity: 0.6;
+  padding: 4px 0 2px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 2px;
+}
 .tv-diff-row {
   display: grid;
   grid-template-columns: 1.2em 1fr 2fr auto;

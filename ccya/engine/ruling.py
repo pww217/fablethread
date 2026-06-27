@@ -7,7 +7,7 @@ import logging
 from jinja2 import Environment
 from typing import TYPE_CHECKING, Any
 
-from pydantic import ValidationError
+
 
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _PROMPTS_LOG_PATH, _render
 from ccya.engine.extraction import _avg_event_ms
@@ -15,7 +15,7 @@ from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine._pacing import _compute_ages
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
-from ccya.models import Band, GMBeat, IntentEnvelope, RulesCheck, RulesOutcome
+from ccya.models import Band, IntentEnvelope, RulesCheck, RulesOutcome
 from ccya.personality import ARCHETYPES
 from ccya.rules import resolve_check, build_directive
 
@@ -246,24 +246,24 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     ctx._ruling_parse_error = ruling_parse_error
     ctx._ruling_trimmed = ruling_trimmed
     ctx._ruling_trimmed_chars = ruling_trimmed_chars
+    ctx._selected_beat = selected_beat
 
-    # Beat lifecycle: validate selected_beat, set pending_gm_beat, append recent_beats,
-    # and always discard beat_candidates (no orphan across turn boundary).
-    beat: GMBeat | None = None
-    if selected_beat:
-        try:
-            beat = GMBeat(**selected_beat)
-        except ValidationError:
-            beat = None
+    # Beat lifecycle: index-based selection from beat_candidates
+    beat_candidates = (state.get("meta") or {}).get("beat_candidates") or []
+    beat: dict[str, Any] | None = None
+    if selected_beat is not None and isinstance(selected_beat, int) and 0 <= selected_beat < len(beat_candidates):
+        beat = beat_candidates[selected_beat]
 
-    if beat and beat.type:
-        beat_dict = beat.model_dump(exclude_none=True)
-        state.setdefault("meta", {})["pending_gm_beat"] = beat_dict
+    if beat and beat.get("type"):
+        state.setdefault("meta", {})["pending_gm_beat"] = {
+            "type": beat["type"],
+            "effect": beat.get("effect", ""),
+        }
         meta = state.setdefault("meta", {})
         meta.setdefault("recent_beats", []).append({
             "turn": turn_no,
-            "type": beat.type,
-            "effect": beat.effect,
+            "type": beat["type"],
+            "effect": beat.get("effect", ""),
         })
         max_beats = config.recent_beats_max or 5
         if len(meta["recent_beats"]) > max_beats:

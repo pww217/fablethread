@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import logging
-from math import ceil
 from typing import TYPE_CHECKING, Any
 
-from ccya.engine.config import _render
+from ccya.engine.config import _render, is_cancel_requested
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine._pacing import (
-    BEAT_BUCKETS,
     _compute_pacing_context,
     _compute_scene_phase,
     compute_convergence_score,
@@ -150,6 +148,12 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     """Build narration context and messages. Returns (pacing_ctx, narr_messages)."""
     state = ctx.state
     config = ctx.config
+
+    # Reset consecutive_low_convergence on cancel/retry (design: resets on cancel/retry)
+    if is_cancel_requested(str(ctx.save_dir)):
+        state.setdefault("meta", {}).pop("consecutive_low_convergence", None)
+        return None, None
+
     turn_no = state.get("meta", {}).get("turn", 0) + 1
 
     # Rolling NPC name pool for mid-game cultural anchoring (split by gender)
@@ -197,17 +201,36 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
             )
 
     # Compute convergence score before phase machine — passes raw thread list
-    convergence_score = compute_convergence_score(
+    _convergence_score, _convergence_components = compute_convergence_score(
         scene_phase=scene_phase,
-        active_threads=_raw_thread_dicts,      # was: thread_urgency_count
+        active_threads=_raw_thread_dicts,
         scene_age=ctx._ages.get("scene_age", 0),
         recent_beats=state.get("meta", {}).get("recent_beats", []),
         current_outcome=ctx.outcome,
         config=config,
+        turn_no=turn_no,
+        recent_rolls=state.get("meta", {}).get("recent_rolls", []),
     )
 
+    # Stall floor + consecutive_low_convergence tracking
+    meta = state.setdefault("meta", {})
+    clc = meta.get("consecutive_low_convergence", 0)
+    if _convergence_score < config.convergence_threshold:
+        clc += 1
+        meta["consecutive_low_convergence"] = clc
+    else:
+        clc = 0
+        meta.pop("consecutive_low_convergence", None)
+
+    stall_floor = 0
+    if clc >= 3:
+        stall_floor = min(1 + ((clc - 3) // 3), config.stall_floor_max)
+    _convergence_components["stall_floor"] = stall_floor
+
+    total_convergence_score = _convergence_score + stall_floor
+
     # Compute phase (mutates state["scene"] in place)
-    state["scene"] = _compute_scene_phase(state, ctx._ages, config, convergence_score)
+    state["scene"] = _compute_scene_phase(state, ctx._ages, config, total_convergence_score, turn_no)
     scene_phase = scene.get("scene_phase", "SETUP")
 
     # Compute unified pacing context with new signal set
@@ -219,6 +242,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         scene_motion=_scene_motion,
         scene_pressure_threshold=config.scene_pressure_threshold,
         scene_imperative_threshold=config.scene_imperative_threshold,
+        climax_turn_count=scene.get("climax_turn_count", 0),
     )
 
     # Compute death spiral flag from recent roll history
@@ -229,37 +253,8 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         hard_ratio_threshold=config.spiral_hard_ratio,
     )
     _pc.spiral_detected = ctx._spiral_detected
-    _pc.convergence_score = convergence_score
-
-    # 5 convergence component booleans — MUST match _pacing.py compute_convergence_score()
-    components: dict[str, int] = {}
-    components["urgent_thread"] = 1 if any(
-        t.get("urgency") == "urgent" and not t.get("dormant", False)
-        for t in _raw_thread_dicts
-    ) else 0
-    components["threat_thread"] = 1 if any(
-        t.get("type") == "threat" and not t.get("dormant", False)
-        for t in _raw_thread_dicts
-    ) else 0
-    scene_age = ctx._ages.get("scene_age", 0)
-    components["scene_age"] = 1 if scene_age >= config.scene_pressure_threshold else 0
-    recent_beats = state.get("meta", {}).get("recent_beats", [])
-    if recent_beats:
-        pressure_types = set(BEAT_BUCKETS["pressure"])
-        n = len(recent_beats)
-        window = recent_beats[: min(n, 5)]
-        pressure_count = sum(1 for b in window if b.get("type") in pressure_types)
-        threshold = ceil(n * 0.6) if n < 5 else 3
-        components["beat_streak"] = 1 if pressure_count >= threshold else 0
-    else:
-        components["beat_streak"] = 0
-    components["dice_weight"] = 1 if (
-        ctx.outcome is not None
-        and ctx.outcome.rolled
-        and ctx.outcome.band in ("crit_fail", "fail")
-        and thread_urgency_count >= 1
-    ) else 0
-    _pc.convergence_components = components
+    _pc.convergence_score = total_convergence_score
+    _pc.convergence_components = _convergence_components
 
     # Curtain Call signal for CLIMAX phase
     _curtain_call = scene.get("curtain_call", "")

@@ -13,11 +13,11 @@ meta:
   pending_gm_beat: dict | None  # GM beat selected by Ruling from beat_candidates, consumed by same turn's Narrate (runtime-only, no TTL — single-turn commitment)
   beat_candidates: list[dict]  # 0-3 candidate beats prepared by World step (async, end-of-prev-turn), consumed and popped by Ruling
   prior_history: list[str]     # incremental history bullets (- [T{n}] text), appended per record turn (formerly per storyteller turn), capped at 20 newest
-  _seed_type: str | None       # "static" or "dynamic" — set by seed application, read by turn viewer
   _pack_source: str | None     # pack ID that was used to generate this state
+  consecutive_low_convergence: int  # global counter across BREATHER→RISING cycles; incremented when convergence_score < threshold, reset on reaching threshold or cancel/retry; drives stall_floor computation
 
-# Root-level keys only present when a game has been seeded (not in default empty state)
-__seed_meta__:                 # {opening_narrative: str, actions: [str]} — dynamic packs only; set by _apply_seed_to_save_dir()
+# Root-level keys only present when a game has been seeded
+__seed_meta__:                 # {opening_narrative: str, actions: [str]}; set by _apply_seed_to_save_dir()
 
 pc:
   name: str
@@ -101,7 +101,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 - **SkillName**: 4 skills (strength, dexterity, wits, charisma)
 - **Difficulty**: 5 difficulty levels with modifiers in DIFFICULTY_MOD
 - **Band**: crit_fail, fail, setback, partial, success, crit_success (1d12 natural: 1=crit_fail, 12=crit_success)
-- **EngineConfig**: thread_max_active, nearby_decay_ttl, departed_archive_ttl, climax_turn_limit, breather_max_turns, convergence_threshold, thread_creation_cooldown, thread_urgency_max_age, sanitize_every, arc_memory_ttl, thread_memory_ttl, debug_mode, plus sampling params per stage (ruling_temperature, narrate_temperature, etc.)
+- **EngineConfig**: thread_max_active, nearby_decay_ttl, departed_archive_ttl, climax_turn_limit, breather_max_turns, convergence_threshold, roll_starvation_threshold, threat_density_threshold, stall_floor_max, extension_max, thread_creation_cooldown, thread_urgency_max_age, sanitize_every, arc_memory_ttl, thread_memory_ttl, debug_mode, plus sampling params per stage (ruling_temperature, narrate_temperature, etc.)
 
 ### Compactor models (ccya/models/compactor.py) — dormant
 

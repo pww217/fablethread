@@ -4,7 +4,7 @@ These run only at new-game time or are non-engine concerns. They are excluded fr
 
 ## Character Creation Pipeline
 
-Triggered by `POST /new-game`. Behavior depends on player hints: if no hints provided, uses Generate Seed pipeline (dynamic LLM generation); if hints provided, uses static pack's seed_state.yaml as fallback (shows error if pack has no static seed).
+Triggered by `POST /new-game`. Always uses the Generate Seed pipeline (dynamic LLM generation) with optional player overrides.
 
 ```mermaid
 flowchart LR
@@ -15,20 +15,14 @@ flowchart LR
     end
 
     subgraph DYNAMIC["Dynamic Pack — generate_seed()"]
-        DS["No hints — LLM generates<br>SeedEnvelope with seed_state,<br>opening_narrative, actions"]
+        DS["LLM generates<br>SeedEnvelope with seed_state,<br>opening_narrative, actions<br>overrides injected if non-empty"]
     end
 
-    subgraph STATIC["Static Pack — seed_state.yaml"]
-        SS["Hints provided — load<br>pack.seed from seed_state.yaml<br>no opening_narrative or actions"]
-    end
-
-    INIT["init_save_dir(SAVE_DIR, seed)<br>Writes state.yaml<br>Clears chronicle.md + events.jsonl<br>_seed_type: 'dynamic' or 'static'"]
+    INIT["init_save_dir(SAVE_DIR, seed)<br>Writes state.yaml<br>Clears chronicle.md + events.jsonl<br>_pack_source: pack ID"]
 
     FORM --> CHECK
-    CHECK --> |"empty"| DYNAMIC
-    CHECK --> |"non-empty"| STATIC
+    CHECK --> DYNAMIC
     DYNAMIC --> INIT
-    STATIC --> INIT
 ```
 
 ## Generate Seed Pipeline (Dynamic Packs Only)
@@ -71,10 +65,6 @@ After the LLM generates the SeedEnvelope, `generate_seed()` in `seed.py` runs po
 - Clears engine-managed `compendium_touch_order` from seeded compendium NPCs
 - **Injects pack currency**: if `scenario.currency_id` is set and no inventory item with that ID exists, appends an `InventoryItem` with the pack's `starting_currency_amount`
 - **Assigns NPC personalities**: iterates over all NPCs in `envelope.seed_state.compendium.npcs`; for any without a `personality` attribute, calls `ccya.personality.assign_personality()` using the NPC's `motivation` and `fear` fields; validates any LLM-provided personality ids via `validate_and_resolve()`; unknown ids fall back to `assign_personality()`
-
-### Static seed personality assignment
-
-Static seeds loaded via YAML (`--new-game` with a static pack) go through `init_save_dir()` in `state/io.py`, which calls `_assign_seed_personalities()` to assign personality archetype ids to NPCs missing one. This ensures all NPCs — whether born from LLM-generated seeds or hand-authored static packs — get personalities at game start time. The assignment is idempotent (skips NPCs that already have a `personality` key).
 
 ### Seed emotional framing contract
 

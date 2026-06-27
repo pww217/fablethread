@@ -87,7 +87,7 @@ async def _run_extraction_pipeline(
             scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
         )
         extraction_event["scene"] = {
-            "output": scene_result.model_dump(exclude_none=True),
+            "output": scene_result.model_dump(exclude_unset=True),
             "skipped": False,
             "attempts": scene_attempts,
             "retry_errors": scene_retry_errors,
@@ -145,7 +145,7 @@ async def _run_extraction_pipeline(
             StateExtractResult, strip_keys=("_reasoning",),
         )
         extraction_event["state"] = {
-            "output": state_result.model_dump(exclude_none=True),
+            "output": state_result.model_dump(exclude_unset=True),
             "skipped": False,
             "attempts": state_attempts,
             "retry_errors": state_retry_errors,
@@ -252,7 +252,7 @@ async def _run_extraction_pipeline(
                 actions.append("Decide what matters most and pursue it.")
             record_result = record_result.model_copy(update={"actions": actions})
         extraction_event["record"] = {
-            "output": record_result.model_dump(exclude_none=True),
+            "output": record_result.model_dump(exclude_unset=True),
             "skipped": False,
             "attempts": record_attempts,
             "retry_errors": record_retry_errors,
