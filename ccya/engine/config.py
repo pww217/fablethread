@@ -158,7 +158,7 @@ class EngineConfig:
     # Scene phase thresholds
     climax_turn_limit: int = 4          # max turns in CLIMAX before forced RESOLUTION
     breather_max_turns: int = 3         # max turns in BREATHER before forced RISING transition
-    convergence_threshold: int = 2
+    convergence_threshold: int = 3
     # New convergence components
     roll_starvation_threshold: int = 3    # turns without a roll before +1
     threat_density_threshold: int = 3     # active threat threads before +1
