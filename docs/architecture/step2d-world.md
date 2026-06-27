@@ -30,7 +30,8 @@ flowchart LR
     end
 
     subgraph OUT["Outputs"]
-        O1["state.meta.beat_candidates<br>[ {type, effect, npc_id, driver}, ... ]<br>0-3 candidates"]:::outNode
+        O1["state.meta.beat_candidates<br>[ {type, effect}, ... ]<br>0-3 candidates"]:::outNode
+        O2["extraction.world.purged<br>[ purged candidates ]"]:::outNode
     end
 
     IN --> LLM --> OUT
@@ -73,24 +74,32 @@ If `scene_result is None` (extraction pipeline failed), `candidate_npcs` default
 
 ## Outputs
 
-`state.meta.beat_candidates: list[dict]` — 0-3 validated candidate dicts (after `GMBeat(**candidate)` validation; invalid candidates silently dropped, no retry). Storage shape is the same as Ruling will ingest.
+`state.meta.beat_candidates: list[dict]` — 0-3 validated candidate dicts (after phase validation + `GMBeat(**candidate)` validation; invalid candidates silently dropped, no retry). Each dict has just `{type, effect}`. Ruling reads by index.
+
+`extraction.world.purged: list[dict]` — candidates purged by phase validation (stored for EV debugging).
 
 **Failure mode.** If the World LLM call times out, returns invalid JSON, or all candidates fail validation, the candidates list is `[]` and the next turn's Ruling proceeds without a beat selection (no `selected_beat` in JSON). The `world_done` event still fires; the lock releases; the next turn can submit. World resolves one way or another before the lock lifts.
 
 ## GMBeat schema (repurposed)
 
-The `GMBeat` Pydantic model has been repurposed as the validation schema for both World candidates and Ruling's `selected_beat`. The `beat_expires_turn` field is removed (no TTL — see "Beat lifecycle" below).
+The `GMBeat` Pydantic model is used as the validation schema for World candidates. Ruling no longer validates against GMBeat — it selects by index. The `npc_id`, `driver`, and `beat_expires_turn` fields are removed (no TTL — see "Beat lifecycle" below).
 
 ```
 GMBeat
   type: complication | revelation | opportunity | breathing_room |
         pressure | twist | setback | escalation | callback | None
   effect: str                       # required
-  npc_id: str | None
-  driver: Literal["motivation", "fear", "leverage", "bond", "personality"] | None
 ```
 
-Type/driver `Literal` validators silently coerce out-of-enum values to `None`; a candidate whose `type` ends up empty is dropped.
+A candidate whose `type` ends up empty is dropped.
+
+## Phase validation layer
+
+Before GMBeat validation, World validates each candidate's `type` against the phase-derived `allowed_beat_types`. Candidates whose `type` is not in the allowed set are purged before reaching the GMBeat validation step. This prevents the LLM from generating beat types that the current phase machine considers inappropriate.
+
+- Purged candidates are logged at `WARNING` level if some remain after purging, `ERROR` if all are purged.
+- The purged list is returned as a 6th element from `_run_world_step()` and stored in `extraction.world.purged` for EV debugging.
+- This validation runs before GMBeat validation, so invalid-type candidates never reach the Pydantic validation step.
 
 ## Temperature
 
@@ -105,6 +114,7 @@ World data is recorded in the main turn event under `extraction.world` (not as a
 ```
 extraction.world = {
     "output": beat_candidates,       # list[dict] — validated GMBeat dicts
+    "purged": [...],                 # list[dict] — phase-purged candidates
     "skipped": False,
     "tokens_in": 0,                  # reserved for future LLM token tracking
     "tokens_out": 0,                 # reserved for future LLM token tracking
@@ -140,7 +150,7 @@ The `turn_viewer_prompts` route automatically includes world prompts since it re
 Beats are now single-turn commitments:
 
 1. **World (turn N, async after `complete`):** generates 2-3 candidates → `state.meta.beat_candidates`.
-2. **Ruling (turn N+1, sync at start):** reads `state.meta.beat_candidates`, picks one (or none), sets `state.meta.pending_gm_beat` (if selected) or pops it (if not). Always pops `state.meta.beat_candidates` (no carryover).
+2. **Ruling (turn N+1, sync at start):** reads `state.meta.beat_candidates`, picks one by index (or none), sets `state.meta.pending_gm_beat` (if selected) or pops it (if not). Always pops `state.meta.beat_candidates` (no carryover).
 3. **Narrate (turn N+1, sync):** reads `state.meta.pending_gm_beat` (set by Ruling this same turn), integrates it as atmospheric pressure / scene direction. Narrate is a pure reader of `pending_gm_beat` — it does not mutate it.
 4. **Turn boundary:** Ruling's per-turn "always replace or pop" rule keeps `pending_gm_beat` hygienic. No expiry arithmetic — beats are single-turn commitments.
 

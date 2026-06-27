@@ -9,16 +9,16 @@
 | `ccya/models/` | Pydantic models: state, extraction, rules, config, compactor |
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
-| `ccya/engine/config.py` | EngineConfig dataclass; CheckerConfig threshold fields; turn lock management; Jinja env setup |
+| `ccya/engine/config.py` | EngineConfig dataclass (fields: roll_starvation_threshold, threat_density_threshold, stall_floor_max, extension_max, convergence_threshold, climax_turn_limit, etc.); CheckerConfig threshold fields; turn lock management; Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() orchestrator; pipeline (rules→narrate→scene/state/record); end-of-turn async phases (Sanitize + World) after yield("complete"); deferred atomic write block with last_turn_state capture (appended after async window); extraction_event includes world data under extraction.world |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
 | `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay, TTL condition expiration (_expire_conditions); LongTermObjective.started_turn on arc resolve |
-| `ccya/engine/_pacing.py` | Beat constraints, convergence score, spiral detection |
-| `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context; pure reader of `state.meta.pending_gm_beat` |
-| `ccya/engine/world.py` | World: async beat-candidate generation (Step 2d). Validates each candidate via `GMBeat`; returns (candidates, system_text, user_text, raw_response) for event recording; runs after Sanitize, before generator returns |
+| `ccya/engine/_pacing.py` | Beat constraints, 6-component convergence score (+stall_floor externally), spiral detection; `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls) -> tuple[int, dict[str, int]]`; `_compute_scene_phase(state, ages, config, total_convergence_score, turn_no)` |
+| `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context; convergence score computation + stall_floor tracking via `consecutive_low_convergence`; pure reader of `state.meta.pending_gm_beat` |
+| `ccya/engine/world.py` | World: async beat-candidate generation (Step 2d). Validates each candidate via `GMBeat`; strips to `{type, effect}` for ruling; returns (candidates, system_text, user_text, raw_response) for event recording; runs after Sanitize, before generator returns |
 | `ccya/engine/pack_gen.py` | LLM-generated ScenarioBrief → packs/custom/ |
 | `ccya/engine/names.py` | Name pool generation via Faker |
-| `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; pc.situation in ruling context; beat selection from `state.meta.beat_candidates`; sets/pops `state.meta.pending_gm_beat` and `state.meta.beat_candidates` per turn |
+| `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; pc.situation in ruling context; index-based beat selection from `state.meta.beat_candidates`; sets/pops `state.meta.pending_gm_beat` and `state.meta.beat_candidates` per turn |
 | `ccya/engine/extraction/` | Scene/state/record extraction pipeline (3 streams); `gm_beat` field removed from `StorytellerResult` |
 | `ccya/engine/hints.py` | Hint generation for ruling context (pc.situation) |
 | `ccya/engine/thread_sanitizer.py` | Batch arc/thread cleanup every N turns; atomic world_state swap |
@@ -82,7 +82,7 @@
 - **save_state()** → `ccya/state/io.py` — atomic write (tmp + rename)
 - **apply_delta()** → `ccya/state/delta_builder.py` — merges extraction results into state
 - **app** → `ccya/server/__init__.py` — FastAPI instance with ~25 routes
-- **load_pack()** → `ccya/pack.py` — validates pack has seed_state.yaml or scenario.yaml
+- **load_pack()** → `ccya/pack.py` — loads scenario.yaml packs
 - **resolve_check()** → `ccya/rules.py` — 1d12+stat_mod+diff_mod→Band (pure Python)
 - **chat()** → `ccya/llm_client.py` — non-streaming LLM call with retry
 - **chat_stream()** → `ccya/llm_client.py` — streaming tokens

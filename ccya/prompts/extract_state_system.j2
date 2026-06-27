@@ -144,4 +144,6 @@ Sections not shown in the user prompt still exist in live game state. Absence is
 
 `location_change`: emitted ONLY when the location ID changes. Schema: `{"id": "snake_case", "name": "Display Name", "description": "Stable short description (1 sentence)"}`. Same behavior as the current scene extractor rules for this field.
 
+**Location change detection rule:** If the narration describes the player arriving at a new place — entering a building, leaving a room, traveling to a new area, arriving at a destination — emit `location_change` regardless of whether the current location ID matches. The narrator writes fiction; the extractor tracks where the player actually is. If the narration shows a spatial transition to a distinct location, that IS a location change.
+
 `location_description`: emitted ONLY when the physical environment has materially changed — structural damage, new obstacles, light/shift changes, new interactable features. 1-2 sentences. Must describe new tangible details or potential opportunities NOT present in the narration. Do NOT repeat narration. Emit nothing if the environment is unchanged from its current description. The current location description is shown in the user prompt for reference.

@@ -14,23 +14,6 @@ from ccya.errors import ErrorKind
 
 _log = logging.getLogger(__name__)
 
-def _assign_seed_personalities(state: dict[str, Any]) -> None:
-    """Assign personality archetype ids to any NPCs missing one in the seed state."""
-    from ccya.personality import ARCHETYPES, assign_personality
-    
-    npcs = (state.get("compendium") or {}).get("npcs", {})
-    for npc_id, entry in npcs.items():
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("personality") and entry["personality"] in ARCHETYPES:
-            continue
-        arch = assign_personality(
-            motivation=entry.get("motivation"),
-            fear=entry.get("fear"),
-            npc_id=npc_id,
-        )
-        entry["personality"] = arch.id
-
 
 def _coerce_enums(obj: Any) -> Any:
     """Recursively convert Enum values to their string values for YAML serialization."""
@@ -122,7 +105,6 @@ def save_state(save_dir: Path, state: dict[str, Any]) -> None:
 
 def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
     save_dir.mkdir(parents=True, exist_ok=True)
-    _assign_seed_personalities(seed)
     save_state(save_dir, seed)
     chronicle_path = save_dir / "chronicle.md"
     seed_meta = seed.get("__seed_meta__") or {}

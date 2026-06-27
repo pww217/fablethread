@@ -137,7 +137,7 @@ async def _run_world_step(
             continue
         if not beat.type:
             continue
-        valid_beats.append(beat.model_dump(exclude_none=True))
+        valid_beats.append({"type": beat.type, "effect": beat.effect})
         if len(valid_beats) >= 3:
             break
 

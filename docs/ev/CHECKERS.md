@@ -34,20 +34,20 @@ When inspecting a game, check one area at a time rather than running all checker
 - **Fields:** `last_turn_state`, `ruling`, `narrate_prompt`
 - **What it checks:** Pending GM beat is consumed across turns, beat lifecycle is respected, binding block present on rolled turns
 - **CLI:** `ev.py check TURN gm_beat_lifecycle`
-- **Caveats:** Checks that `pending_gm_beat` from one turn is consumed or updated in the next. Verifies that when storyteller emits a GM beat, the state's `pending_gm_beat` matches its type. Rolled turns must include the BINDING block in narrate user prompt.
+- **Caveats:** Checks that `pending_gm_beat` from one turn is consumed or updated in the next. Verifies that when the record extractor emits a GM beat, the state's `pending_gm_beat` matches its type. Rolled turns must include the BINDING block in narrate user prompt.
 
 ### location_change
 
 - **Type:** deterministic
-- **Fields:** `applied.location_change`, `last_turn_state.location` (or `extraction.storytell.rendered_user` for pre-delta location)
+- **Fields:** `applied.location_change`, `last_turn_state.location` (or `extraction.record.rendered_user` for pre-delta location)
 - **What it checks:** When a location change is emitted, the post-turn location ID differs from the previous turn's location ID
 - **CLI:** `ev.py check TURN location_change`
-- **Caveats:** Only checks turns where `applied.location_change` is present. First turn is skipped (no previous location to compare). Note: `extraction_context` is NOT stored in events; checkers must use `last_turn_state` or parse the storyteller prompt.
+- **Caveats:** Only checks turns where `applied.location_change` is present. First turn is skipped (no previous location to compare). Note: `extraction_context` is NOT stored in events; checkers must use `last_turn_state` or parse the record prompt.
 
 ### inventory_integrity
 
 - **Type:** deterministic
-- **Fields:** `applied.inventory_add`, `applied.inventory_remove`, `last_turn_state.inventory` (or `extraction.storytell.rendered_user` for pre-delta inventory)
+- **Fields:** `applied.inventory_add`, `applied.inventory_remove`, `last_turn_state.inventory` (or `extraction.record.rendered_user` for pre-delta inventory)
 - **What it checks:** No negative inventory amounts, no overdraw (removing from zero-quantity items), no removal of non-existent items
 - **CLI:** `ev.py check TURN inventory_integrity`
 - **Caveats:** Checks last_turn_state inventory for negative amounts. Compares previous turn's inventory against current turn's removals to detect overdraw and removal of items that didn't exist. Note: `extraction_context` is NOT stored in events.
@@ -55,7 +55,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### conditions_lifecycle
 
 - **Type:** deterministic
-- **Fields:** `applied.pc_condition_add`, `applied.pc_condition_remove`, `last_turn_state.pc.conditions` (or `extraction.storytell.rendered_user` for pre-delta conditions)
+- **Fields:** `applied.pc_condition_add`, `applied.pc_condition_remove`, `last_turn_state.pc.conditions` (or `extraction.record.rendered_user` for pre-delta conditions)
 - **What it checks:** Conditions present in ruling reason, no duplicate condition IDs
 - **CLI:** `ev.py check TURN conditions_lifecycle`
 - **Caveats:** Checks that condition IDs appear in the ruling's reason text (lowercase comparison). Dedup check is case-insensitive. Note: `extraction_context` is NOT stored in events.
@@ -63,7 +63,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### thread_lifecycle
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `last_turn_state`
+- **Fields:** `extraction.record`, `last_turn_state`
 - **What it checks:** thread_add entries appear in state after the turn, thread_update IDs reference existing threads
 - **CLI:** `ev.py check TURN thread_lifecycle`
 - **Caveats:** Checks the next turn's last_turn_state to verify thread_add was applied. thread_update IDs are validated against the current turn's state.arc.threads.
@@ -71,10 +71,10 @@ When inspecting a game, check one area at a time rather than running all checker
 ### arc_goal_updates
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `last_turn_state`
-- **What it checks:** When storyteller emits a goal_update string, it matches arc.visible_goal in state
+- **Fields:** `extraction.record`, `last_turn_state`
+- **What it checks:** When record extractor emits a goal_update string, it matches arc.visible_goal in state
 - **CLI:** `ev.py check TURN arc_goal_updates`
-- **Caveats:** Only checks turns where storyteller emitted a non-empty string goal_update. Skips null or non-string goal_update values.
+- **Caveats:** Only checks turns where record emitted a non-empty string goal_update. Skips null or non-string goal_update values.
 
 ### npc_presence
 
@@ -87,8 +87,8 @@ When inspecting a game, check one area at a time rather than running all checker
 ### pacing_directives
 
 - **Type:** deterministic
-- **Fields:** `ruling`, `narrate_prompt`, `extraction.storytell.rendered_user`
-- **What it checks:** outcome_hint rendered in narrator prompt, directive rendered in storyteller prompt, removed directives not present
+- **Fields:** `ruling`, `narrate_prompt`, `extraction.record.rendered_user`
+- **What it checks:** outcome_hint rendered in narrator prompt, directive rendered in record prompt, removed directives not present
 - **CLI:** `ev.py check TURN pacing_directives`
 - **Caveats:** Removed directives: "Overwhelm", "Pressure", "location pressure", "location imperative", "combat fatigue". Uses regex word boundaries to avoid false positives from word variants (e.g., "overwhelmed" matching "Overwhelm").
 
@@ -127,7 +127,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### thread_resolution_validity
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `last_turn_state`
+- **Fields:** `extraction.record`, `last_turn_state`
 - **What it checks:** thread_resolve entries have valid id/resolution_state/outcome, referenced threads exist in state
 - **CLI:** `ev.py check TURN thread_resolution_validity`
 - **Caveats:** resolution_state must be one of "resolved", "failed", "abandoned". Thread IDs must exist in arc.threads or arc.completed_threads.
@@ -135,7 +135,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### new_thread_validity
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `last_turn_state`
+- **Fields:** `extraction.record`, `last_turn_state`
 - **What it checks:** thread_add entries have id/description/visible_goal, no duplicate thread ids
 - **CLI:** `ev.py check TURN new_thread_validity`
 - **Caveats:** id must be non-empty string. description and visible_goal must be non-empty strings. No duplicate thread ids in state after add.
@@ -151,15 +151,15 @@ When inspecting a game, check one area at a time rather than running all checker
 ### beat_phase_validity
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `pacing_context`
-- **What it checks:** gm_beat.type is allowed for the current phase
+- **Fields:** `extraction.record`, `pacing_context`
+- **What it checks:** selected beat type (from beat_candidates) is allowed for the current phase
 - **CLI:** `ev.py check TURN beat_phase_validity`
 - **Caveats:** Validates beat types against BEAT_PHASE_MAP. SETUP allows [pressure, complication, revelation]. RISING allows [pressure, complication, escalation, twist]. CLIMAX allows [pressure, complication, escalation, setback]. RESOLUTION allows [callback, breathing_room]. BREATHER allows [breathing_room, callback].
 
 ### arc_resolution_validity
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `last_turn_state`
+- **Fields:** `extraction.record`, `last_turn_state`
 - **What it checks:** arc_resolve has resolution + visible_goal + goal_context, drop_threads reference existing threads
 - **CLI:** `ev.py check TURN arc_resolution_validity`
 - **Caveats:** resolution, visible_goal, and goal_context must be non-empty strings. drop_threads IDs must exist in arc.threads.
@@ -167,7 +167,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### goal_update_validity
 
 - **Type:** deterministic
-- **Fields:** `extraction.storytell`, `last_turn_state`
+- **Fields:** `extraction.record`, `last_turn_state`
 - **What it checks:** goal_update is non-empty string, must differ from previous visible_goal
 - **CLI:** `ev.py check TURN goal_update_validity`
 - **Caveats:** Skips turns where arc_resolve is also emitted (arc_resolve.visible_goal supersedes goal_update). Validates goal_update differs from next turn's arc.visible_goal.

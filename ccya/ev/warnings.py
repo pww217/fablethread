@@ -16,7 +16,7 @@ def cmd_warnings(events: list[dict[str, Any]]) -> None:
 
         extraction = ev.get("extraction") or {}
         retry_errors: dict[str, int] = {}
-        for stream in ("scene", "state", "storytell"):
+        for stream in ("scene", "state", "record"):
             s = extraction.get(stream) or {}
             errs = s.get("retry_errors") or []
             if errs:

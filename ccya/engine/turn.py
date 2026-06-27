@@ -381,6 +381,7 @@ async def run_turn(
             "tokens_in": ruling_metrics.get("tokens_in", 0),
             "tokens_out": ruling_metrics.get("tokens_out", 0),
             "outcome_summary": outcome_summary,
+            "selected_beat": ctx._selected_beat,
         }
         if _outcome.rolled:
             ruling_event.update({

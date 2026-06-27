@@ -18,11 +18,13 @@ All 4 original issues have been investigated. Root causes identified and fixes a
 
 ---
 
-All 5 user-facing packs (noir-1930s, allied-ww2, golden-piracy, space-western, zombie-survival) use **dynamic seeds** via `scenario.yaml`. Static packs exist only for the eval harness (`packs/eval/seed_state.yaml`). This ticket documents findings specific to the dynamic seed pipeline.
+All 5 user-facing packs (noir-1930s, allied-ww2, golden-piracy, space-western, zombie-survival) use **dynamic seeds** via `scenario.yaml`. Static packs have been removed entirely — the eval harness no longer uses a static pack. This ticket documents findings specific to the dynamic seed pipeline.
 
 ---
 
-## 1. Static Seed Path Produces No Choices (FIXED)
+## 1. Static Seed Path Removed
+
+The static seed path in `routes.py` has been removed entirely. All new games now go through the dynamic seed pipeline (`generate_seed()`). The `_generate_seed_actions()` helper, `pack_type` parameter in `_apply_seed_to_save_dir()`, and `_seed_type` metadata have all been removed. The `packs/eval/` directory has been deleted.
 
 **Path:** `routes.py:532-543` — when hints are provided, `pack.seed` is used.
 

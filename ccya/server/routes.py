@@ -68,71 +68,21 @@ def _generate_save_dir_name(pack_name: str) -> str:
     return f"{safe}-{today}"
 
 
-def _generate_seed_actions(seed: dict[str, Any]) -> list[str]:
-    """Generate 4 fallback actions for static seeds based on seed context."""
-    actions: list[str] = []
-    inventory = seed.get("inventory") or []
-    inventory_items = [item.get("name", item.get("id", "")) if isinstance(item, dict) else str(item) for item in inventory]
-    arc = seed.get("arc") or {}
-    arc_goal = arc.get("long_term_objective", "") or arc.get("visible_goal", "")
-    scene = seed.get("scene") or {}
-    present_npcs = scene.get("present_npcs") or []
-    npc_names = [npc.get("name", "") for npc in present_npcs if isinstance(npc, dict)]
-    quests = seed.get("quests") or []
-    quest_objectives = []
-    for q in quests:
-        if isinstance(q, dict):
-            for obj in q.get("objectives") or []:
-                if isinstance(obj, dict):
-                    quest_objectives.append(obj.get("description", ""))
-
-    # Action 1: Quest-driven (first objective or generic)
-    if quest_objectives:
-        actions.append(f"Take up the first objective: {quest_objectives[0][:80]}")
-    elif arc_goal:
-        actions.append(f"Focus on {arc_goal[:60]} to advance your goal.")
-    else:
-        actions.append("Decide what matters most and pursue it.")
-
-    # Action 2: NPC interaction
-    if npc_names:
-        actions.append(f"Speak with {npc_names[0]} about what just happened.")
-    else:
-        actions.append("Survey your surroundings for useful information.")
-
-    # Action 3: Inventory-based
-    if inventory_items:
-        actions.append(f"Check your {inventory_items[0]} for anything useful.")
-    else:
-        actions.append("Pat down your gear for anything you might have missed.")
-
-    # Action 4: Arc or exploration
-    if arc_goal:
-        actions.append(f"Focus on {arc_goal[:60]} to advance your goal.")
-    else:
-        actions.append("Take a careful look around the area.")
-
-    return actions[:4]
-
-
 def _apply_seed_to_save_dir(
     seed_dict: dict[str, Any],
     opening_narrative: str | None = None,
     actions: list[str] | None = None,
     *,
     outcome_summary: str = "",
-    pack_type: str | None = None,
     pack_source: str | None = None,
     pool_selection: dict[str, Any] | None = None,
 ) -> None:
-    """Apply generated/loaded seed to a new save directory and set dynamic pack variables."""
+    """Apply generated seed to a new save directory and set dynamic pack variables."""
     dir_name = _generate_save_dir_name(_app_mod._active_pack.manifest.name)
     save_dir = Path("saves") / dir_name
     _app_mod.SAVE_DIR = save_dir
 
     seed_dict.setdefault("meta", {})["model"] = _app_mod.engine_config.model
-    if pack_type is not None:
-        seed_dict.setdefault("meta", {})["_seed_type"] = pack_type
     if pack_source is not None:
         seed_dict.setdefault("meta", {})["_pack_source"] = pack_source
     if opening_narrative is not None or actions is not None:
@@ -515,29 +465,19 @@ async def new_game(request: Request):
             )
 
     try:
-        if _app_mod._active_pack.seed is not None and not has_hints:
-            # Static seed path — only when no hints provided and static seed exists
-            _log.info("new_game no hints, using static pack seed pack=%s", _app_mod._pack_id)
-            seed = _app_mod._active_pack.seed.model_dump(mode="json")
-            seed["meta"]["setting_pack"] = _app_mod._pack_id
-            if pc_stats_dict:
-                seed.setdefault("pc", {})["stats"] = pc_stats_dict
-            actions = _generate_seed_actions(seed)
-            _apply_seed_to_save_dir(seed, None, actions, pack_type="static", pack_source=_app_mod._pack_id)
-        else:
-            # Dynamic seed path — always uses overrides (empty or not)
-            _log.info("new_game dynamic seed pack=%s has_hints=%s", _app_mod._pack_id, has_hints)
-            envelope, pool_selection = await generate_seed(
-                _app_mod._active_pack,
-                _app_mod.engine_config,
-                template_dir=str(_app_mod.PROMPTS_DIR),
-                overrides=overrides,
-            )
-            seed = envelope.seed_state.model_dump(mode="json")
-            seed["meta"]["setting_pack"] = _app_mod._pack_id
-            if pc_stats_dict:
-                seed.setdefault("pc", {})["stats"] = pc_stats_dict
-            _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
+        # Dynamic seed path — always uses overrides (empty or not)
+        _log.info("new_game dynamic seed pack=%s has_hints=%s", _app_mod._pack_id, has_hints)
+        envelope, pool_selection = await generate_seed(
+            _app_mod._active_pack,
+            _app_mod.engine_config,
+            template_dir=str(_app_mod.PROMPTS_DIR),
+            overrides=overrides,
+        )
+        seed = envelope.seed_state.model_dump(mode="json")
+        seed["meta"]["setting_pack"] = _app_mod._pack_id
+        if pc_stats_dict:
+            seed.setdefault("pc", {})["stats"] = pc_stats_dict
+        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("new_game failed")
         return HTMLResponse(f"<p class='text-red-400'>Game creation failed: {exc}</p>", status_code=400)
@@ -558,7 +498,7 @@ async def new_game_reroll(request: Request):
         )
         seed = envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
-        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
+        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("generate_seed reroll failed")
         return HTMLResponse(f"<p class='text-red-400'>Re-roll failed: {exc}</p>")

@@ -165,15 +165,13 @@ def _cmd_deltas_compact(ev: dict[str, Any], events: list[dict[str, Any]] | None 
         if isinstance(item, dict):
             conditions.append(f"-{item.get('id', '?')}")
 
-    # GM Beat from storytell extraction
+    # GM Beat from state.meta.pending_gm_beat (moved from record extraction)
     gm_beat = ""
-    extraction = ev.get("extraction") or {}
-    storytell = extraction.get("storytell") or {}
-    st_output = storytell.get("output") or {}
-    if isinstance(st_output, dict):
-        gm_beat_data = st_output.get("gm_beat") or {}
-        if gm_beat_data and isinstance(gm_beat_data, dict) and gm_beat_data.get("type"):
-            gm_beat = f"beat:{gm_beat_data.get('type', '')}/{gm_beat_data.get('effect', '')}"
+    last_state = ev.get("last_turn_state") or {}
+    meta = last_state.get("meta") or {}
+    pending_gm = meta.get("pending_gm_beat") or {}
+    if isinstance(pending_gm, dict) and pending_gm.get("type"):
+        gm_beat = f"beat:{pending_gm.get('type', '')}/{pending_gm.get('effect', '')}"
 
     # Print compact table
     has_data = threads or inventory or conditions or gm_beat or ev.get("rejected")

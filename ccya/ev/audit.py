@@ -287,7 +287,7 @@ def cmd_npc_ghosting(events: list[dict[str, Any]]) -> None:
 
 
 def cmd_storyteller_audit(events: list[dict[str, Any]]) -> None:
-    """Check storyteller output format compliance against sanitizer expectations."""
+    """Check record output format compliance against sanitizer expectations."""
     violations: list[dict[str, Any]] = []
     total_checks = 0
 
@@ -297,76 +297,61 @@ def cmd_storyteller_audit(events: list[dict[str, Any]]) -> None:
             continue
 
         extraction = ev.get("extraction") or {}
-        storytell = extraction.get("storytell") or {}
-        output = storytell.get("output") or {}
+        record = extraction.get("record") or {}
+        output = record.get("output") or {}
 
         if not isinstance(output, dict):
             continue
 
         total_checks += 1
 
-        # Check goal_update format
-        gu = output.get("goal_update")
-        if gu is not None:
-            if isinstance(gu, str) and gu.strip():
+        # Check thread_update format
+        tu = output.get("thread_update")
+        if tu is not None:
+            if not isinstance(tu, list):
                 violations.append({
                     "turn": t,
-                    "field": "goal_update",
-                    "issue": "free-form string instead of structured dict",
-                    "value": gu[:80] + "..." if len(gu) > 80 else gu,
+                    "field": "thread_update",
+                    "issue": "unexpected type (expected list)",
+                    "value": str(tu)[:80],
                 })
-            elif isinstance(gu, dict):
-                if not gu.get("long_term_objective"):
-                    violations.append({
-                        "turn": t,
-                        "field": "goal_update",
-                        "issue": "dict without long_term_objective",
-                        "value": str(gu)[:80],
-                    })
+            else:
+                for item in tu:
+                    if isinstance(item, dict) and not item.get("id"):
+                        violations.append({
+                            "turn": t,
+                            "field": "thread_update",
+                            "issue": "missing 'id' field in thread_update item",
+                            "value": str(item)[:80],
+                        })
 
-        # Check thread_add format
-        ta = output.get("thread_add")
-        if ta is not None:
-            if isinstance(ta, dict):
-                if not ta.get("id"):
-                    violations.append({
-                        "turn": t,
-                        "field": "thread_add",
-                        "issue": "missing 'id' field",
-                        "value": str(ta)[:80],
-                    })
-            elif not isinstance(ta, list):
+        # Check thread_resolve format
+        tr = output.get("thread_resolve")
+        if tr is not None:
+            if not isinstance(tr, list):
                 violations.append({
                     "turn": t,
-                    "field": "thread_add",
-                    "issue": "unexpected type (expected dict or list)",
-                    "value": str(ta)[:80],
+                    "field": "thread_resolve",
+                    "issue": "unexpected type (expected list)",
+                    "value": str(tr)[:80],
                 })
 
-        # Check gm_beat format
-        gb = output.get("gm_beat")
-        if gb is not None:
-            if isinstance(gb, dict):
-                if not gb.get("type"):
-                    violations.append({
-                        "turn": t,
-                        "field": "gm_beat",
-                        "issue": "missing 'type' field",
-                        "value": str(gb)[:80],
-                    })
-            elif not isinstance(gb, list):
+        # Check actions format
+        actions = output.get("actions")
+        if actions is not None:
+            if not isinstance(actions, list):
                 violations.append({
                     "turn": t,
-                    "field": "gm_beat",
-                    "issue": "unexpected type (expected dict or list)",
-                    "value": str(gb)[:80],
+                    "field": "actions",
+                    "issue": "unexpected type (expected list)",
+                    "value": str(actions)[:80],
                 })
 
     if not violations:
-        print("No storyteller format violations found.")
+        print("No record format violations found.")
         return
 
-    print("=== Storyteller Audit ===")
+    print("=== Record Audit ===")
     print(f"Turns checked: {total_checks} | Violations: {len(violations)}")
     print()
 
@@ -454,3 +439,106 @@ def cmd_ruling_audit(events: list[dict[str, Any]]) -> None:
                 print(f"  T{v['turn']}: '{v['condition']}' not in reason='{reason}'")
             else:
                 print(f"  T{v['turn']}: '{v['condition']}' not in reason=(empty)")
+
+
+def cmd_thread_audit(events: list[dict[str, Any]]) -> None:
+    """Audit thread lifecycle: creation, updates, resolution, and orphan detection."""
+    violations: list[dict[str, Any]] = []
+    thread_lifecycle: dict[str, dict[str, Any]] = {}
+
+    for ev in events:
+        t = ev.get("turn")
+        if t is None or not isinstance(t, int):
+            continue
+
+        # From sanitizer events
+        if ev.get("kind") == "sanitizer":
+            for tid in (ev.get("threads_added") or []):
+                if tid not in thread_lifecycle:
+                    thread_lifecycle[tid] = {"created_turn": t, "resolved_turn": None, "updates": 0}
+                else:
+                    violations.append({
+                        "turn": t,
+                        "thread_id": tid,
+                        "issue": "thread_added_but_already_exists",
+                    })
+
+            for tid in (ev.get("threads_updated") or []):
+                if tid in thread_lifecycle:
+                    thread_lifecycle[tid]["updates"] += 1
+                else:
+                    violations.append({
+                        "turn": t,
+                        "thread_id": tid,
+                        "issue": "thread_updated_but_not_found",
+                    })
+
+            for tid in (ev.get("threads_resolved") or []):
+                if tid in thread_lifecycle and thread_lifecycle[tid]["resolved_turn"] is None:
+                    thread_lifecycle[tid]["resolved_turn"] = t
+                elif tid not in thread_lifecycle:
+                    violations.append({
+                        "turn": t,
+                        "thread_id": tid,
+                        "issue": "thread_resolved_but_not_found",
+                    })
+
+        # From record extraction (thread_update, thread_resolve)
+        record = ev.get("extraction") or {}
+        record_output = record.get("record") or {}
+        output = record_output.get("output") or {}
+
+        if isinstance(output, dict):
+            for tu in (output.get("thread_update") or []):
+                if isinstance(tu, dict):
+                    tid = tu.get("id")
+                    if tid:
+                        if tid not in thread_lifecycle:
+                            thread_lifecycle[tid] = {"created_turn": t, "resolved_turn": None, "updates": 0}
+                        thread_lifecycle[tid]["updates"] += 1
+
+            for tr in (output.get("thread_resolve") or []):
+                if isinstance(tr, str) and tr:
+                    if tr in thread_lifecycle and thread_lifecycle[tr]["resolved_turn"] is None:
+                        thread_lifecycle[tr]["resolved_turn"] = t
+
+        # From state.arc.threads
+        last_state = ev.get("last_turn_state") or {}
+        arc = last_state.get("arc") or {}
+        for th in (arc.get("threads") or []):
+            if isinstance(th, dict) and th.get("id"):
+                tid = th["id"]
+                if tid not in thread_lifecycle:
+                    thread_lifecycle[tid] = {"created_turn": t, "resolved_turn": None, "updates": 0}
+
+    # Check for orphaned threads (resolved but not in lifecycle)
+    for tid, info in thread_lifecycle.items():
+        if info["resolved_turn"] is None and info["updates"] == 0:
+            violations.append({
+                "turn": info["created_turn"],
+                "thread_id": tid,
+                "issue": "thread_created_but_never_updated",
+            })
+
+    if not violations:
+        print("=== Thread Audit ===")
+        print(f"Threads tracked: {len(thread_lifecycle)} | Violations: 0")
+        print()
+        print("All threads have valid lifecycle (created → updated → resolved).")
+        return
+
+    print("=== Thread Audit ===")
+    print(f"Threads tracked: {len(thread_lifecycle)} | Violations: {len(violations)}")
+    print()
+
+    # Group by issue type
+    by_issue: dict[str, list[dict[str, Any]]] = {}
+    for v in violations:
+        by_issue.setdefault(v["issue"], []).append(v)
+
+    for issue in sorted(by_issue.keys()):
+        fv = by_issue[issue]
+        print(f"-- {issue} ({len(fv)} violations) --")
+        for v in fv:
+            print(f"  T{v['turn']}: thread '{v['thread_id']}'")
+        print()
