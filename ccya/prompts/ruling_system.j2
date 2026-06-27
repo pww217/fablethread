@@ -91,5 +91,7 @@ The world has prepared 2-3 candidate beats for the next turn. Choose the one tha
 - `beat_candidates` is provided in the user prompt (variable data).
 - Pick ONE beat that meshes with the player's intent.
 - If no beat fits well, omit `selected_beat` (emit null).
+- `selected_beat` must include all four fields: `type`, `effect`, `npc_id`, `driver`.
+- `driver` MUST be exactly one of: `motivation`, `fear`, `leverage`, `bond`, `personality`. Do not write prose descriptions — use only these enum values.
 
 Omit empty fields. Empty strings are never valid.

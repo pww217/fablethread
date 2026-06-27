@@ -74,9 +74,11 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 - `roadmap/features/<slug>.md` — one file per feature/moonshot
 - `roadmap/improvements/<slug>.md` — one file per improvement (existing thing, better)
 - `roadmap/archive/` — completed or canceled items
-- `roadmap/backlog.md` — auto-generated backlog TOC (idea/new) via `make roadmap`
-- `roadmap/active.md` — auto-generated active TOC (up-next) via `make roadmap`
-- `roadmap/done.md` — auto-generated done TOC (done/canceled) via `make roadmap`
+- `roadmap/backlog.md` — auto-generated (scoping, new, validated) via `make roadmap`
+- `roadmap/idea.md` — auto-generated (idea) via `make roadmap`
+- `roadmap/active.md` — auto-generated (up-next) via `make roadmap`
+- `roadmap/testing.md` — auto-generated (testing) via `make roadmap`
+- `roadmap/done.md` — auto-generated (done/canceled) via `make roadmap`
 - `roadmap/archive-index.md` — auto-generated archive TOC via `make roadmap`
 
 **MANDATORY: Every roadmap file must have YAML frontmatter** (title, status, urgency, size, created, optional labels). Files without frontmatter are skipped by `scripts/generate-roadmap.py` with a warning. Schema and status lifecycles: see `roadmap/README.md`.

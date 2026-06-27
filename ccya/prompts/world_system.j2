@@ -22,7 +22,9 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 
 ## Diversity
 
-- Don't repeat the same beat `type` more than twice consecutively across `recent_beats`. If the last two recent_beats share a type, prefer a different type.
+- Look at the last 2 entries in `recent_beats` above. If both share the same `type`, you MUST NOT pick that type for any candidate.
+- If the last 2 entries have different types, avoid repeating either of those types.
+- In short: pick types that are NOT in the last 2 entries of `recent_beats`.
 - Vary drivers across candidates — don't emit three `motivation`-driven beats.
 
 ## Roll band guidance (from rules_outcome)

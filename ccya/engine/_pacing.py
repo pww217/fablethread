@@ -143,7 +143,9 @@ def compute_convergence_score(
         threshold = ceil(n * 0.6) if n < 5 else 3
         if pressure_count >= threshold:
             score += 1
-    components["beat_streak"] = 1 if pressure_count >= threshold else 0
+        components["beat_streak"] = 1 if pressure_count >= threshold else 0
+    else:
+        components["beat_streak"] = 0
 
     # Component 5: roll_starvation (+1)
     turns_since_last_roll = turn_no - recent_rolls[0]["turn"] if recent_rolls else None
@@ -193,6 +195,7 @@ def _compute_pacing_context(
     scene_motion: str = "hold",
     scene_pressure_threshold: int = 3,
     scene_imperative_threshold: int = 5,
+    climax_turn_count: int = 0,
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
     """
@@ -207,9 +210,13 @@ def _compute_pacing_context(
 
     # outcome_hint: primarily driven by scene_motion from ruling engine.
     # When Scene Imperative fires (scene stale or crisis expired), override to "transition".
+    # During CLIMAX past limit, also override to "transition".
     outcome_hint: str | None = scene_motion
 
     if effective_scene_age >= scene_imperative_threshold:
+        outcome_hint = "transition"
+
+    if scene_phase == "CLIMAX" and climax_turn_count >= 4:
         outcome_hint = "transition"
 
     # Build summary for logging
