@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 ROADMAP_DIR = Path("roadmap")
 BUGS_DIR = ROADMAP_DIR / "bugs"
 FEATURES_DIR = ROADMAP_DIR / "features"
+IMPROVEMENTS_DIR = ROADMAP_DIR / "improvements"
 BACKLOG_FILE = ROADMAP_DIR / "backlog.md"
 ACTIVE_FILE = ROADMAP_DIR / "active.md"
 DONE_FILE = ROADMAP_DIR / "done.md"
@@ -20,11 +21,11 @@ ARCHIVE_INDEX_FILE = ROADMAP_DIR / "archive-index.md"
 ARCHIVE_DIR = ROADMAP_DIR / "archive"
 ARCHIVE_DAYS = 10
 
-STATUS_ORDER = ["idea", "scoping", "up-next", "new", "validated", "validating", "done", "canceled"]
+STATUS_ORDER = ["idea", "scoping", "up-next", "new", "validated", "testing", "done", "canceled"]
 
 # Workflow stage grouping
-BACKLOG_STATUSES = {"idea", "new", "validated", "scoping", "validating"}
-ACTIVE_STATUSES = {"up-next"}
+BACKLOG_STATUSES = {"idea", "new", "validated", "scoping"}
+ACTIVE_STATUSES = {"up-next", "testing"}
 DONE_STATUSES = {"done", "canceled"}
 
 BUCKET_ORDER = ["Balancing", "Extraction", "Tech Debt", "Tooling", "UI", "World Building"]
@@ -61,7 +62,7 @@ SECTION_MAP = {
     "up-next": "Up-Next",
     "new": "New",
     "validated": "Validated",
-    "validating": "Validating",
+    "testing": "Testing",
     "done": "Done",
     "canceled": "Canceled",
 }
@@ -216,7 +217,7 @@ def write_sections(filepath: Path, entries: list[dict], show_size: bool, status_
             return 0
 
     # Group by status first, then by bucket within each status
-    status_order = ["idea", "scoping", "up-next", "new", "validated", "validating", "done", "canceled"]
+    status_order = ["idea", "scoping", "up-next", "new", "validated", "testing", "done", "canceled"]
     status_entries: dict[str, list[dict]] = {}
     for e in entries:
         status_entries.setdefault(e["status"], []).append(e)
@@ -277,8 +278,8 @@ def main():
         else:
             print(f"  Archived {len(moved)} item(s).", file=sys.stderr)
 
-    # Load active entries (bugs + features)
-    active_entries = load_entries(BUGS_DIR) + load_entries(FEATURES_DIR)
+    # Load active entries (bugs + features + improvements)
+    active_entries = load_entries(BUGS_DIR) + load_entries(FEATURES_DIR) + load_entries(IMPROVEMENTS_DIR)
 
     # Split into workflow stages
     backlog_entries = [e for e in active_entries if e["status"] in BACKLOG_STATUSES]

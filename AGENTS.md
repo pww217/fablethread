@@ -71,7 +71,8 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 `roadmap/` is the canonical ticket tracker. Supersedes Linear as primary source of truth.
 
 - `roadmap/bugs/<slug>.md` — one file per bug
-- `roadmap/features/<slug>.md` — one file per feature/improvement/moonshot
+- `roadmap/features/<slug>.md` — one file per feature/moonshot
+- `roadmap/improvements/<slug>.md` — one file per improvement (existing thing, better)
 - `roadmap/archive/` — completed or canceled items
 - `roadmap/backlog.md` — auto-generated backlog TOC (idea/new) via `make roadmap`
 - `roadmap/active.md` — auto-generated active TOC (up-next) via `make roadmap`
