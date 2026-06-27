@@ -46,11 +46,11 @@ IDs are immutable once assigned. If an item is renamed or upgraded, use `invento
 
 ## Before emitting any inventory change
 
-**CRITICAL — Match by name, not by guessing IDs:**
+**CRITICAL — Use canonical IDs from the inventory list, never invent new ones:**
 
-The `## inventory` list shows items by their display name (e.g., "Colt Detective Special", ".38 Caliber Rounds", "Engraved Brass Knuckles"). The narration will mention items by these same names.
+The `## inventory` list shows items by their display name and canonical ID. The narration will mention items by display name or natural language equivalents. You MUST match narration items to the canonical IDs in the inventory list.
 
-1. **If the narration mentions an item that appears in the `## inventory` list by name, you MUST use that item's existing ID.** Do NOT generate a new ID from the narration text. Example: narration says "Colt Detective Special" → use ID `heavy_revolver` (not `colt_detective_special`). Narration says ".38 Caliber Rounds" → use ID `revolver_rounds` (not `.38_caliber_rounds`).
+1. **If the narration mentions an item that appears in the `## inventory` list by name, you MUST use that item's existing canonical ID.** Do NOT generate a new ID from the narration text. Example: narration says "Colt Detective Special" → use ID `heavy_revolver` (not `colt_detective_special`). Narration says ".38 Caliber Rounds" → use ID `revolver_rounds` (not `.38_caliber_rounds`). Narration says "small arms ammunition" → use ID `pistol_rounds` (not `small_arms_ammo`).
 2. **If the narration mentions an item NOT in the inventory list**, it is a genuinely new item — emit `inventory_add` with a new ID.
 3. For currency or generic terms ("coin," "silver," "roll of cash," "some money"): map to the existing currency ID in inventory. Never invent a new currency ID. If the narration mentions currency but no matching currency ID exists in inventory, emit `inventory_add` with the pack's currency ID (from the seed inventory's currency item).
 4. Clamp all remove amounts to the current stack. Never emit a remove amount exceeding what exists in inventory.

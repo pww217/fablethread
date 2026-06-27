@@ -95,7 +95,9 @@ def compute_convergence_score(
 ) -> tuple[int, dict[str, int]]:
     """Compute a 6-component convergence score for RISING→CLIMAX transition.
 
-    Each component is worth +1. Threshold is config.convergence_threshold (default 2).
+    Components: urgent_thread (+2), threat_thread (+1), scene_age (+1), beat_streak (+1),
+    roll_starvation (+1), threat_density (+1). Total: 7.
+    Threshold is config.convergence_threshold (default 3).
     Returns (score, components_dict) where components_dict has keys:
     urgent_thread, threat_thread, scene_age, beat_streak, roll_starvation, threat_density.
     stall_floor is computed externally by the caller from consecutive_low_convergence.
@@ -104,14 +106,14 @@ def compute_convergence_score(
     score = 0
     components: dict[str, int] = {}
 
-    # Component 1: any urgent thread (+1)
+    # Component 1: any urgent thread (+2)
     any_urgent = any(
         t.get("urgency") == "urgent" and not t.get("dormant", False)
         for t in active_threads
     )
     if any_urgent:
-        score += 1
-    components["urgent_thread"] = 1 if any_urgent else 0
+        score += 2
+    components["urgent_thread"] = 2 if any_urgent else 0
 
     # Component 2: active threat (+1)
     any_threat = any(
@@ -216,7 +218,7 @@ def _compute_pacing_context(
     if effective_scene_age >= scene_imperative_threshold:
         outcome_hint = "transition"
 
-    if scene_phase == "CLIMAX" and climax_turn_count >= 4:
+    if scene_phase == "CLIMAX" and climax_turn_count >= config.climax_turn_limit:
         outcome_hint = "transition"
 
     # Build summary for logging
