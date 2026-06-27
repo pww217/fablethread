@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json as _json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -83,7 +84,10 @@ def _extract_stream_output_lines(raw_out: Any, inp_sd) -> list[dict[str, Any]]:
         return _tv_narration_lines(str(raw_out or ""))
     elif inp_sd.output_is_json_string and isinstance(raw_out, str):
         try:
-            parsed = _json.loads(raw_out)
+            text = raw_out.strip()
+            if text.startswith("```"):
+                text = re.sub(r"^```(?:json)?\s*", "", text).rsplit("\n```", 1)[0].strip()
+            parsed = _json.loads(text)
             return _tv_dict_to_lines(parsed) if isinstance(parsed, dict) else [{"k": "_", "v": str(raw_out), "dim": False}]
         except Exception as e:
             _log.warning("_extract_stream_output_lines JSON parse failed: %s", e)
