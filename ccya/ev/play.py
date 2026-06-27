@@ -264,7 +264,6 @@ def _ensure_seed_generated(
         )
         seed_dict = envelope.seed_state.model_dump(mode="json")
         seed_dict.setdefault("meta", {})["setting_pack"] = pack_id
-        seed_dict.setdefault("meta", {})["_seed_type"] = "dynamic"
         seed_dict.setdefault("meta", {})["_pack_source"] = pack_id
         if envelope.opening_narrative:
             seed_dict["__seed_meta__"] = {
@@ -352,16 +351,7 @@ def _create_play_session(
     session_dir.mkdir(parents=True, exist_ok=True)
 
     if pack:
-        packs_dir = packs_dir or Path("packs")
-        p = load_pack(pack, packs_dir)
-        if p.scenario is None:
-            if p.seed:
-                state_dict = p.seed.model_dump()
-            else:
-                state_dict = _default_state()
-            if p.opening_scene and not state_dict.get("__seed_meta__", {}).get("opening_narrative"):
-                state_dict.setdefault("__seed_meta__", {})["opening_narrative"] = p.opening_scene
-            init_save_dir(session_dir, state_dict)
+        init_save_dir(session_dir, _default_state())
     else:
         init_save_dir(session_dir, _default_state())
 
@@ -411,7 +401,7 @@ def _build_play_config(flags: dict[str, str], session_config: dict[str, Any] | N
     return config
 
 
-def _load_pack_params(pack_id: str | None, packs_dir: Path | None = None) -> tuple[dict[str, Any] | None, list[dict[str, Any]], list[str], list[str], list[dict[str, str]], str | None, str | None]:
+def _load_pack_params(pack_id: str | None, packs_dir: Path | None = None) -> tuple[None, list[dict[str, Any]], list[str], list[str], list[dict[str, str]], str | None, str | None]:
     if not pack_id:
         return None, [], [], [], [], None, None
 
@@ -419,7 +409,7 @@ def _load_pack_params(pack_id: str | None, packs_dir: Path | None = None) -> tup
     p = load_pack(pack_id, packs_dir)
     scenario = p.scenario
     return (
-        p.seed.model_dump() if p.seed else None,
+        None,
         scenario.name_locales if scenario else p.manifest.name_locales,
         scenario.narrator_rules if scenario else [],
         scenario.world_rules if scenario else [],

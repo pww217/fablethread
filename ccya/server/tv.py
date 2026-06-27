@@ -599,8 +599,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
     try:
         st = load_state(save_dir)
         meta = st.get("meta", {}) or {}
-        seed_type = meta.get("_seed_type")
-        if seed_type in ("static", "dynamic"):
+        if meta.get("_pack_source"):
             seed_state = {
                 "pc": st.get("pc"),
                 "location": st.get("location"),
@@ -612,12 +611,11 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             seed_row = {
                 "row_kind": "seed",
                 "turn": 0,
-                "pack_type": seed_type,
                 "pack_source": meta.get("_pack_source", ""),
                 "seed_json": _json.dumps(seed_state, indent=2, default=str),
             }
             __seed_pools = st.get("__seed_pools__") or {}
-            if seed_type == "dynamic" and __seed_pools:
+            if __seed_pools:
                 seed_row["seed_pools_json"] = _json.dumps(
                     __seed_pools,
                     indent=2,
@@ -627,5 +625,5 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
     except Exception as exc:
         _log.warning("Failed to load state for turn_viewer seed display", extra={"error": str(exc)})
 
-    _log.debug("_turn_viewer_data events=%d server_errors=%d seed=%s", len(rows), len(server_rows), seed_type)
+    _log.debug("_turn_viewer_data events=%d server_errors=%d", len(rows), len(server_rows))
     return rows, no_events

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from ccya.models import LongTermObjective, InventoryItem, WorldStateFact
 
@@ -58,7 +58,7 @@ class SeedScene(BaseModel):
 
 
 class SeedState(BaseModel):
-    """Full validated game state shape — used for static load and dynamic seed writing.
+    """Full validated game state shape — used for dynamic seed writing.
 
     NOTE: StateDelta.inventory_add has max_length=6 (per-turn add cap).
     Inventory is empty at seed time — PCs acquire items through gameplay.
@@ -221,16 +221,9 @@ class PackManifest(BaseModel):
 
 class Pack(BaseModel):
     manifest: PackManifest
-    seed: SeedState | None = None
     scenario: ScenarioBrief | None = None
     opening_scene: str | None = None
     style: str | None = None
-
-    @model_validator(mode="after")
-    def _check_playable(self) -> "Pack":
-        if self.seed is None and self.scenario is None:
-            raise ValueError("Pack must have seed_state.yaml or scenario.yaml")
-        return self
 
 
 def _resolve_pack_dir(pack_id: str, packs_dir: Path) -> Path:
@@ -280,15 +273,7 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
                 _log.error("YAML parse failed in %s", p)
                 raise
 
-    seed: SeedState | None = None
     scenario: ScenarioBrief | None = None
-
-    # Static mode: seed_state.yaml (eval harness only)
-    seed_path = pack_dir / "seed_state.yaml"
-    if seed_path.exists():
-        seed_data = _read_yaml("seed_state.yaml")
-        if seed_data:
-            seed = SeedState(**seed_data)
 
     # Dynamic mode: scenario.yaml (new consolidated schema)
     scenario_path = pack_dir / "scenario.yaml"
@@ -310,7 +295,6 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
 
     return Pack(
         manifest=manifest,
-        seed=seed,
         scenario=scenario,
         opening_scene=opening_scene,
         style=style,
@@ -325,7 +309,6 @@ def list_packs(packs_dir: Path) -> list[PackManifest]:
         packs_dir / "generated",
         packs_dir / "default",
         packs_dir / "custom",
-        packs_dir / "eval",
     ]
     seen: set[str] = set()
     for search in search_dirs:
