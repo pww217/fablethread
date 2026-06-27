@@ -196,6 +196,17 @@ def get_type(entry: dict) -> str:
     for d in [BUGS_DIR, FEATURES_DIR, IMPROVEMENTS_DIR]:
         if (d / name).exists():
             return d.name.replace("s", "")
+    # Archived items: infer type from parent directory name
+    parent = path.parent.name
+    if parent == "bugs":
+        return "bug"
+    if parent == "features":
+        return "feature"
+    if parent == "improvements":
+        return "improvement"
+    if parent == "archive":
+        # Archived files have been moved; just use bug as default
+        return "bug"
     return "?"
 
 

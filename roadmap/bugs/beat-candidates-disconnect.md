@@ -131,3 +131,50 @@ The beat-generation-split design is **fully realized** in the engine:
 **Engine is stable.** 25/25 checkers passing (100%) across two independent 15-turn evals. Design is fully realized. Ready to merge.
 
 Full report: `evals/runs/2026-06-26_0.30.0-2-g7a309d9_7a309d9/REPORT.md`
+
+## Follow-up: Simplify Beat Pipeline (Post-Merge)
+
+Eval review revealed the beat pipeline passes more data than needed between stages. Proposed simplification:
+
+### Current Flow (over-specified)
+```
+World → beat_candidates: [type, effect, npc_id, driver]
+Ruling prompt shows: type, effect, npc_id
+Ruling returns: selected_beat: {type, effect, npc_id, driver}
+Pending_gm_beat stores: {type, effect, npc_id, driver}
+Narrate reads: type, effect (npc_id and driver never used)
+Record reads: type, effect (npc_id and driver never used)
+```
+
+### Proposed Flow (minimal)
+```
+World → beat_candidates: [type, effect]
+Ruling prompt shows: numbered list (1. type — effect, 2. type — effect)
+Ruling returns: selected_beat: 0 (index into beat_candidates)
+Pending_gm_beat stores: {type, effect}
+Narrate reads: type, effect
+Record reads: type, effect
+```
+
+### Changes Required
+1. **World prompt** — remove driver from candidate generation instructions. World just produces `type` + `effect`.
+2. **Ruling prompt** — simplify beat candidates display to numbered list. Ruling just picks an index.
+3. **Ruling code** (`ruling.py:260`) — store just `{"type": beat.type, "effect": beat.effect}` instead of full `beat.model_dump()`.
+4. **GMBeat model** — `driver` field becomes unused (can be removed from model or kept for future use). `npc_id` removed from GMBeat entirely.
+5. **Ruling prompt driver constraint** — explicitly restrict driver to enum values (`motivation`/`fear`/`leverage`/`bond`/`personality`) if driver is kept for future use.
+
+### Rationale
+- `npc_id` is useful for world to identify which NPC a beat relates to, but never needed downstream — just the effect text matters for narration.
+- `driver` is metadata about why the beat exists — never used after ruling.
+- Passing just `type` + `effect` eliminates dead weight and makes the pipeline easier to reason about.
+- Index-based selection is simpler than full object matching — ruling just picks "1" or "2" instead of parsing beat objects.
+
+## Prompt Fixes Applied
+
+### Driver constraint in ruling prompt (`ruling_system.j2`)
+**Problem:** LLM generated prose for `driver` field ("The presence of the road thugs creates tension", "predatory intent", "aggression") instead of enum values (`motivation`/`fear`/`leverage`/`bond`/`personality`). The schema hint alone wasn't enough — no explicit instruction text enforced the constraint.
+**Fix:** Added explicit instruction in beat selection section: "driver MUST be exactly one of: motivation, fear, leverage, bond, personality. Do not write prose descriptions — use only these enum values."
+
+### Diversity enforcement in world prompt (`world_system.j2`)
+**Problem:** LLM ignored "Don't repeat the same beat type more than twice consecutively" guidance. `escalation` appeared 4x in a row, `opportunity`/`revelation` clustered heavily. The soft instruction + full beat entries in `recent_beats` made it hard for the LLM to extract just the types to compare.
+**Fix:** Replaced soft instruction with hard rules: explicitly tell the LLM to look at last 2 entries, identify their types, and MUST NOT pick those types. Changed from "prefer a different type" to "MUST NOT pick that type."
