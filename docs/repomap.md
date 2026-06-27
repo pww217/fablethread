@@ -9,12 +9,12 @@
 | `ccya/models/` | Pydantic models: state, extraction, rules, config, compactor |
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
-| `ccya/engine/config.py` | EngineConfig dataclass; CheckerConfig threshold fields; turn lock management; Jinja env setup |
+| `ccya/engine/config.py` | EngineConfig dataclass (fields: roll_starvation_threshold, threat_density_threshold, stall_floor_max, extension_max, convergence_threshold, climax_turn_limit, etc.); CheckerConfig threshold fields; turn lock management; Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() orchestrator; pipeline (rules→narrate→scene/state/record); end-of-turn async phases (Sanitize + World) after yield("complete"); deferred atomic write block with last_turn_state capture (appended after async window); extraction_event includes world data under extraction.world |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
 | `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay, TTL condition expiration (_expire_conditions); LongTermObjective.started_turn on arc resolve |
-| `ccya/engine/_pacing.py` | Beat constraints, convergence score, spiral detection |
-| `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context; pure reader of `state.meta.pending_gm_beat` |
+| `ccya/engine/_pacing.py` | Beat constraints, 6-component convergence score (+stall_floor externally), spiral detection; `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, current_outcome, config, turn_no, recent_rolls) -> tuple[int, dict[str, int]]`; `_compute_scene_phase(state, ages, config, total_convergence_score, turn_no)` |
+| `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context; convergence score computation + stall_floor tracking via `consecutive_low_convergence`; pure reader of `state.meta.pending_gm_beat` |
 | `ccya/engine/world.py` | World: async beat-candidate generation (Step 2d). Validates each candidate via `GMBeat`; returns (candidates, system_text, user_text, raw_response) for event recording; runs after Sanitize, before generator returns |
 | `ccya/engine/pack_gen.py` | LLM-generated ScenarioBrief → packs/custom/ |
 | `ccya/engine/names.py` | Name pool generation via Faker |

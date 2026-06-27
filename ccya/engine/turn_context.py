@@ -44,5 +44,5 @@ class PacingContext:
     outcome_hint: str | None  # narrator's primary scene motion instruction
     summary: str  # human-readable log string, never sent to LLM
     spiral_detected: bool = False  # death spiral flag from recent roll history
-    convergence_score: int = 0  # 5-component score for RISING→CLIMAX transition
+    convergence_score: int = 0  # convergence score for RISING→CLIMAX transition (6 components + stall_floor)
     convergence_components: dict[str, int] = field(default_factory=dict)

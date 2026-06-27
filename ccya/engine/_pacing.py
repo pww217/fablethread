@@ -90,15 +90,19 @@ def compute_convergence_score(
     recent_beats: list[dict[str, Any]],
     current_outcome: RulesOutcome | None,
     config: EngineConfig,
-) -> int:
-    """Compute a 5-component convergence score for RISING→CLIMAX transition.
+    turn_no: int,
+    recent_rolls: list[dict[str, Any]],
+) -> tuple[int, dict[str, int]]:
+    """Compute a 6-component convergence score for RISING→CLIMAX transition.
 
-    Each component is worth +1. Threshold is config.convergence_threshold (default 3).
-    Score cannot reach threshold without at least one urgent thread.
+    Each component is worth +1. Threshold is config.convergence_threshold (default 2).
+    Returns (score, components_dict) where components_dict has keys:
+    urgent_thread, threat_thread, scene_age, beat_streak, roll_starvation, threat_density.
+    stall_floor is computed externally by the caller from consecutive_low_convergence.
     Dormant threads are excluded from all components.
-    Note: score CAN reach threshold without urgent threads via threat + scene_age + streak + dice.
     """
     score = 0
+    components: dict[str, int] = {}
 
     # Component 1: any urgent thread (+1)
     any_urgent = any(
@@ -107,6 +111,7 @@ def compute_convergence_score(
     )
     if any_urgent:
         score += 1
+    components["urgent_thread"] = 1 if any_urgent else 0
 
     # Component 2: active threat (+1)
     any_threat = any(
@@ -115,31 +120,44 @@ def compute_convergence_score(
     )
     if any_threat:
         score += 1
+    components["threat_thread"] = 1 if any_threat else 0
 
     # Component 3: Scene age (+1)
     if scene_age >= config.scene_pressure_threshold:
         score += 1
+    components["scene_age"] = 1 if scene_age >= config.scene_pressure_threshold else 0
 
-    # Component 4: Beat streak (+1)
+    # Component 4: Beat streak (+1) — repaired carry-over logic
+    pressure_types = set(BEAT_BUCKETS["pressure"])
+    last_non_null_type = None
+    pressure_count = 0
     if recent_beats:
         n = len(recent_beats)
         window = recent_beats[: min(n, 5)]
-        pressure_types = set(BEAT_BUCKETS["pressure"])
-        pressure_count = sum(1 for b in window if b.get("type") in pressure_types)
+        for b in window:
+            bt = b.get("type")
+            if bt is not None:
+                last_non_null_type = bt
+            if last_non_null_type in pressure_types:
+                pressure_count += 1
         threshold = ceil(n * 0.6) if n < 5 else 3
         if pressure_count >= threshold:
             score += 1
+    components["beat_streak"] = 1 if pressure_count >= threshold else 0
 
-    # Component 5: Dice weight (+1)
-    if (
-        any_urgent
-        and current_outcome is not None
-        and current_outcome.rolled
-        and current_outcome.band in ("crit_fail", "fail")
-    ):
+    # Component 5: roll_starvation (+1)
+    turns_since_last_roll = turn_no - recent_rolls[0]["turn"] if recent_rolls else None
+    if turns_since_last_roll is not None and turns_since_last_roll >= config.roll_starvation_threshold:
         score += 1
+    components["roll_starvation"] = 1 if (turns_since_last_roll is not None and turns_since_last_roll >= config.roll_starvation_threshold) else 0
 
-    return score
+    # Component 6: threat_density (+1)
+    active_threat_count = sum(1 for t in active_threads if t.get("type") == "threat" and not t.get("dormant", False))
+    if active_threat_count >= config.threat_density_threshold:
+        score += 1
+    components["threat_density"] = 1 if active_threat_count >= config.threat_density_threshold else 0
+
+    return (score, components)
 
 
 def _compute_narration_directive(
@@ -223,12 +241,16 @@ def _compute_scene_phase(
     state: dict[str, Any],
     ages: dict[str, int],
     config: EngineConfig,
-    convergence_score: int = 0,
+    total_convergence_score: int = 0,
+    turn_no: int = 0,
 ) -> dict[str, Any]:
     """Compute the scene phase using the 5-state machine.
 
     Transitions: SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION,
     RESOLUTION→BREATHER, BREATHER→RISING.
+
+    CLIMAX→RESOLUTION: signal-gated exit (early exit on thread resolution + low convergence,
+    extension on sustained pressure, hard cap at climax_turn_limit + extension_max).
 
     Mutates state["scene"] in place. Returns the updated scene dict.
     """
@@ -259,17 +281,41 @@ def _compute_scene_phase(
             turns_in_phase = 0
 
     elif phase == "RISING":
-        if convergence_score >= config.convergence_threshold:
+        if total_convergence_score >= config.convergence_threshold:
             phase = "CLIMAX"
             climax_turn_count = 1
             turns_in_phase = 0
 
     elif phase == "CLIMAX":
         climax_turn_count += 1
-        if climax_turn_count >= config.climax_turn_limit:
+        # Early exit — evaluated EVERY CLIMAX turn (not just at the limit).
+        # Signal sourced from state (end-of-prior-turn), not in-flight storyteller_result.
+        thread_resolved_prev_turn = any(
+            ct for ct in (state.get("arc") or {}).get("completed_threads", [])
+            if ct.get("resolved_turn") == turn_no - 1
+        )
+        if thread_resolved_prev_turn and total_convergence_score < 2:
             phase = "RESOLUTION"
             climax_turn_count = 0
             turns_in_phase = 0
+        # Hard cap + extension — only evaluated at/after the limit
+        elif climax_turn_count >= config.climax_turn_limit:
+            # has_urgent_active_thread: explicit dormant filter (do NOT copy existing thread_urgency_count pattern)
+            has_urgent_active_thread = any(
+                t for t in (state.get("arc") or {}).get("threads") or []
+                if isinstance(t, dict) and t.get("urgency") == "urgent" and not t.get("dormant", False)
+            )
+            if total_convergence_score >= 3 and has_urgent_active_thread:
+                if climax_turn_count >= config.climax_turn_limit + config.extension_max:
+                    phase = "RESOLUTION"
+                    climax_turn_count = 0
+                    turns_in_phase = 0
+                # else stay in CLIMAX (extension active)
+            else:
+                phase = "RESOLUTION"
+                climax_turn_count = 0
+                turns_in_phase = 0
+        # else: stay in CLIMAX (below limit, no early-exit signal)
 
     elif phase == "RESOLUTION":
         phase = "BREATHER"

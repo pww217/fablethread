@@ -1,6 +1,6 @@
 # Convergence Proactive Design
 
-> **Status:** reviewed
+> **Status:** implemented
 > **Source:** `roadmap/bugs/convergence-starvation.md` (validated, root cause confirmed)
 > **Evidence:** `docs/discovery/convergence-pacing-evidence.md` (eval data backing the claims below)
 
