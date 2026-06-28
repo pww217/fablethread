@@ -1,0 +1,26 @@
+---
+title: "Threads as fact sheet + objectives, multiple arcs"
+status: done
+completed: 2026-06-24
+urgency: 4
+size: large
+created: 2026-06-14
+ticket_id: F-25
+labels:
+  - Feature
+  - World Building
+---
+
+## Detail
+
+Should threads split? 2-3 concurrent arcs as objectives? Currently unclear how threads relate to arcs as objectives.
+
+## Motivation
+
+Clarify the relationship between threads (lower-level objectives/world facts) and arcs (high-level objectives). Determine if multiple concurrent arcs make sense and how they should be managed.
+
+## Scope
+
+* Evaluate thread-to-arc relationship
+* Determine if 2-3 concurrent arcs is the right model
+* Design thread splitting criteria if applicable

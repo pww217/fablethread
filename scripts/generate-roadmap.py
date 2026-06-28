@@ -13,6 +13,7 @@ ROADMAP_DIR = Path("roadmap")
 BUGS_DIR = ROADMAP_DIR / "bugs"
 FEATURES_DIR = ROADMAP_DIR / "features"
 IMPROVEMENTS_DIR = ROADMAP_DIR / "improvements"
+EVALS_DIR = ROADMAP_DIR / "evals"
 BACKLOG_FILE = ROADMAP_DIR / "backlog.md"
 IDEA_FILE = ROADMAP_DIR / "idea.md"
 ACTIVE_FILE = ROADMAP_DIR / "active.md"
@@ -23,11 +24,11 @@ ARCHIVE_INDEX_FILE = ROADMAP_DIR / "archive-index.md"
 ARCHIVE_DIR = ROADMAP_DIR / "archive"
 ARCHIVE_DAYS = 10
 
-STATUS_ORDER = ["idea", "scoping", "up-next", "new", "validated", "testing", "done", "canceled"]
+STATUS_ORDER = ["idea", "scoping", "up-next", "new", "validated", "triaged", "testing", "done", "canceled"]
 
 # File -> status mapping
 FILE_STATUS_MAP = {
-    BACKLOG_FILE: {"scoping", "new", "validated"},
+    BACKLOG_FILE: {"scoping", "new", "validated", "triaged"},
     IDEA_FILE: {"idea"},
     ACTIVE_FILE: {"up-next"},
     TESTING_FILE: {"testing"},
@@ -68,6 +69,7 @@ SECTION_MAP = {
     "up-next": "Up-Next",
     "new": "New",
     "validated": "Validated",
+    "triaged": "Triaged",
     "testing": "Testing",
     "done": "Done",
     "canceled": "Canceled",
@@ -150,7 +152,7 @@ def auto_archive(dry_run: bool = False) -> list[dict]:
     cutoff = now - timedelta(days=ARCHIVE_DAYS)
     moved = []
 
-    for directory in [BUGS_DIR, FEATURES_DIR]:
+    for directory in [BUGS_DIR, FEATURES_DIR, IMPROVEMENTS_DIR, EVALS_DIR]:
         if not directory.exists():
             continue
         for f in sorted(directory.glob("*.md")):
@@ -193,7 +195,7 @@ def get_type(entry: dict) -> str:
     if path is None:
         return "?"
     name = path.name
-    for d in [BUGS_DIR, FEATURES_DIR, IMPROVEMENTS_DIR]:
+    for d in [BUGS_DIR, FEATURES_DIR, IMPROVEMENTS_DIR, EVALS_DIR]:
         if (d / name).exists():
             return d.name.replace("s", "")
     # Archived items: infer type from parent directory name
@@ -204,6 +206,8 @@ def get_type(entry: dict) -> str:
         return "feature"
     if parent == "improvements":
         return "improvement"
+    if parent == "evals":
+        return "eval"
     if parent == "archive":
         # Archived files have been moved; just use bug as default
         return "bug"
@@ -212,28 +216,30 @@ def get_type(entry: dict) -> str:
 
 def emit_table(lines: list[str], entries: list[dict], show_size: bool) -> None:
     if show_size:
-        lines.append("| Title | Urgency | Size | Labels | Created |")
-        lines.append("|---|---|---|---|---|")
+        lines.append("| Title | Ticket | Urgency | Size | Labels | Created |")
+        lines.append("|---|---|---|---|---|---|")
         for e in entries:
             title = strip_prefix(e.get("title", "Untitled"))
+            ticket = e.get("ticket_id", "—")
             urg = urgency_label(e.get("urgency", 3))
             size = size_label(e.get("size", "unknown"))
             labels = ", ".join(e.get("labels", [])) or "—"
             created = e.get("created", "?")
-            lines.append(f"| {title} | {urg} | {size} | {labels} | {created} |")
+            lines.append(f"| {title} | {ticket} | {urg} | {size} | {labels} | {created} |")
     else:
-        lines.append("| Title | Labels | Created |")
-        lines.append("|---|---|---|")
+        lines.append("| Title | Ticket | Labels | Created |")
+        lines.append("|---|---|---|---|")
         for e in entries:
             title = strip_prefix(e.get("title", "Untitled"))
+            ticket = e.get("ticket_id", "—")
             labels = ", ".join(e.get("labels", [])) or "—"
             created = e.get("created", "?")
-            lines.append(f"| {title} | {labels} | {created} |")
+            lines.append(f"| {title} | {ticket} | {labels} | {created} |")
     lines.append("")
 
 
-TYPE_ORDER = ["bug", "feature", "improvement"]
-TYPE_EMOJIS = {"bug": "🐛", "feature": "✨", "improvement": "🔧"}
+TYPE_ORDER = ["bug", "feature", "improvement", "eval"]
+TYPE_EMOJIS = {"bug": "🐛", "feature": "✨", "improvement": "🔧", "eval": "📊"}
 
 
 def write_sections(filepath: Path, entries: list[dict], show_size: bool) -> int:
@@ -323,9 +329,9 @@ def main():
         else:
             print(f"  Archived {len(moved)} item(s).", file=sys.stderr)
 
-    # Load active entries (bugs + features + improvements)
+    # Load active entries (bugs + features + improvements + evals)
     seen = set()
-    active_entries = load_entries(BUGS_DIR, seen=seen) + load_entries(FEATURES_DIR, seen=seen) + load_entries(IMPROVEMENTS_DIR, seen=seen)
+    active_entries = load_entries(BUGS_DIR, seen=seen) + load_entries(FEATURES_DIR, seen=seen) + load_entries(IMPROVEMENTS_DIR, seen=seen) + load_entries(EVALS_DIR, seen=seen)
 
     # Sort all entries
     active_entries.sort(key=lambda e: (
