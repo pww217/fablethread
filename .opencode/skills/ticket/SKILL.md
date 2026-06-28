@@ -126,8 +126,8 @@ All skills that touch roadmap items should call the ticket skill:
 - `execute`: Call ticket skill to update `pr` field, set design status to `implemented`, set ticket status to `done` on completion
 - `review-plan`: Call ticket skill to verify plan references correct ticket
 - `review-code`: Call ticket skill to verify PR references correct ticket
-- `ev-run`: Call ticket skill to create new `E-` tickets for findings
-- `ev-review`: Call ticket skill to update validating items, create new tickets
+- `ev-run`: Call ticket skill to create ONE `E-` ticket per eval session, include eval group path, phase report links, and all findings
+- `ev-review`: Call ticket skill to update testing items, create ONE `E-` ticket per session if new issues warrant tracking, report lives within the eval ticket
 
 ## Done when
 

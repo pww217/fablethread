@@ -20,9 +20,9 @@ The beat pipeline simplification is the primary change to review against pacing/
 
 ---
 
-## 2. Validating Items
+## 2. Testing Items
 
-No bugs with `status: validating` found. Nothing to assess.
+No bugs with `status: testing` found. Nothing to assess.
 
 ---
 

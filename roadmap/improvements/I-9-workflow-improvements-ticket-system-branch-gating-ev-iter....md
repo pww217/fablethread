@@ -77,48 +77,88 @@ Add a ticket ID prefix to every roadmap item:
 - `execute/SKILL.md`: After successful execution (after step 4, before commit), set the design doc's YAML frontmatter status to `implemented`
 - This is the correct place for this action — execution is what makes a design "implemented"
 
-### 5. Iterative EV run (replaces standard 5-pack)
+### 5. Iterative EV run — graduated scope, phase-gated, sequential
 
-New `ev-run` workflow with phase-gated iteration:
+New `ev-run` workflow with graduated scope and clear phase thresholds. The eval is the AI's "track" — eval tickets serve as long-term memory across compactions, recording what's been done and what's next.
 
-**Phase 1: 1-5 turns — Critical/game-breaking issues**
-- Run 5 scenarios, 1-5 turns each
-- Threshold: critical failures, game-breaking bugs, obvious quality-degrading issues
-- If no issues match this threshold, skip to Phase 2 without writing a report
+**Core principles:**
+- **Graduated scope:** Start small, expand as stability increases. 1 game → 3 games → 5 games.
+- **Sequential work:** One phase at a time. One issue at a time when investigating bugs. Do not pull multiple phases or issues into context simultaneously.
+- **Eval tickets as memory:** Create ONE `E-` ticket per eval session (not per bug). Include eval group path, phase report links, and all findings in the ticket body. This ticket persists across compactions.
+- **Phase 2 is the most important:** This is where nuanced bugs and regressions surface that Phase 1 misses and Phase 3 doesn't focus on. Invest effort here.
 
-**Phase 2: 10 turns — Intermediate issues**
-- Run 5 scenarios, 10 turns each
-- Threshold: intermediate degradations, pacing issues, extraction misses that matter
-- If no issues match this threshold, skip to Phase 3 without writing a report
+**Phase 1: 1 game, 5 turns — Critical/game-breaking bugs**
+- Start with `noir-1930s:driven` (balanced pair). Run 5 turns.
+- Threshold: critical failures, game-breaking bugs, obvious quality-degrading issues that make the game unplayable.
+- If critical issues found: run 2-3 more pairs to confirm pattern, then STOP. Fix the bugs before continuing. Do not proceed to Phase 2 while critical bugs are unfixed — signals will be confounded.
+- If no critical issues: skip to Phase 2.
 
-**Phase 3: 20-25 turns — Balance and long-term mechanics**
-- Run 5 scenarios, 20-25 turns each
-- Focus: balance, long-term mechanical assessment, nuanced issues
-- Only runs when Phase 1 or 2 found issues, or when user explicitly requests full eval
+**Phase 2: 3 games, 10-15 turns — Nuanced bugs and regressions**
+- Run 3 persona pairs: `noir-1930s:driven`, `space-western:speedrunner`, `golden-piracy:completionist`.
+- Threshold: intermediate degradations, pacing issues, extraction misses, mechanical inconsistencies that affect gameplay but don't break it.
+- This is the primary investigation phase. Most actionable findings come from here.
+- If bugs found that require a refactor (not a simple fix): STOP. Do not proceed to Phase 3. Fix the refactor first, then resume.
+- If no intermediate issues: skip to Phase 3.
+- If engine is still unstable: stay in Phase 2 until stable.
+
+**Phase 3: 5 games, 20 turns — Balance, nuanced patterns, long-term mechanics**
+- Run all 5 persona pairs: `noir-1930s:driven`, `space-western:speedrunner`, `golden-piracy:completionist`, `zombie-survival:cautious`, `allied-ww2:aggressive`.
+- Only run when: critical bugs are fixed AND intermediate issues are resolved AND engine is stable.
+- Focus: balance, long-term mechanical assessment, nuanced issues that need lots of evidence, edge cases in pacing/convergence/state management.
+- This phase is skipped entirely if the engine is not yet stable.
+
+**Phase gating thresholds:**
+| Transition | Condition |
+|------------|-----------|
+| Phase 1 → Phase 2 | No critical bugs found, OR critical bugs fixed |
+| Phase 2 → Phase 3 | No intermediate bugs found, OR intermediate bugs fixed, AND engine is stable |
+| Skip Phase 3 | Critical bugs found that need refactor, OR intermediate bugs found that need refactor |
+| Skip Phase 2 | User explicitly requests, OR Phase 1 found no critical issues and user wants intermediate check |
 
 **Output:**
-- Each phase writes a brief phase report to `evals/runs/<group>/PHASE-N.md`
-- Final consolidated report at `evals/runs/<group>/REPORT.md` only if issues were found
-- If all phases skip, output: "No issues found at any threshold. Engine appears stable."
+- Each phase writes findings to `evals/runs/<group>/PHASE-N.md`
+- Final consolidated report at `evals/runs/<group>/REPORT.md`
+- ONE `E-` ticket created per eval session with: eval group path, date, phase report links, all bugs/regressions, reproduction context, checker output
+- The `E-` ticket serves as long-term memory — reference it on subsequent compactions
 
 **Changes required:**
 
-- Rewrite `ev-run/SKILL.md` with the iterative phase-gated workflow
+- Rewrite `ev-run/SKILL.md` with graduated scope, clear thresholds, sequential execution, eval ticket as memory
 - Update `AGENTS.md` EV section to reference the new workflow
 - Update `docs/ev/` docs if needed
 
-### 6. EV-review: targeted deep dive
+### 6. EV-review: focused deep-dive, sequential, eval ticket memory
 
-New `ev-review` workflow focused on specific mechanics:
+New `ev-review` workflow as a targeted deep dive on a specific mechanic, turn range, or fix validation. Not a full rubric pass — that's `ev-run`'s job.
+
+**Core principles:**
+- **Focused scope:** The user specifies what to examine (e.g., "convergence mechanic", "B-42 fix validation"). The skill delivers a customized report based on that request.
+- **Sequential work:** One mechanic at a time. One issue at a time when investigating bugs. Do not pull multiple mechanics or issues into context simultaneously.
+- **Eval tickets as memory:** If new issues warrant tracking, create ONE `E-` ticket per review session. The review report lives within the eval ticket, linking to the eval/save examined.
+- **Read before analyzing:** Always read `docs/ev/COMMANDS.md`, `docs/ev/CHECKERS.md`, and relevant architectural docs from `docs/architecture/` for the mechanic being examined before running commands.
+
+**What it does:**
+- Examines a specific mechanic, turn range, or fix validation
+- Runs targeted checkers and commands relevant to the request
+- Produces a focused, customized report
+- Links to the eval group or save that was examined
+
+**What it does NOT do:**
+- Full rubric pass (that's `ev-run`'s job)
+- General engine review unless explicitly asked
+- Analyze mechanics the user did not request
+
+**Report location:** Lives within an `E-` ticket, linking to the eval/save examined. Not a standalone file.
 
 **Changes required:**
 
-- Rewrite `ev-review/SKILL.md` to be a targeted deep dive:
-  - User specifies which mechanic(s) to review (e.g., "pacing", "convergence", "ruling")
-  - Run targeted checkers against relevant runs, not the full rubric
-  - Focus on specific turn ranges relevant to the mechanic
-  - Produce a focused report, not a full rubric pass
-- Full rubric passes are now the job of `ev-run` (Phase 3), not `ev-review`
+- Rewrite `ev-review/SKILL.md` as a focused deep-dive:
+  - User specifies what to examine; skill delivers customized report
+  - Read COMMANDS.md, CHECKERS.md, and relevant arch docs before analyzing
+  - Run only commands relevant to the request
+  - Report lives within an eval ticket, links to the eval/save examined
+  - ONE `E-` ticket per session if new issues warrant tracking
+- Full rubric passes remain the job of `ev-run` (Phase 3), not `ev-review`
 - `ev-review` is for: "I just changed the pacing system, does it still work?" not "how is everything doing?"
 
 ### 7. Cross-linking: tickets as source of truth
@@ -182,15 +222,20 @@ Add `eval` type to the roadmap lifecycle:
 4. **Branch gating in execute** — small change, high value
 5. **Fix plan skill** — one-line removal
 6. **Execute: set design to implemented** — one-line addition
-7. **Cross-linking in frontmatter + skills** — update schema, update all skills
-8. **Iterative EV run** — rewrite ev-run skill
-9. **Targeted EV-review** — rewrite ev-review skill
+7. **Execute: fix duplicate step and numbering** — remove duplicate "Load the plan" step, fix section numbering
+8. **Create-design: fix file placement** — remove legacy `/plans/` fallback, standardize on `docs/design/`
+9. **Cross-linking in frontmatter + skills** — update schema, update all skills
+10. **Iterative EV run** — rewrite ev-run skill with graduated scope, thresholds, sequential execution, eval ticket as memory
+11. **Targeted EV-review** — rewrite ev-review skill as focused deep-dive, sequential, eval ticket memory
+12. **Review-code: review against design, not plan** — design doc is ground truth, verify every firm decision is faithfully realized
 
 ## Risks
 
 - Retroactive labeling: need to ensure no duplicate ticket IDs across types (F, B, I, E are separate sequences, so this is fine)
-- EV iteration: need to define clear thresholds for each phase to avoid ambiguity
+- EV iteration: graduated scope requires clear thresholds to avoid ambiguity. Phase 2 is the critical investigation phase — most actionable findings come from there.
 - Cross-linking: existing design docs and plans don't have ticket references — they'll need to be updated as part of retroactive labeling or on next touch
+- Sequential execution: the AI tends to pull multiple phases/issues into context at once. Skills must explicitly enforce one-at-a-time execution for better results
+- Eval tickets as memory: need to ensure the E- ticket format includes enough context for the AI to resume across compactions (eval group path, phase reports, what was done, what's next)
 
 ### 9. New `ticket` skill
 
@@ -242,8 +287,8 @@ Reject invalid transitions with a clear error. Allow `canceled` from any status.
 - `execute`: Calls `ticket` skill to update `pr` field, sets design status to `implemented`, sets ticket status to `done` on completion
 - `review-plan`: Calls `ticket` skill to verify plan references correct ticket
 - `review-code`: Calls `ticket` skill to verify PR references correct ticket
-- `ev-run`: Calls `ticket` skill to create new `E-` tickets for findings
-- `ev-review`: Calls `ticket` skill to update validating items, create new tickets
+- `ev-run`: Calls `ticket` skill to create ONE `E-` ticket per eval session, include eval group path, phase report links, and all findings
+- `ev-review`: Calls `ticket` skill to update testing items, create ONE `E-` ticket per session if new issues warrant tracking, report lives within the eval ticket
 
 **Skill definition:**
 
