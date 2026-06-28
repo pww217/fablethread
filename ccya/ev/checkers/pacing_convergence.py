@@ -65,21 +65,27 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
                     })
                     all_passed = False
 
-            # CLIMAX→RESOLUTION: early exit when completed thread resolved prev turn AND convergence < 2
+            # CLIMAX→RESOLUTION: valid when either:
+            #   - early exit: thread resolved prev turn AND convergence < 2
+            #   - hard cap: climax_turn_count >= limit
             elif prev_phase == "CLIMAX" and phase == "RESOLUTION":
                 thread_resolved_prev = any(
                     ct for ct in completed_threads
                     if ct.get("resolved_turn") == turn_no - 1
                 )
-                if not thread_resolved_prev or (convergence_score is not None and convergence_score < 2):
-                    if not thread_resolved_prev:
-                        resolved_turns = [ct.get("resolved_turn") for ct in completed_threads if ct.get("resolved_turn")]
-                        findings.append({
-                            "turn": turn_no,
-                            "check": "climax_resolution_signal",
-                            "detail": f"CLIMAX→RESOLUTION at turn {turn_no} without thread resolved on prev turn (resolved_turns={resolved_turns})",
-                        })
-                        all_passed = False
+                early_exit = thread_resolved_prev and (convergence_score is None or convergence_score < 2)
+                # Use previous turn's climax_turn_count since current turn's has been reset
+                # Engine increments at start of current turn, so prev + 1 is what gets checked
+                prev_climax_turn_count = prev_pc.get("climax_turn_count", 0)
+                hard_cap = prev_climax_turn_count + 1 >= cfg.climax_turn_limit
+                if not early_exit and not hard_cap:
+                    resolved_turns = [ct.get("resolved_turn") for ct in completed_threads if ct.get("resolved_turn")]
+                    findings.append({
+                        "turn": turn_no,
+                        "check": "climax_resolution_signal",
+                        "detail": f"CLIMAX→RESOLUTION at turn {turn_no} without valid exit signal (resolved_prev={thread_resolved_prev}, convergence={convergence_score}, prev_climax_turn_count={prev_climax_turn_count}, limit={cfg.climax_turn_limit})",
+                    })
+                    all_passed = False
 
             # CLIMAX extension: stays when convergence >= 3 AND has_urgent, caps at limit + extension_max
             elif prev_phase == "CLIMAX" and phase == "CLIMAX":
@@ -160,9 +166,20 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
         meta = snap.get("meta") or {}
         scene = snap.get("scene") or {}
 
+        # Use convergence_threads from event if available (threads used for computation),
+        # otherwise can't accurately recompute for old saves
+        convergence_threads = pc.get("convergence_threads")
+        if not convergence_threads:
+            _log.debug("convergence_recompute: skipping turn %d (no convergence_threads in event)", turn_no)
+            continue
+
         # Compute scene_age
         current_turn = meta.get("turn", turn_no)
-        scene_entered = scene.get("turn_entered", 0)
+        scene_entered = scene.get("turn_entered")
+        if scene_entered is None:
+            # Fallback: scene_entered = current_turn - turns_in_phase + 1
+            turns_in_phase = scene.get("turns_in_phase", 1)
+            scene_entered = current_turn - turns_in_phase + 1
         scene_age = current_turn - scene_entered
 
         # Get recent_beats
@@ -177,14 +194,14 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
         # Component 1: urgent_thread (+2 if any non-dormant urgent thread)
         any_urgent = any(
             t.get("urgency") == "urgent" and not t.get("dormant", False)
-            for t in threads
+            for t in convergence_threads
         )
         components["urgent_thread"] = 2 if any_urgent else 0
 
         # Component 2: threat_thread (+1 if any non-dormant threat-type thread)
         any_threat = any(
             t.get("type") == "threat" and not t.get("dormant", False)
-            for t in threads
+            for t in convergence_threads
         )
         components["threat_thread"] = 1 if any_threat else 0
 
@@ -219,7 +236,7 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
 
         # Component 6: threat_density (+1 if active threat count >= threshold)
         active_threat_count = sum(
-            1 for t in threads
+            1 for t in convergence_threads
             if t.get("type") == "threat" and not t.get("dormant", False)
         )
         components["threat_density"] = 1 if active_threat_count >= cfg.threat_density_threshold else 0

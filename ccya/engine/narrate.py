@@ -255,6 +255,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     _pc.spiral_detected = ctx._spiral_detected
     _pc.convergence_score = total_convergence_score
     _pc.convergence_components = _convergence_components
+    _pc.convergence_threads = _raw_thread_dicts
 
     # Curtain Call signal for CLIMAX phase
     _curtain_call = scene.get("curtain_call", "")

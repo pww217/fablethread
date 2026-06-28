@@ -47,3 +47,4 @@ class PacingContext:
     spiral_detected: bool = False  # death spiral flag from recent roll history
     convergence_score: int = 0  # convergence score for RISING→CLIMAX transition (6 components + stall_floor)
     convergence_components: dict[str, int] = field(default_factory=dict)
+    convergence_threads: list[dict[str, Any]] = field(default_factory=list)  # threads used for convergence computation

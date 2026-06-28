@@ -416,6 +416,7 @@ async def run_turn(
                 "breather_turn_count": state.get("scene", {}).get("breather_turn_count", 0),
                 "convergence_score": _pc.convergence_score if _pc else 0,
                 "convergence_components": _pc.convergence_components if _pc else {},
+                "convergence_threads": _pc.convergence_threads if _pc else [],
             },
             "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
             "allowed_beat_types": derive_allowed_beat_types(
