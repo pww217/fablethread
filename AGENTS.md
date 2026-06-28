@@ -84,6 +84,8 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 
 **MANDATORY: Every roadmap file must have YAML frontmatter** (title, status, urgency, size, created, ticket_id, optional labels). Files without frontmatter are skipped by `scripts/generate-roadmap.py` with a warning. Schema and status lifecycles: see `roadmap/README.md`.
 
+Creating new tickets: `scripts/new-ticket.py` — interactive prompt for type (bug/feature/improvement/eval) and a single high-level summary. Generates frontmatter with inferred ticket ID, kebab-case slug, and a minimal body. Defaults to urgency: 3, size: medium. Run `make roadmap` after editing the ticket body.
+
 Design docs use a separate status lifecycle:
 - `scoping` → `reviewed` → `implemented`
 - Set by: create-design (scoping), review-design (reviewed), execute (implemented)

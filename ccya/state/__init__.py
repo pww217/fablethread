@@ -24,7 +24,6 @@ from ccya.state.io import (
     save_state,
 )
 from ccya.state.npcs import (
-    build_npc_alias_map,
     touch_compendium_order,
 )
 __all__ = [
@@ -32,7 +31,6 @@ __all__ = [
     "append_event",
     "append_prompts",
     "apply_delta",
-    "build_npc_alias_map",
     "init_save_dir",
     "load_last_narration",
     "load_recent_turns",
