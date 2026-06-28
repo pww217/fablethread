@@ -73,19 +73,32 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 - `roadmap/bugs/<slug>.md` — one file per bug
 - `roadmap/features/<slug>.md` — one file per feature/moonshot
 - `roadmap/improvements/<slug>.md` — one file per improvement (existing thing, better)
+- `roadmap/evals/<slug>.md` — one file per eval finding (hybrid bug/improvement)
 - `roadmap/archive/` — completed or canceled items
-- `roadmap/backlog.md` — auto-generated (scoping, new, validated) via `make roadmap`
+- `roadmap/backlog.md` — auto-generated (scoping, new, validated, triaged) via `make roadmap`
 - `roadmap/idea.md` — auto-generated (idea) via `make roadmap`
 - `roadmap/active.md` — auto-generated (up-next) via `make roadmap`
 - `roadmap/testing.md` — auto-generated (testing) via `make roadmap`
 - `roadmap/done.md` — auto-generated (done/canceled) via `make roadmap`
 - `roadmap/archive-index.md` — auto-generated archive TOC via `make roadmap`
 
-**MANDATORY: Every roadmap file must have YAML frontmatter** (title, status, urgency, size, created, optional labels). Files without frontmatter are skipped by `scripts/generate-roadmap.py` with a warning. Schema and status lifecycles: see `roadmap/README.md`.
+**MANDATORY: Every roadmap file must have YAML frontmatter** (title, status, urgency, size, created, ticket_id, optional labels). Files without frontmatter are skipped by `scripts/generate-roadmap.py` with a warning. Schema and status lifecycles: see `roadmap/README.md`.
 
 Design docs use a separate status lifecycle:
 - `scoping` → `reviewed` → `implemented`
-- Set by: create-design (scoping), review-design (reviewed), plan (implemented)
+- Set by: create-design (scoping), review-design (reviewed), execute (implemented)
+
+### Ticket IDs
+
+Every roadmap item has a unique ticket ID: `F-N` (features), `B-N` (bugs), `I-N` (improvements), `E-N` (evals). Separate sequences per type. Used in:
+- Commit prefixes: `[<slug>] [B-42] <title>: <summary>`
+- PR titles: `B-42: <title>`
+- Plan/design filenames: `<slug>-<name>.md` with `ticket_id` in frontmatter
+- Cross-linking: `design`, `plan`, `pr` frontmatter fields on roadmap files
+
+### Ticket skill
+
+The `ticket` skill (`.opencode/skills/ticket/SKILL.md`) enforces frontmatter schema, status transitions, slug conventions, and type inference. All skills that touch roadmap items should call the ticket skill.
 
 ---
 
@@ -101,10 +114,11 @@ Design docs use a separate status lifecycle:
 
 Only `execute` (code/prompt changes) and `review-code` (PR creation) create branches or worktrees. `create-design`, `plan`, and all review skills work on `main`.
 
+- **Always ask before creating a branch.** Before `execute` creates a worktree, ask: "This plan touches N files. Do you want me to create a branch for this, or should I work on main?" If the user says "no branch", execute on main with a descriptive commit.
 - Branch slug is canonical key (from design doc).
 - `execute` creates: `git worktree add -b <slug> ../ccya-<slug> main`
 - `review-code` opens PR to merge back to `main`.
-- Commit prefix: `[<slug>]`
+- Commit prefix: `[<slug>] [<ticket_id>]` (e.g., `[pacing-fix] [B-42]`)
 - Authority hierarchy: design doc > plan > source
 
 ---
@@ -141,12 +155,13 @@ Defined in full in global AGENTS.md. Key rules:
 - **create-design** → produce a design doc for a CCYA feature/refactor/problem (no plan/code); lives on `main`
 - **plan** → write a complete plan document for a CCYA feature/fix (no execution); includes Design Reference field
 - **review-plan** → review a plan doc for correctness before execution; enhanced chat output with plan summary
-- **execute** → execute a plan exactly as written, review changes, commit; creates worktree+branch, uses `[<slug>]` commit prefix
+- **execute** → execute a plan exactly as written, review changes, commit; asks before creating branch, uses `[<slug>] [<ticket_id>]` commit prefix
 - **review-design** → review a design doc against source, update and refine it (single mode); outputs key blockers, ambiguities, improvements
 - **review-code** → review a diff or PR for ccya (correctness, contracts, quality); creates PR after review passes
-- **ev-run** → launch a full 5-pack eval, run sequentially, produce per-run auto-reports; hands off to ev-review
-- **ev-review** → inspect eval runs, check validating items against current run data, run full rubric, update validating bugs to done or up-next, file new bugs as `new`, write consolidated report
+- **ev-run** → iterative eval: 1-5 turns (critical), 10 turns (intermediate), 20-25 turns (balance); phase-gated, skips if no issues found
+- **ev-review** → targeted deep dive on specific mechanics, not full rubric pass
 - **bug-triage** → validate bug candidates, reproduce, assess severity, set `validated` or `canceled`
+- **ticket** → create, update, validate, and audit roadmap tickets with enforced standards
 - **customize-opencode** → editing opencode's own config/agents/skills/plugins only (not user app code)
 
 ---

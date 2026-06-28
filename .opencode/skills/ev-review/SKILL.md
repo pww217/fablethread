@@ -1,9 +1,9 @@
 ---
 name: ev-review
-description: Retrospective analysis of eval runs and player saves
+description: Targeted deep dive on specific mechanics, not full rubric pass
 ---
 
-Purpose: Inspect existing saves for bugs, regressions, and quality issues. Produces a report and files candidate bugs as `new` in the roadmap. Also checks `validating` items against current run data to confirm fixes or flag regressions.
+Purpose: Inspect existing saves for specific mechanics or turn ranges. Produces a focused report on the requested mechanic(s). Not a full rubric pass — that's `ev-run`'s job.
 
 ## Sources
 
@@ -15,16 +15,15 @@ Purpose: Inspect existing saves for bugs, regressions, and quality issues. Produ
 ## Prerequisites
 
 1. **Identify the eval group to review** — user specifies a group dir (e.g., `evals/runs/2026-06-24_0.28.0-98-gd04cc7c_d04cc7c/`)
-2. **Find the prior eval group** — locate the newest group directory before the current one in `evals/runs/`
-3. **Scan for validating items** — read all `roadmap/bugs/*.md` files with `status: validating`
+2. **Identify the mechanic(s) to review** — user specifies which mechanic(s) to focus on (e.g., "pacing", "convergence", "ruling", "extraction")
+3. **Find the prior eval group** — locate the newest group directory before the current one in `evals/runs/`
 
 ## Step 1: Git Log Analysis (Change Risk Assessment)
 
-Before running the rubric, inspect what changed between the current eval group and the prior one:
+Before running checkers, inspect what changed between the current eval group and the prior one:
 
 ```bash
 # Get the git SHAs from the two eval groups
-# Group dir names contain the SHA: e.g., 2026-06-24_0.28.0-98-gd04cc7c_d04cc7c
 git log --oneline <prior_sha>..<current_sha> -- ccya/
 ```
 
@@ -40,91 +39,70 @@ git log --oneline <prior_sha>..<current_sha> -- ccya/
 - `ccya/engine/` — engine logic changes can affect pacing, convergence, phase transitions
 - `ccya/models.py` — state model changes can affect serialization/checkers
 
-Report a summary of changed files and their areas (ruling, pacing, extraction, etc.) in the consolidated report under "Changes Since Last Eval".
+Report a summary of changed files and their areas in the report.
 
 ## Step 2: Validating Item Review
 
-For each bug with `status: validating` in the roadmap:
+For each bug with `status: validating` in the roadmap that matches the mechanic(s) being reviewed:
 
-1. **Find relevant run(s)** — identify which eval run(s) are relevant to the bug (e.g., based on bug labels like `engine`, `pacing`, `narrative`)
+1. **Find relevant run(s)** — identify which eval run(s) are relevant to the bug
 2. **Run targeted checkers** — use `ev.py check` with appropriate checkers against the relevant run(s)
 3. **Assess result:**
-   - If bug behavior is absent or fixed → update status to `done`, add `completed: YYYY-MM-DD` to the bug file, run `make roadmap`
+   - If bug behavior is absent or fixed → update status to `done`, add `completed: YYYY-MM-DD` to the bug file, call the `ticket` skill, run `make roadmap`
    - If bug behavior still present → update status back to `up-next`, note regression in report
 4. **No bug file update** if the validating item is a feature (not a bug) — just note in report whether it's confirmed working
 
-## Step 3: Run Full Rubric
+## Step 3: Targeted Mechanic Analysis
 
-Run the standard rubric checklist against each run in the current eval group:
+Run targeted checkers and commands for the specific mechanic(s) requested:
 
 ```bash
-.venv/bin/python scripts/debug/ev.py check --all --save-dir evals/runs/<group>/<run>/
+# Full dump of a specific turn
+.venv/bin/python scripts/debug/ev.py turn <N> --save-dir <path>
+
+# Roll math and beat timing
+.venv/bin/python scripts/debug/ev.py mechanics <N> --dice --pacing --save-dir <path>
+
+# Thread lifecycle analysis
+.venv/bin/python scripts/debug/ev.py threads --summary --save-dir <path>
+
+# Track a state field across turns
+.venv/bin/python scripts/debug/ev.py trace <field.path> --save-dir <path>
+
+# Run specific checkers for the mechanic
+.venv/bin/python scripts/debug/ev.py check --checker <checker-name> --save-dir <path>
 ```
 
-For each area, record pass/fail and any red flags.
+**Focus on:**
+- The specific mechanic(s) requested by the user
+- Relevant turn ranges (e.g., turns 1-5 for early game, turns 15-25 for late game)
+- Comparisons to prior eval runs if available
 
-## Step 4: Extract New Bugs
+## Step 4: Write Focused Report
 
-For each confirmed issue found during rubric review:
-- Create `roadmap/bugs/<slug>.md` with `status: new`
-- Do NOT set severity or urgency — those are for `bug-triage`
-
-```yaml
----
-title: Descriptive title
-status: new
-created: YYYY-MM-DD
-labels:
-  - eval
-  - <component>    # engine, prompt, checker, narrative, pacing, etc.
----
-Reproduction context: save path, turn number, checker output, relevant event data.
-```
-
-## Step 5: Write Consolidated Report
-
-At `evals/runs/<group>/REPORT.md`:
+At `evals/runs/<group>/REVIEW.md`:
 
 ### Sections:
-1. **Eval Info** — dates, SHAs, scenario/persona pairs
-2. **Changes Since Last Eval** — git log summary of `ccya/` changes, focused on engine/prompt areas
+1. **Review Info** — dates, SHAs, mechanic(s) reviewed, scenario/persona pairs
+2. **Changes Since Last Eval** — git log summary of `ccya/` changes, focused on affected areas
 3. **Validating Items** — per-item status: confirmed fixed → `done`, still broken → back to `up-next`
-4. **Checker Scores** — pass/fail table across all 5 scenarios
+4. **Mechanic Analysis** — detailed findings for the requested mechanic(s)
 5. **Per-Scenario Notes** — narrative observations, regressions vs prior
-6. **New Bugs Found** — list of new `new` bugs filed
-7. **Recommendations** — what to investigate or fix next
+6. **Recommendations** — what to investigate or fix next
 
-## Bug Extraction Format
+## New Tickets
 
-```yaml
----
-title: Descriptive title
-status: new
-created: YYYY-MM-DD
-labels:
-  - eval
-  - <component>    # engine, prompt, checker, narrative, pacing, etc.
----
-Reproduction context: save path, turn number, checker output, relevant event data.
-Root cause estimate (if identifiable): ...
-```
-
-The bug is filed as `new` — not yet validated. `bug-triage` handles validation.
+For any new issues found that fit the eval type:
+- Call the `ticket` skill to create new `E-` tickets
+- Include reproduction context, relevant checker output, and mechanic focus
 
 ## What NOT to Do
 
+- Do not run the full rubric — that's `ev-run`'s job
 - Do not generate per-run `report.md` files — those are auto-generated by `ev.py` with `--auto-report`
 - Do not overwrite existing bug files — create new slugs for new issues
-- Do not set severity or urgency — those are for `bug-triage` to assess
 - Do not analyze commits outside `ccya/` folder for regression risk
-
-## Spot Checks
-
-On request, run targeted analysis on specific mechanics or turns:
-- `ev.py turn <N> --save-dir <path>` — full dump of a specific turn
-- `ev.py mechanics <N> --dice --pacing --save-dir <path>` — roll math and beat timing
-- `ev.py threads --summary --save-dir <path>` — thread lifecycle analysis
-- `ev.py trace <field.path> --save-dir <path>` — track a state field across turns
+- Do not review mechanics the user did not request
 
 ## Reference Docs
 

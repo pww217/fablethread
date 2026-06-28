@@ -1,9 +1,9 @@
 ---
 name: ev-run
-description: Run a full 5-pack evaluation and produce a consolidated report
+description: Iterative eval: 1-5 turns (critical), 10 turns (intermediate), 20-25 turns (balance); phase-gated, skips if no issues found
 ---
 
-Purpose: Execute the standard 5-pack evaluation, run the full rubric against each run, and produce a consolidated report using `docs/ev/consolidated-report-template.md`.
+Purpose: Execute an iterative, phase-gated evaluation. Each phase targets a different severity threshold. Skip phases that find no matching issues.
 
 **Critical constraints:**
 1. Write findings into the report as you discover them — do not buffer findings until the end.
@@ -15,7 +15,7 @@ Purpose: Execute the standard 5-pack evaluation, run the full rubric against eac
 - Server running on `localhost:8765`
 - LLM backend on `localhost:8080` with `mlx-community/gemma-4-26b-a4b-it-mxfp8`
 - `.venv/bin/python scripts/debug/ev.py` — never `python3` or `source .venv/bin/activate`
-- Set bash timeout to at least 25 × 60000 = 1,500,000ms per run
+- Set bash timeout to at least 25 × 60000 = 1,500,000ms for full phase 3
 
 ## Before Running
 
@@ -30,11 +30,9 @@ Purpose: Execute the standard 5-pack evaluation, run the full rubric against eac
    - `docs/architecture/delta-validate.md`
    - `docs/architecture/state-models.md`
    - `docs/architecture/cross-module-contracts.md`
-3. **Find the prior eval group:** locate the newest full 5-pack eval group in `evals/runs/` before the current one.
+3. **Find the prior eval group:** locate the newest full eval group in `evals/runs/` before the current one.
 
-## Standard 5-Pack Eval
-
-Always run as 5 sequential games. Each scenario uses a fixed persona pairing:
+## Persona Pairings
 
 | Scenario | Persona |
 |---|---|
@@ -44,14 +42,55 @@ Always run as 5 sequential games. Each scenario uses a fixed persona pairing:
 | `zombie-survival` | `cautious` |
 | `allied-ww2` | `aggressive` |
 
-**Defaults:** 25 turns, model `mlx-community/gemma-4-26b-a4b-it-mxfp8`, auto-report on.
-
 Available personas: `aggressive`, `cautious`, `absurd`, `explorer`, `driven`, `opportunist`, `completionist`, `speedrunner`, `custom`. Defined in `ccya/ev/personality.py`.
 
-## Execution
+## Phase 1: 1-5 turns — Critical/game-breaking issues
 
-**CRITICAL: Sequential only.** One machine. Never parallel. Each run takes ~25 min.
+**Threshold:** Critical failures, game-breaking bugs, obvious quality-degrading issues that would make the game unplayable or severely broken.
 
+**Execution:**
+```bash
+pairs="noir-1930s:driven space-western:speedrunner golden-piracy:completionist zombie-survival:cautious allied-ww2:aggressive"
+for pair in $pairs; do
+  pack=${pair%:*}
+  persona=${pair#*:}
+  .venv/bin/python scripts/debug/ev.py play --llm --turns 5 \
+    --pack "$pack" --personality "$persona" --auto-report
+done
+```
+
+**Analysis:**
+- Run full rubric checkers against all 5 runs
+- Write findings to `evals/runs/<group>/PHASE-1.md`
+- If no issues match the critical threshold: output "Phase 1: No critical issues found. Skipping to Phase 2." and move on.
+- If critical issues found: continue to Phase 2.
+
+## Phase 2: 10 turns — Intermediate issues
+
+**Threshold:** Intermediate degradations, pacing issues, extraction misses that matter, mechanical inconsistencies that affect gameplay but don't break it.
+
+**Execution:**
+```bash
+pairs="noir-1930s:driven space-western:speedrunner golden-piracy:completionist zombie-survival:cautious allied-ww2:aggressive"
+for pair in $pairs; do
+  pack=${pair%:*}
+  persona=${pair#*:}
+  .venv/bin/python scripts/debug/ev.py play --llm --turns 10 \
+    --pack "$pack" --personality "$persona" --auto-report
+done
+```
+
+**Analysis:**
+- Run full rubric checkers against all 5 runs
+- Write findings to `evals/runs/<group>/PHASE-2.md`
+- If no issues match the intermediate threshold: output "Phase 2: No intermediate issues found. Skipping to Phase 3." and move on.
+- If intermediate issues found: continue to Phase 3.
+
+## Phase 3: 20-25 turns — Balance and long-term mechanics
+
+**Threshold:** Balance issues, long-term mechanical assessment, nuanced issues that only appear over extended play, edge cases in pacing/convergence/state management.
+
+**Execution:**
 ```bash
 pairs="noir-1930s:driven space-western:speedrunner golden-piracy:completionist zombie-survival:cautious allied-ww2:aggressive"
 for pair in $pairs; do
@@ -62,24 +101,23 @@ for pair in $pairs; do
 done
 ```
 
-The `--auto-report` flag writes a per-run `report.md` inside each run directory. Alternatively, set `auto_report: true` in the session's `ev.yaml` to enable it without the flag.
+**Analysis:**
+- Run full rubric checkers against all 5 runs
+- Write findings to `evals/runs/<group>/PHASE-3.md`
+- This phase always runs if Phase 1 or 2 found issues, or if user explicitly requests full eval.
 
-## After Running: Fill the Consolidated Report
+## Validating Items
 
-The report file is your **long-term memory**. You cannot hold all checkers + all findings in context at once. Work through the template section by section. After each section, write findings to the report file before continuing. If context runs low, stop, write what you have, and resume from the report file on the next invocation.
-
-### Step 1: Validating Tickets
-
-Scan `roadmap/bugs/*.md` for `status: validating`. List them in the report. For each:
+Scan `roadmap/bugs/*.md` for `status: validating`. For each:
 - Run targeted checkers against relevant runs
 - Assess: confirmed fixed / regressed / inconclusive
 - Update the bug file directly:
   - Confirmed fixed → `status: done`, `completed: YYYY-MM-DD`
   - Regressed or still broken → `status: up-next`
   - Inconclusive → leave as `validating`
-- After updating all bug files, run `make roadmap` to regenerate the backlog/done indices
+- After updating all bug files, call the `ticket` skill to validate changes, then run `make roadmap`
 
-### Step 2: Changes Since Last Eval
+## Changes Since Last Eval
 
 ```bash
 git log --oneline <prior_sha>..<current_sha> -- ccya/
@@ -87,30 +125,24 @@ git log --oneline <prior_sha>..<current_sha> -- ccya/
 
 Focus on engine/prompt areas. Report a brief summary.
 
-### Step 3: Rubric Sections 1–13 — SEQUENTIALLY, ONE AT A TIME
+## Rubric Sections — SEQUENTIALLY, ONE AT A TIME
 
 Work through sections **one at a time**. Do not run all checkers for all sections and then write findings. The context window will not hold everything. You must write findings back to the report file as long-term memory after each section.
 
 **The loop:**
 1. Pick ONE rubric section (e.g., "Ruling Engine")
-2. Run all targeted `ev.py` commands for that section across all 5 runs
+2. Run all targeted `ev.py` commands for that section across all runs in the current phase
 3. Parse output, assess findings
 4. **Write findings into the report file immediately** — this is your long-term memory
 5. Only then move to the next rubric section
 
-**Critical reminders:**
-- **Do not run all checkers for all sections first.** You will exceed context.
-- **Write findings after every single section.** Treat the report file as persistent memory.
-- **If context is getting low, stop and summarize what you've done so far in the report.** Resume from the report after the break.
-- **Use the report file itself as your working notes.** Overwrite sections as you refine them.
-
 If you are interrupted or lose context, resume by re-reading the report file (which contains your previous findings) and continue from where you stopped.
 
-### Step 4: Checker Scores
+## Checker Scores
 
-Compile pass/fail table across all rubric areas and all 5 runs.
+Compile pass/fail table across all rubric areas and all runs in the current phase.
 
-### Step 5: Executive Summary (LAST)
+## Executive Summary (LAST)
 
 After all rubric sections are complete, write a concise (5-10 item) summary at the top of the report:
 - Largest failures
@@ -119,14 +151,23 @@ After all rubric sections are complete, write a concise (5-10 item) summary at t
 
 Do not start with this. Do not let it distract from systematic rubric review.
 
+## New Tickets
+
+For any new issues found that fit the eval type:
+- Call the `ticket` skill to create new `E-` tickets
+- Include reproduction context, relevant checker output, and phase information
+
 ## Output Location
 
-Write the consolidated report at:
+Write phase reports and consolidated report at:
 ```
+evals/runs/<group>/PHASE-1.md
+evals/runs/<group>/PHASE-2.md
+evals/runs/<group>/PHASE-3.md
 evals/runs/<group>/REPORT.md
 ```
 
-Where `<group>` is the directory created by the 5-pack run (format: `YYYY-MM-DD_{tag}_{sha:8}`).
+Where `<group>` is the directory created by the runs (format: `YYYY-MM-DD_{tag}_{sha:8}`).
 
 ## Reference Docs
 
