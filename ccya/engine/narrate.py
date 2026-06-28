@@ -231,7 +231,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
 
     # Compute phase (mutates state["scene"] in place)
     state["scene"] = _compute_scene_phase(state, ctx._ages, config, total_convergence_score, turn_no)
-    scene_phase = scene.get("scene_phase", "SETUP")
+    scene_phase = state["scene"].get("scene_phase", "SETUP")
 
     # Compute unified pacing context with new signal set
     _scene_motion = ctx.intent.scene_motion if ctx.intent else "hold"
@@ -242,7 +242,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         scene_motion=_scene_motion,
         scene_pressure_threshold=config.scene_pressure_threshold,
         scene_imperative_threshold=config.scene_imperative_threshold,
-        climax_turn_count=scene.get("climax_turn_count", 0),
+        climax_turn_count=state["scene"].get("climax_turn_count", 0),
         config=config,
         convergence_score=total_convergence_score,
     )

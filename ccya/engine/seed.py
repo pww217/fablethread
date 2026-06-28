@@ -73,6 +73,18 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
         first_npc.presence = "present"
 
     envelope.actions = [_strip_non_ascii(a) for a in envelope.actions]
+
+    # Safety net: truncate actions to exactly 4 (LLM sometimes emits 5)
+    if len(envelope.actions) > 4:
+        envelope.actions = envelope.actions[:4]
+
+    # Safety net: coerce null lists to empty lists (LLM sometimes emits null)
+    if envelope.seed_state.arc is not None:
+        if envelope.seed_state.arc.completed_threads is None:
+            envelope.seed_state.arc.completed_threads = []
+        if envelope.seed_state.arc.threads is None:
+            envelope.seed_state.arc.threads = []
+
     return envelope
 
 
@@ -305,6 +317,17 @@ async def generate_seed(
                     "seed_state": j,
                     "opening_narrative": j.pop("opening_narrative", "."),
                 }
+
+            # Pre-sanitize: coerce null lists to empty lists before Pydantic validation
+            ss = j.get("seed_state", j)
+            arc = ss.get("arc")
+            if arc is not None:
+                if isinstance(arc, dict):
+                    if arc.get("completed_threads") is None:
+                        arc["completed_threads"] = []
+                    if arc.get("threads") is None:
+                        arc["threads"] = []
+
             envelope = SeedEnvelope(**j)
             envelope = _sanitize_envelope(envelope)
             _validate_seed_envelope(envelope)
@@ -444,9 +467,28 @@ async def generate_seed(
             if npc.presence == "present"
         )
         if present_count == 0:
-            raise ValueError(
-                "Seed must include at least 1 NPC with presence='present' in opening scene"
-            )
+            # Safety net: force first NPC to present if compendium is non-empty
+            if envelope.seed_state.compendium.npcs:
+                first_npc = next(iter(envelope.seed_state.compendium.npcs.values()))
+                first_npc.presence = "present"
+                present_count = 1
+                _log.info(
+                    "generate_seed forced first NPC to present (compendium had %d NPCs)",
+                    len(envelope.seed_state.compendium.npcs),
+                    extra={"trace_id": trace_id},
+                )
+            else:
+                # Compendium is empty — raise to trigger retry
+                if attempt < config.max_llm_retries:
+                    fb = (
+                        "SeedEnvelope validation failed: Seed must include at least 1 NPC with presence='present' in opening scene. "
+                        "The compendium was empty — you must include at least one NPC in the opening scene. "
+                        "Re-emit corrected JSON matching the schema."
+                    )
+                    messages.append({"role": "user", "content": fb})
+                raise ValueError(
+                    "Seed must include at least 1 NPC with presence='present' in opening scene"
+                )
 
         opening_len = len(envelope.opening_narrative) if envelope.opening_narrative else 0
         _log.info(

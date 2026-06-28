@@ -45,6 +45,23 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
             if isinstance(t, dict) and t.get("urgency") == "urgent" and not t.get("dormant", False)
         )
 
+        # For transition checks, we need the PREVIOUS turn's state
+        # because the current turn's state reflects post-transition values
+        prev_snap = None
+        prev_urgent_count = 0
+        prev_breather_turn_count = 0
+        if i > 0:
+            prev_ev = filtered[i - 1]
+            prev_snap = extract_field(prev_ev, "last_turn_state") or {}
+            prev_arc = prev_snap.get("arc") or prev_snap.get("long_term_objective") or {}
+            prev_threads = prev_arc.get("threads") or []
+            prev_urgent_count = sum(
+                1 for t in prev_threads
+                if isinstance(t, dict) and t.get("urgency") == "urgent" and not t.get("dormant", False)
+            )
+            prev_scene = prev_snap.get("scene") or {}
+            prev_breather_turn_count = prev_scene.get("breather_turn_count", 0)
+
         # SETUP→RISING: fires when urgent thread appears OR turns_in_phase >= 3
         if i > 0:
             prev_ev = filtered[i - 1]
@@ -52,16 +69,17 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
             prev_phase = prev_pc.get("scene_phase", "SETUP")
 
             if prev_phase == "SETUP" and phase == "RISING":
-                has_urgent = urgent_count > 0
-                # Note: turns_in_phase is already reset to 0 at this point,
-                # so we check the previous turn's turns_in_phase if available
-                prev_turns_in_phase = prev_pc.get("turns_in_phase", 0)
+                has_urgent = prev_urgent_count > 0
+                # Read turns_in_phase from previous turn's scene (pacing_context
+                # turns_in_phase is post-transition, already reset to 0)
+                prev_scene = prev_snap.get("scene") or {}
+                prev_turns_in_phase = prev_scene.get("turns_in_phase", 0)
                 reached_turn_threshold = prev_turns_in_phase + 1 >= 3
                 if not has_urgent and not reached_turn_threshold:
                     findings.append({
                         "turn": turn_no,
                         "check": "setup_rising_trigger",
-                        "detail": f"SETUP→RISING at turn {turn_no} without urgent thread (count={urgent_count}) or turns_in_phase>=3 (prev={prev_turns_in_phase})",
+                        "detail": f"SETUP→RISING at turn {turn_no} without urgent thread (count={prev_urgent_count}) or turns_in_phase>=3 (prev_scene={prev_turns_in_phase})",
                     })
                     all_passed = False
 
@@ -90,7 +108,7 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
             # CLIMAX extension: stays when convergence >= 3 AND has_urgent, caps at limit + extension_max
             elif prev_phase == "CLIMAX" and phase == "CLIMAX":
                 if climax_turn_count >= cfg.climax_turn_limit:
-                    if convergence_score is not None and convergence_score >= 3 and urgent_count > 0:
+                    if convergence_score is not None and convergence_score >= 3 and prev_urgent_count > 0:
                         if climax_turn_count >= cfg.climax_turn_limit + cfg.extension_max:
                             findings.append({
                                 "turn": turn_no,
@@ -105,7 +123,7 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
                             "detail": f"CLIMAX extended past limit={cfg.climax_turn_limit} without convergence>=3 (score={convergence_score})",
                         })
                         all_passed = False
-                    elif urgent_count == 0:
+                    elif prev_urgent_count == 0:
                         findings.append({
                             "turn": turn_no,
                             "check": "climax_extension_urgent",
@@ -120,11 +138,11 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
 
             # BREATHER→RISING: fires when urgent thread OR breather_turn_count >= breather_max_turns
             elif prev_phase == "BREATHER" and phase == "RISING":
-                if urgent_count == 0 and breather_turn_count < cfg.breather_max_turns:
+                if prev_urgent_count == 0 and prev_breather_turn_count < cfg.breather_max_turns:
                     findings.append({
                         "turn": turn_no,
                         "check": "breather_rising_trigger",
-                        "detail": f"BREATHER→RISING at turn {turn_no} without urgent thread (count={urgent_count}) or breather_turn_count>={cfg.breather_max_turns} (count={breather_turn_count})",
+                        "detail": f"BREATHER→RISING at turn {turn_no} without urgent thread (count={prev_urgent_count}) or breather_turn_count>={cfg.breather_max_turns} (prev={prev_breather_turn_count})",
                     })
                     all_passed = False
 
@@ -150,7 +168,7 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
     cfg = EngineConfig()
     filtered = filter_turn_events(events)
 
-    for ev in filtered:
+    for i, ev in enumerate(filtered):
         pc = extract_field(ev, "pacing_context") or {}
         raw_components = pc.get("convergence_components") or {}
         convergence_score = pc.get("convergence_score")
@@ -174,8 +192,20 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
             continue
 
         # Compute scene_age
-        current_turn = meta.get("turn", turn_no)
+        # meta.turn in last_turn_state is already incremented (post-turn),
+        # but _compute_ages runs at ruling time (pre-increment), so subtract 1
+        current_turn = meta.get("turn", turn_no) - 1
+        # scene.turn_entered in last_turn_state is set by delta_builder AFTER
+        # ruling, but _compute_ages runs at ruling time. Read from previous
+        # turn's state to get the pre-delta_builder value.
         scene_entered = scene.get("turn_entered")
+        if i > 0:
+            prev_ev = filtered[i - 1]
+            prev_lts = extract_field(prev_ev, "last_turn_state") or {}
+            prev_scene = prev_lts.get("scene") or {}
+            prev_scene_entered = prev_scene.get("turn_entered")
+            if prev_scene_entered is not None:
+                scene_entered = prev_scene_entered
         if scene_entered is None:
             # Fallback: scene_entered = current_turn - turns_in_phase + 1
             turns_in_phase = scene.get("turns_in_phase", 1)
