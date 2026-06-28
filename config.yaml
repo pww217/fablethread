@@ -1,6 +1,6 @@
 llm:
   host: http://10.75.100.51:11434/api/chat
-  model: gemma4:26b
+  model: VladimirGav/gemma4-26b-16GB-VRAM:latest
   num_ctx: 16384
   context_window: 16384
   request_timeout_s: 180
