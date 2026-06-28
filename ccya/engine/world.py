@@ -12,8 +12,10 @@ from pydantic import ValidationError
 
 from ccya.engine.config import EngineConfig, _render
 from ccya.engine._pacing import derive_allowed_beat_types
+from ccya.engine.npc_roster import build_npc_roster
 from ccya.llm_client import chat as llm_chat
 from ccya.models import GMBeat
+from ccya.personality import ARCHETYPES
 
 _log = logging.getLogger(__name__)
 
@@ -37,13 +39,13 @@ async def _run_world_step(
     usage is a dict with tokens_in and tokens_out.
     On any failure, returns ([], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}).
     """
-    candidate_npcs: list[dict[str, Any]] = []
-    if scene_result is not None:
-        candidate_npcs = list(getattr(scene_result, "candidate_npcs", None) or [])
-
     arc = state.get("arc") or {}
     recent_beats = list((state.get("meta") or {}).get("recent_beats", []) or [])
     scene_phase = (state.get("scene") or {}).get("scene_phase", "SETUP")
+
+    comp = state.get("compendium", {}).get("npcs", {})
+    npc_roster = build_npc_roster(comp, turn_no=turn_no, personality_registry=ARCHETYPES)
+    npc_roster = [n for n in npc_roster if n.get("presence") in ("present", "nearby")]
 
     allowed_beat_types = derive_allowed_beat_types(
         scene_phase,
@@ -64,7 +66,7 @@ async def _run_world_step(
         env,
         "world_user.j2",
         {
-            "candidate_npcs": candidate_npcs,
+            "npc_roster": npc_roster,
             "arc": arc,
             "pacing_context": pacing_context,
             "recent_beats": recent_beats,
@@ -80,7 +82,7 @@ async def _run_world_step(
     ]
 
     try:
-        _log.debug("world.step_start trace_id=%s turn=%d candidate_npcs=%d", trace_id, turn_no, len(candidate_npcs))
+        _log.debug("world.step_start trace_id=%s turn=%d npc_roster=%d", trace_id, turn_no, len(npc_roster))
         _log.debug("world.step_before_llm trace_id=%s turn=%d host=%s model=%s timeout=%.1f", trace_id, turn_no, config.host, config.model, 60.0)
         async with asyncio.timeout(60.0):
             result = await llm_chat(
@@ -138,7 +140,7 @@ async def _run_world_step(
             continue
         if not beat.type:
             continue
-        valid_beats.append({"type": beat.type, "effect": beat.effect})
+        valid_beats.append({"type": beat.type, "effect": beat.effect, "npcs": entry.get("npcs", [])})
         if len(valid_beats) >= 3:
             break
 

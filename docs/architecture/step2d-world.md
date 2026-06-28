@@ -17,7 +17,7 @@ flowchart LR
     classDef outNode fill:#500724,color:#fbcfe8,stroke:#ec4899
 
     subgraph IN["Inputs (read at start of World)"]
-        S1["candidate_npcs<br>(from scene_result)"]:::xstream
+        S1["npc_roster<br>(from build_npc_roster(), filtered to present/nearby)"]:::xstream
         S2["arc.threads[]<br>(urgency counts, active threads)"]:::xstream
         S3["pacing_context<br>(directive, outcome_hint)"]:::xstream
         S4["recent_beats<br>(state.meta.recent_beats)"]:::xstream
@@ -62,7 +62,7 @@ yield ("phase", {"phase": "world_done"})
 
 | Input | Source |
 |-------|--------|
-| `candidate_npcs` | `scene_result.candidate_npcs` (Scene Extract 2a) |
+| `npc_roster` | `build_npc_roster()` from compendium (filtered to present/nearby) |
 | `arc.threads[]` | `state["arc"]["threads"]` |
 | `narration` | passed in from `run_turn` |
 | `pacing_context` | passed in from `run_turn` |
@@ -70,11 +70,11 @@ yield ("phase", {"phase": "world_done"})
 | `allowed_beat_types` | `derive_allowed_beat_types(scene_phase, directive, spiral_detected)` |
 | `rules_outcome.band` | (optional) used for roll-band guidance |
 
-If `scene_result is None` (extraction pipeline failed), `candidate_npcs` defaults to `[]` and World generates from narration + threads alone.
+World reads NPC profiles directly from the compendium via `build_npc_roster()`, filtering to `presence in ["present", "nearby"]`. Beat generation follows priority order: cross-NPC blending → NPC/Thread blending → single-NPC depth → environmental.
 
 ## Outputs
 
-`state.meta.beat_candidates: list[dict]` — 0-3 validated candidate dicts (after phase validation + `GMBeat(**candidate)` validation; invalid candidates silently dropped, no retry). Each dict has just `{type, effect}`. Ruling reads by index.
+`state.meta.beat_candidates: list[dict]` — 0-3 validated candidate dicts (after phase validation + `GMBeat(**candidate)` validation; invalid candidates silently dropped, no retry). Each dict has `{type, effect, npcs}`. Ruling reads by index.
 
 `extraction.world.purged: list[dict]` — candidates purged by phase validation (stored for EV debugging).
 
@@ -89,9 +89,10 @@ GMBeat
   type: complication | revelation | opportunity | breathing_room |
         pressure | twist | setback | escalation | callback | None
   effect: str                       # required
+  npcs: list[str]                   # NPC IDs involved in this beat
 ```
 
-A candidate whose `type` ends up empty is dropped.
+A candidate whose `type` ends up empty is dropped. Beat candidates include an `npcs` field listing which NPCs are involved in each beat.
 
 ## Phase validation layer
 

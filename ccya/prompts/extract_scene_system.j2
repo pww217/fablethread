@@ -19,49 +19,9 @@ Scan narration for every proper name. For each:
 
 ```json
 {
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "position": "...", "party": true}],
-   "candidate_npcs": [{"id": "npc_id", "type": "motivation|fear|leverage|bond", "effect": "psychological state hint ~1 sentence"}, ...]
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "position": "...", "party": true}]
 }
 ```
-
-## Beat candidate selection
-
-Identify 2-3 NPCs likely to act or be affected next turn. For each, assign one of these four types and write an effect as a **psychological state hint** — not a story beat, not a behavioral prediction. The storyteller receives these hints WITHOUT the full NPC roster fields, so they only know what you tell them.
-
-**Selection priority:** When choosing among candidates, prefer motivation first, then leverage or bond, then fear. Motivation is the most reliable driver and should be your first choice whenever available. Leverage and bond are second-tier — use them when motivation is not available or when you want to show a different facet of the character. Fear is last — use it sparingly, only when the character's fear is the most salient psychological feature this turn.
-
-**Psychological state format by type:**
-
-- `motivation` → "Character wants X and Y." or "Character is driven to achieve X."
-- `fear` → "Character fears X and Y." or "Character is afraid of X happening."
-- `leverage` → "Character exercises leverage over X." or "Character considers exercising leverage over X." or "Character has something X wants."
-- `bond` → "Character feels responsible for X." or "Character is protective of X." or "Character has shared history with X that influences their actions." or "Character owes X something." or "Character resents X."
-
-**Grounding rule:** Effects must directly reference existing compendium fields. Use the actual values from the roster — don't invent new psychological drivers. The effect should read like a psychological state statement, not a prediction of behavior.
-
-**Example (motivation):** Roster shows `motivation: He wants to protect his sister at all costs` → `type: "motivation"`, `effect: "Anthony wants to protect his sister and keep her safe from the syndicate."`
-
-**Example (fear):** Roster shows `fear: He's terrified of being exposed as a fraud` → `type: "fear"`, `effect: "Anthony fears being exposed as a fraud and losing his reputation."`
-
-**Example (leverage):** Roster shows `leverage: He holds the original unedited transcripts` → `type: "leverage"`, `effect: "Anthony has leverage over David — he holds the original unedited transcripts."`
-
-**Example (bond):** Roster shows `bond: He served five years with David in the militia` → `type: "bond"`, `effect: "Anthony feels responsible for David — they served together in the militia and he owes him his life."`
-
-**PRE-CHECK — mandatory before assigning type:**
-1. Look at the NPC's roster entry in the `## Characters` section.
-2. Only assign a type if that psychological field (motivation/fear/leverage/bond) is actually present in the roster entry.
-3. If an NPC has no psychological fields, do NOT include them as a candidate.
-4. For unnamed NPCs (name doesn't look like a proper name), do NOT include them — they have no psychological fields.
-
-**DO NOT:**
-- Assign a type that is NOT in the NPC's roster entry. If the roster has no `motivation` field, never use `type: "motivation"`.
-- Infer a psychological field from narration. The roster is ground truth. Narration shows behavior; roster shows the driver.
-- Include NPCs where the psychological field value is "unknown", empty, or missing. If `leverage: unknown`, do NOT use `type: "leverage"` — the field has no real value.
-- Include unnamed NPCs (name doesn't look like a proper name).
-- Write effects that predict behavior or describe what the NPC will do. Write effects that describe what the NPC feels, wants, or knows.
-- Write effects that read like story beats or narration. These are psychological hints for the storyteller to work with, not beats to deliver.
-
-**Effect rule:** One sentence. Psychological state, not behavioral prediction. Present tense. Names the character and the psychological driver. Does not describe what will happen — describes what is true about the character right now.
 
 ## Field rules
 

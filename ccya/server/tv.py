@@ -241,25 +241,6 @@ def _tv_state_diff(ev: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[
                 "sublines": labels,
             })
 
-    # Scene candidate_npcs
-    scene_output = _get_nested(ev, "extraction.scene") or {}
-    if isinstance(scene_output, dict):
-        scene_out = scene_output.get("output")
-        if isinstance(scene_out, dict):
-            cnp = scene_out.get("candidate_npcs")
-            if isinstance(cnp, list) and cnp:
-                labels = []
-                for npc in cnp:
-                    if isinstance(npc, dict):
-                        name = npc.get("name", npc.get("id", "?"))
-                        role = npc.get("role", "")
-                        labels.append(f"{name}" + (f" ({role})" if role else ""))
-                pacing_items.append({
-                    "section": "scene_candidate_npcs",
-                    "label": f"Scene — Candidate NPCs ({len(labels)})",
-                    "sublines": labels,
-                })
-
     # Recent beats history
     last_state = ev.get("last_turn_state") or {}
     meta = last_state.get("meta") or {}

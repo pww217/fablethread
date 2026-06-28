@@ -22,18 +22,11 @@ flowchart LR
 
     subgraph OUT["Outputs — SceneExtractResult"]
         O1["compendium_npc_update<br>  durable identity changes (presence, bio upserts, personality on creation, position, party companion flag)"]:::outNode
-        O2["candidate_npcs<br>  per-NPC beat candidates: [{id, type, effect}]"]:::outNode
     end
 
     IN --> LLM2A
     LLM2A --> OUT
 ```
-
-## Beat candidate selection
-
-Scene extracts per-NPC beat candidates as `candidate_npcs: [{id, type, effect}]` where `type` is one of `motivation | fear | leverage | tie`. Each entry pairs an NPC with a specific driver type and an observable psychological state hint (under 10 words). This is NOT a full beat — it's a signal to the **World** step about who matters narratively and how. World maps these to specific NPCs and threads using three patterns: deliver as-is, combine multiple drivers, or apply effect to a thread.
-
-Scene receives psychological fields (motivation/fear/leverage/tie) for all presence levels via `show_all_fields=True` in `_npc_roster.j2`. Effects must directly reference these compendium fields as ground truth — never invent new psychological drivers.
 
 ## Extraction prompt (`extract_scene_system.j2`) — NPC quality rules
 
@@ -47,4 +40,4 @@ Four additions prevent common NPC compendium quality issues:
 
 ## Key forward dependency
 
-Step 2c receives `candidate_npcs: [{id, type, effect}]` from scene, plus `npc_roster` (from build_npc_roster()) built from comp_this_turn. Each candidate has a specific driver type (motivation/fear/leverage/bond) and per-NPC effect string. Storytell maps these to beats using three patterns: deliver as-is, combine multiple drivers, or apply effect to a thread. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Storytell (Step 2c).
+Step 2c receives `npc_roster` (from `build_npc_roster()`) built from comp_this_turn. World generates beat candidates from full NPC profiles (motivation, fear, leverage, bond) directly from the compendium. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Storytell (Step 2c).
