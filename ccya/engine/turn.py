@@ -13,7 +13,6 @@ from typing import Any, AsyncIterator
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
 from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts, is_cancel_requested, register_turn, signal_turn_done
-from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.extraction import (
     _avg_event_ms,
     _context_meta,
@@ -166,7 +165,6 @@ async def run_turn(
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
         rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
 
-        strip_trace_markers_in_messages(narr_messages)
         narr_messages, narr_trimmed, narr_trimmed_chars = trim_messages(
             narr_messages, config.context_window,
         )
