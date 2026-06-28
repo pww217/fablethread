@@ -49,7 +49,7 @@ scene:
   turn_entered: int            # when the current scene was entered (set on location change, used by _compute_ages())
   location_entered_turn: int   # when location was last changed
 
-compendium.npcs: dict[id] → {name, title, bio, aliases: [str], presence: str | "present"|"nearby"|"known"|"departed"|"archived", position: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), personality: str | None (archetype id; write-once, immutable), first_seen_turn: int | None, last_presence_turn: int | None, last_seen_location: str | None, departed_reason: str | None, departed_turn: int | None, party: bool | None (companion flag — exempts from location-change auto-demotion, auto-cleared on departed)}
+compendium.npcs: dict[id] → {name, title, bio, presence: str | "present"|"nearby"|"known"|"departed"|"archived", position: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), personality: str | None (archetype id; write-once, immutable), first_seen_turn: int | None, last_presence_turn: int | None, last_seen_location: str | None, departed_reason: str | None, departed_turn: int | None, party: bool | None (companion flag — exempts from location-change auto-demotion, auto-cleared on departed)}
 
 world.factions: [str], world.locations: list[KeyLocation]
 ```
@@ -71,7 +71,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 - **LongTermObjective**: `long_term_objective`, `threads: list[ArcThread]`, `completed_threads: list[ArcThread]`, `resolution`, `last_thread_created_turn`, `started_turn`
 - **Condition**: `id`, `label`, `description`, `added_turn`, `turns_remaining: int | Literal["permanent"]` (0 = sentinel, replaced by engine default TTL in apply_delta)
 - **InventoryItem**: `id`, `name`, `notes`, `amount`, `aliases: [str]`
-- **NpcPresence**: `name`, `title`, `bio`, `aliases: [str]`, `presence`, `position`, `motivation`, `fear`, `leverage`, `personality`, `first_seen_turn`, `last_presence_turn`, `last_seen_location`, `departed_reason`, `departed_turn` — note: `party` is NOT a field on this enum (it's a compendium entry field, not a presence value)
+- **NpcPresence**: `name`, `title`, `bio`, `presence`, `position`, `motivation`, `fear`, `leverage`, `personality`, `first_seen_turn`, `last_presence_turn`, `last_seen_location`, `departed_reason`, `departed_turn` — note: `party` is NOT a field on this enum (it's a compendium entry field, not a presence value)
 - **ProgressEntry**: `kind: Literal["advancement", "setback"]`, `text`
 - **ThreadResolution**: `id`, `resolution_state: Literal["resolved", "failed", "abandoned"]`, `outcome: str`, `world_state_candidate: str | None`
 - **ThreadUpdate**: `id`, `dormant`, `urgency`, `type`, `major_updates`, `major_update_signal`
@@ -140,6 +140,6 @@ world.factions: [str], world.locations: list[KeyLocation]
 - Reason persisted to `state.meta.last_condition_change_reason` for debugging
 
 ### CompendiumEntry
-- Has explicit `motivation`/`fear`/`leverage`/`bond`/`personality` optional string fields alongside existing `name`/`title`/`bio`/`aliases`/`presence`/`position`
+- Has explicit `motivation`/`fear`/`leverage`/`bond`/`personality` optional string fields alongside existing `name`/`title`/`bio`/`presence`/`position`
 - Seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings
 - Seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only)

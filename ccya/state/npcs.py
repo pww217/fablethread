@@ -1,4 +1,4 @@
-"""NPC alias map, compendium order tracking, and scene management."""
+"""NPC compendium order tracking, proper-name heuristic, and scene management."""
 
 from __future__ import annotations
 
