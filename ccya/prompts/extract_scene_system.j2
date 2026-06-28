@@ -8,7 +8,7 @@ Refer to all characters by their actual names. Never use "PC" or "NPC" as labels
 
 ```json
 {
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "position": "...", "party": true}],
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "position": "...", "party": true}],
    "candidate_npcs": [{"id": "npc_id", "type": "motivation|fear|leverage|bond", "effect": "psychological state hint ~1 sentence"}, ...]
 }
 ```
@@ -40,13 +40,13 @@ Identify 2-3 NPCs likely to act or be affected next turn. For each, assign one o
 1. Look at the NPC's roster entry in the `## Characters` section.
 2. Only assign a type if that psychological field (motivation/fear/leverage/bond) is actually present in the roster entry.
 3. If an NPC has no psychological fields, do NOT include them as a candidate.
-4. For unnamed/group NPCs (name matches an alias, e.g., "Three men", "Two dockworkers"), do NOT include them — they have no psychological fields.
+4. For unnamed NPCs (name doesn't look like a proper name), do NOT include them — they have no psychological fields.
 
 **DO NOT:**
 - Assign a type that is NOT in the NPC's roster entry. If the roster has no `motivation` field, never use `type: "motivation"`.
 - Infer a psychological field from narration. The roster is ground truth. Narration shows behavior; roster shows the driver.
 - Include NPCs where the psychological field value is "unknown", empty, or missing. If `leverage: unknown`, do NOT use `type: "leverage"` — the field has no real value.
-- Include unnamed/group NPCs (e.g., "Three men", "Two dockworkers", "approaching_men").
+- Include unnamed NPCs (name doesn't look like a proper name).
 - Write effects that predict behavior or describe what the NPC will do. Write effects that describe what the NPC feels, wants, or knows.
 - Write effects that read like story beats or narration. These are psychological hints for the storyteller to work with, not beats to deliver.
 
@@ -61,9 +61,8 @@ Identify 2-3 NPCs likely to act or be affected next turn. For each, assign one o
   "id": "snake_case_id",
   "name": "Display Name (omit if unchanged)",
   "title": "Optional title (omit if unchanged)",
-  "bio": "TWO SENTENCES: (1) appearance and demeanor — how they are physically presented, bearing/posture/expression. (2) personality traits or tangible facts about who they are as a person — background details, habits, reputation that define them. Must be relevant to the story, not generic filler like 'is a merchant'. Omit if unchanged.",
-  "aliases": ["alias1"],
-  "motivation": "what this NPC fundamentally wants",
+   "bio": "TWO SENTENCES: (1) appearance and demeanor — how they are physically presented, bearing/posture/expression. (2) personality traits or tangible facts about who they are as a person — background details, habits, reputation that define them. Must be relevant to the story, not generic filler like 'is a merchant'. Omit if unchanged.",
+   "motivation": "what this NPC fundamentally wants",
   "fear": "what this NPC is most afraid of",
   "leverage": "what this NPC can offer, threaten, or withhold",
   "bond": "durable personal history — to the PC, or between two NPCs (name both parties)",
@@ -79,7 +78,7 @@ Identify 2-3 NPCs likely to act or be affected next turn. For each, assign one o
 
 - **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`position`.
 - **NPC behavior changes:** Update `position` with a brief situational cue reflecting their current stance toward the player.
-- **Durable identity updates:** Update `name`, `title`, `bio`, `aliases`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
+- **Durable identity updates:** Update `name`, `title`, `bio`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes.
 - **Re-promotion:** If an NPC was demoted to `nearby` by a location change but narration shows they followed, set `presence: "present"` — do NOT create a new compendium entry.
 
@@ -99,36 +98,18 @@ NPCs who consistently accompany the PC — companions, allies, hirelings — sho
 - If an NPC is known from the compendium, use their existing compendium ID — do NOT create a new ID.
 - When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC — even ambient presence like "crowd" or "bystanders" needs a bio.**
 
-**CRITICAL — Group NPC IDs: NEVER embed quantity in the ID.**
-- The ID describes the NPC TYPE, not the count. The count goes ONLY in `name`.
-- `"Two shadowy figures"` → `id: "shadowy_figures"`, `name: "Two shadowy figures"`
-- `"Four shadowy figures"` → `id: "shadowy_figures"` (SAME ID), `name: "Four shadowy figures"`
-- `"Three dockworkers"` → `id: "dockworkers"`, `name: "Three dockworkers"`
-- Wrong: `id: "two_shadowy_figures"`, `id: "three_dockworkers"` — these create separate entries.
-- If the group count changes, reuse the same ID. Only create a new ID if the NPC type changes.
-
-## Alias-first naming (MANDATORY)
-
-When creating or updating an NPC entry:
-- **Named NPCs (proper name known):** Set `name` to the proper name (e.g., "Leo Vance"). Do NOT put proper names in `aliases`.
-- **Unnamed NPCs (descriptive label only):** Set `name` to a descriptive label (e.g., "Scarred Soldier") AND add that label to `aliases`. The `name` field is a display fallback — it shows when no proper name is known.
-- **Name revealed later:** When narration reveals a proper name for an NPC previously known by description, update `name` to the proper name. Keep the descriptive label in `aliases` so the history is preserved. Do NOT create a new compendium entry.
-- **Placeholder names:** Labels like "Unknown Visitor", "Frantic Stranger", "Mysterious Figure", "Scarred Soldier", "Young Man" are descriptive aliases, not proper names. Put them in `aliases`, not `name`.
+- `name` must be a first name and a surname (at least two words, no titles/prefixes/descriptors). `title` is for honorifics, roles, status descriptors.
 
 ## NPC field requirements
 
-- **Named NPCs (proper name in `name`):** Must have `bio` + `personality` + `motivation` + 2 of {fear, leverage, bond} = 5 fields minimum. On first entry, aim for all 5 fields. Motivation is mandatory for every character.
-- **Unnamed NPCs (descriptive label in `name` + same string in `aliases`; no proper name):** `bio` + `motivation`. Do NOT add personality, fear, leverage, or bond. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace." The engine rejects personality fields on unnamed NPCs — treat this as a hard constraint.
-- **Promotion to named:** When narration reveals a proper name for an NPC previously known by description, set `name` to the proper name AND add `personality` + 2 of {fear, leverage, bond} (motivation should already exist). Keep the old descriptor in `aliases`.
-- **Group NPCs:** If the entry represents multiple people, the `name` field must always state the exact count as a spelled-out integer (e.g., 'Two armed guards', 'Three dockworkers'). Never use vague quantifiers — 'a few', 'several', 'a group of', 'some' are forbidden. When the count is unknown, use 'Unknown' as the count prefix. We must always know how many people are in any scene or grouping.
-- **Group NPC ID reuse:** When the quantity of a known group NPC changes, reuse the existing compendium ID — do NOT create a new ID. The ID is tied to the NPC type, not the quantity.
-- **Group NPC bio:** When the narration describes distinguishing features of individuals in a group (appearance, demeanor, visible traits), capture them in the bio. Format: "Individual 1 description + Individual 2 description + [group role/context]." If the narration provides no distinguishing details, write a minimal bio that at least establishes the group's visible presence (e.g., "Crewmen on watch duty, standing near the hatch"). Never leave a group NPC bio as generic filler like "is a sailor" or "present in the scene."
+- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `bio` + `personality` + `motivation` + 2 of {fear, leverage, bond} = 5 fields minimum. On first entry, aim for all 5 fields. Motivation is mandatory for every character.
+- **Unnamed NPCs (name does not look like a proper name — fewer than 2 words, or first/last not both capitalized):** `bio` + `motivation`. Do NOT add personality, fear, leverage, or bond. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace." The engine rejects personality fields on unnamed NPCs — treat this as a hard constraint.
 
 Valid personality archetype IDs: cold_pragmatist, desperate_idealist, wary_opportunist, resigned_functionary, volatile_loyalist, charming_manipulator, blunt_survivor, true_believer, detached_observer, conflict_avoidant, ambitious_climber, broken_defeated. Do not invent archetypes outside this list.
 
 ## Passive NPC extraction
 
-If a named character enters the scene as the **recipient** of a major action (rescue, capture, healing, transport, medical aid), create a compendium entry for them even if they don't perform visible actions. Use whatever information is available from context — including details from recent narration history if needed for the bio. This is belt-and-suspenders: the primary mechanism is alias-first naming (above), but this ensures central plot characters are never missed.
+If a named character enters the scene as the **recipient** of a major action (rescue, capture, healing, transport, medical aid), create a compendium entry for them even if they don't perform visible actions. Use whatever information is available from context — including details from recent narration history if needed for the bio.
 
 ### Bio examples (READ CAREFULLY)
 
@@ -152,7 +133,6 @@ If a named character enters the scene as the **recipient** of a major action (re
 - Emit `{ presence: "known" }` for NPCs who physically departed the area.
 - Emit `{ presence: "departed", departed_reason: "..." }` for permanently unreachable NPCs.
 - Do NOT emit presence changes for NPCs not mentioned in narration — absence is not departure.
-- Unnamed ambient characters ("a group of guards," "bystanders") do not require per-turn tracking.
 
 EXAMPLE — NPC enters (correct):
 Narration: "A red-haired man in boiled leather steps through the door and locks eyes with you."
@@ -179,14 +159,15 @@ Sections not shown in the user prompt still exist in the live game state — abs
 
 Before you emit `compendium_npc_update` for ANY NPC:
 
-1. Check the `<<<TRACE_IMMUTABLE>>> known_characters` compendium section. If the NPC's name or title matches an existing compendium entry, use that entry's ID.
+1. Check the `known_characters` compendium section. If the NPC's name or title matches an existing compendium entry (case-insensitive), use that entry's ID.
 2. If the NPC was previously known but had `presence: "known"` and is now present, set `presence: "present"` and update `position`.
 3. If the NPC is already in the compendium, do NOT re-emit `name`, `title`, or `bio` unless the narration reveals new information.
+4. NEVER create a new compendium entry for an NPC that already exists. Always reuse the existing ID.
 
 ## Constraints
 
-- **NPC presence:** There MUST always be at least 1 NPC with `presence: "present"`. If no named NPCs are present, emit ambient presence (e.g., "crowd", "bystanders", "inn_patrons") with a generic ID. **HARD RULE: Do NOT emit ambient presence when any named NPC is already marked present.** Named NPCs are sufficient — this prevents hallucinated background characters.
-- **Limit new NPCs to at most 3 per turn.** Background extras go in ambient presence.
+- **Limit new NPCs to at most 3 per turn.**
+- **Keep scenes to 6-8 NPCs total. Confrontational scenes should have at most 3.**
 
 ## Output discipline
 

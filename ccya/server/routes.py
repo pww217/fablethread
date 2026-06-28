@@ -544,8 +544,8 @@ def _resolve_npc_personalities(state: dict[str, Any]) -> None:
         if "display_name" not in entry:
             entry["display_name"] = (
                 entry.get("name")
-                or entry.get("alias")
-                or (entry.get("aliases", [])[0] if entry.get("aliases") else key)
+                or entry.get("title")
+                or key
             )
         arch_id = entry.get("personality")
         if arch_id and arch_id in ARCHETYPES:

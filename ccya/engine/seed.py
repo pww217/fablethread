@@ -22,6 +22,18 @@ from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
 _NAME_RE = re.compile(r"[^\x00-\x7F]")
 
 
+def _is_named(name: str) -> bool:
+    """Heuristic: a proper name has 2+ words with first and last capitalized."""
+    if not name:
+        return False
+    words = name.strip().split()
+    if len(words) < 2:
+        return False
+    first_word = words[0]
+    last_word = words[-1]
+    return bool(first_word and first_word[0].isupper() and last_word and last_word[0].isupper())
+
+
 def _strip_non_ascii(text: str) -> str:
     if not text:
         return text
@@ -46,11 +58,6 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
     for npc_id, npc_data in envelope.seed_state.compendium.npcs.items():
         if npc_data.name is not None:
             npc_data.name = _strip_non_ascii(npc_data.name)
-            name_parts = npc_data.name.split()
-            if len(name_parts) == 1 and name_parts[0]:
-                surname_hash = sha256(f"{npc_data.name}-{npc_id}".encode()).hexdigest()[:4]
-                surnames_pool = ["Smith", "Jones", "Black", "Stone", "Fox", "Wolf", "Hawk", "Knight"]
-                npc_data.name = f'{name_parts[0]} {surnames_pool[int(surname_hash, 16) % len(surnames_pool)]}'
         npc_data.title = _strip_non_ascii(npc_data.title or "")
         npc_data.bio = _strip_non_ascii(npc_data.bio or "")
         if npc_data.presence is None or npc_data.presence == "":
@@ -304,16 +311,9 @@ async def generate_seed(
 
             from ccya.personality import assign_personality, validate_and_resolve
 
-            _QUANTITY_WORDS = frozenset({"one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen","twenty","a","an"})
             for npc_id, npc_entry in envelope.seed_state.compendium.npcs.items():
                 _name = (getattr(npc_entry, "name", "") or "").strip()
-                _aliases = [a.lower().strip() for a in (getattr(npc_entry, "aliases", None) or [])]
-                _name_parts = _name.lower().split()
-                if _name_parts and _name_parts[0] in _QUANTITY_WORDS:
-                    _name_stripped = " ".join(_name_parts[1:])
-                else:
-                    _name_stripped = _name.lower()
-                if _name_stripped and any(_name_stripped == a for a in _aliases):
+                if _name and not _is_named(_name):
                     continue
                 if not hasattr(npc_entry, "personality") or not getattr(npc_entry, "personality"):
                     arch = assign_personality(

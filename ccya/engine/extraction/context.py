@@ -77,13 +77,25 @@ def _build_extraction_context(
     )
 
 
+def _is_named(name: str) -> bool:
+    """Heuristic: a proper name has 2+ words with first and last capitalized."""
+    if not name:
+        return False
+    words = name.strip().split()
+    if len(words) < 2:
+        return False
+    first_word = words[0]
+    last_word = words[-1]
+    return bool(first_word and first_word[0].isupper() and last_word and last_word[0].isupper())
+
+
 def _filter_unnamed_personality(
     candidates: list[dict[str, Any]],
     state: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Strip personality type from candidate_npcs entries for unnamed NPCs.
 
-    Unnamed NPCs (where name matches an alias) should only have bio — they
+    Unnamed NPCs (name doesn't look like a proper name) should only have bio — they
     cannot have personality, motivation, fear, leverage, or bond. If the
     extractor incorrectly assigns personality to an unnamed NPC, remove it.
     """
@@ -92,10 +104,9 @@ def _filter_unnamed_personality(
     for c in candidates:
         npc_id = c.get("id", "")
         npc_entry = comp_npcs.get(npc_id, {})
-        # Check if this NPC is unnamed: name matches an alias
+        # Check if this NPC is unnamed: name doesn't look like a proper name
         name = (npc_entry.get("name") or "").strip()
-        aliases = [a for a in (npc_entry.get("aliases") or []) if a]
-        is_unnamed = name and aliases and name.lower().strip() in {a.lower().strip() for a in aliases}
+        is_unnamed = name and not _is_named(name)
         if is_unnamed and c.get("type") == "personality":
             # Skip personality candidates for unnamed NPCs
             _log.debug(

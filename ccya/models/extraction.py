@@ -20,7 +20,6 @@ class CompendiumNpcUpdate(BaseModel):
     name: str | None = None
     title: str | None = None
     bio: str | None = None
-    aliases: list[str] = Field(default_factory=list)
     motivation: str | None = None
     fear: str | None = None
     leverage: str | None = None

@@ -11,13 +11,24 @@ from ccya.models import NpcPresence
 _log = logging.getLogger(__name__)
 
 
+def _is_named(name: str) -> bool:
+    """Heuristic: a proper name has 2+ words with first and last capitalized."""
+    if not name:
+        return False
+    words = name.strip().split()
+    if len(words) < 2:
+        return False
+    first_word = words[0]
+    last_word = words[-1]
+    return bool(first_word and first_word[0].isupper() and last_word and last_word[0].isupper())
+
+
 def _compute_npc_score(entry: dict[str, Any], comp: dict[str, Any], turn_no: int) -> int:
     raw = comp.get(entry.get("id", ""), {})
     if raw.get("party") is True:
         return 6
     name = entry.get("name") or ""
-    aliases = raw.get("aliases") or []
-    if name and aliases and name.lower().strip() in {a.lower().strip() for a in aliases}:
+    if name and not _is_named(name):
         return 0
     last_turn = entry.get("last_presence_turn")
     if last_turn is not None and turn_no > 0:

@@ -17,7 +17,6 @@ from ccya.engine.extraction.scene import _extract_scene_messages
 from ccya.engine.extraction.state import _extract_state_messages
 from ccya.engine.extraction.record import _record_messages
 from ccya.engine.extraction.utils import _call_stream, _capitalize_inventory_names, _context_meta, _dedup_compendium_update
-from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.state import apply_delta
 from ccya.errors import ErrorKind, LlmcTimeout
 from ccya.llm_client import trim_messages
@@ -79,7 +78,6 @@ async def _run_extraction_pipeline(
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_scene_system = scene_msgs[0]["content"] if scene_msgs else ""
     rendered_scene_user = scene_msgs[-1]["content"] if scene_msgs else ""
-    strip_trace_markers_in_messages(scene_msgs)
     scene_msgs, scene_trimmed, scene_trimmed_chars = trim_messages(scene_msgs, config.context_window)
 
     scene_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
@@ -137,7 +135,6 @@ async def _run_extraction_pipeline(
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_state_system = state_msgs[0]["content"] if state_msgs else ""
     rendered_state_user = state_msgs[-1]["content"] if state_msgs else ""
-    strip_trace_markers_in_messages(state_msgs)
     state_msgs, state_trimmed, state_trimmed_chars = trim_messages(state_msgs, config.context_window)
 
     state_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
@@ -212,7 +209,6 @@ async def _run_extraction_pipeline(
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_record_system = record_msgs[0]["content"] if record_msgs else ""
     rendered_record_user = record_msgs[-1]["content"] if record_msgs else ""
-    strip_trace_markers_in_messages(record_msgs)
     record_msgs, record_trimmed, record_trimmed_chars = trim_messages(record_msgs, config.context_window)
 
     record_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
@@ -301,7 +297,6 @@ async def _run_extraction_pipeline(
             "name": npc.get("name") or "",
             "title": npc.get("title") or "",
             "bio_preview": (npc.get("bio") or "").strip()[:120],
-            "aliases": list(npc.get("aliases") or []),
         })
     deduped_compendium: list[CompendiumNpcUpdate] = []
     existing_ids: set[str] = set(_comp.keys())
