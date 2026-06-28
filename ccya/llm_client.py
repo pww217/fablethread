@@ -28,12 +28,14 @@ _log = logging.getLogger(__name__)
 
 _MOCK_MODE = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
 
-_client: AsyncOpenAI | None = None
+_client: dict[str, AsyncOpenAI] | None = None
 
 
 def _get_client(base_url: str) -> AsyncOpenAI:
     global _client
     if _client is None:
+        _client = {}
+    if base_url not in _client:
         # Configure httpx with explicit timeouts
         # read=None: let asyncio.timeout() handle wall-clock timeout
         # This prevents httpx's per-chunk read timeout from firing during slow generation
@@ -49,8 +51,10 @@ def _get_client(base_url: str) -> AsyncOpenAI:
                 max_connections=50,
             ),
         )
-        _client = AsyncOpenAI(base_url=base_url, api_key="local", http_client=http_client)
-    return _client
+        _client[base_url] = AsyncOpenAI(
+            base_url=base_url, api_key="local", http_client=http_client
+        )
+    return _client[base_url]
 
 
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
