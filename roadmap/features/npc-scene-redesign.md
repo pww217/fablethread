@@ -1,6 +1,6 @@
 ---
 title: "NPC scene redesign — drop aliases, drop plurals, simplify unnamed detection"
-status: new
+status: up-next
 urgency: 2
 size: large
 created: 2026-06-25
