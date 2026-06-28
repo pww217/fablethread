@@ -34,7 +34,7 @@ Read `roadmap/README.md` for schema, lifecycles, and conventions before acting.
    ---
    ```
    Optional fields: `design`, `plan`, `pr` (with `url` and `branch`).
-5. **Place in correct directory** — `roadmap/bugs/`, `roadmap/features/`, `roadmap/improvements/`, or `roadmap/evals/`.
+5. **Place in correct directory** — use the full path including directory prefix: `roadmap/bugs/<ticket_id>-<slug>.md`, `roadmap/features/<ticket_id>-<slug>.md`, `roadmap/improvements/<ticket_id>-<slug>.md`, or `roadmap/evals/<ticket_id>-<slug>.md`. Never strip the directory prefix when constructing the path.
 6. **Run `make roadmap`** — regenerate indices.
 
 ### Update tickets
