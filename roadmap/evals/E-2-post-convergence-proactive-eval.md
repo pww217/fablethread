@@ -177,3 +177,70 @@ The root cause is that the convergence score is too reactive to individual turn 
 3. **B-10 needs live UI validation** — not testable via evals
 4. **B-20 appears fixed** — no duplicates in 3 runs
 5. **Engine is stable** — no critical or intermediate bugs unfixed. Ready for next phase of development.
+
+---
+
+## Deep Dive: Scene → World → Ruling Pipeline Quality
+
+**Scope:** Manual inspection of pipeline across 3 most stable runs (noir-1930s/driven 15t, space-western/speedrunner 15t, golden-piracy/completionist 15t).
+
+### Issue 1: Empty candidate_npcs on ~20% of turns
+
+**Data:** Across all 3 runs, candidate_npcs is empty on turns 5, 10, 13-15 (noir), 5, 10, 14-15 (space-western), 5, 7, 10, 15 (piracy).
+
+**Root cause:** The scene extractor is an LLM step (`extract_scene_system.j2` + `extract_scene_user.j2`). If the LLM doesn't produce candidate_npcs, the engine gets an empty list. The engine passes through whatever the LLM generates. There is **no engine-side validation or enforcement** — `_filter_unnamed_personality()` only strips personality type for unnamed NPCs, it doesn't enforce a minimum count.
+
+**Impact:** When candidate_npcs is empty, the world step has no psychological material to work with. The world falls back to environmental beats ("heavy thud," "siren wails," "frost on bulkhead") that don't advance character-driven narrative.
+
+### Issue 2: World step not blending psychological hints
+
+**Design intent:** "Each candidate should combine 1-2 psychological hints from candidate_npcs into a single coherent story point."
+
+**Reality:** The world is using individual hints separately, not blending them.
+
+Example (noir turn 2): candidate_npcs = [paul_bautista (leverage), paul_bautista (motivation)], but world candidates are:
+- `[0] pressure`: Paul's phone vibrates (uses motivation implicitly, alone)
+- `[1] revelation`: missing witness detail (uses leverage implicitly, alone)
+- `[2] escalation`: black sedan (environmental, not from candidate_npcs)
+
+No candidate combines "Paul wants to maintain standing" + "Paul knows where evidence is stashed" into a single coherent story point.
+
+### Issue 3: Phase constraint enforcement is missing
+
+**Validator exists:** `derive_allowed_beat_types()` in `_pacing.py:61` returns allowed types per phase. The world step receives `allowed_beat_types` in the prompt.
+
+**But:** There is **NO post-hoc validation** in `world.py` — it doesn't filter out beats that violate phase constraints. The GMBeat model (`models/extraction.py:180`) validates type is one of the global allowed types, but NOT phase-specific.
+
+**BEAT_PHASE_MAP (`_pacing.py:24-30`):**
+```python
+BEAT_PHASE_MAP = {
+    "SETUP":       ["pressure", "complication", "escalation", "revelation", "twist", "opportunity", "callback", "breathing_room", "hazard"],
+    "RISING":      ["pressure", "complication", "escalation", "revelation", "twist"],
+    "CLIMAX":      ["pressure", "escalation", "complication"],
+    "RESOLUTION":  ["breathing_room", "callback", "revelation"],
+    "BREATHER":    ["opportunity", "revelation", "callback", "breathing_room", "hazard"],
+}
+```
+
+**Phase violations found (noir run):**
+| Turn | Phase | Selected Beat | Allowed? |
+|------|-------|---------------|----------|
+| T6 | RESOLUTION | escalation | **NO** |
+| T7 | BREATHER | revelation | YES |
+| T8 | RISING | opportunity | **NO** |
+
+**Ruling step:** The ruling prompt says "Pick ONE beat by its index" but **does not enforce phase constraints**. The world generates phase-aligned candidates, but ruling picks regardless of phase.
+
+### Issue 4: Revelation IS allowed for BREATHER
+
+`BEAT_PHASE_MAP["BREATHER"]` includes `revelation`. The phase constraint is not the issue for T7 — revelation is valid. The issue is that escalation is being selected during RESOLUTION (T6), and opportunity is being selected during RISING (T8).
+
+### EV CLI command
+
+`ev.py beats --save-dir <path>` provides a clean summary of phase, beat type, and effect per turn. Useful for quick pipeline audits.
+
+### Summary
+
+1. **Scene**: Good psychological hints when generated, but ~20% empty. Need to investigate why LLM fails to produce them.
+2. **World**: Not blending psychological hints as designed. Too many environmental fallbacks. No post-hoc phase constraint enforcement.
+3. **Ruling**: Not enforcing phase constraints when selecting beats. Phase violations found in 2/15 turns.
