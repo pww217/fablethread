@@ -101,6 +101,7 @@ async def run_turn(
                 "name_locales": pack_name_locales,
                 "narrator_rules": pack_narrator_rules, "world_rules": pack_world_rules,
                 "factions": pack_factions,
+                "inventory": state.get("inventory") or [],
             }, _env=env,
         )
 
@@ -262,6 +263,7 @@ async def run_turn(
                 turn_no=turn_no,
                 pacing_context=_pc,
                 recent_turns=recent_turns,
+                packing=ctx.packing,
             ):
                 if isinstance(_evt, tuple) and len(_evt) == 2:
                     _log.debug("turn.extraction_evt trace_id=%s evt_type=%s", trace_id, type(_evt[0]).__name__, extra={"event_preview": str(_evt)[:500]})

@@ -243,6 +243,8 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         scene_pressure_threshold=config.scene_pressure_threshold,
         scene_imperative_threshold=config.scene_imperative_threshold,
         climax_turn_count=scene.get("climax_turn_count", 0),
+        config=config,
+        convergence_score=total_convergence_score,
     )
 
     # Compute death spiral flag from recent roll history

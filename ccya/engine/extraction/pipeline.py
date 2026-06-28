@@ -46,6 +46,7 @@ async def _run_extraction_pipeline(
     turn_no: int,
     pacing_context: Any | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
+    packing: dict[str, Any] | None = None,
 ) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'StorytellerResult', 'SceneExtractResult']]":
     _log.debug("extraction.pipeline.start trace_id=%s turn_no=%d", trace_id, turn_no)
     """Run the three extraction streams in sequence.
@@ -131,6 +132,7 @@ async def _run_extraction_pipeline(
         env, narration, state,
         intent=intent,
         turn_no=turn_no,
+        pack_inventory=(packing or {}).get("inventory") or [],
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_state_system = state_msgs[0]["content"] if state_msgs else ""

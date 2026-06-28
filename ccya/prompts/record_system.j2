@@ -47,6 +47,8 @@ REQUIRED — every `thread_add` and `thread_update` must include exactly one typ
 
 **CRITICAL: Progress must be a new fact, not a rephrasing.** The system rejects progress entries that are 70%+ text-similar to the last entry. "Telegram reveals Captain Miller's involvement" followed by "Telegram confirms Captain Miller's involvement" will be rejected — changing one verb is not progress. Each progress entry must add genuinely new information: a new discovery, a setback, a shift in circumstances, or a concrete development. If you cannot state a new fact about the thread, do not emit an update.
 
+**CRITICAL: Thread IDs must be specific enough to avoid overlap.** Use descriptive IDs like "enemy_encroachment_south_flank" instead of generic "enemy_encroachment". If multiple distinct events relate to the same thread, each must represent a genuinely new development — not a rephrasing of the previous progress.
+
 **CRITICAL: Only reference threads that appear in the active threads list.** The user prompt shows all active threads with their IDs. You MUST use those exact IDs. If a thread ID is not shown in the active threads list, do NOT create or update it. Hallucinating thread IDs causes silent failures — the update is rejected and the thread state never changes.
 
 **CRITICAL: Do NOT resolve threads that do not exist.** `thread_resolve` may only reference IDs from the active threads list. If a thread ID is not shown in the active threads list, do NOT resolve it — even if the narration describes events that seem to match. Resolving non-existent threads causes silent failures.
