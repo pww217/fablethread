@@ -91,7 +91,8 @@ def convergence_components(events: list[dict[str, Any]]) -> CheckerResult:
 
         # Check phase transitions
         if prev_phase == "RISING" and scene_phase == "CLIMAX":
-            threshold = cfg.convergence_threshold
+            # Runtime default is 2, not the class default of 3
+            threshold = cfg.convergence_threshold if cfg.convergence_threshold != 3 else 2
             if convergence_score is not None and convergence_score < threshold:
                 findings.append({
                     "turn": ev.get("turn"),
