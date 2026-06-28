@@ -105,6 +105,7 @@ async def generate_pack_from_brief(
                 temperature=config.pack_generation_temperature,
                 top_p=config.pack_generation_top_p,
                 timeout=300.0,
+                num_ctx=config.num_ctx,
             )
 
             raw = response_text.get("response", "") if isinstance(response_text, dict) else str(response_text)

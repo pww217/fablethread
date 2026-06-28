@@ -116,6 +116,17 @@ The pipeline produces several state objects at different points. Understanding w
 
 See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for full details on each state type, checker usage, and common pitfalls.
 
+## LLM Backend
+
+The engine uses an OpenAI-compatible chat API (`/v1/chat/completions`).
+
+| Backend | Host | Model | Hardware | Speed |
+|---|---|---|---|---|
+| **Primary (preferred)** | `10.75.100.51:11434` | `ornith:35b` | RTX 5070 Ti | Fast |
+| Fallback | `127.0.0.1:8080` | `mlx-community/gemma-4-26b-a4b-it-mxfp8` | MacBook (MLX) | Slower |
+
+Configured in `config.yaml` under `llm.host`, `llm.model`, and `llm.num_ctx`. The client (`ccya/llm_client.py`) uses the `openai` Python SDK with `api_key="local"` — no authentication required. `num_ctx` is passed via `extra_body` to control the server-side input context window (KV cache pre-allocation in llama.cpp). Client-side trimming via `trim_messages()` uses `config.context_window` as a safety net.
+
 ## Key Models Glossary
 
 ### Core Result Types

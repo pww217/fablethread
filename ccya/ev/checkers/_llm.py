@@ -83,6 +83,7 @@ def _call_llm_checker(
                     messages,
                     temperature=0.3,
                     timeout=float(config.request_timeout_s),
+                    num_ctx=config.num_ctx,
                 ),
             )
         finally:

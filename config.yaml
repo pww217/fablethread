@@ -1,6 +1,7 @@
 llm:
-  host: http://127.0.0.1:8080/v1
-  model: mlx-community/gemma-4-26b-a4b-it-mxfp8
+  host: http://10.75.100.51:11434/v1
+  model: gemma4:26b
+  num_ctx: 8192
   request_timeout_s: 180
 
   ruling:

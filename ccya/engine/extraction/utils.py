@@ -186,6 +186,7 @@ async def _call_stream(
             top_p=config.extract_top_p,
             frequency_penalty=config.extract_frequency_penalty,
             timeout=float(config.request_timeout_s),
+            num_ctx=config.num_ctx,
         )
         raw = result.get("response", "") if isinstance(result, dict) else ""
         usage = result.get("usage", {}) if isinstance(result, dict) else {}

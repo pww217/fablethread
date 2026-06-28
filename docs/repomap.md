@@ -63,7 +63,7 @@
 | `ccya/personality.py` | NpcPersonality dataclass; 12 archetype registry; assign_personality() |
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed or scenario; PackManifest.checkers for pack-level checker overrides |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band) |
-| `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() |
+| `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → Ollama (10.75.100.51:11434, ornith:35b on RTX 5070 Ti); trim_messages() |
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter; StreamHandler |
 | `ccya/prompts/` | Jinja2 prompt templates (system + user) + shared includes (sections/) |
 | `ccya/templates/` | HTML UI templates (sidebar, modals, character sheets) |

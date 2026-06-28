@@ -113,6 +113,7 @@ async def _call_ruling(
                 temperature=config.ruling_temperature,
                 top_p=config.ruling_top_p,
                 timeout=float(config.request_timeout_s),
+                num_ctx=config.num_ctx,
             )
             raw = result.get("response", "") if isinstance(result, dict) else ""
             usage = result.get("usage", {}) if isinstance(result, dict) else _no_usage

@@ -1,8 +1,12 @@
-"""Thin async client for OpenAI-compatible chat completions (mlx_lm.server).
+"""Thin async client for OpenAI-compatible chat completions (Ollama).
 
 Wire protocol: /v1/chat/completions (OpenAI).
-Model is loaded once at server startup and stays resident.
-No keep_alive, no num_ctx API knob, no format/grammar constraints.
+
+Primary backend: Ollama on 10.75.100.51 (ornith:35b, RTX 5070 Ti — fast).
+Fallback: mlx_lm.server on localhost:8080 (Gemma4, MacBook — slower).
+
+num_ctx controls the server-side input context window (passed via extra_body).
+No keep_alive, no format/grammar constraints.
 """
 
 from __future__ import annotations
@@ -125,6 +129,7 @@ async def chat_stream(
     top_p: float | None = None,
     frequency_penalty: float | None = None,
     seed: int | None = None,
+    num_ctx: int | None = None,
 ) -> AsyncIterator[str]:
     if _MOCK_MODE:
         async for chunk in _mock_stream():
@@ -151,6 +156,8 @@ async def chat_stream(
         kwargs["frequency_penalty"] = float(frequency_penalty)
     if seed is not None:
         kwargs["seed"] = int(seed)
+    if num_ctx is not None:
+        kwargs["extra_body"] = {"num_ctx": num_ctx}
     stream = await client.chat.completions.create(**kwargs)
     try:
         async for chunk in stream:
@@ -177,6 +184,7 @@ async def chat(
     top_p: float | None = None,
     frequency_penalty: float | None = None,
     seed: int | None = None,
+    num_ctx: int | None = None,
 ) -> dict[str, Any]:
     if _MOCK_MODE:
         return _mock_extract_chat(messages)
@@ -203,6 +211,8 @@ async def chat(
             kwargs["frequency_penalty"] = float(frequency_penalty)
         if seed is not None:
             kwargs["seed"] = int(seed)
+        if num_ctx is not None:
+            kwargs["extra_body"] = {"num_ctx": num_ctx}
         _log.debug("chat: request sent, waiting for response...")
         resp = await client.chat.completions.create(**kwargs)
         _log.debug("chat: response received, extracting content...")

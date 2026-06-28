@@ -7,8 +7,8 @@
 ## Runtime context
 
 - **Game server:** `localhost:8765` — turn reviewer at `localhost:8765/turn_reviewer`
-- **LLM backend:** `localhost:8080` — OpenAI-compatible API
-- **Default model:** Gemma4 — `mlx-community/gemma-4-26b-a4b-it-mxfp8`
+- **LLM backend (primary):** `10.75.100.51:11434` — Ollama, `ornith:35b` on RTX 5070 Ti
+- **LLM backend (fallback):** `localhost:8080` — OpenAI-compatible API, Gemma4 on MacBook
 - **Dev model:** Qwen3 ~25B-4bit on Apple Silicon (MLX backend)
 - **Makefile:** primary reference for build/lint/run targets
 
