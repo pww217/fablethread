@@ -342,6 +342,10 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
             "effect": "",
             "directive": "",
             "phase": "",
+            "convergence": None,
+            "candidate_npcs": [],
+            "world_candidates": [],
+            "selected_beat": None,
         }
 
         # From state.meta.pending_gm_beat (moved from record extraction)
@@ -357,6 +361,25 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
         if pacing:
             beat_entry["directive"] = pacing.get("directive", "")
             beat_entry["phase"] = pacing.get("scene_phase", "")
+            beat_entry["convergence"] = pacing.get("convergence_score")
+
+        # From scene extraction: candidate_npcs
+        extraction = ev.get("extraction") or {}
+        scene_output = (extraction.get("scene") or {}).get("output") or {}
+        cands = scene_output.get("candidate_npcs") or []
+        if cands:
+            beat_entry["candidate_npcs"] = cands
+
+        # From world extraction: beat candidates generated
+        world_output = (extraction.get("world") or {}).get("output") or []
+        if world_output:
+            beat_entry["world_candidates"] = world_output
+
+        # From ruling: which beat was selected
+        ruling = ev.get("ruling") or {}
+        selected = ruling.get("selected_beat")
+        if selected is not None:
+            beat_entry["selected_beat"] = selected
 
         beat_data.append(beat_entry)
 
@@ -444,6 +467,39 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
                 for b in beats
             )
             print(f"  Turn {t}: [{entries}]")
+
+    # Full pipeline view: candidate_npcs → world candidates → ruling selection
+    print()
+    print("--- Pipeline: candidate_npcs → world candidates → ruling ---")
+    for bd in beat_data:
+        t = bd["turn"]
+        phase = bd.get("phase", "")
+        conv = bd.get("convergence")
+        cands = bd.get("candidate_npcs", [])
+        world = bd.get("world_candidates", [])
+        selected = bd.get("selected_beat")
+
+        print(f"\nTurn {t} | Phase: {phase or 'N/A'} | Convergence: {conv if conv is not None else 'N/A'}")
+
+        if cands:
+            print(f"  candidate_npcs ({len(cands)}):")
+            for c in cands:
+                print(f"    {c.get('id', '?')} ({c.get('type', '?')}): {c.get('effect', '')[:80]}")
+        else:
+            print("  candidate_npcs: (empty)")
+
+        if world:
+            print(f"  world candidates ({len(world)}):")
+            for i, w in enumerate(world):
+                marker = " ← SELECTED" if i == selected else ""
+                print(f"    [{i}] {w.get('type', '?')}: {w.get('effect', '')[:80]}{marker}")
+        else:
+            print("  world candidates: (none)")
+
+        if selected is not None:
+            print(f"  ruling.selected_beat: {selected}")
+        else:
+            print(f"  ruling.selected_beat: null")
 
 
 def cmd_goals(events: list[dict[str, Any]], include_compaction: bool = False) -> None:
