@@ -77,7 +77,7 @@ def _recent_turn_metrics(save_dir: Path | None, n: int = 10) -> list[dict[str, A
         n_in, n_out = narr.get("tokens_in"), narr.get("tokens_out")
         tin, tout = ext.get("tokens_in"), ext.get("tokens_out")
         raw_streams: dict[str, dict[str, Any]] = {}
-        for s in ("scene", "state", "record"):
+        for s in ("scene", "state", "record", "world"):
             sev = extraction.get(s) or {}
             raw_streams[s] = {
                 "ms": sev.get("ms"),
@@ -85,6 +85,9 @@ def _recent_turn_metrics(save_dir: Path | None, n: int = 10) -> list[dict[str, A
                 "tokens_out": sev.get("tokens_out"),
                 "skipped": sev.get("skipped", False),
             }
+        # Sanitize is a separate stream without token counts
+        sanitize_ev = extraction.get("sanitize") or {}
+        sanitize_ms = sanitize_ev.get("ms")
         tok_parts: list[str] = []
         if n_in is not None and n_out is not None:
             tok_parts.append(f"N{_fmt_tokens(n_in)}/{_fmt_tokens(n_out)}")
@@ -120,11 +123,16 @@ def _recent_turn_metrics(save_dir: Path | None, n: int = 10) -> list[dict[str, A
                     "St_tok": _tok(raw_streams["state"]["tokens_in"], raw_streams["state"]["tokens_out"]) if not raw_streams["state"]["skipped"] else "\u2014",
                     "Re_tt": _fmt_ms_seconds(raw_streams["record"]["ms"]) if not raw_streams["record"]["skipped"] else "\u2014",
                     "Re_tok": _tok(raw_streams["record"]["tokens_in"], raw_streams["record"]["tokens_out"]) if not raw_streams["record"]["skipped"] else "\u2014",
+                    "San_tt": _fmt_ms_seconds(sanitize_ms) if sanitize_ms else "\u2014",
+                    "W_tt": _fmt_ms_seconds(raw_streams["world"]["ms"]) if not raw_streams["world"]["skipped"] else "\u2014",
+                    "W_tok": _tok(raw_streams["world"]["tokens_in"], raw_streams["world"]["tokens_out"]) if not raw_streams["world"]["skipped"] else "\u2014",
                 },
                 "total_ms": (
                     (ruling_ev.get("total_ms") or 0)
                     + (narr.get("total_ms") or 0)
                     + (ext.get("total_ms") or 0)
+                    + (sanitize_ms or 0)
+                    + (raw_streams["world"]["ms"] or 0)
                 ),
                 "total_tokens_in": (
                     (ruling_ev.get("tokens_in") or 0)
@@ -140,6 +148,8 @@ def _recent_turn_metrics(save_dir: Path | None, n: int = 10) -> list[dict[str, A
                     (ruling_ev.get("total_ms") or 0)
                     + (narr.get("total_ms") or 0)
                     + (ext.get("total_ms") or 0)
+                    + (sanitize_ms or 0)
+                    + (raw_streams["world"]["ms"] or 0)
                 ),
                 "total_tok": f"{_fmt_tokens((ruling_ev.get('tokens_in') or 0) + (n_in or 0) + (tin or 0))}/{_fmt_tokens((ruling_ev.get('tokens_out') or 0) + (n_out or 0) + (tout or 0))}",
             }

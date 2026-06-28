@@ -898,6 +898,15 @@ function game() {
                 }
                 if (payload && payload.phase === 'world_done') {
                     self.asyncRunning = false;
+                    // Re-fetch state panels now that async window (sanitize + world) has completed
+                    if (typeof htmx !== 'undefined') {
+                        htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
+                    }
+                    // Update metrics display with async step timings
+                    if (payload.metrics) {
+                        const met = document.querySelector('.turn-metrics');
+                        if (met) met.textContent = _formatMetricsRow(payload.metrics);
+                    }
                     es.close();
                     self._turnEs = null;
                     self._turnCancel = null;

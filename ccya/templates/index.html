@@ -193,7 +193,7 @@
                 {% for ev in history %}
                 <div class="narrative-block">
                     <p class="narrative-input-echo">&gt; {{ ev.input }}</p>
-                    <div class="narrative-text" data-raw>{{ ev.narrative | capitalize }}</div>
+                    <div class="narrative-text" data-raw>{{ ev.narrative }}</div>
                     {% if ev.ruling and ev.ruling.rolled %}
                     {% set r = ev.ruling %}
                     {% set die_val = (r.dice | default([]))[0] or 0 %}
@@ -237,8 +237,10 @@
                     {% elif ev.ruling and ev.ruling.get('outcome_summary') %}
                     {% set r = ev.ruling %}
                     <div class="roll-badge roll-badge--outcome">
-                        <div class="roll-outcome{% if r.reason %} has-tooltip{% endif %}">{{ r.outcome_summary | capitalize }}</div>
-                        {% if r.reason %}<div class="tooltip-body">{{ r.reason }}</div>{% endif %}
+                        <div class="roll-outcome{% if r.reason %} has-tooltip{% endif %}">
+                            {{ r.outcome_summary | capitalize }}
+                            {% if r.reason %}<div class="tooltip-body">{{ r.reason }}</div>{% endif %}
+                        </div>
                     </div>
                     {% endif %}
                     {% if ev.change_groups %}

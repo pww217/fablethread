@@ -530,18 +530,29 @@ async def run_turn(
         # 1. Sanitize (moved from synchronous critical path)
         _log.debug("turn.async_window_start trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
         yield ("phase", {"phase": "sanitize_start"})
+        t_sanitize = asyncio.get_event_loop().time()
+        sanitize_ms: float = 0.0
         try:
             if config.sanitize_every > 0:
                 state, sanitize_ran = await sanitize_threads(
                     save_dir, state, config, trace_id=trace_id,
                 )
-                _log.debug("turn.sanitize_complete trace_id=%s turn=%d sanitize_ran=%s", trace_id, state["meta"]["turn"], sanitize_ran)
+                sanitize_ms = (asyncio.get_event_loop().time() - t_sanitize) * 1000
+                _log.debug("turn.sanitize_complete trace_id=%s turn=%d sanitize_ran=%s sanitize_ms=%.1f", trace_id, state["meta"]["turn"], sanitize_ran, sanitize_ms)
             else:
                 _log.debug("turn.sanitize_skipped trace_id=%s turn=%d sanitize_every=0", trace_id, state["meta"]["turn"])
         except Exception as exc:
+            sanitize_ms = (asyncio.get_event_loop().time() - t_sanitize) * 1000
             _log.warning("sanitize step failed: %s", exc, extra={"trace_id": trace_id})
             _log.debug("turn.sanitize_failed trace_id=%s turn=%d error=%s", trace_id, state["meta"]["turn"], exc)
         yield ("phase", {"phase": "sanitize_done"})
+
+        # Persist sanitize metrics to extraction_event for event log
+        if sanitize_ms > 0:
+            extraction_event["sanitize"] = {
+                "ms": round(sanitize_ms, 1),
+                "skipped": False,
+            }
 
         # 2. World (beat candidates — receives same live `state` Sanitize just mutated)
         # NOTE: World step runs after yield("complete") so it's truly async from frontend.
@@ -594,7 +605,23 @@ async def run_turn(
             trace_id, state["meta"]["turn"],
             extra={"trace_id": trace_id, "turn": state["meta"]["turn"]},
         )
-        yield ("phase", {"phase": "world_done"})
+
+        # Build final metrics including async steps for frontend display
+        final_metrics = dict(metrics)
+        world_data = extraction_event.get("world")
+        if world_data:
+            final_metrics.setdefault("extract", {}).setdefault("streams", {})["world"] = {
+                "ms": world_data.get("ms", 0),
+                "tokens_in": world_data.get("tokens_in", 0),
+                "tokens_out": world_data.get("tokens_out", 0),
+                "skipped": world_data.get("skipped", False),
+            }
+        if sanitize_ms > 0:
+            final_metrics["sanitize"] = {
+                "ms": round(sanitize_ms, 1),
+            }
+
+        yield ("phase", {"phase": "world_done", "metrics": final_metrics})
 
     except LlmcTimeout as exc:
         _log.error(

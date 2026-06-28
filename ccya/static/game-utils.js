@@ -140,14 +140,18 @@ function _formatMetricsRow(metrics) {
     }
 
     const parts = [];
-    parts.push('R ' + fmtStep(r.total_ms, r.tokens_in, r.tokens_out));
-    parts.push('N ' + fmtStep(n.total_ms, n.tokens_in, n.tokens_out));
+    parts.push('Rul ' + fmtStep(r.total_ms, r.tokens_in, r.tokens_out));
+    parts.push('Nar ' + fmtStep(n.total_ms, n.tokens_in, n.tokens_out));
     const sc = streams.scene;
-    if (sc && !sc.skipped) parts.push('Sc ' + fmtStep(sc.ms, sc.tokens_in, sc.tokens_out));
+    if (sc && !sc.skipped) parts.push('Scn ' + fmtStep(sc.ms, sc.tokens_in, sc.tokens_out));
     const st = streams.state;
-    if (st && !st.skipped) parts.push('St ' + fmtStep(st.ms, st.tokens_in, st.tokens_out));
+    if (st && !st.skipped) parts.push('Ste ' + fmtStep(st.ms, st.tokens_in, st.tokens_out));
     const pg = streams.storytell;
-    if (pg && !pg.skipped) parts.push('So ' + fmtStep(pg.ms, pg.tokens_in, pg.tokens_out));
+    if (pg && !pg.skipped) parts.push('Rec ' + fmtStep(pg.ms, pg.tokens_in, pg.tokens_out));
+    const san = metrics.sanitize;
+    if (san) parts.push('San ' + fmtStep(san.ms, null, null));
+    const wr = streams.world;
+    if (wr && !wr.skipped) parts.push('Wld ' + fmtStep(wr.ms, wr.tokens_in, wr.tokens_out));
     return parts.join('   ·   ');
 }
 
