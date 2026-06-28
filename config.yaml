@@ -1,7 +1,8 @@
 llm:
   host: http://10.75.100.51:11434/v1
   model: gemma4:26b
-  num_ctx: 8192
+  num_ctx: 16384
+  context_window: 16384
   request_timeout_s: 180
 
   ruling:
@@ -27,8 +28,6 @@ llm:
     top_p: 0.95
 
   max_llm_retries: 1
-
-  context_window: 32768
 
 server:
   bind_host: 127.0.0.1
