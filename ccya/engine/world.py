@@ -115,8 +115,8 @@ async def _run_world_step(
         _log.debug("world.step_failed trace_id=%s turn=%d error=%s", trace_id, turn_no, exc)
         return [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}
 
-    raw = result.get("response", "") if isinstance(result, dict) else ""
-    usage = result.get("usage", {}) if isinstance(result, dict) else {}
+    raw = result.content
+    usage = result.usage
     tokens_in = int(usage.get("prompt_tokens", 0))
     tokens_out = int(usage.get("completion_tokens", 0))
     candidates_raw = _parse_candidate_array(raw)

@@ -115,8 +115,8 @@ async def _call_ruling(
                 timeout=float(config.request_timeout_s),
                 num_ctx=config.num_ctx,
             )
-            raw = result.get("response", "") if isinstance(result, dict) else ""
-            usage = result.get("usage", {}) if isinstance(result, dict) else _no_usage
+            raw = result.content
+            usage = result.usage
             if config.log_llm_io:
                 _log_llm_io(
                     trace_id=trace_id,

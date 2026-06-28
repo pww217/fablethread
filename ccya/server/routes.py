@@ -811,10 +811,16 @@ def healthz():
     llm_version = ""
     try:
         with httpx.Client(timeout=5) as client:
-            resp = client.get(f"{host}/models")
-            resp.raise_for_status()
-            body = resp.json()
-            models = [m["id"] for m in body.get("data", [])]
+            if "/api/chat" in host:
+                resp = client.get(f"{host}/tags")
+                resp.raise_for_status()
+                body = resp.json()
+                models = [m["name"] for m in body.get("models", [])]
+            else:
+                resp = client.get(f"{host}/models")
+                resp.raise_for_status()
+                body = resp.json()
+                models = [m["id"] for m in body.get("data", [])]
             model = _app_mod.engine_config.model
             return {
                 "llm": "ok",

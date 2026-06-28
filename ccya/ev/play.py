@@ -542,7 +542,7 @@ def _llm_session(
                     num_ctx=config.num_ctx,
                 ),
             )
-            player_input = response.get("response", "").strip()
+            player_input = response.content.strip()
         except Exception as exc:
             print(f"LLM player error: {exc}")
             break

@@ -72,7 +72,7 @@ async def _sanitize_threads_impl(
             timeout=float(config.request_timeout_s),
             num_ctx=config.num_ctx,
         )
-        response_text = resp.get("response", "") or ""
+        response_text = resp.content
     except Exception as exc:
         _log.warning("thread_sanitizer: LLM call failed, skipping: %s", exc)
         return state, False
@@ -95,7 +95,7 @@ async def _sanitize_threads_impl(
         return state, False
 
     elapsed_ms = (asyncio.get_running_loop().time() - t_sanitize) * 1000
-    usage = resp.get("usage") or {}
+    usage = resp.usage
 
     cd = changes_detail
     record = {
