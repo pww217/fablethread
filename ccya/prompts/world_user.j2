@@ -1,10 +1,16 @@
-{% if candidate_npcs %}
-## Candidate NPCs (from Scene Extract)
-{% for c in candidate_npcs %}- **{{ c.id }}** ({{ c.type }}): {{ c.effect }}
+## Present NPCs
+{% if npc_roster %}
+{% for n in npc_roster %}
+### {{ n.name }}{% if n.title %} ({{ n.title }}){% endif %}
+- bio: {{ n.bio or "—" }}
+{% if n.motivation %}- motivation: {{ n.motivation }}{% endif %}
+{% if n.fear %}- fear: {{ n.fear }}{% endif %}
+{% if n.leverage %}- leverage: {{ n.leverage }}{% endif %}
+{% if n.bond %}- bond: {{ n.bond }}{% endif %}
+{% if n.personality_label %}- personality: {{ n.personality_label }}{% endif %}
 {% endfor %}
 {% else %}
-## Candidate NPCs
-None. Generate beats from narration + threads alone.
+No present or nearby NPCs. Generate beats from narration + threads alone.
 {% endif %}
 
 {% if arc and arc.threads %}

@@ -281,9 +281,10 @@ def build_prompt_context(
         arc = prev_snap.get("arc") or {}
         meta = prev_snap.get("meta") or {}
         scene_phase = turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP")
-        # Get candidate_npcs from scene extraction
-        scene_ev = turn_ev.get("extraction", {}).get("scene", {})
-        candidate_npcs = scene_ev.get("output", {}).get("candidate_npcs", []) if isinstance(scene_ev.get("output"), dict) else []
+        # Build NPC roster from compendium
+        comp = prev_snap.get("compendium", {}).get("npcs", {})
+        npc_roster = _build_npc_roster(comp)
+        npc_roster = [n for n in npc_roster if n.get("presence") in ("present", "nearby")]
         # Get recent_beats from state
         recent_beats = list(meta.get("recent_beats") or [])
         # Get allowed_beat_types from turn event
@@ -299,7 +300,7 @@ def build_prompt_context(
             rules_outcome = {}
         return {
             "narration": narration,
-            "candidate_npcs": candidate_npcs,
+            "npc_roster": npc_roster,
             "arc": arc,
             "pacing_context": turn_ev.get("pacing_context") or {},
             "recent_beats": recent_beats,

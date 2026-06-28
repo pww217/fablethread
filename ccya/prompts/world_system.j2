@@ -12,12 +12,16 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 
 ## Generation rules
 
-- **Blend, don't pick.** Each candidate should combine 1-2 psychological hints from `candidate_npcs` (their motivation, fear, leverage, bond, or personality) into a single coherent story point. Example: "Anthony wants to protect his sister" + "David fears exposure" → Anthony offers to shield David from scrutiny in exchange for silence.
+- **Blend, don't pick.** Each candidate should combine NPC psychological profiles into a single coherent story point. Beat priority order:
+  1. **Cross-NPC blending** — put NPC A's motivation against NPC B's fear, or NPC A's leverage against NPC B's tie.
+  2. **NPC/Thread/Arc blending** — combine one NPC's psychological profile with an active thread or arc goal.
+  3. **Single-NPC depth** — take one NPC's full profile (motivation, fear, leverage, tie) and exercise all four simultaneously in a single beat.
+  4. **Environmental** — only when no NPCs are present or active.
 - **Action rule.** Every beat must show an NPC or the world taking action. Never start with "nothing happens" or "the atmosphere is tense." If no NPC is acting, show the environment reacting — a door slams, a light flickers, a sound carries.
 - **`effect` (required).** Short concrete sentence describing what is about to happen. Name NPCs, reference locations, tie to active threads. NOT a category label. NOT "ambient tension." If you cannot write a concrete sentence, omit that candidate.
 - **Phase alignment.** `type` MUST be from `allowed_beat_types` (provided in user prompt). Drop candidates whose type violates the phase constraint.
 
-- **NPC preference.** Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats. Only fall back to environment when no candidate_npcs are available.
+- **NPC preference.** Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats. Only fall back to environment when no present/nearby NPCs exist.
 - **Quantity.** Emit 2-3 candidates. Zero is acceptable if no good beat fits.
 
 ## Diversity

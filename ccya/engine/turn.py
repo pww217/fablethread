@@ -558,7 +558,7 @@ async def run_turn(
         # NOTE: World step runs after yield("complete") so it's truly async from frontend.
         # It generates beat candidates for the NEXT turn. If it fails, current turn is still saved.
         yield ("phase", {"phase": "world_start"})
-        _log.debug("turn.world_start trace_id=%s turn=%d candidate_npcs=%d", trace_id, state["meta"]["turn"], len(scene_result.candidate_npcs) if scene_result and scene_result.candidate_npcs else 0)
+        _log.debug("turn.world_start trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
         world_system_text = ""
         world_user_text = ""
         world_raw_response = ""
