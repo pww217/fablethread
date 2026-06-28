@@ -46,7 +46,10 @@
     </div>
     {% elif e.ruling and e.ruling.get('outcome_summary') %}
     <div class="roll-badge roll-badge--outcome">
-        <div class="roll-outcome">{{ e.ruling.outcome_summary | capitalize }}</div>
+        <div class="roll-outcome{% if e.ruling.reason %} has-tooltip{% endif %}">
+            {{ e.ruling.outcome_summary | capitalize }}
+            {% if e.ruling.reason %}<div class="tooltip-body">{{ e.ruling.reason }}</div>{% endif %}
+        </div>
     </div>
     {% endif %}
     {% for ln in e.lines %}

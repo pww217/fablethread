@@ -17,30 +17,48 @@
                 <td style="text-align:left" colspan="3">Turn {{ t.turn }}</td>
             </tr>
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
-                <td style="text-align:left">R</td>
+                <td style="text-align:left">Rul</td>
                 <td>{{ t.streams.R_tt }}</td>
                 <td>{{ t.streams.R_tok }}</td>
             </tr>
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
-                <td style="text-align:left">N</td>
+                <td style="text-align:left">Nar</td>
                 <td>{{ t.streams.N_ttft }} / {{ t.streams.N_tt }}</td>
                 <td>{{ t.streams.N_tok }}</td>
             </tr>
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
-                <td style="text-align:left">Sc</td>
+                <td style="text-align:left">Scn</td>
                 <td>{{ t.streams.Sc_tt }}</td>
                 <td>{{ t.streams.Sc_tok }}</td>
             </tr>
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
-                <td style="text-align:left">St</td>
+                <td style="text-align:left">Ste</td>
                 <td>{{ t.streams.St_tt }}</td>
                 <td>{{ t.streams.St_tok }}</td>
             </tr>
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
-                <td style="text-align:left">Re</td>
+                <td style="text-align:left">Rec</td>
                 <td>{{ t.streams.Re_tt }}</td>
                 <td>{{ t.streams.Re_tok }}</td>
             </tr>
+            {% if t.streams.San_tt != '—' %}
+            <tr style="border-top:3px solid var(--border-subtle)">
+                <td style="text-align:left">San</td>
+                <td>{{ t.streams.San_tt }}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td style="text-align:left">Wld</td>
+                <td>{{ t.streams.W_tt }}</td>
+                <td>{{ t.streams.W_tok }}</td>
+            </tr>
+            {% else %}
+            <tr style="border-top:3px solid var(--border-subtle)">
+                <td style="text-align:left">Wld</td>
+                <td>{{ t.streams.W_tt }}</td>
+                <td>{{ t.streams.W_tok }}</td>
+            </tr>
+            {% endif %}
             <tr class="debug-turn-total">
                 <td style="text-align:left;font-weight:600">Total</td>
                 <td>{{ t.total_tt }}</td>
