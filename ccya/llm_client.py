@@ -11,6 +11,7 @@ No keep_alive, no format/grammar constraints.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -162,6 +163,11 @@ async def chat_stream(
         if stream_stats is not None:
             stream_stats["prompt_eval_count"] = 0
             stream_stats["eval_count"] = 0
+        return
+
+    if _is_ollama_native(host):
+        async for chunk in _chat_stream_ollama_native(host, model, messages, temperature, top_p, frequency_penalty, seed, num_ctx, stream_stats):
+            yield chunk
         return
 
     client = _get_client(host)
@@ -370,3 +376,60 @@ async def _chat_ollama_native(
         },
         elapsed_ms=elapsed * 1000,
     )
+
+
+async def _chat_stream_ollama_native(
+    host: str, model: str, messages: list[dict[str, str]],
+    temperature: float | None, top_p: float | None,
+    frequency_penalty: float | None, seed: int | None, num_ctx: int | None,
+    stream_stats: MutableMapping[str, Any] | None,
+) -> AsyncIterator[str]:
+    """Stream via Ollama native /api/chat endpoint with token metrics extraction."""
+    http_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0),
+        limits=httpx.Limits(
+            max_keepalive_connections=20,
+            max_connections=50,
+        ),
+    )
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "stream": True,
+        "think": False,
+    }
+    if temperature is not None:
+        payload["temperature"] = float(temperature)
+    if top_p is not None:
+        payload["top_p"] = float(top_p)
+    if frequency_penalty is not None:
+        payload["frequency_penalty"] = float(frequency_penalty)
+    if seed is not None:
+        payload["seed"] = int(seed)
+    if num_ctx is not None:
+        payload["num_ctx"] = int(num_ctx)
+
+    try:
+        async with http_client.stream("POST", f"{host}", json=payload) as resp:
+            resp.raise_for_status()
+            prompt_eval_count = 0
+            eval_count = 0
+            async for line in resp.aiter_lines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except Exception:
+                    continue
+                if data.get("done"):
+                    prompt_eval_count = data.get("prompt_eval_count", prompt_eval_count)
+                    eval_count = data.get("eval_count", eval_count)
+                elif data.get("message", {}).get("content"):
+                    yield data["message"]["content"]
+    finally:
+        await http_client.aclose()
+
+    if stream_stats is not None:
+        stream_stats["prompt_eval_count"] = prompt_eval_count
+        stream_stats["eval_count"] = eval_count
