@@ -90,6 +90,7 @@ async def _run_world_step(
                 temperature=config.world_temperature,
                 top_p=config.extract_top_p,
                 timeout=None,  # asyncio.timeout() handles wall-clock timeout
+                num_ctx=config.num_ctx,
             )
         _log.debug("world.step_llm_complete trace_id=%s turn=%d", trace_id, turn_no)
     except TimeoutError:

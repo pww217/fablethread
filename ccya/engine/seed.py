@@ -272,6 +272,7 @@ async def generate_seed(
                 temperature=config.generate_seed_temperature,
                 top_p=config.generate_seed_top_p,
                 timeout=float(config.request_timeout_s),
+                num_ctx=config.num_ctx,
             )
         except LlmcTimeout:
             _log.error(

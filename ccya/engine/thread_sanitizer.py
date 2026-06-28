@@ -70,6 +70,7 @@ async def _sanitize_threads_impl(
             messages,
             temperature=config.sanitize_temperature,
             timeout=float(config.request_timeout_s),
+            num_ctx=config.num_ctx,
         )
         response_text = resp.get("response", "") or ""
     except Exception as exc:

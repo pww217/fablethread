@@ -191,6 +191,7 @@ async def run_turn(
             frequency_penalty=config.narrate_frequency_penalty,
             timeout=float(config.request_timeout_s),
             stream_stats=narr_stream_stats,
+            num_ctx=config.num_ctx,
         ):
             narrative_chunks.append(chunk)
             if first_visible:
@@ -659,6 +660,7 @@ async def warmup(config: EngineConfig) -> None:
             [{"role": "user", "content": "ok"}],
             temperature=0.0,
             timeout=30.0,
+            num_ctx=config.num_ctx,
         )
     except Exception:
         _log.warning("Warmup LLM call failed — continuing without warmup cache")

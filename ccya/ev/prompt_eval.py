@@ -193,6 +193,7 @@ def cmd_prompt_eval_call(
             ],
             temperature=temp,
             timeout=180.0,
+            num_ctx=config.num_ctx,
         ))
         output = llm_result.get("response", "")
     except Exception as exc:

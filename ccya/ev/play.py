@@ -539,6 +539,7 @@ def _llm_session(
                     ],
                     temperature=config.narrate_temperature,
                     timeout=float(config.request_timeout_s),
+                    num_ctx=config.num_ctx,
                 ),
             )
             player_input = response.get("response", "").strip()
