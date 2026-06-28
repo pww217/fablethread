@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any
 
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _PROMPTS_LOG_PATH, _render
 from ccya.engine.extraction import _avg_event_ms
-from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine._pacing import _compute_ages
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
@@ -231,7 +230,6 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     ctx._rendered_ruling_system = rendered_ruling_system
     ctx._rendered_ruling_user = rendered_ruling_user
 
-    strip_trace_markers_in_messages(ruling_messages)
     ruling_messages, ruling_trimmed, ruling_trimmed_chars = trim_messages(
         ruling_messages, config.context_window,
     )

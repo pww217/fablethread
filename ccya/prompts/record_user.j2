@@ -11,13 +11,11 @@
 None currently. Generate actions that could introduce new story directions or explore the environment.
 {% endif %}
 {% if world_state %}
-<<<TRACE_IMMUTABLE_START>>>
 ## world_state (read-only context)
 {% for f in world_state %}{% if f is string %}- {{ f }}
 {% else -%}- [{% if "tier" in f and f["tier"] == "global" %}global{% else %}local{% endif %}{% if "valence" in f %}|{{ f["valence"] }}{% endif %}] {% if "text" in f %}{{ f["text"] }}{% else %}(no text){% endif %}
 {% endif %}
 {% endfor %}
-<<<TRACE_IMMUTABLE_END>>>
 {% endif %}
 
 {% if band %}

@@ -110,8 +110,8 @@ class FakeLLM:
         if "You decide whether the player action requires a skill check" in all_content:
             return "rules"
 
-        # Extract scene uses minimal NPC roster with known_characters between TRACE markers
-        if "<<TRACE_IMMUTABLE_START>>" in all_content and ("known_characters" in all_content or "`caron` | Caron" in all_content):
+        # Extract scene uses minimal NPC roster with known_characters section
+        if "known_characters" in all_content and ("`caron` | Caron" in all_content or "compendium" in all_content):
             return "extract_scene"
 
         # State extract has distinctive sections: active_conditions + inventory (current stacks) + player_intent

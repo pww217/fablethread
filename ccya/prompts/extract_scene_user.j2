@@ -2,10 +2,8 @@
 {{ pc_name }}
 
 {% if npc_roster -%}
-<<<TRACE_IMMUTABLE_START>>>
 ## known_characters (compendium — reuse `id` for compendium_npc_update)
 {% include "sections/_npc_roster.j2" %}
-<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 ## CURRENT TURN {{ turn_no }} NARRATION
 {{ narration }}
