@@ -198,6 +198,8 @@ def _compute_pacing_context(
     scene_pressure_threshold: int = 3,
     scene_imperative_threshold: int = 5,
     climax_turn_count: int = 0,
+    config: EngineConfig | None = None,
+    convergence_score: int = 0,
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
     """
@@ -219,6 +221,10 @@ def _compute_pacing_context(
         outcome_hint = "transition"
 
     if scene_phase == "CLIMAX" and climax_turn_count >= config.climax_turn_limit:
+        outcome_hint = "transition"
+
+    # Convergence score hard gate — cannot be overridden by LLM scene_motion
+    if convergence_score >= config.convergence_threshold and scene_phase in ("SETUP", "RISING"):
         outcome_hint = "transition"
 
     # Build summary for logging

@@ -56,7 +56,7 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
                 # Note: turns_in_phase is already reset to 0 at this point,
                 # so we check the previous turn's turns_in_phase if available
                 prev_turns_in_phase = prev_pc.get("turns_in_phase", 0)
-                reached_turn_threshold = prev_turns_in_phase >= 3
+                reached_turn_threshold = prev_turns_in_phase + 1 >= 3
                 if not has_urgent and not reached_turn_threshold:
                     findings.append({
                         "turn": turn_no,

@@ -16,12 +16,15 @@ def _extract_state_messages(
     *,
     intent: "IntentEnvelope | None" = None,
     turn_no: int = 0,
+    pack_inventory: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 2 (inventory + conditions + location)."""
     pc = state.get("pc") or {}
     location = state.get("location") or {}
 
-    system_text = _render(env, "extract_state_system.j2", {})
+    system_text = _render(env, "extract_state_system.j2", {
+        "pack_inventory": pack_inventory,
+    })
     user_text = _render(
         env,
         "extract_state_user.j2",
