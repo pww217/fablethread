@@ -1,6 +1,6 @@
 """Thin async client for OpenAI-compatible chat completions (Ollama).
 
-Wire protocol: /v1/chat/completions (OpenAI).
+Wire protocol: /v1/chat/completions (OpenAI) or /api/chat (Ollama native).
 
 Primary backend: Ollama on 10.75.100.51 (ornith:35b, RTX 5070 Ti — fast).
 Fallback: mlx_lm.server on localhost:8080 (Gemma4, MacBook — slower).
@@ -15,6 +15,7 @@ import logging
 import os
 import re
 import time
+from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, MutableMapping
 
 from openai import AsyncOpenAI
@@ -29,6 +30,26 @@ _log = logging.getLogger(__name__)
 _MOCK_MODE = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
 
 _client: dict[str, AsyncOpenAI] | None = None
+
+
+@dataclass(frozen=True)
+class LLMResult:
+    """Standardized LLM response with normalized metrics."""
+    content: str
+    usage: dict[str, int] = field(default_factory=lambda: {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+    })
+    elapsed_ms: float = 0.0
+
+
+def _is_ollama_native(host: str) -> bool:
+    return "/api/chat" in host
+
+
+def _ns_to_seconds(ns: int) -> float:
+    return ns / 1e9
 
 
 def _get_client(base_url: str) -> AsyncOpenAI:
@@ -189,54 +210,30 @@ async def chat(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
-) -> dict[str, Any]:
+) -> LLMResult:
+    """Call LLM and return standardized LLMResult with normalized metrics.
+
+    Supports both OpenAI-compatible (/v1/chat/completions) and Ollama native
+    (/api/chat) backends. Metrics are normalized to the same format regardless
+    of backend.
+    """
     if _MOCK_MODE:
-        return _mock_extract_chat(messages)
+        mock = _mock_extract_chat(messages)
+        return LLMResult(
+            content=mock.get("response", ""),
+            usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+        )
 
     est_tokens = sum(int(len(m.get("content", "")) / 3.5) for m in messages)
     _log.info("chat: model=%s messages=%d est_tokens=%d max_tokens=%s", model, len(messages), est_tokens, max_tokens)
     t0 = time.monotonic()
     _log.debug("chat: sending request host=%s model=%s timeout=%s", host, model, timeout)
+
     try:
-        client = _get_client(host)
-        kwargs: dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-        }
-        if timeout is not None:
-            kwargs["timeout"] = timeout
-        if temperature is not None:
-            kwargs["temperature"] = temperature
-        if max_tokens is not None:
-            kwargs["max_tokens"] = max_tokens
-        if top_p is not None:
-            kwargs["top_p"] = float(top_p)
-        if frequency_penalty is not None:
-            kwargs["frequency_penalty"] = float(frequency_penalty)
-        if seed is not None:
-            kwargs["seed"] = int(seed)
-        if num_ctx is not None:
-            kwargs["extra_body"] = {"num_ctx": num_ctx}
-        _log.debug("chat: request sent, waiting for response...")
-        resp = await client.chat.completions.create(**kwargs)
-        _log.debug("chat: response received, extracting content...")
-        elapsed = time.monotonic() - t0
-        content = resp.choices[0].message.content or ""
-        _log.info(
-            "chat: done in %.1fs prompt_tokens=%d completion_tokens=%d",
-            elapsed,
-            resp.usage.prompt_tokens if resp.usage else 0,
-            resp.usage.completion_tokens if resp.usage else 0,
-        )
-        return {
-            "response": content,
-            "done": True,
-            "usage": {
-                "prompt_tokens": resp.usage.prompt_tokens if resp.usage else 0,
-                "completion_tokens": resp.usage.completion_tokens if resp.usage else 0,
-                "total_tokens": resp.usage.total_tokens if resp.usage else 0,
-            },
-        }
+        if _is_ollama_native(host):
+            return await _chat_ollama_native(host, model, messages, t0, temperature, top_p, frequency_penalty, seed, num_ctx)
+        else:
+            return await _chat_openai_compat(host, model, messages, t0, temperature, max_tokens, top_p, frequency_penalty, seed, num_ctx, timeout)
     except TimeoutError as exc:
         elapsed = time.monotonic() - t0
         raise LlmcTimeout(f"LLM request timed out after {timeout:.1f}s") from exc
@@ -262,3 +259,114 @@ async def chat(
             msg += f" (retries={retry_count})"
         _log.warning(msg)
         raise
+
+
+async def _chat_openai_compat(
+    host: str, model: str, messages: list[dict[str, str]],
+    t0: float, temperature: float | None, max_tokens: int | None,
+    top_p: float | None, frequency_penalty: float | None,
+    seed: int | None, num_ctx: int | None, timeout: float,
+) -> LLMResult:
+    """Call via OpenAI-compatible /v1/chat/completions endpoint."""
+    client = _get_client(host)
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+    }
+    if timeout is not None:
+        kwargs["timeout"] = timeout
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    if top_p is not None:
+        kwargs["top_p"] = float(top_p)
+    if frequency_penalty is not None:
+        kwargs["frequency_penalty"] = float(frequency_penalty)
+    if seed is not None:
+        kwargs["seed"] = int(seed)
+    if num_ctx is not None:
+        kwargs["extra_body"] = {"num_ctx": num_ctx}
+    _log.debug("chat: request sent, waiting for response...")
+    resp = await client.chat.completions.create(**kwargs)
+    _log.debug("chat: response received, extracting content...")
+    elapsed = time.monotonic() - t0
+    content = resp.choices[0].message.content or ""
+    usage = resp.usage or type("Usage", (), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0})()
+    _log.info(
+        "chat: done in %.1fs prompt_tokens=%d completion_tokens=%d",
+        elapsed,
+        usage.prompt_tokens,
+        usage.completion_tokens,
+    )
+    return LLMResult(
+        content=content,
+        usage={
+            "prompt_tokens": usage.prompt_tokens or 0,
+            "completion_tokens": usage.completion_tokens or 0,
+            "total_tokens": usage.total_tokens or 0,
+        },
+        elapsed_ms=elapsed * 1000,
+    )
+
+
+async def _chat_ollama_native(
+    host: str, model: str, messages: list[dict[str, str]],
+    t0: float, temperature: float | None, top_p: float | None,
+    frequency_penalty: float | None, seed: int | None, num_ctx: int | None,
+) -> LLMResult:
+    """Call via Ollama native /api/chat endpoint.
+
+    Returns token metrics from the native response and normalizes them to
+    the same format as the OpenAI-compatible endpoint.
+    """
+    http_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(connect=10.0, read=300.0, write=10.0, pool=10.0),
+        limits=httpx.Limits(
+            max_keepalive_connections=20,
+            max_connections=50,
+        ),
+    )
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        "think": False,
+    }
+    if temperature is not None:
+        payload["temperature"] = float(temperature)
+    if top_p is not None:
+        payload["top_p"] = float(top_p)
+    if frequency_penalty is not None:
+        payload["frequency_penalty"] = float(frequency_penalty)
+    if seed is not None:
+        payload["seed"] = int(seed)
+    if num_ctx is not None:
+        payload["num_ctx"] = int(num_ctx)
+
+    try:
+        resp = await http_client.post(f"{host}", json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+    finally:
+        await http_client.aclose()
+
+    elapsed = time.monotonic() - t0
+
+    content = (data.get("message") or {}).get("content", "")
+    prompt_eval_count = data.get("prompt_eval_count", 0)
+    eval_count = data.get("eval_count", 0)
+
+    _log.info(
+        "chat: done in %.1fs prompt_tokens=%d completion_tokens=%d",
+        elapsed, prompt_eval_count, eval_count,
+    )
+    return LLMResult(
+        content=content,
+        usage={
+            "prompt_tokens": prompt_eval_count,
+            "completion_tokens": eval_count,
+            "total_tokens": prompt_eval_count + eval_count,
+        },
+        elapsed_ms=elapsed * 1000,
+    )

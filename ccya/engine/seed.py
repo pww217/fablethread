@@ -287,7 +287,7 @@ async def generate_seed(
                 extra={"error_kind": exc.kind, "trace_id": trace_id},
             )
             raise
-        raw = result.get("response", "") if isinstance(result, dict) else ""
+        raw = result.content
         if config.log_llm_io:
             _log_llm_io(
                 trace_id=trace_id,

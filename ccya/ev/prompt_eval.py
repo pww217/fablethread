@@ -195,7 +195,7 @@ def cmd_prompt_eval_call(
             timeout=180.0,
             num_ctx=config.num_ctx,
         ))
-        output = llm_result.get("response", "")
+        output = llm_result.content
     except Exception as exc:
         print(f"Error: LLM call failed: {exc}", file=sys.stderr)
         sys.exit(1)

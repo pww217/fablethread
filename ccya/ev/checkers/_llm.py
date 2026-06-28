@@ -88,7 +88,7 @@ def _call_llm_checker(
             )
         finally:
             loop.close()
-        raw = response.get("response", "")
+        raw = response.content
         parsed = _try_parse_json(raw)
         if parsed is None:
             return {"error": "parse_failed", "raw": raw}

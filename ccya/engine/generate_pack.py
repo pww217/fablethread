@@ -108,7 +108,7 @@ async def generate_pack_from_brief(
                 num_ctx=config.num_ctx,
             )
 
-            raw = response_text.get("response", "") if isinstance(response_text, dict) else str(response_text)
+            raw = response_text.content
 
             yield {"type": "phase", "label": "Parsing world…"}
 
