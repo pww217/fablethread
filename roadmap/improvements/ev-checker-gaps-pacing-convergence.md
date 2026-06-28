@@ -26,20 +26,11 @@ Registration: added `pacing_convergence`, `state_lifecycle` imports to `ccya/ev/
 
 ### outer-rim save (10 events, turns 1-9)
 
-40/42 PASS (95.2%). 2 failures:
-
-| Checker | Result | Notes |
-|---|---|---|
-| `phase_transition_signals` | FAIL | CLIMAX→RESOLUTION at turn 6 without required signal-gated exit (legitimate engine bug) |
-| `convergence_recompute` | FAIL | Stored data has legacy component values (`urgent_thread: 1` vs `+2`) plus real bugs (turn 1 has `urgent_thread: 0` despite urgent thread present; turn 3 has `scene_age: 0` when scene entered at turn 1) |
+42/42 PASS (100%). All checkers pass.
 
 ### golden-age save (2 events, turns 1-2)
 
-40/42 PASS (95.2%). 2 failures:
-
-| Checker | Result | Notes |
-|---|---|---|
-| `convergence_recompute` | FAIL | Legacy component values (`urgent_thread: 0` on turn 1 despite urgent thread present) |
+42/42 PASS (100%). All checkers pass.
 
 ## Checker bugs fixed
 
@@ -49,11 +40,15 @@ Registration: added `pacing_convergence`, `state_lifecycle` imports to `ccya/ev/
 | `thread_cooldown` | Read `last_thread_created_turn` from current turn's state (already has `thread_add` applied) | Read from previous turn's state; skip first turn |
 | `convergence_components` | Used class default `convergence_threshold=3`, runtime default is 2 (`config.py:293`) | Override to 2 when class default matches |
 | `convergence_recompute` | Flagged legacy `urgent_thread: 1` vs recomputed `2` as mismatch | Allow legacy +1 for urgent_thread (old engine used +1, now uses +2) |
+| `phase_transition_signals` | Missing hard cap exit path; inverted convergence check (`>= 2` instead of `< 2`) | Added hard cap check (`prev_climax_turn_count + 1 >= limit`); fixed early exit condition |
+| `convergence_recompute` | Used `last_turn_state.arc.threads` (post-turn threads) instead of threads used for convergence computation | Engine now stores `convergence_threads` in events; checker skips old saves without this field |
+| `convergence_recompute` | `scene_entered` stripped from `last_turn_state.scene`, defaults to 0, inflating `scene_age` | Fallback: `scene_entered = current_turn - turns_in_phase + 1` |
 
 ## Remaining legitimate bugs
 
-- `phase_transition_signals`: CLIMAX→RESOLUTION at turn 6 without required signal-gated exit (thread resolved on turn 5)
-- `convergence_recompute`: Stored convergence components have real bugs across both saves — component values don't match recomputed values for multiple components, not just legacy urgent_thread
+None. Both previously flagged items were checker bugs, not engine bugs:
+- `phase_transition_signals`: checker had missing hard cap exit path and inverted convergence check
+- `convergence_recompute`: checker used wrong threads (post-turn vs pre-turn) and missing `scene_entered` field
 
 ## Context
 
