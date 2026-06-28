@@ -114,8 +114,66 @@ All 6 were marked as FIXED in E-1. This eval will validate whether those fixes a
 
 ---
 
+## Deep Dive: Narrative Quality & Pacing Mechanics
+
+**Scope:** Manual inspection of `0225_noir-1930s_driven_15t` (15 turns, 18 events). This is the most complete noir run with full turn-by-turn data.
+
+### Phase Transition Volatility — Critical Issue
+
+The pacing system produces **10 phase transitions in 15 turns**:
+
+```
+SETUP → SETUP → RISING → CLIMAX → CLIMAX → RESOLUTION → BREATHER → RISING → CLIMAX → CLIMAX → CLIMAX → RESOLUTION → BREATHER → BREATHER → RISING
+```
+
+That is a phase change almost every other turn. This is the opposite of smooth pacing.
+
+### Phase-Narrative Mismatch — Critical Issue
+
+The pacing system assigns phases that **directly contradict** the narrative tension:
+
+| Turn | Narrative Tension | Assigned Phase | Mismatch |
+|------|-------------------|----------------|----------|
+| T6 | Gunfire, tackles, second sedan arrives | RESOLUTION | Opposite |
+| T7 | Pistol aimed at player's chest | BREATHER | Opposite |
+| T13 | Player arrives at records building after escape | BREATHER | Acceptable |
+| T15 | Player infiltrates restricted archives | RISING | Acceptable |
+
+**T6 and T7 are the worst offenders.** The narrative is at peak action (gunfire, physical combat, reinforcements arriving) but the phase is RESOLUTION/BREATHER. This creates cognitive dissonance for the reader.
+
+### What Is Working
+
+1. **Seed generation is excellent** — rich sensory details, immediate tension, clear stakes. The noir atmosphere is strong.
+2. **Narrative prose is consistent** — "wet cobblestones," "flickering streetlamps," "heavy brass clasps" maintain the noir tone throughout.
+3. **Plot is engaging** — witness, evidence box, encrypted ledger, precinct vaults. The mystery unfolds naturally.
+4. **Action sequences are well-written** — "swing your brass knuckles into the Scarred Man's jaw," "tackle the Watchful Man mid-stride."
+
+### What Is Broken
+
+1. **Phase transitions are too reactive.** The convergence score fluctuates wildly based on individual turn events, causing phases to flip-flop. A phase should represent a sustained narrative state, not oscillate turn-to-turn.
+
+2. **No hysteresis in phase transitions.** The system transitions up and down on the same thresholds. There is no "hold" mechanism to prevent flip-flopping. For example, CLIMAX→RESOLUTION happens at conv=1, but RESOLUTION→RISING happens at conv=1. The same threshold triggers opposite transitions.
+
+3. **Convergence score is too volatile.** It jumps from 4→1→4→5→4→2→0→0→1. This is because thread urgency changes turn-to-turn based on what the LLM generates, and there is no smoothing.
+
+4. **The pacing feels artificial.** A noir scene should build tension over 5-10 turns, not reset every 2-3 turns. The reader experiences: build-up → climax → abrupt reset → build-up → climax → abrupt reset. This is jarring.
+
+### Comparison: 0215 (5 turns) vs 0225 (15 turns)
+
+The 0215 run had a cleaner progression: SETUP(2) → RISING(1) → CLIMAX(2). Only 2 phase transitions. The 0225 run has 10 transitions in 15 turns. The longer run exposes the volatility problem.
+
+### Verdict
+
+**The pacing system is not working as intended.** The convergence-proactive design aimed for smooth, signal-gated phase transitions. Instead, the system is creating a jittery pacing that oscillates rapidly. The narrative prose is strong, but the pacing layer is fighting against it by assigning phases that contradict the narrative tension.
+
+The root cause is that the convergence score is too reactive to individual turn events. It needs smoothing (e.g., moving average over 3-5 turns) and hysteresis (different thresholds for entering vs exiting a phase).
+
+---
+
 ## Recommendations
 
-1. **B-10 needs live UI validation** — not testable via evals
-2. **B-20 appears fixed** — no duplicates in 3 runs
-3. **Engine is stable** — no critical or intermediate bugs unfixed. Ready for next phase of development.
+1. **Fix phase transition volatility** — Add smoothing to convergence score (moving average over 3-5 turns) and hysteresis (different thresholds for entering vs exiting each phase). This is the highest priority finding.
+2. **Fix phase-narrative mismatch** — Investigate why RESOLUTION/BREATHER is assigned during peak action sequences. May require checking if thread urgency is being incorrectly cleared or if the convergence score is being reset prematurely.
+3. **B-10 needs live UI validation** — not testable via evals
+4. **B-20 appears fixed** — no duplicates in 3 runs
+5. **Engine is stable** — no critical or intermediate bugs unfixed. Ready for next phase of development.
