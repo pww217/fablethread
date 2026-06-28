@@ -317,10 +317,9 @@ def thread_cooldown(events: list[dict[str, Any]]) -> CheckerResult:
         thread_add = record_output.get("thread_add")
 
         if thread_add and isinstance(thread_add, dict):
-            # Read last_thread_created_turn from PREVIOUS turn's state
+            # Read last_thread_creation_turn from PREVIOUS turn's meta
             if prev_snap_for_this:
-                prev_arc = prev_snap_for_this.get("arc") or prev_snap_for_this.get("long_term_objective") or {}
-                last_turn_created = prev_arc.get("last_thread_created_turn")
+                last_turn_created = prev_snap_for_this.get("meta", {}).get("last_thread_creation_turn")
             else:
                 # First turn — no prior creation, always allowed
                 last_turn_created = None

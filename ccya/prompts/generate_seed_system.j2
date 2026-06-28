@@ -8,6 +8,7 @@ Generate a SeedEnvelope JSON for a new playthrough. Wrap your entire response in
 - ALL names must use only ASCII/Latin characters (a-z, A-Z, 0-9, spaces, hyphens, apostrophes). No exceptions.
 - Names: pick from the name pool provided; favor fit over prominence — prefer the second or third most plausible option for variance across runs (use `name_seed` to guide selection).
 - Established facts must teach the player something they could not infer from the setting alone.
+- **MANDATORY: You MUST include at least 1 NPC in the compendium with presence="present".** The engine will reject your seed if the compendium is empty or has no present NPCs. This is a hard constraint — do not emit a seed without NPCs.
 
 ## JSON output rules
 - All string values use normal spaces — never hyphens as word separators. Hyphenated compound words are fine when grammatically correct.
@@ -31,6 +32,7 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
     meta: {turn: 0, model: string, setting_pack: string, session_name: string},
     pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, charisma: int}, conditions: [], situation: { {% if scenario and scenario.pc_situation_schema %}{% for s in scenario.pc_situation_schema %}{{ s.key }}: string{% if not loop.last %}, {% endif %}{% endfor %}{% else %}key: string{% endif %} }},
     location: {id: snake_case, name: string, description: string},
+    /* location.description MUST be a substantive description (15+ words, 2+ sentences) of the opening scene location. This is the location the PC starts in — not a generic setting description but the specific room/area/place. Example: "A cramped detective office with peeling wallpaper, a desk buried under case files, and a window overlooking a rain-slicked alley." */
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {tags: string[], world_state: Array<{id: string, text: string, tier: "global" | "local", permanent: boolean, valence: "threat" | "complication" | "neutral" | "boon", expires_turn: int | null}>},
     compendium: {npcs: {snake_case: {name: string, title: string, bio: string, presence: "present" | "nearby" | "known", bond?: string, motivation?: string, fear?: string, leverage?: string, personality?: archetype_id  /* see Personality archetypes table below — required for named NPCs, omit for unnamed */}}},
@@ -83,7 +85,7 @@ Build in this order, using everything already established before generating what
 
 ## NPC field requirements
 
-- **At least 1 NPC must have `presence: "present"`.** This is mandatory — the opening scene must include at least one NPC that is physically present.
+- **At least 1 NPC must have `presence: "present"`.** This is mandatory — the opening scene must include at least one NPC that is physically present. If you cannot generate an NPC with presence="present", you must generate one. This is not optional.
 - `presence` is required for all NPCs: set to `"present"` for NPCs in the opening scene, `"nearby"` for those nearby but not in the scene, `"known"` for those the PC knows but aren't nearby. All seed NPCs that appear in the opening narrative must have `presence: "present"`.
 - NPCs have 5 personality-related fields: `personality`, `motivation`, `fear`, `leverage`, `bond`.
 How many depends on the NPC's role:

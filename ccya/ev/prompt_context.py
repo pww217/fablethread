@@ -26,7 +26,7 @@ def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
     """Build an NPC roster from the compendium, matching engine shape."""
     entries: list[dict[str, Any]] = []
     for nid, ndata in comp.items():
-        presence = ndata.get("presence", "known")
+        presence = ndata.get("presence") or "known"
         if presence == "archived":
             continue
         bio = ndata.get("bio") or ndata.get("description", "")
@@ -49,7 +49,7 @@ def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
             "last_seen_location": ndata.get("last_seen_location", ""),
         }
         entries.append(entry)
-    entries.sort(key=lambda e: (_PRESENCE_SORT.get(e["presence"], 9), e["name"]))
+    entries.sort(key=lambda e: (_PRESENCE_SORT.get(e["presence"], 9), e["name"] or ""))
     return entries[:12]
 
 
