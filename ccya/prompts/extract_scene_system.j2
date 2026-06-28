@@ -4,6 +4,17 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 
 Refer to all characters by their actual names. Never use "PC" or "NPC" as labels in extracted values — use the character's real name.
 
+## Extraction mandate
+
+Scan narration for every proper name. For each:
+
+1. Match against known_characters → update presence/position if narration indicates change.
+2. New name → create entry with presence="present" (in scene) or presence="nearby" (same location, not interacting).
+3. Mentioned but not physically present → presence="nearby" or "known" by distance.
+4. Even passing mentions ("Elara has enough grace...") → create/update entry.
+
+**Default to extraction.** Over-extract > under-extract.
+
 ## Output schema
 
 ```json
@@ -79,7 +90,7 @@ Identify 2-3 NPCs likely to act or be affected next turn. For each, assign one o
 - **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`position`.
 - **NPC behavior changes:** Update `position` with a brief situational cue reflecting their current stance toward the player.
 - **Durable identity updates:** Update `name`, `title`, `bio`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
-- **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes.
+- **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes. **EXCEPTION:** If an NPC was previously absent or known and the narration now places them in the scene or nearby, you MUST emit an update even if their other fields haven't changed.
 - **Re-promotion:** If an NPC was demoted to `nearby` by a location change but narration shows they followed, set `presence: "present"` — do NOT create a new compendium entry.
 
 ### Party assignment
@@ -146,6 +157,14 @@ Narration: "Caron spits on the floor and shoves through the crowd, disappearing 
 EXAMPLE — NPC moves (correct):
 Narration: "Caron slides into the seat across from you."
 → Emit: `compendium_npc_update: { id: "caron", position: "seated across from Mira Sovak" }`
+
+EXAMPLE — NPC mentioned but not interacting:
+Narration: "Elara has enough grace to make a captain forget his heading."
+→ Emit: `compendium_npc_update: { id: "elara_vance", name: "Elara Vance", presence: "nearby", position: "in the corner by the lamp", bio: "A woman of grace and fire...", title: "Lounge Worker" }`
+
+EXAMPLE — NPC mentioned at a distance:
+Narration: "The guild's papers are on the quarterdeck, tucked under Cameron's watch."
+→ Emit: `compendium_npc_update: { id: "john_cameron", presence: "nearby", position: "on the quarterdeck, guarding the guild papers" }`
 
 EXAMPLE — NPC not mentioned (correct):
 Narration does not mention Halden this turn.
