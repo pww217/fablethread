@@ -39,10 +39,10 @@ from ccya.state import (
 from .panels import (
     _debug_context,
     _get_opening,
-    _get_opening_actions,
     _get_opening_outcome_summary,
     _load_current_state,
     _load_last_actions,
+    _load_opening_actions,
     _load_opening_from_chronicle,
     _load_recent_history,
 )
@@ -99,10 +99,6 @@ def _apply_seed_to_save_dir(
         _app_mod._dynamic_opening = opening_narrative
     else:
         _app_mod._dynamic_opening = ""
-    if actions is not None:
-        _app_mod._dynamic_opening_actions = actions
-    else:
-        _app_mod._dynamic_opening_actions = []
     _app_mod._dynamic_opening_outcome = outcome_summary
 
 
@@ -214,7 +210,7 @@ async def index(request: Request):
     state = _load_current_state()
     _resolve_npc_personalities(state)
     opening = _load_opening_from_chronicle(_app_mod.SAVE_DIR) or _get_opening()
-    opening_actions = _get_opening_actions() if not history and not last_actions else []
+    opening_actions = _load_opening_actions(_app_mod.SAVE_DIR) if not history and not last_actions else []
     ctx = _debug_context()
     ctx["state"] = state
     ctx["history"] = history
@@ -540,11 +536,11 @@ async def new_game_reroll(request: Request):
 
     actions_html = "".join(
         f'<button class="action-pill" onclick="window._gameInstance && window._gameInstance.fillFromChoice(this.textContent)">{a}</button>'
-        for a in _app_mod._dynamic_opening_actions
+        for a in narrate_fields["actions"]
     )
     return HTMLResponse(
         f'<div id="actions-zone" hx-swap-oob="outerHTML:true">{actions_html}</div>'
-        + _app_mod._dynamic_opening
+        + narrate_fields["opening_narrative"]
     )
 
 

@@ -166,6 +166,14 @@ def _load_last_actions(save_dir: Path) -> list[str]:
         return []
 
 
+def _load_opening_actions(save_dir: Path) -> list[str]:
+    """Return seed-time actions from state.yaml __seed_meta__."""
+    state = load_state(save_dir)
+    actions = (state.get("__seed_meta__") or {}).get("actions") or []
+    _log.debug("_load_opening_actions count=%d", len(actions))
+    return actions
+
+
 def _load_opening_from_chronicle(save_dir: Path) -> str | None:
     """Extract the opening narrative from turn 0 in chronicle.md. Returns None if not found."""
     from ccya.state.chronicle import _TURN_HEADER
@@ -189,10 +197,6 @@ def _get_opening() -> str:
 
 def _get_opening_outcome_summary() -> str:
     return _app._dynamic_opening_outcome
-
-
-def _get_opening_actions() -> list[str]:
-    return _app._dynamic_opening_actions
 
 
 def _debug_context() -> dict[str, Any]:
