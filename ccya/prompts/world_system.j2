@@ -15,10 +15,10 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 - **Blend, don't pick.** Each candidate should combine NPC psychological profiles into a single coherent story point. Beat priority order:
   1. **Cross-NPC blending** — put NPC A's motivation against NPC B's fear, or NPC A's leverage against NPC B's tie.
   2. **NPC/Thread/Arc blending** — combine one NPC's psychological profile with an active thread or arc goal.
-  3. **Single-NPC depth** — take one NPC's full profile (motivation, fear, leverage, tie) and exercise all four simultaneously in a single beat.
+  3. **Single-NPC depth** — take one NPC's full profile (motivation, fear, leverage, bond) and exercise all four simultaneously in a single beat.
   4. **Environmental** — only when no NPCs are present or active.
 - **Action rule.** Every beat must show an NPC or the world taking action. Never start with "nothing happens" or "the atmosphere is tense." If no NPC is acting, show the environment reacting — a door slams, a light flickers, a sound carries.
-- **`effect` (required).** Short concrete sentence describing what is about to happen. Name NPCs, reference locations, tie to active threads. NOT a category label. NOT "ambient tension." If you cannot write a concrete sentence, omit that candidate.
+- **`effect` (required).** Short concrete sentence describing what is about to happen. Name NPCs, reference locations, tie to active threads. MUST ground the beat in at least one NPC's psychological field (motivation, fear, leverage, or bond). NOT a category label. NOT "ambient tension." If you cannot write a concrete sentence, omit that candidate.
 - **`npcs` (required).** List of NPC IDs involved in this beat. Include every NPC that is acting, reacting, or directly affected. Use their snake_case IDs from the NPC roster above. You MUST populate this field with actual NPC IDs — never emit an empty array unless the beat is purely environmental with no NPCs whatsoever. Examples: `{"type": "pressure", "effect": "Silas Reed corners you in the hallway, demand for back payment", "npcs": ["silas_reed"]}`. If an NPC's motivation, fear, leverage, or bond is driving this beat, that NPC MUST be in the `npcs` list.
 - **Phase alignment.** `type` MUST be from `allowed_beat_types` (provided in user prompt). Drop candidates whose type violates the phase constraint.
 
@@ -31,6 +31,11 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 - If the last 2 entries have different types, avoid repeating either of those types.
 - In short: pick types that are NOT in the last 2 entries of `recent_beats`.
 - **Hard constraint:** If `recent_beats[-2:]` contains `escalation`, `escalation`, then NO candidate may have `type: escalation`. This is not a suggestion — it is a rule.
+- **Build, don't repeat.** Each candidate MUST introduce a NEW development that follows from recent beats — NOT restate them. If recent_beats contains "The floor collapses entirely", your next beat should show what happens NEXT (debris settling, void pulling harder, NPC reaction to the collapse), NOT "The floor collapses entirely" again. **Hard constraint:** Do NOT emit a beat whose effect describes the same event as any beat in recent_beats. Each beat must advance the situation forward in time. **Example of what NOT to do:** If recent_beats contains "A faint, rhythmic pulse or vibration thrums through the nothingness", do NOT emit "A faint, rhythmic pulse or vibration thrums through the nothingness" or "A faint, rhythmic pulse thrums through the void" — these are the same environmental cue. Instead, move to a NEW development: the pulse breaks, a spike appears, the pulse accelerates, an NPC reacts to the pulse.
+- **Explicitly build on recent beats.** When generating candidates, look at each beat in `recent_beats` and ask: "What happens NEXT because of this?" Your candidates should answer that question. For example:
+  - Recent: "The floor collapses entirely" → Next: "Debris settles, revealing a hidden passage" or "The void pulls harder as the floor gives way"
+  - Recent: "Julian's breathing hitches" → Next: "Julian stumbles backward, tripping over debris" or "Julian grabs your arm, pulling you toward safety"
+  - Recent: "The rhythmic pulse thrums" → Next: "The pulse suddenly stops, leaving eerie silence" or "The pulse accelerates into a frantic drumbeat"
 
 
 ## Roll band guidance (from rules_outcome)
