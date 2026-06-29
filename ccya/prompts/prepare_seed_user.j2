@@ -83,9 +83,8 @@ Recent events should naturally lead into the situation archetype — they are da
 ## JSON output discipline (CRITICAL)
 - Wrap your entire response in a single ```json code block. Do NOT include any thinking or explanatory text outside the code block.
 - All string values must use normal spaces between words — never hyphens as word separators. DO NOT replace spaces with hyphens or insert hyphens between every word.
+- Output ONLY the `seed_state` object (not a full SeedEnvelope). Do not include `opening_narrative`, `actions`, or `outcome_summary` — those are generated separately.
 
 ## Output discipline
 
 When emitting structured data (JSON, scope tags, any machine-readable output), omit fields entirely when there is no change — do not include empty arrays (`[]`), empty objects (`{}`), or empty strings. Only emit the keys you actually need to communicate a value or instruction. Omitting a field means "no change" — it does NOT mean deletion of existing state (see State-presence rule).
-
-Emit the SeedEnvelope JSON now.

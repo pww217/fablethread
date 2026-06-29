@@ -41,7 +41,7 @@ At 0.9, ~50% of first attempts fail with "No JSON found". At 0.65, reliability i
 
 ## Firm Decisions
 
-- **Two sequential LLM calls.** `prepare_seed()` at 0.4 temp → `SeedStateEnvelope` → `narrate_seed()` at 0.9 temp → final `SeedEnvelope`.
+- **Two sequential LLM calls.** `prepare_seed()` at 0.55 temp → `SeedStateEnvelope` → `narrate_seed()` at 0.9 temp → final `SeedEnvelope`.
 - **`SeedStateEnvelope` as new type.** Wraps `SeedState` without narrative `min_length` constraints. No `min_length` on `opening_narrative`, `actions`, `outcome_summary`.
 - **Hard fail safety.** Each step gets 1 retry. If either fails after retries, game does not start. Clear log message on hard fail.
 - **Clean break.** No backward compatibility. `generate_seed` fully replaced by `prepare_seed`. `generate_seed_system.j2` renamed and cleaned. New `narrate_seed_system.j2` created.
@@ -84,14 +84,14 @@ class SeedStateEnvelope(BaseModel):
 ```
 
 **Config changes:**
-- `EngineConfig.generate_seed_temperature` → `EngineConfig.prepare_seed_temperature` (default 0.4)
+- `EngineConfig.generate_seed_temperature` → `EngineConfig.prepare_seed_temperature` (default 0.55)
 - `EngineConfig.generate_seed_top_p` → `EngineConfig.prepare_seed_top_p` (default 0.95)
 - `build_engine_config()` reads `llm.prepare_seed` instead of `llm.generate_seed`
 - `temperature_override` does NOT apply to `prepare_seed_temperature`
 
 **Validation:**
 - `SeedStateEnvelope` model exists in `ccya/pack.py` with no `min_length` constraints on narrative fields
-- `EngineConfig` has `prepare_seed_temperature` (default 0.4) and `prepare_seed_top_p` (default 0.95)
+- `EngineConfig` has `prepare_seed_temperature` (default 0.55) and `prepare_seed_top_p` (default 0.95)
 - `build_engine_config()` reads `llm.prepare_seed` config key
 - `temperature_override` does not override `prepare_seed_temperature`
 - `config.yaml` has `llm.prepare_seed` instead of `llm.generate_seed`
@@ -345,7 +345,7 @@ def _build_narrate_seed_messages(
 **OVERVIEW.md changes:**
 - Update seed generation section: single call → two-step pipeline
 - Document `prepare_seed()` → `SeedStateEnvelope` → `narrate_seed()` → `SeedEnvelope` flow
-- Document temperature separation (0.4 for prepare_seed, 0.9 for narrate_seed)
+- Document temperature separation (0.55 for prepare_seed, 0.9 for narrate_seed)
 
 **repomap.md changes:**
 - Update `ccya/engine/seed.py` entry: `generate_seed()` → `prepare_seed()` + `narrate_seed()`
@@ -363,12 +363,18 @@ def _build_narrate_seed_messages(
 
 After all phases:
 1. `make check` — lint + typecheck must pass
-2. Start a new game via server — verify two-step seed generation (prepare_seed at 0.4, narrate_seed at 0.9)
+ 2. Start a new game via server — verify two-step seed generation (prepare_seed at 0.4, narrate_seed at 0.9)
 3. Reroll seed — verify same two-step pipeline
 4. Run `ev.py play --pack <pack>` — verify seed generation works in eval harness
 5. Run `ev.py eval <scenario.yaml>` — verify config override uses `prepare_seed` not `generate_seed`
-6. Verify `temperature_override` does NOT affect `prepare_seed_temperature` (use `ev.py play --temp N` and confirm prepare_seed still uses 0.4)
+ 6. Verify `temperature_override` does NOT affect `prepare_seed_temperature` (use `ev.py play --temp N` and confirm prepare_seed still uses 0.4)
 7. Verify hard fail: if prepare_seed or narrate_seed fails after 1 retry, game does not start
 8. Verify prompt templates: `prepare_seed_system.j2` has no narrative sections, `narrate_seed_system.j2` has opening narrative/actions/outcome_summary instructions
 9. Verify `SeedStateEnvelope` has no `min_length` constraints on narrative fields
-10. Verify arc/arc_origin read from `seed_state.arc` directly (no copy from envelope.arc)
+ 10. Verify arc/arc_origin read from `seed_state.arc` directly (no copy from envelope.arc)
+
+---
+
+## Status
+
+completed — all 5 phases implemented on 2026-06-29. Branch: `seed-two-step`.

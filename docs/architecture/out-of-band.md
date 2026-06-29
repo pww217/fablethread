@@ -14,8 +14,8 @@ flowchart LR
         H["Build PlayerOverrides<br>  (pc_hints, npc_hints, location_hints,<br>  arc_hints, free_form, npc_count)<br>Check overrides.is_empty()"]
     end
 
-    subgraph DYNAMIC["Dynamic Pack — generate_seed()"]
-        DS["LLM generates<br>SeedEnvelope with seed_state,<br>opening_narrative, actions<br>overrides injected if non-empty"]
+    subgraph DYNAMIC["Dynamic Pack — prepare_seed() → narrate_seed()"]
+        DS["1. prepare_seed() at temp 0.4 → SeedStateEnvelope<br>2. narrate_seed() at temp 0.9 → opening_narrative, actions<br>3. Assemble final SeedEnvelope<br>overrides injected if non-empty"]
     end
 
     INIT["init_save_dir(SAVE_DIR, seed)<br>Writes state.yaml<br>Clears chronicle.md + events.jsonl<br>_pack_source: pack ID"]
@@ -40,11 +40,14 @@ flowchart LR
         G1["pack.manifest<br>(world rules, tone, setting)"]
         G3["PlayerOverrides (optional)<br>  pc_hints, npc_hints<br>  location_hints, arc_hints<br>  free_form, npc_count"]
         G4["npc_name_pool (name locales)"]
-        G5["engine_config.generate_seed_temperature (0.9)<br>engine_config.max_llm_retries (1)"]
+        G5["engine_config.prepare_seed_temperature (0.4)<br>engine_config.narrate_temperature (0.9)<br>engine_config.max_llm_retries (1)"]
     end
 
-    subgraph LLM_GS["LLM — generate_seed_system.j2 + generate_seed_user.j2"]
-        GL["temp: 0.9<br>output: SeedEnvelope JSON"]:::llmNode
+    subgraph LLM_TWO_STEP["Two-step LLM pipeline"]
+        direction TB
+        PS["prepare_seed()<br>temp: 0.4<br>output: SeedStateEnvelope JSON"]:::llmNode
+        NS["narrate_seed()<br>temp: 0.9<br>output: opening_narrative, actions, outcome_summary"]:::llmNode
+        PS --> NS
     end
 
     subgraph OUT["Outputs — SeedEnvelope"]
@@ -54,21 +57,21 @@ flowchart LR
         O4["actions: list[str]<br>(4 distinct, character-shaped,<br>scene-grounded choices)"]:::outNode
     end
 
-    IN --> LLM_GS
-    LLM_GS --> OUT
+    IN --> LLM_TWO_STEP
+    LLM_TWO_STEP --> OUT
 ```
 
 ### Post-generation processing
 
-After the LLM generates the SeedEnvelope, `generate_seed()` in `seed.py` runs post-generation processing:
+After the LLM generates the SeedStateEnvelope, `prepare_seed()` in `seed.py` runs post-generation processing:
 - Merges baseline world facts from `scenario.world_facts` with any existing world state facts from the seed
 - Clears engine-managed `compendium_touch_order` from seeded compendium NPCs
 - **Injects pack currency**: if `scenario.currency_id` is set and no inventory item with that ID exists, appends an `InventoryItem` with the pack's `starting_currency_amount`
-- **Assigns NPC personalities**: iterates over all NPCs in `envelope.seed_state.compendium.npcs`; for any without a `personality` attribute, calls `ccya.personality.assign_personality()` using the NPC's `motivation` and `fear` fields; validates any LLM-provided personality ids via `validate_and_resolve()`; unknown ids fall back to `assign_personality()`
+- **Assigns NPC personalities**: iterates over all NPCs in `state_envelope.seed_state.compendium.npcs`; for any without a `personality` attribute, calls `ccya.personality.assign_personality()` using the NPC's `motivation` and `fear` fields; validates any LLM-provided personality ids via `validate_and_resolve()`; unknown ids fall back to `assign_personality()`
 
 ### Seed emotional framing contract
 
-The seed prompt (`generate_seed_system.j2`) enforces these requirements:
+The seed prompt (`prepare_seed_system.j2`) enforces these requirements:
 
 - **`arc_origin`**: 2–3 sentences in past tense answering "how did the PC end up here?" Seed-time field only, never regenerated. Surfaces in the sidebar.
 - **NPC `relation` field**: Each opening NPC has a defined narrative job. One NPC is personally tied to the PC's motive or vulnerability; the other carries immediate external pressure from the world or conflict. The `relation` field encodes PC-facing relevance (e.g. "owes them a favor", "is their only contact here", "represents the institution pressing on them").

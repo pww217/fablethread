@@ -65,4 +65,4 @@ def cmd_warnings(events: list[dict[str, Any]]) -> None:
     print()
     print("=== Warnings Gaps ===")
     print("The following warning types are produced but not stored in events:")
-    print("  - generate_seed soft-check  → seed.py:421-424 (logged only)")
+    print("  - prepare_seed soft-check  → seed.py (no-op, removed cliché check)")

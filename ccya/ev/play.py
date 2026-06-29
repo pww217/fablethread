@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ccya.engine.config import EngineConfig, build_engine_config
-from ccya.engine.seed import generate_seed
+from ccya.engine.seed import prepare_seed, narrate_seed
 from ccya.engine.turn import run_turn
 from ccya.errors import LlmcError, LlmcTimeout
 from ccya.models import TurnResult, load_config
@@ -259,17 +259,36 @@ def _ensure_seed_generated(
     p = load_pack(pack_id, packs_dir)
     if p.scenario is not None:
         loop = _get_play_loop()
-        envelope, pool_selection = loop.run_until_complete(
-            generate_seed(p, config, template_dir=str(Path(__file__).parent.parent / "prompts")),
+        partial, pool_selection = loop.run_until_complete(
+            prepare_seed(p, config, template_dir=str(Path(__file__).parent.parent / "prompts")),
         )
-        seed_dict = envelope.seed_state.model_dump(mode="json")
+        narrate_fields = loop.run_until_complete(
+            narrate_seed(
+                partial.seed_state,
+                config,
+                pack=p,
+                template_dir=str(Path(__file__).parent.parent / "prompts"),
+                pool_selection=partial.pool_selection,
+            ),
+        )
+        # Assemble final SeedEnvelope
+        from ccya.pack import SeedEnvelope
+        final_envelope = SeedEnvelope(
+            seed_state=partial.seed_state,
+            opening_narrative=narrate_fields["opening_narrative"],
+            actions=narrate_fields["actions"],
+            outcome_summary=narrate_fields["outcome_summary"],
+            arc=partial.seed_state.arc,
+            arc_origin=partial.seed_state.arc_origin,
+        )
+        seed_dict = final_envelope.seed_state.model_dump(mode="json")
         seed_dict.setdefault("meta", {})["setting_pack"] = pack_id
         seed_dict.setdefault("meta", {})["_pack_source"] = pack_id
-        if envelope.opening_narrative:
+        if final_envelope.opening_narrative:
             seed_dict["__seed_meta__"] = {
-                "opening_narrative": envelope.opening_narrative,
-                "actions": envelope.actions or [],
-                "outcome_summary": envelope.outcome_summary or "",
+                "opening_narrative": final_envelope.opening_narrative,
+                "actions": final_envelope.actions or [],
+                "outcome_summary": final_envelope.outcome_summary or "",
             }
         if pool_selection:
             seed_dict["__seed_pools__"] = pool_selection
@@ -382,11 +401,11 @@ def _build_play_config(flags: dict[str, str], session_config: dict[str, Any] | N
 
     if "temp" in flags:
         temp = float(flags["temp"])
-        for section in ("ruling", "extract", "narrate", "generate_seed"):
+        for section in ("ruling", "extract", "narrate"):
             raw_cfg.setdefault("llm", {}).setdefault(section, {})["temperature"] = temp
     elif session_config is not None and "temp" in session_config:
         temp = float(session_config["temp"])
-        for section in ("ruling", "extract", "narrate", "generate_seed"):
+        for section in ("ruling", "extract", "narrate"):
             raw_cfg.setdefault("llm", {}).setdefault(section, {})["temperature"] = temp
 
     config = build_engine_config(raw_cfg)
