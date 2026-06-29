@@ -1,6 +1,6 @@
 ---
 title: "[Infra] Better names and location names"
-status: up-next
+status: done
 urgency: 3
 size: small
 created: 2026-06-14

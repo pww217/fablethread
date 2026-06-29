@@ -19,7 +19,7 @@ IDEA_FILE = ROADMAP_DIR / "idea.md"
 ACTIVE_FILE = ROADMAP_DIR / "active.md"
 TESTING_FILE = ROADMAP_DIR / "testing.md"
 DONE_FILE = ROADMAP_DIR / "done.md"
-ARCHIVE_INDEX_FILE = ROADMAP_DIR / "archive-index.md"
+ARCHIVE_INDEX_FILE = ROADMAP_DIR / "archive.md"
 
 ARCHIVE_DIR = ROADMAP_DIR / "archive"
 ARCHIVE_DAYS = 10
@@ -126,7 +126,7 @@ def load_entries(directory: Path, seen: set | None = None, is_archive: bool = Fa
     if not directory.exists():
         return entries
     for f in sorted(directory.glob("*.md")):
-        if f.name in ("index.md", "archive-index.md", "backlog.md", "active.md", "done.md", "idea.md", "testing.md"):
+        if f.name in ("index.md", "archive.md", "backlog.md", "active.md", "done.md", "idea.md", "testing.md"):
             continue
         if f.name in seen:
             continue
