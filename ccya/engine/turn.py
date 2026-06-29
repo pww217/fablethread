@@ -278,8 +278,7 @@ async def run_turn(
             errors.append({"kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id, "message": str(exc)})
 
         if _extract_result is not None:
-            # mypy cannot express heterogeneous 7-tuple unpack from async generator
-            delta, actions, outcome_summary, extraction_event, record_result, scene_result, _extraction_ctx = _extract_result  # type: ignore[misc]
+            delta, actions, outcome_summary, extraction_event, record_result, scene_result, _extraction_ctx = _extract_result
 
         if is_cancel_requested(str(save_dir)):
             return
@@ -515,6 +514,7 @@ async def run_turn(
             scene_phase=state.get("scene", {}).get("scene_phase", "SETUP"),
             summary=_pc.summary if _pc else "",
             ts=_ts,
+            state_snapshot=state,
         )
         yield ("complete", result_obj)
 
@@ -619,7 +619,7 @@ async def run_turn(
                 "ms": round(sanitize_ms, 1),
             }
 
-        yield ("phase", {"phase": "world_done", "metrics": final_metrics})
+        yield ("phase", {"phase": "world_done", "metrics": final_metrics, "state": state})
 
     except LlmcTimeout as exc:
         _log.error(
@@ -655,6 +655,7 @@ async def run_turn(
                 diff=[],
                 changes={},
                 ts="",
+                state_snapshot=state,
             ),
         )
     finally:

@@ -203,7 +203,6 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         active_threads=_raw_thread_dicts,
         scene_age=ctx._ages.get("scene_age", 0),
         recent_beats=state.get("meta", {}).get("recent_beats", []),
-        current_outcome=ctx.outcome,
         config=config,
         turn_no=turn_no,
         recent_rolls=state.get("meta", {}).get("recent_rolls", []),
