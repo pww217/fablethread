@@ -24,7 +24,6 @@ async def _run_world_step(
     env: Environment,
     state: dict[str, Any],
     narration: str,
-    scene_result: Any | None,
     pacing_context: Any | None,
     config: EngineConfig,
     trace_id: str,

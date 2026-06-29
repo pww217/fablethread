@@ -119,10 +119,7 @@ class SceneExtractResult(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
-    candidate_npcs: list[dict[str, Any]] = Field(
-        default_factory=list, max_length=3
-    )
-    """Per-NPC beat candidates: [{"id": "npc_id", "type": "motivation|fear|leverage|bond|personality", "effect": "vague psychological pressure ~5 words"}, ...]"""
+
 
 
 class StateExtractResult(BaseModel):
@@ -209,6 +206,7 @@ class GMBeat(BaseModel):
         return v
 
     effect: str = ""
+    npcs: list[str] = Field(default_factory=list)
 
 
 class StorytellerResult(BaseModel):

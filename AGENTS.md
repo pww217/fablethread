@@ -7,9 +7,9 @@
 ## Runtime context
 
 - **Game server:** `localhost:8765` — turn reviewer at `localhost:8765/turn_reviewer`
-- **LLM backend (primary):** `10.75.100.51:11434` — Ollama, `ornith:35b` on RTX 5070 Ti
-- **LLM backend (fallback):** `localhost:8080` — OpenAI-compatible API, Gemma4 on MacBook
-- **Dev model:** Qwen3 ~25B-4bit on Apple Silicon (MLX backend)
+- **LLM backend (primary):** `10.75.100.51:11434` — Ollama, `VladimirGav/gemma4-26b-16GB-VRAM:latest` on RTX 5070 Ti
+- **LLM backend (fallback):** `localhost:8080` — OpenAI-compatible API, Qwen3.6-35B-A3B-OptiQ-4bit on MacBook
+- **Dev model:** Qwen3.6-35B-A3B-OptiQ-4bit on Apple Silicon (MLX backend)
 - **Makefile:** primary reference for build/lint/run targets
 
 Treat **8k tokens as your effective working context per session.** Do not load more than you need.
@@ -80,7 +80,7 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 - `roadmap/active.md` — auto-generated (up-next) via `make roadmap`
 - `roadmap/testing.md` — auto-generated (testing) via `make roadmap`
 - `roadmap/done.md` — auto-generated (done/canceled) via `make roadmap`
-- `roadmap/archive-index.md` — auto-generated archive TOC via `make roadmap`
+- `roadmap/archive.md` — auto-generated archive TOC via `make roadmap`
 
 **MANDATORY: Every roadmap file must have YAML frontmatter** (title, status, urgency, size, created, ticket_id, optional labels). Files without frontmatter are skipped by `scripts/generate-roadmap.py` with a warning. Schema and status lifecycles: see `roadmap/README.md`.
 

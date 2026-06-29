@@ -72,7 +72,7 @@ def build_npc_roster(
     for nid, entry in comp.items():
         if not isinstance(entry, dict):
             continue
-        if entry.get("presence") == "archived":
+        if entry.get("presence") == "archived" and not entry.get("departed_reason"):
             continue
         presence = entry.get("presence") or NpcPresence.KNOWN.value
         if presence_filter is not None and presence != presence_filter:

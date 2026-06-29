@@ -567,7 +567,7 @@ async def run_turn(
         t_world = asyncio.get_event_loop().time()
         try:
             beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
-                env, state, narrative, scene_result, _pc, config, trace_id, turn_no,
+                env, state, narrative, _pc, config, trace_id, turn_no,
             )
         except Exception as exc:
             _log.warning("world step failed: %s", exc, extra={"trace_id": trace_id})

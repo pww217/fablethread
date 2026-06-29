@@ -131,7 +131,7 @@ def apply_npc_scene_management(
                     entry["departed_turn"] = entry.get("departed_turn", current_turn_no)
                 entry.pop("position", None)
                 entry.pop("party", None)
-            if comp_upd.presence == "nearby":
+            if comp_upd.presence in ("present", "nearby"):
                 if current_turn_no is not None:
                     entry["last_presence_turn"] = current_turn_no
             if comp_upd.position is not None:

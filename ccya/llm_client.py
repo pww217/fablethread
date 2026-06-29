@@ -2,8 +2,8 @@
 
 Wire protocol: /v1/chat/completions (OpenAI) or /api/chat (Ollama native).
 
-Primary backend: Ollama on 10.75.100.51 (ornith:35b, RTX 5070 Ti — fast).
-Fallback: mlx_lm.server on localhost:8080 (Gemma4, MacBook — slower).
+Primary backend: Ollama on 10.75.100.51 (VladimirGav/gemma4-26b-16GB-VRAM:latest, RTX 5070 Ti — fast).
+Fallback: mlx_lm.server on localhost:8080 (Qwen3.6-35B-A3B-OptiQ-4bit, MacBook — slower).
 
 num_ctx controls the server-side input context window (passed via extra_body).
 No keep_alive, no format/grammar constraints.

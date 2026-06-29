@@ -79,6 +79,13 @@ class Condition(BaseModel):
     added_turn: int = 0
     turns_remaining: int | Literal["permanent"] = 0
 
+    @field_validator("turns_remaining", mode="before")
+    @classmethod
+    def _coerce_tr(cls, v: Any) -> Any:
+        if v is None:
+            return 0
+        return v
+
 
 def _coerce_condition_str(v: Any) -> Any:
     if isinstance(v, str):
@@ -95,6 +102,13 @@ class ConditionAdd(BaseModel):
     label: str
     description: str = ""
     turns_remaining: int | Literal["permanent"] = 0
+
+    @field_validator("turns_remaining", mode="before")
+    @classmethod
+    def _coerce_tr(cls, v: Any) -> Any:
+        if v is None:
+            return 0
+        return v
 
     @field_validator("id", "label", mode="before")
     @classmethod
