@@ -170,13 +170,98 @@ The root cause is that the convergence score is too reactive to individual turn 
 
 ---
 
+## Proposed Fixes
+
+### Fix 1: Convergence Smoothing + Hysteresis (Critical)
+
+**Root cause:** Convergence score is 6 independent boolean components with no smoothing. One urgent thread flips the score by 2 points. No hysteresis means the same threshold triggers opposite transitions.
+
+**Solution:**
+
+a) **Rolling average** — Store last 5 raw scores in `state["meta"]["convergence_history"]`, compute `smoothed_conv = sum(history) / len(history)`. Pass into `_compute_scene_phase` instead of raw score.
+
+b) **Hysteresis thresholds** — Different thresholds for entering vs exiting RISING↔CLIMAX:
+
+| Transition | Current | Proposed |
+|---|---|---|
+| RISING→CLIMAX | `raw_conv >= 3` | `smoothed_conv >= 3.5` |
+| CLIMAX→RESOLUTION (early exit) | `raw_conv < 2` | `smoothed_conv < 2.0` |
+| CLIMAX extension | `raw_conv >= 3` | `smoothed_conv >= 3.5` |
+
+The 1.5-point gap prevents flip-flopping. A single urgent-thread spike (raw +2) gets averaged with previous turns.
+
+c) **Minimum turns in phase** — Prevent instant exits from RISING and CLIMAX:
+
+| Phase | Current | Proposed |
+|---|---|---|
+| RISING | any time | min 2 turns before RISING→CLIMAX check |
+| CLIMAX | any time | min 2 turns before early exit |
+
+RESOLUTION→BREATHER stays as forced 1-turn (narratively correct).
+
+**Files:** `_pacing.py`, `narrate.py`
+
+### Fix 2: Python-Level Phase Constraint Enforcement
+
+a) **World step filtering** (`world.py`) — After Pydantic validation, filter candidates by `allowed_beat_types`. If all candidates are filtered out, return empty (ruling handles null gracefully).
+
+b) **Ruling prompt** (`ruling_user.j2`) — Add phase context:
+
+```
+## Current Phase: {{ scene_phase }}
+## Allowed Beat Types: {{ allowed_beat_types }}
+```
+
+Compute `allowed_beat_types` in `ruling.py:_ruling_phase` using `derive_allowed_beat_types()` and pass it to `_ruling_messages`.
+
+**Files:** `world.py`, `ruling.py`, `ruling_user.j2`
+
+### Fix 3: Remove candidate_npcs from Scene Extractor Entirely
+
+**Root cause:** The scene extractor is an LLM step that re-derives psychological data (motivation, fear, leverage, bond) already structured in `state["compendium"]["npcs"]`. It fails ~20% of the time for no reason — the data is already there.
+
+**Solution:** Remove `candidate_npcs` from the scene extraction pipeline. World step reads directly from `state["compendium"]["npcs"]` for present NPCs, pulling their psychological fields. World can do its own relevance filtering based on `active_threads`, `recent_beats`, and `narration`.
+
+Benefits:
+- No LLM step, no empty results
+- No redundancy with compendium data
+- Eliminates the ~20% failure rate
+- Simplifies the pipeline (one fewer LLM dependency)
+
+**Files:** `world.py`, `world_user.j2`, scene extraction prompts (remove candidate_npcs output)
+
+### Fix 4: World Prompt — Group Hints by NPC
+
+**Current:** Flat list of `(id, type, effect)` tuples. LLM treats them independently.
+
+**Proposed:** Group by NPC ID. Each NPC's psychological fields rendered together so the LLM sees the full profile at a glance:
+
+```
+## Candidate NPCs
+
+### paul_bautista
+- motivation: Paul wants to maintain his standing with the crew
+- leverage: Paul knows where evidence is stashed
+
+### marcus_vale
+- fear: Marcus fears exposure to the syndicate
+```
+
+This makes blending the natural structure — the LLM sees "here's Paul's full profile, combine it" rather than "here's a soup of hints, pick some."
+
+**File:** `world_user.j2`
+
+---
+
 ## Recommendations
 
-1. **Fix phase transition volatility** — Add smoothing to convergence score (moving average over 3-5 turns) and hysteresis (different thresholds for entering vs exiting each phase). This is the highest priority finding.
-2. **Fix phase-narrative mismatch** — Investigate why RESOLUTION/BREATHER is assigned during peak action sequences. May require checking if thread urgency is being incorrectly cleared or if the convergence score is being reset prematurely.
-3. **B-10 needs live UI validation** — not testable via evals
-4. **B-20 appears fixed** — no duplicates in 3 runs
-5. **Engine is stable** — no critical or intermediate bugs unfixed. Ready for next phase of development.
+1. **Fix phase transition volatility** (Fix 1) — Rolling avg + hysteresis. Highest priority.
+2. **Fix phase constraint enforcement** (Fix 2) — Python-level filtering in world + phase context in ruling.
+3. **Remove candidate_npcs from scene extractor** (Fix 3) — Read psychological fields directly from compendium.
+4. **Group hints by NPC in world prompt** (Fix 4) — Improves blending behavior.
+5. **B-10 needs live UI validation** — not testable via evals
+6. **B-20 appears fixed** — no duplicates in 3 runs
+7. **Engine is stable** — no critical or intermediate bugs unfixed. Ready for next phase of development.
 
 ---
 

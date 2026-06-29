@@ -1,6 +1,6 @@
 ---
 title: Thread Add Creates Duplicate IDs — Storyteller Reuses Active IDs
-status: testing
+status: done
 urgency: 2
 size: medium
 created: 2026-06-24

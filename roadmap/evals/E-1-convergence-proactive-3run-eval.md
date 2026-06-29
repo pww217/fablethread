@@ -1,6 +1,6 @@
 ---
 title: "Convergence-proactive plan: 3-run eval findings (noir, allied, zombie)"
-status: testing
+status: done
 created: 2026-06-27
 ticket_id: E-1
 labels:

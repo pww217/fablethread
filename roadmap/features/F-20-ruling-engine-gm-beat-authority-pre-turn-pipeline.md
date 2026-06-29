@@ -1,6 +1,6 @@
 ---
 title: "Ruling Engine GM Beat Authority & Pre-Turn Pipeline"
-status: up-next
+status: done
 urgency: 3
 size: medium
 created: 2026-06-24

@@ -1,6 +1,6 @@
 ---
 title: "General LLM client improvements: Ollama native API support, dual backend, call site consolidation"
-status: testing
+status: done
 urgency: 1
 size: small
 created: 2026-06-28
