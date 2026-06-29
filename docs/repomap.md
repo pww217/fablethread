@@ -9,16 +9,16 @@
 | `ccya/models/` | Pydantic models: state, extraction, rules, config, compactor |
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
-| `ccya/engine/config.py` | EngineConfig dataclass (fields: roll_starvation_threshold, threat_density_threshold, stall_floor_max, extension_max, convergence_threshold, climax_turn_limit, etc.); CheckerConfig threshold fields; turn lock management; Jinja env setup |
+| `ccya/engine/config.py` | EngineConfig dataclass (fields: convergence_alpha, convergence_enter_threshold, convergence_exit_threshold, RISING_min, CLIMAX_min, BREATHER_min, roll_starvation_threshold, threat_density_threshold, extension_max, climax_turn_limit, etc.); CheckerConfig threshold fields; turn lock management; Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() orchestrator; pipeline (rules→narrate→scene/state/record); end-of-turn async phases (Sanitize + World) after yield("complete"); deferred atomic write block with last_turn_state capture (appended after async window); extraction_event includes world data under extraction.world |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
 | `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay, TTL condition expiration (_expire_conditions); LongTermObjective.started_turn on arc resolve |
-| `ccya/engine/_pacing.py` | Beat constraints, 6-component convergence score (+stall_floor externally), spiral detection; `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls) -> tuple[int, dict[str, int]]`; `_compute_scene_phase(state, ages, config, total_convergence_score, turn_no)` |
-| `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context; convergence score computation + stall_floor tracking via `consecutive_low_convergence`; pure reader of `state.meta.pending_gm_beat` |
-| `ccya/engine/world.py` | World: async beat-candidate generation (Step 2d). Reads NPC profiles from compendium via `build_npc_roster()`; validates each candidate via `GMBeat`; strips to `{type, effect, npcs}` for ruling; returns (candidates, system_text, user_text, raw_response) for event recording; runs after Sanitize, before generator returns |
+| `ccya/engine/_pacing.py` | Beat constraints, 6-component convergence score (urgent_thread 0-2 count-capped); `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls) -> tuple[int, dict[str, int]]`; `_compute_scene_phase(state, ages, config, smoothed_convergence, turn_no)` |
+| `ccya/engine/narrate.py` | Narration: prompt building, streaming, arc context; convergence score computation + EMA smoothing; pure reader of `state.meta.pending_gm_beat` |
+| `ccya/engine/world.py` | World: async beat-candidate generation (Step 2d). Reads NPC profiles from compendium via `build_npc_roster()`; validates each candidate via `GMBeat`; filters against `allowed_beat_types` (phase constraint); strips to `{type, effect, npcs}` for ruling; returns (candidates, system_text, user_text, raw_response) for event recording; runs after Sanitize, before generator returns |
 | `ccya/engine/pack_gen.py` | LLM-generated ScenarioBrief → packs/custom/ |
 | `ccya/engine/names.py` | Name pool generation via Faker |
-| `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; pc.situation in ruling context; index-based beat selection from `state.meta.beat_candidates`; sets/pops `state.meta.pending_gm_beat` and `state.meta.beat_candidates` per turn |
+| `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; pc.situation in ruling context; index-based beat selection from `state.meta.beat_candidates`; validates selected beat type against `allowed_beat_types` (phase constraint); sets/pops `state.meta.pending_gm_beat` and `state.meta.beat_candidates` per turn |
 | `ccya/engine/extraction/` | Scene/state/record extraction pipeline (3 streams); `gm_beat` field removed from `StorytellerResult`; `candidate_npcs` removed from `SceneExtractResult`; `pacing_context` removed from pipeline signature (World reads directly from turn.py); `rules_outcome` replaced with `band` parameter |
 | `ccya/engine/hints.py` | Hint generation for ruling context (pc.situation) |
 | `ccya/engine/thread_sanitizer.py` | Batch arc/thread cleanup every N turns; atomic world_state swap |
@@ -59,6 +59,7 @@
 | `ccya/ev/checkers/` | Checker framework: @register_checker, 28 deterministic + 3 LLM checkers |
 | `ccya/ev/checkers/ruling.py` | Ruling checkers: `ruling_reason_quality`, `ruling_band_distribution`, `ruling_intent_match` |
 | `ccya/ev/checkers/convergence.py` | Convergence checker: `convergence_components` |
+| `ccya/ev/checkers/pacing_convergence.py` | Phase transition signals, convergence recomputation (6 components, no stall_floor), curtain_call, directive-beat alignment |
 | `ccya/ev/checkers/state.py` | State checkers: `location_description_consistency`, `world_state_facts` |
 | `ccya/personality.py` | NpcPersonality dataclass; 12 archetype registry; assign_personality() |
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed or scenario; PackManifest.checkers for pack-level checker overrides |

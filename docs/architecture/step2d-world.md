@@ -67,7 +67,7 @@ yield ("phase", {"phase": "world_done"})
 | `narration` | passed in from `run_turn` |
 | `pacing_context` | passed in from `run_turn` |
 | `recent_beats` | `state.meta.recent_beats` |
-| `allowed_beat_types` | `derive_allowed_beat_types(scene_phase, directive, spiral_detected)` |
+| `allowed_beat_types` | `derive_allowed_beat_types(scene_phase, directive)` |
 | `rules_outcome.band` | (optional) used for roll-band guidance |
 
 World reads NPC profiles directly from the compendium via `build_npc_roster()`, filtering to `presence in ["present", "nearby"]`. Beat generation follows priority order: cross-NPC blending → NPC/Thread blending → single-NPC depth → environmental.

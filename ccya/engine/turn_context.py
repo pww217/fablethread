@@ -34,7 +34,7 @@ class TurnContext:
 
     intent: IntentEnvelope | None = None
     outcome: RulesOutcome | None = None
-    _spiral_detected: bool = False
+
     _selected_beat: Any = None
 
 
@@ -44,7 +44,7 @@ class PacingContext:
     directive: str  # "Scene Imperative" | "Scene Pressure" | ""
     outcome_hint: str | None  # narrator's primary scene motion instruction
     summary: str  # human-readable log string, never sent to LLM
-    spiral_detected: bool = False  # death spiral flag from recent roll history
-    convergence_score: int = 0  # convergence score for RISING→CLIMAX transition (6 components + stall_floor)
+
+    convergence_score: int = 0  # convergence score for RISING→CLIMAX transition (6 components, EMA smoothed)
     convergence_components: dict[str, int] = field(default_factory=dict)
     convergence_threads: list[dict[str, Any]] = field(default_factory=list)  # threads used for convergence computation

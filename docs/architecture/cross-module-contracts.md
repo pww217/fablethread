@@ -38,10 +38,10 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ## Computation functions (Phase 06b)
 
 - `_compute_narration_directive(scene_phase, thread_urgency_count, effective_scene_age, ...)` — purely age-based priority stack: Scene Imperative → Scene Pressure → empty. Removed Overwhelm/Pressure/Tension/Breathe directives (handled by phase).
-- `_compute_pacing_context(scene_phase, thread_urgency_count, effective_scene_age, ...)` — returns PacingContext with directive, outcome_hint, spiral_detected, convergence_score, climax_turn_count fields.
+- `_compute_pacing_context(scene_phase, thread_urgency_count, effective_scene_age, ...)` — returns PacingContext with directive, outcome_hint, convergence_score fields.
 - `_compute_scene_phase(state, ages, config, convergence_score=0)` — 5-state phase machine (SETUP→RISING→CLIMAX→RESOLUTION→BREATHER), mutates state["scene"] in place. RISING→CLIMAX transition driven by convergence_score ≥ threshold. climax_turn_count tracked in state["scene"].
 - `_compute_ages(state)` returns only `{"scene_age": scene_age}` — location_age and combat_age removed in Phase 03 pacing overhaul; effective_scene_age set in _ruling_phase() by adding combat boost to scene_age.
-- `ccya/engine/_pacing.py` — BEAT_PHASE_MAP, BEAT_BUCKETS, detect_spiral(), derive_allowed_beat_types(directive=, spiral_detected=), compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls) → tuple[int, dict[str, int]] — beat constraint derivation with directive/spiral overrides, 6-component convergence score for RISING→CLIMAX transition. `detect_spiral()` uses rolling window of recent roll bands, configurable consecutive/ratio thresholds. `BEAT_BUCKETS` groups beat types into pressure/situation/relief functional buckets for phase-based filtering.
+- `ccya/engine/_pacing.py` — BEAT_PHASE_MAP, BEAT_BUCKETS, derive_allowed_beat_types(directive=), compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls) → tuple[int, dict[str, int]] — beat constraint derivation with directive overrides, 6-component convergence score for RISING→CLIMAX transition. `BEAT_BUCKETS` groups beat types into pressure/situation/relief functional buckets for phase-based filtering.
 
 ## Token budget cascade
 

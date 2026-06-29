@@ -30,57 +30,21 @@ BEAT_PHASE_MAP: dict[str, list[str]] = {
 }
 
 
-def detect_spiral(
-    recent_rolls: list[dict[str, Any]],
-    consecutive_hard_threshold: int = 3,
-    hard_ratio_threshold: tuple[int, int] = (3, 5),
-) -> bool:
-    """Return True if the rolling window shows a spiral: N consecutive hard+
-    rolls, or M of the last N rolls are hard+.
-
-    recent_rolls is ordered most-recent-first.
-    """
-    hard_bands = {"hard", "extreme"}
-
-    # Check consecutive threshold: first N rolls all hard+
-    if len(recent_rolls) >= consecutive_hard_threshold:
-        consec = all(r.get("band") in hard_bands for r in recent_rolls[:consecutive_hard_threshold])
-        if consec:
-            return True
-
-    # Check ratio threshold: M of last N hard+
-    ratio_n, ratio_m = hard_ratio_threshold
-    if len(recent_rolls) >= ratio_n:
-        hard_count = sum(1 for r in recent_rolls[:ratio_n] if r.get("band") in hard_bands)
-        if hard_count >= ratio_m:
-            return True
-
-    return False
-
-
 def derive_allowed_beat_types(
     scene_phase: str,
     *,
     directive: str = "",
-    spiral_detected: bool = False,
 ) -> list[str]:
     """Return the list of allowed beat types for the given scene phase.
 
     Priority order:
     1. Scene Imperative directive → situation-changers + opportunity
-    2. Spiral detected → phase defaults minus pressure bucket
-    3. Fallback → phase defaults
+    2. Fallback → phase defaults
     """
     if directive == "Scene Imperative":
         return ["revelation", "hazard", "callback", "opportunity", "setback", "breathing_room"]
 
-    base = BEAT_PHASE_MAP.get(scene_phase, list(BEAT_PHASE_MAP["SETUP"]))
-
-    if spiral_detected:
-        pressure_types = set(BEAT_BUCKETS["pressure"])
-        return [b for b in base if b not in pressure_types]
-
-    return base
+    return BEAT_PHASE_MAP.get(scene_phase, list(BEAT_PHASE_MAP["SETUP"]))
 
 
 def compute_convergence_score(
@@ -95,25 +59,24 @@ def compute_convergence_score(
 ) -> tuple[int, dict[str, int]]:
     """Compute a 6-component convergence score for RISING→CLIMAX transition.
 
-    Components: urgent_thread (+2), threat_thread (+1), scene_age (+1), beat_streak (+1),
+    Components: urgent_thread (0-2), threat_thread (+1), scene_age (+1), beat_streak (+1),
     roll_starvation (+1), threat_density (+1). Total: 7.
     Threshold is config.convergence_threshold (default 3).
     Returns (score, components_dict) where components_dict has keys:
     urgent_thread, threat_thread, scene_age, beat_streak, roll_starvation, threat_density.
-    stall_floor is computed externally by the caller from consecutive_low_convergence.
     Dormant threads are excluded from all components.
     """
     score = 0
     components: dict[str, int] = {}
 
-    # Component 1: any urgent thread (+2)
-    any_urgent = any(
-        t.get("urgency") == "urgent" and not t.get("dormant", False)
-        for t in active_threads
+    # Component 1: urgent thread count (0-2, capped)
+    urgent_count = sum(
+        1 for t in active_threads
+        if t.get("urgency") == "urgent" and not t.get("dormant", False)
     )
-    if any_urgent:
-        score += 2
-    components["urgent_thread"] = 2 if any_urgent else 0
+    urgent_capped = min(urgent_count, 2)
+    score += urgent_capped
+    components["urgent_thread"] = urgent_capped
 
     # Component 2: active threat (+1)
     any_threat = any(
@@ -220,11 +183,11 @@ def _compute_pacing_context(
     if effective_scene_age >= scene_imperative_threshold:
         outcome_hint = "transition"
 
-    if scene_phase == "CLIMAX" and climax_turn_count >= config.climax_turn_limit:
+    if scene_phase == "CLIMAX" and config and climax_turn_count >= config.climax_turn_limit:
         outcome_hint = "transition"
 
     # Convergence score hard gate — cannot be overridden by LLM scene_motion
-    if convergence_score >= config.convergence_threshold and scene_phase in ("SETUP", "RISING"):
+    if config and convergence_score >= config.convergence_enter_threshold and scene_phase in ("SETUP", "RISING"):
         outcome_hint = "transition"
 
     # Build summary for logging
@@ -296,7 +259,7 @@ def _compute_scene_phase(
             turns_in_phase = 0
 
     elif phase == "RISING":
-        if total_convergence_score >= config.convergence_threshold:
+        if total_convergence_score >= config.convergence_enter_threshold:
             phase = "CLIMAX"
             climax_turn_count = 1
             turns_in_phase = 0
@@ -309,7 +272,7 @@ def _compute_scene_phase(
             ct for ct in (state.get("arc") or {}).get("completed_threads", [])
             if ct.get("resolved_turn") == turn_no - 1
         )
-        if thread_resolved_prev_turn and total_convergence_score < 2:
+        if thread_resolved_prev_turn and total_convergence_score < config.convergence_exit_threshold:
             phase = "RESOLUTION"
             climax_turn_count = 0
             turns_in_phase = 0

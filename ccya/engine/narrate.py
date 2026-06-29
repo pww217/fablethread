@@ -12,7 +12,6 @@ from ccya.engine._pacing import (
     _compute_pacing_context,
     _compute_scene_phase,
     compute_convergence_score,
-    detect_spiral,
 )
 from ccya.models import ArcThread, RulesOutcome
 from ccya.engine.hints import compute_arc_pressure_score
@@ -149,9 +148,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     state = ctx.state
     config = ctx.config
 
-    # Reset consecutive_low_convergence on cancel/retry (design: resets on cancel/retry)
     if is_cancel_requested(str(ctx.save_dir)):
-        state.setdefault("meta", {}).pop("consecutive_low_convergence", None)
         return None, None
 
     turn_no = state.get("meta", {}).get("turn", 0) + 1
@@ -212,25 +209,17 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         recent_rolls=state.get("meta", {}).get("recent_rolls", []),
     )
 
-    # Stall floor + consecutive_low_convergence tracking
+    # EMA smoothing on convergence score
     meta = state.setdefault("meta", {})
-    clc = meta.get("consecutive_low_convergence", 0)
-    if _convergence_score < config.convergence_threshold:
-        clc += 1
-        meta["consecutive_low_convergence"] = clc
+    if "smoothed_convergence" in meta:
+        prev_smoothed = meta["smoothed_convergence"]
+        smoothed_convergence = config.convergence_alpha * _convergence_score + (1 - config.convergence_alpha) * prev_smoothed
     else:
-        clc = 0
-        meta.pop("consecutive_low_convergence", None)
-
-    stall_floor = 0
-    if clc >= 3:
-        stall_floor = min(1 + ((clc - 3) // 3), config.stall_floor_max)
-    _convergence_components["stall_floor"] = stall_floor
-
-    total_convergence_score = _convergence_score + stall_floor
+        smoothed_convergence = float(_convergence_score)
+    meta["smoothed_convergence"] = smoothed_convergence
 
     # Compute phase (mutates state["scene"] in place)
-    state["scene"] = _compute_scene_phase(state, ctx._ages, config, total_convergence_score, turn_no)
+    state["scene"] = _compute_scene_phase(state, ctx._ages, config, smoothed_convergence, turn_no)
     scene_phase = state["scene"].get("scene_phase", "SETUP")
 
     # Compute unified pacing context with new signal set
@@ -244,18 +233,10 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         scene_imperative_threshold=config.scene_imperative_threshold,
         climax_turn_count=state["scene"].get("climax_turn_count", 0),
         config=config,
-        convergence_score=total_convergence_score,
+        convergence_score=smoothed_convergence,
     )
 
-    # Compute death spiral flag from recent roll history
-    recent_rolls = state.get("meta", {}).get("recent_rolls", [])
-    ctx._spiral_detected = detect_spiral(
-        recent_rolls,
-        consecutive_hard_threshold=config.spiral_consecutive_hard,
-        hard_ratio_threshold=config.spiral_hard_ratio,
-    )
-    _pc.spiral_detected = ctx._spiral_detected
-    _pc.convergence_score = total_convergence_score
+    _pc.convergence_score = smoothed_convergence
     _pc.convergence_components = _convergence_components
     _pc.convergence_threads = _raw_thread_dicts
 

@@ -33,7 +33,7 @@ Cross-reference mapping every user template to its section includes and context 
 
 **Section includes:** `_pc_header.j2`, `_conditions.j2`, `_inventory.j2`, `_location.j2`, `_npc_roster.j2`, `_thread_list.j2`, `_recent_turns.j2`, `_arc.j2`, `_world_state.j2`
 
-**Inline (not section):** Scene context, immutable reference block, prior history, past resolutions, rules outcome, beat/outcome/spiral hints
+**Inline (not section):** Scene context, immutable reference block, prior history, past resolutions, rules outcome, beat/outcome hints
 
 ### `_extract_scene_messages()` → `extract_scene_user.j2`
 

@@ -89,7 +89,3 @@ Narrate the attempt and its natural failure. Do NOT write a version where the ac
 **Outcome:** {{ pacing_context.outcome_hint }}
 {% if pacing_context.outcome_hint == "advance" %}Narrate through to the resolution. Do not linger on preparation or setup. Something significant happens this turn.{% elif pacing_context.outcome_hint == "transition" %}Show the character's active departure from the current scene (chase, retreat, discovery pulling them elsewhere) and begin the new scene upon arrival.{% elif pacing_context.outcome_hint == "hold" %}Continue the current scene at its natural pace.{% else %}Continue the scene.{% endif %}
 {% endif %}
-{%- if pacing_context and pacing_context.spiral_detected %}
-
-**Spiral:** The player is in a downward spiral. Write an exit vector — a way through, a revelation, or a shift in circumstances.
-{% endif %}

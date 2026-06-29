@@ -55,13 +55,12 @@ for ev in events:
 {
     "directive": str,              # Phase-driven priority: "Scene Imperative" | "Scene Pressure" | ""
     "outcome_hint": str | None,    # "hold" | "advance" | "transition"
-    "spiral_detected": bool,       # Set by detect_spiral() from recent roll history
     "summary": str,                # Human-readable pacing log
     "scene_phase": str,            # SETUP | RISING | CLIMAX | RESOLUTION | BREATHER
     "climax_turn_count": int,      # Turns spent in CLIMAX
     "breather_turn_count": int,    # Turns spent in BREATHER
-    "convergence_score": int,      # 0-5, for RISING→CLIMAX transition
-    "convergence_components": dict, # 5 sub-keys: urgent_thread, threat_thread, scene_age, beat_streak, dice_weight
+    "convergence_score": int,      # 0-7, EMA-smoothed, for RISING→CLIMAX transition
+    "convergence_components": dict, # 6 sub-keys: urgent_thread (0-2), threat_thread, scene_age, beat_streak, roll_starvation, threat_density
 }
 ```
 
