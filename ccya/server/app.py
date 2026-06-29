@@ -78,7 +78,6 @@ except Exception as exc:
     raise
 
 _dynamic_opening: str = ""
-_dynamic_opening_actions: list[str] = []
 _dynamic_opening_outcome: str = ""
 
 @asynccontextmanager
