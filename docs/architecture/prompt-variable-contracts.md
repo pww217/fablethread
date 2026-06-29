@@ -63,7 +63,7 @@ Cross-reference mapping every user template to its section includes and context 
 
 ### `_run_world_step()` → `world_user.j2`
 
-**Context vars passed:** `candidate_npcs`, `arc` (threads), `pacing_context`, `recent_beats`, `allowed_beat_types`, `rules_outcome`, `narration`
+**Context vars passed:** `npc_roster` (from compendium via `build_npc_roster()`), `arc` (threads), `pacing_context`, `recent_beats`, `allowed_beat_types`, `rules_outcome`, `narration`
 
 **Section includes:** none (World is a self-contained prompt with no shared section includes)
 

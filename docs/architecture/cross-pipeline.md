@@ -25,7 +25,7 @@ flowchart TD
     STATE -- "pc, inventory, compendium" --> STEP2A
     STATE -- "pc, inventory, conditions" --> STEP2B
     STATE -- "arc.threads, compendium" --> STEP2C
-    STEP2A -- "compendium_npc_update, candidate_npcs" --> STEP2D
+    STEP2A -- "compendium_npc_update" --> STEP2D
     STEP2B -- "location_change" --> STEP2C
     STEP2A & STEP2B & STEP2C -- "merge" --> DELTA["StateDelta"]:::mergeNode
     DELTA -- "validate + apply" --> STATE

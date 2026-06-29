@@ -12,7 +12,7 @@ from typing import Any
 from jinja2 import Environment
 
 from ccya.engine.config import EngineConfig
-from ccya.engine.extraction.context import _build_extraction_context
+from ccya.engine.extraction.context import _ExtractionContext, _build_extraction_context
 from ccya.engine.extraction.scene import _extract_scene_messages
 from ccya.engine.extraction.state import _extract_state_messages
 from ccya.engine.extraction.record import _record_messages
@@ -23,7 +23,6 @@ from ccya.llm_client import trim_messages
 from ccya.models import (
     CompendiumNpcUpdate,
     IntentEnvelope,
-    RulesOutcome,
     SceneExtractResult,
     StateDelta,
     StateExtractResult,
@@ -38,19 +37,19 @@ async def _run_extraction_pipeline(
     state: dict[str, Any],
     narration: str,
     *,
-    rules_outcome: "RulesOutcome | None" = None,
     intent: "IntentEnvelope | None" = None,
     config: "EngineConfig",
     trace_id: str,
     turn_no: int,
-    pacing_context: Any | None = None,
+    band: str = "",
     recent_turns: list[dict[str, Any]] | None = None,
     packing: dict[str, Any] | None = None,
-) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'StorytellerResult', 'SceneExtractResult']]":
+) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'StorytellerResult', 'SceneExtractResult', '_ExtractionContext']]":
     _log.debug("extraction.pipeline.start trace_id=%s turn_no=%d", trace_id, turn_no)
     """Run the three extraction streams in sequence.
 
-    Returns: (merged_delta, actions, outcome_summary, per_stream_event_data, record_result, scene_result)
+    Returns: (merged_delta, actions, outcome_summary, per_stream_event_data, record_result, scene_result, extraction_ctx)
+    `band` is extracted from `rules_outcome` at the call site and passed directly.
     """
 
     _SKIPPED: dict[str, Any] = {
@@ -194,7 +193,6 @@ async def _run_extraction_pipeline(
     # --- Stream 3: Record (always runs — post-narration backward-looking scribe) ---
     yield ("phase", {"phase": "extract_stream_start", "stream": "record"})
     t_record = asyncio.get_event_loop().time()
-    _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
     # Build this-turn context from scene + state results for the record stream
     extraction_ctx = _build_extraction_context(state, scene_result, state_result)
     record_msgs = _record_messages(
@@ -202,7 +200,7 @@ async def _run_extraction_pipeline(
         extraction_ctx=extraction_ctx,
         recent_turns=(recent_turns or [])[-10:],
         turn_no=turn_no,
-        band=_band,
+        band=band,
         arc_ttl=config.arc_memory_ttl,
         config=config,
     )
