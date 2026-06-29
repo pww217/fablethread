@@ -43,10 +43,10 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 | From | To | Condition |
 |------|-----|-----------|
 | SETUP | RISING | Urgent thread appears OR turns_in_phase ≥ 3 (3-turn TTL prevents stagnation) |
-| RISING | CLIMAX | convergence_score ≥ threshold (default 2) |
-| CLIMAX | RESOLUTION | Signal-gated exit: (a) early exit on thread resolution + low convergence (< 2), (b) extension on sustained pressure (convergence ≥ 3 + urgent active thread, hard cap at limit + extension_max), (c) default timeout at limit |
+| RISING | CLIMAX | smoothed_convergence ≥ enter_threshold (default 3) AND turns_in_phase ≥ RISING_min (default 3) |
+| CLIMAX | RESOLUTION | Signal-gated exit: (a) early exit on thread resolution + low convergence (< exit_threshold, default 1) AND min_turns (CLIMAX_min, default 3), (b) extension on sustained pressure (smoothed_convergence ≥ 3 + urgent active thread, hard cap at limit + extension_max), (c) default timeout at limit |
 | RESOLUTION | BREATHER | Always (1-turn transition) |
-| BREATHER | RISING | Urgent thread appears OR breather_max_turns elapsed |
+| BREATHER | RISING | (Urgent thread appears OR breather_max_turns elapsed) AND turns_in_phase ≥ BREATHER_min (default 2) |
 
 ### Convergence score
 
@@ -358,9 +358,9 @@ T6:  normal climax rhythm continues
 | `convergence_alpha` | 0.4 | Convergence | EMA smoothing factor for convergence score |
 | `convergence_enter_threshold` | 3 | Phase Engine | Convergence score needed for RISING→CLIMAX transition |
 | `convergence_exit_threshold` | 1 | Phase Engine | Convergence score for CLIMAX early exit |
-| `RISING_min` | 3 | Phase Engine | Minimum turns in RISING phase |
-| `CLIMAX_min` | 3 | Phase Engine | Minimum turns in CLIMAX phase |
-| `BREATHER_min` | 2 | Phase Engine | Minimum turns in BREATHER phase |
+| `RISING_min` | 3 | Phase Engine | Minimum turns in RISING phase before transition |
+| `CLIMAX_min` | 3 | Phase Engine | Minimum turns in CLIMAX phase before early exit |
+| `BREATHER_min` | 2 | Phase Engine | Minimum turns in BREATHER phase before transition |
 | `climax_turn_limit` | 4 | Phase Engine | Base turns in CLIMAX before RESOLUTION (signal-gated exit) |
 | `extension_max` | 2 | Phase Engine | Additional CLIMAX turns beyond limit on sustained pressure |
 | `roll_starvation_threshold` | 3 | Convergence | Turns without a roll before +1 convergence |
@@ -385,7 +385,8 @@ T6:  normal climax rhythm continues
 | `_compute_narration_directive()` | `_pacing.py` | 145-168 | scene_age → directive (Scene Imperative purely age-based) |
 | `_compute_pacing_context()` | `_pacing.py` | 171-205 | scene_phase + urgency + age → PacingContext |
 | `_compute_ages()` | `_pacing.py` | 208-219 | Scene age computation |
-| `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls)` | `_pacing.py` | 60-127 | 6-component score (urgent_thread 0-2 count-capped, any_threat, scene_age, beat_streak with carry-over, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
+| `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls)` | `_pacing.py` | 50-127 | 6-component score (urgent_thread 0-2 count-capped, any_threat, scene_age, beat_streak with carry-over, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
+| `_compute_scene_phase(state, ages, config, smoothed_convergence, turn_no)` | `_pacing.py` | 218-318 | Phase transitions with hysteresis (enter/exit thresholds) and min_turns gates |
 | `derive_allowed_beat_types()` | `_pacing.py` | 61-73 | Phase + directive → allowed beat types |
 | `sanitize_threads()` | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
 
