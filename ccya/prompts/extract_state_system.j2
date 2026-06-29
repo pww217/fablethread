@@ -4,12 +4,17 @@ The extractor's job is to reconcile the condition and inventory tables against t
 
 ## STEP 0 — Decide first, output second
 
-Before examining the narration for specific items, answer this question: **Did the player GAIN, LOSE, or MODIFY an item this turn?**
+Before examining the narration for specific items, answer these questions in order:
 
-- If NO → output `inventory_change_reason: "none"` and omit `inventory_add`, `inventory_remove`, `inventory_update`.
-- If YES → output `inventory_change_reason` with a one-phrase reason, then populate the relevant fields.
+**Q1: Did conditions change this turn?** (PC gained, lost, or modified a condition)
+- If YES → `condition_change_reason` is REQUIRED. You MUST populate it with a one-phrase reason BEFORE outputting any condition fields. If you omit this field when conditions changed, extraction fails and the turn is retried.
+- If NO → `condition_change_reason: "none"`. Omit all condition fields.
 
-This decision comes FIRST. The reason field is the anchor — you must commit to whether inventory changed before you decide what changed.
+**Q2: Did the player GAIN, LOSE, or MODIFY an item this turn?**
+- If NO → `inventory_change_reason: "none"` and omit `inventory_add`, `inventory_remove`, `inventory_update`.
+- If YES → `inventory_change_reason` with a one-phrase reason, then populate the relevant fields.
+
+These decisions come FIRST. The reason fields are anchors — you must commit to whether changes occurred before you decide what changed.
 
 ## Narration is the sole authority
 
@@ -101,7 +106,7 @@ Ammo is individual rounds. "Shot"→-1, "burst"→2-4. Reloading→no change.
 `condition_change_reason` is the anchor for condition changes. You must decide whether conditions changed BEFORE you populate any other fields.
 
 - If conditions changed (any of `pc_condition_add`, `pc_condition_remove` is non-empty): `condition_change_reason` is REQUIRED. State why conditions changed this turn in one short phrase. Examples: "Player received medical attention", "Injury healed after rest", "PC took a head wound". One reason covering all condition changes this turn.
-  ⚠️ If you omit this field, the extraction will fail and the turn will be retried.
+  ⚠️ **FAILURE WARNING:** If you output `pc_condition_add` or `pc_condition_remove` without `condition_change_reason`, extraction fails with `ValueError`. The turn will be retried. Always include this field when conditions change.
 - If conditions did NOT change: `condition_change_reason: "none"`. Omit all condition fields.
 
 ## Field rules

@@ -37,22 +37,29 @@ LLM extraction steps produce invalid or incomplete state data across multiple fi
 **Fix:** Added `"npcs": ["npc_id_1", "npc_id_2"]` to schema
 **Files:** `ccya/prompts/world_system.j2`
 
-## Remaining Items
-
 ### `condition_change_reason` missing when condition changes present
-**Status:** Open
-**Symptom:** `extract_state parse failed` with `ValueError: condition_change_reason is required when condition changes are present`
-**Frequency:** Observed in golden-piracy and allied-ww2 runs during Phase 3
-**Impact:** Retry succeeded (attempt 2/2), but indicates LLM output validation gap
+**Status:** Fixed via prompt update
 **Root cause:** LLM sometimes omits `condition_change_reason` when adding/removing conditions
-**Need to investigate:** Prompt guidance, validation in extraction pipeline
+**Fix:** 
+1. Moved condition decision to STEP 0 (Q1) — forces LLM to decide about conditions before outputting anything
+2. Added FAILURE WARNING to "Reason fields — REQUIRED" section: "If you output `pc_condition_add` or `pc_condition_remove` without `condition_change_reason`, extraction fails with `ValueError`. The turn will be retried."
+**Files:** `ccya/prompts/extract_state_system.j2`
 
 ### `npcs` field always empty in beats
-**Status:** Open
-**Symptom:** World prompt schema includes `npcs` field but LLM always outputs `[]`
-**Impact:** No functional impact yet — `npcs` field not used in ruling/narration phases
+**Status:** Fixed via prompt update
 **Root cause:** LLM not populating despite schema inclusion
-**Need to investigate:** Add explicit instruction to populate `npcs`, or defer until ruling/narration phases use the field
+**Fix:** Added explicit guidance with examples: "You MUST populate this field with actual NPC IDs — never emit an empty array unless the beat is purely environmental with no NPCs whatsoever." Added requirement that any NPC driving the beat via motivation/fear/leverage/bond MUST be in the `npcs` list.
+**Files:** `ccya/prompts/world_system.j2`
+
+## Remaining Items
+
+### `resolve_inventory_canonical_id no match`
+**Status:** Open
+**Symptom:** LLM-generated item IDs don't match canonical IDs in compendium
+**Frequency:** All 5 Phase 3 games
+**Severity:** Low — items still work, just logs warnings
+**Examples:** `military_canister`, `hf_jammer`, `merchant_guild_envelopes`, `militia_comm_device`, `canned_rations`, `medical_kit`, `military_insignia`, `blood_stained_canteen`, `brass_shell_casing`
+**Need to investigate:** Improve item ID canonicalization, strengthen prompt guidance for item naming
 
 ### `resolve_inventory_canonical_id no match`
 **Status:** Open
