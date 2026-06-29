@@ -259,7 +259,7 @@ def _compute_scene_phase(
             turns_in_phase = 0
 
     elif phase == "RISING":
-        if total_convergence_score >= config.convergence_enter_threshold:
+        if total_convergence_score >= config.convergence_enter_threshold and turns_in_phase >= config.RISING_min:
             phase = "CLIMAX"
             climax_turn_count = 1
             turns_in_phase = 0
@@ -272,7 +272,7 @@ def _compute_scene_phase(
             ct for ct in (state.get("arc") or {}).get("completed_threads", [])
             if ct.get("resolved_turn") == turn_no - 1
         )
-        if thread_resolved_prev_turn and total_convergence_score < config.convergence_exit_threshold:
+        if thread_resolved_prev_turn and total_convergence_score < config.convergence_exit_threshold and turns_in_phase >= config.CLIMAX_min:
             phase = "RESOLUTION"
             climax_turn_count = 0
             turns_in_phase = 0
@@ -302,7 +302,7 @@ def _compute_scene_phase(
 
     elif phase == "BREATHER":
         breather_turn_count += 1
-        if thread_urgency_count > 0 or breather_turn_count >= config.breather_max_turns:
+        if (thread_urgency_count > 0 or breather_turn_count >= config.breather_max_turns) and turns_in_phase >= config.BREATHER_min:
             phase = "RISING"
             breather_turn_count = 0
             turns_in_phase = 0

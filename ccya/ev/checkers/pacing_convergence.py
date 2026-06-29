@@ -62,36 +62,50 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
             prev_scene = prev_snap.get("scene") or {}
             prev_breather_turn_count = prev_scene.get("breather_turn_count", 0)
 
-        # SETUP→RISING: fires when urgent thread appears OR turns_in_phase >= 3
-        if i > 0:
-            prev_ev = filtered[i - 1]
-            prev_pc = extract_field(prev_ev, "pacing_context") or {}
-            prev_phase = prev_pc.get("scene_phase", "SETUP")
+            # SETUP→RISING: fires when urgent thread appears OR turns_in_phase >= 3
+            if i > 0:
+                prev_ev = filtered[i - 1]
+                prev_pc = extract_field(prev_ev, "pacing_context") or {}
+                prev_phase = prev_pc.get("scene_phase", "SETUP")
 
-            if prev_phase == "SETUP" and phase == "RISING":
-                has_urgent = prev_urgent_count > 0
-                # Read turns_in_phase from previous turn's scene (pacing_context
-                # turns_in_phase is post-transition, already reset to 0)
-                prev_scene = prev_snap.get("scene") or {}
+                if prev_phase == "SETUP" and phase == "RISING":
+                    has_urgent = prev_urgent_count > 0
+                    # Read turns_in_phase from previous turn's scene (pacing_context
+                    # turns_in_phase is post-transition, already reset to 0)
+                    prev_scene = prev_snap.get("scene") or {}
+                    prev_turns_in_phase = prev_scene.get("turns_in_phase", 0)
+                    reached_turn_threshold = prev_turns_in_phase + 1 >= 3
+                    if not has_urgent and not reached_turn_threshold:
+                        findings.append({
+                            "turn": turn_no,
+                            "check": "setup_rising_trigger",
+                            "detail": f"SETUP→RISING at turn {turn_no} without urgent thread (count={prev_urgent_count}) or turns_in_phase>=3 (prev_scene={prev_turns_in_phase})",
+                        })
+                        all_passed = False
+
+            # RISING→CLIMAX: fires when smoothed_convergence >= enter_threshold AND min_turns met
+            elif prev_phase == "RISING" and phase == "CLIMAX":
                 prev_turns_in_phase = prev_scene.get("turns_in_phase", 0)
-                reached_turn_threshold = prev_turns_in_phase + 1 >= 3
-                if not has_urgent and not reached_turn_threshold:
+                min_turns_met = prev_turns_in_phase + 1 >= cfg.RISING_min
+                convergence_met = convergence_score is not None and convergence_score >= cfg.convergence_enter_threshold
+                if not min_turns_met or not convergence_met:
                     findings.append({
                         "turn": turn_no,
-                        "check": "setup_rising_trigger",
-                        "detail": f"SETUP→RISING at turn {turn_no} without urgent thread (count={prev_urgent_count}) or turns_in_phase>=3 (prev_scene={prev_turns_in_phase})",
+                        "check": "rising_climax_trigger",
+                        "detail": f"RISING→CLIMAX at turn {turn_no} without min_turns (prev_turns_in_phase={prev_turns_in_phase}+1 >= {cfg.RISING_min}) or convergence>=enter_threshold (score={convergence_score} >= {cfg.convergence_enter_threshold})",
                     })
                     all_passed = False
 
             # CLIMAX→RESOLUTION: valid when either:
-            #   - early exit: thread resolved prev turn AND convergence < 2
+            #   - early exit: thread resolved prev turn AND convergence < exit_threshold AND min_turns met
             #   - hard cap: climax_turn_count >= limit
             elif prev_phase == "CLIMAX" and phase == "RESOLUTION":
                 thread_resolved_prev = any(
                     ct for ct in completed_threads
                     if ct.get("resolved_turn") == turn_no - 1
                 )
-                early_exit = thread_resolved_prev and (convergence_score is None or convergence_score < 2)
+                prev_turns_in_phase = prev_scene.get("turns_in_phase", 0)
+                early_exit = thread_resolved_prev and (convergence_score is None or convergence_score < cfg.convergence_exit_threshold) and (prev_turns_in_phase + 1 >= cfg.CLIMAX_min)
                 # Use previous turn's climax_turn_count since current turn's has been reset
                 # Engine increments at start of current turn, so prev + 1 is what gets checked
                 prev_climax_turn_count = prev_pc.get("climax_turn_count", 0)
@@ -136,9 +150,18 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
                 # This is always valid, no check needed
                 pass
 
-            # BREATHER→RISING: fires when urgent thread OR breather_turn_count >= breather_max_turns
+            # BREATHER→RISING: fires when urgent thread OR breather_turn_count >= breather_max_turns, AND min_turns met
             elif prev_phase == "BREATHER" and phase == "RISING":
-                if prev_urgent_count == 0 and prev_breather_turn_count < cfg.breather_max_turns:
+                prev_turns_in_phase = prev_scene.get("turns_in_phase", 0)
+                min_turns_met = prev_turns_in_phase + 1 >= cfg.BREATHER_min
+                if not min_turns_met:
+                    findings.append({
+                        "turn": turn_no,
+                        "check": "breather_rising_min_turns",
+                        "detail": f"BREATHER→RISING at turn {turn_no} without min_turns (prev_turns_in_phase={prev_turns_in_phase}+1 >= {cfg.BREATHER_min})",
+                    })
+                    all_passed = False
+                elif prev_urgent_count == 0 and prev_breather_turn_count < cfg.breather_max_turns:
                     findings.append({
                         "turn": turn_no,
                         "check": "breather_rising_trigger",
