@@ -38,13 +38,15 @@ def derive_allowed_beat_types(
     """Return the list of allowed beat types for the given scene phase.
 
     Priority order:
-    1. Scene Imperative directive → situation-changers + opportunity
+    1. Scene Imperative directive → phase defaults + situation-changers
     2. Fallback → phase defaults
     """
+    base = BEAT_PHASE_MAP.get(scene_phase, list(BEAT_PHASE_MAP["SETUP"]))
     if directive == "Scene Imperative":
-        return ["revelation", "hazard", "callback", "opportunity", "setback", "breathing_room"]
+        extra = ["revelation", "hazard", "callback", "opportunity", "setback", "breathing_room"]
+        return list(dict.fromkeys(base + extra))  # dedupe, preserve order
 
-    return BEAT_PHASE_MAP.get(scene_phase, list(BEAT_PHASE_MAP["SETUP"]))
+    return base
 
 
 def compute_convergence_score(
