@@ -251,7 +251,12 @@ def write_release_notes(version, date, commits):
     
     filepath = RELEASES_DIR / f"{version}.md"
     filepath.write_text("\n".join(lines))
-    print(f"  {version}: {len(commits)} commits → {filepath} ({len(sections['What\'s New'])} new, {len(sections['Engine Changes'])} engine, {len(sections['UI Changes'])} ui, {len(sections['Eval & Tooling'])} eval, {len(sections['Bug Fixes'])} bugs, {len(internal_commits)} internal)")
+    whats_new = sections["What's New"]
+    engine_changes = sections["Engine Changes"]
+    ui_changes = sections["UI Changes"]
+    eval_tooling = sections["Eval & Tooling"]
+    bug_fixes = sections["Bug Fixes"]
+    print(f"  {version}: {len(commits)} commits → {filepath} ({len(whats_new)} new, {len(engine_changes)} engine, {len(ui_changes)} ui, {len(eval_tooling)} eval, {len(bug_fixes)} bugs, {len(internal_commits)} internal)")
 
 
 def main():

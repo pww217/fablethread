@@ -264,7 +264,6 @@ def thread_culling(events: list[dict[str, Any]]) -> CheckerResult:
 
         if dormant_count >= 3:
             # Check if oldest dormant threads appear in completed_threads with abandoned
-            dormant_sorted = sorted(dormant_threads, key=lambda t: t.get("last_updated_turn") or t.get("added_turn") or 0)
             # At least some dormant threads should be in completed with abandoned
             abandoned_ids = {ct.get("id") for ct in completed if ct.get("resolution_state") == "abandoned"}
 
@@ -368,7 +367,6 @@ def thread_completion(events: list[dict[str, Any]]) -> CheckerResult:
         for t in threads:
             major_updates = t.get("major_updates") or []
             if len(major_updates) >= 3:
-                tid = t.get("id")
                 # Check if this thread should be completed
                 # (This is a soft check - threads can have many updates and still be active)
                 pass

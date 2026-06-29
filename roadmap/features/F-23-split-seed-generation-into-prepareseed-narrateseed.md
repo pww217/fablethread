@@ -6,6 +6,7 @@ size: medium
 created: 2026-06-24
 ticket_id: F-23
 design: docs/design/seed-two-step-design.md
+plan: plans/seed-two-step-plan.md
 related:
   - roadmap/features/pc-situation-reveal-over-time.md — gradual pc_situation reveal over turns 0-3 (prereq decision)
 labels:
