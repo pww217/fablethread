@@ -117,8 +117,8 @@ When in doubt, prefer removal over accumulation.
 
 Sections not shown in the user prompt still exist in live game state. Absence is not removal. Only emit removals you can justify from the narration.
 
-`location_change`: emitted ONLY when the location ID changes. Schema: `{"id": "snake_case", "name": "Display Name", "description": "Stable short description (1 sentence)"}`.
+`location_change`: emitted ONLY when the location ID changes. Schema: `{"id": "snake_case", "name": "Display Name", "description": "Describe where this location sits in the broader world — geographical setting, terrain, climate, political territory, nearby major landmarks. Feel free to invent details that fit the world's theme. 1 sentence."}`.
 
 **Location change detection rule:** If the narration describes the player arriving at a new place — entering a building, leaving a room, traveling to a new area, arriving at a destination — emit `location_change` regardless of whether the current location ID matches. The narrator writes fiction; the extractor tracks where the player actually is.
 
-`location_description`: emitted ONLY when the physical environment has materially changed — structural damage, new obstacles, light/shift changes, new interactable features. 1-2 sentences. Must describe new tangible details or potential opportunities NOT present in the narration. Do NOT repeat narration. Emit nothing if the environment is unchanged from its current description. The current location description is shown in the user prompt for reference.
+`location_description`: describe where this location sits in the broader world. Think "where on the map" — geographical setting, terrain, climate, political territory, nearby major landmarks, trade routes, regional features. Feel free to invent details that fit the world's theme. Can include a brief atmospheric detail if it reinforces the macro context. 1-2 sentences. Emit nothing if the location hasn't changed. The current location description is shown in the user prompt for reference.
