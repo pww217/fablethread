@@ -38,13 +38,6 @@
 {% endif %}
 {% if state and state.scene and state.scene.scene_phase %}
 ## Scene phase: {{ state.scene.scene_phase }}
-{% endif %}{% if curtain_call and curtain_call != "" %}
-## Curtain Call: {{ curtain_call | upper }}
-{% if curtain_call == "active" %}
-The main pressure thread should reach its conclusion this turn. Bring the climax home.
-{% elif curtain_call == "forced" %}
-FORCED: You must resolve the main pressure thread this turn. End the climax now.
-{% endif %}
 {% endif %}
 
 ## Prior History
