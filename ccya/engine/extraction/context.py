@@ -23,11 +23,6 @@ class _ExtractionContext:
     """Reference to post-delta compendium.npcs dict (not a copy)."""
     location_this_turn: dict[str, Any] = field(default_factory=dict)
     """Location dict after applying location_change from scene result (or state's if no change)."""
-
-    # Scene stream outputs (stream 1) — passed through to storytell
-    candidate_npcs: list[dict[str, Any]] = field(default_factory=list)
-    """Per-NPC beat candidates: [{"id": "npc_id", "type": "motivation|fear|leverage|bond|personality", "effect": "vague psychological pressure ~5 words"}, ...]"""
-
     # State stream outputs (stream 2)
     inventory_this_turn: list[dict[str, Any]] = field(default_factory=list)
     """inventory list after applying inventory_add/remove/update from state result."""
@@ -71,48 +66,7 @@ def _build_extraction_context(
     return _ExtractionContext(
         comp_this_turn=post_state.setdefault("compendium", {}).setdefault("npcs", {}),
         location_this_turn=location_this_turn,
-        candidate_npcs=_filter_unnamed_personality(scene_result.candidate_npcs or [], post_state),
         inventory_this_turn=list(post_state.get("inventory") or []),
         conditions_this_turn=list(post_pc.get("conditions") or []),
     )
 
-
-def _is_named(name: str) -> bool:
-    """Heuristic: a proper name has 2+ words with first and last capitalized."""
-    if not name:
-        return False
-    words = name.strip().split()
-    if len(words) < 2:
-        return False
-    first_word = words[0]
-    last_word = words[-1]
-    return bool(first_word and first_word[0].isupper() and last_word and last_word[0].isupper())
-
-
-def _filter_unnamed_personality(
-    candidates: list[dict[str, Any]],
-    state: dict[str, Any],
-) -> list[dict[str, Any]]:
-    """Strip personality type from candidate_npcs entries for unnamed NPCs.
-
-    Unnamed NPCs (name doesn't look like a proper name) should only have bio — they
-    cannot have personality, motivation, fear, leverage, or bond. If the
-    extractor incorrectly assigns personality to an unnamed NPC, remove it.
-    """
-    comp_npcs = (state.get("compendium") or {}).get("npcs", {})
-    result = []
-    for c in candidates:
-        npc_id = c.get("id", "")
-        npc_entry = comp_npcs.get(npc_id, {})
-        # Check if this NPC is unnamed: name doesn't look like a proper name
-        name = (npc_entry.get("name") or "").strip()
-        is_unnamed = name and not _is_named(name)
-        if is_unnamed and c.get("type") == "personality":
-            # Skip personality candidates for unnamed NPCs
-            _log.debug(
-                "candidate_npcs: stripping personality for unnamed NPC %s",
-                npc_id,
-            )
-            continue
-        result.append(c)
-    return result

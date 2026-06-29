@@ -20,8 +20,12 @@ PERSONA_REGISTRY_FILE = USER_CONFIG_DIR / "personas.yaml"
 
 @dataclass
 class EvConfig:
-    """EV/eval-specific settings."""
-    model: str = "mlx-community/gemma-4-26b-a4b-it-mxfp8"
+    """EV/eval-specific settings.
+    
+    Model precedence: CLI flag > session config > user config (~/.config/ccya/config.yaml) 
+    > engine config (config.yaml) > engine default (VladimirGav/gemma4-26b-16GB-VRAM:latest).
+    """
+    model: str | None = None
     turn_limit: int = 20
     sample_rate: float = 1.0
     checker_model: str = ""
@@ -67,7 +71,7 @@ def load_user_config() -> AppConfig:
     persona_raw = raw.get("persona", {})
 
     ev = EvConfig(
-        model=ev_raw.get("model", EvConfig.model),
+        model=ev_raw.get("model") if ev_raw.get("model") else None,
         turn_limit=int(ev_raw.get("turn_limit", EvConfig.turn_limit)),
         sample_rate=float(ev_raw.get("sample_rate", EvConfig.sample_rate)),
         checker_model=ev_raw.get("checker_model", EvConfig.checker_model),

@@ -111,8 +111,8 @@ class EngineConfig:
     #   runtime mutable:   Fields that can be changed mid-session via UI
     #                      config panels (future use). Currently none.
     #
-    host: str = "http://localhost:8080/v1"
-    model: str = "mlx-community/gemma-4-26b-a4b-it-mxfp8"
+    host: str = "http://10.75.100.51:11434/api/chat"
+    model: str = "VladimirGav/gemma4-26b-16GB-VRAM:latest"
     num_ctx: int = 16384
     request_timeout_s: int = 1200
     ruling_temperature: float = 0.2
@@ -216,6 +216,9 @@ def build_engine_config(
     Single source of truth for all field mappings. Both the server
     and the eval harness call this function.
 
+    Defaults: host=http://10.75.100.51:11434/api/chat, 
+    model=VladimirGav/gemma4-26b-16GB-VRAM:latest.
+
     Args:
         cfg: Raw config dict (output of ``load_config``).
         temperature_override: If set, uniformly override all temperature
@@ -258,8 +261,8 @@ def build_engine_config(
         _log.warning("build_engine_config: llm.model not configured, using default")
 
     return EngineConfig(
-        host=str(llm.get("host", "http://localhost:8080/v1")),
-        model=str(llm.get("model", "")),
+        host=str(llm.get("host", "http://10.75.100.51:11434/api/chat")),
+        model=str(llm.get("model", "VladimirGav/gemma4-26b-16GB-VRAM:latest")),
         num_ctx=int(llm.get("num_ctx", 16384)),
         context_window=int(llm.get("context_window", 16384)),
         request_timeout_s=int(llm.get("request_timeout_s", 1200)),

@@ -47,11 +47,12 @@ Scan narration for every proper name. For each:
 
 ### How to use compendium_npc_update
 
-- **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`position`.
+- **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. **Presence is REQUIRED for every NPC update — never omit it.** For known NPCs, only set `presence`/`position`.
 - **NPC behavior changes:** Update `position` with a brief situational cue reflecting their current stance toward the player.
 - **Durable identity updates:** Update `name`, `title`, `bio`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes. **EXCEPTION:** If an NPC was previously absent or known and the narration now places them in the scene or nearby, you MUST emit an update even if their other fields haven't changed.
 - **Re-promotion:** If an NPC was demoted to `nearby` by a location change but narration shows they followed, set `presence: "present"` — do NOT create a new compendium entry.
+- **Critical:** If an NPC is mentioned in the narration as being in the same scene as the player, you MUST set `presence: "present"` regardless of their current presence value. The location change demotion happens automatically — your job is to re-promote when the narration shows they followed.
 
 ### Party assignment
 

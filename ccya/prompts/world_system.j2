@@ -6,7 +6,7 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 
 ```json
 [
-  {"type": "complication|revelation|opportunity|breathing_room|pressure|twist|setback|escalation|callback", "effect": "..."}
+  {"type": "complication|revelation|opportunity|breathing_room|pressure|twist|setback|escalation|callback", "effect": "...", "npcs": ["npc_id_1", "npc_id_2"]}
 ]
 ```
 
@@ -19,6 +19,7 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
   4. **Environmental** — only when no NPCs are present or active.
 - **Action rule.** Every beat must show an NPC or the world taking action. Never start with "nothing happens" or "the atmosphere is tense." If no NPC is acting, show the environment reacting — a door slams, a light flickers, a sound carries.
 - **`effect` (required).** Short concrete sentence describing what is about to happen. Name NPCs, reference locations, tie to active threads. NOT a category label. NOT "ambient tension." If you cannot write a concrete sentence, omit that candidate.
+- **`npcs` (required).** List of NPC IDs involved in this beat. Include every NPC that is acting, reacting, or directly affected. Use their snake_case IDs from the NPC roster above. If no NPCs are involved (purely environmental beat), emit an empty array `[]`.
 - **Phase alignment.** `type` MUST be from `allowed_beat_types` (provided in user prompt). Drop candidates whose type violates the phase constraint.
 
 - **NPC preference.** Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats. Only fall back to environment when no present/nearby NPCs exist.
@@ -29,6 +30,7 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 - Look at the last 2 entries in `recent_beats` above. If both share the same `type`, you MUST NOT pick that type for any candidate.
 - If the last 2 entries have different types, avoid repeating either of those types.
 - In short: pick types that are NOT in the last 2 entries of `recent_beats`.
+- **Hard constraint:** If `recent_beats[-2:]` contains `escalation`, `escalation`, then NO candidate may have `type: escalation`. This is not a suggestion — it is a rule.
 
 
 ## Roll band guidance (from rules_outcome)

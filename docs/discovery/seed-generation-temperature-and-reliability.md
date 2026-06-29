@@ -2,7 +2,7 @@
 
 > **Date:** 2026-06-24
 > **Context:** Implementing `pc_situation_schema` per-pack keys, `arc_origin`, NPC handoff from `pc_situation`, and opening-narrative weaving requirements from `03-seed-worldbuilding-redesign.md`.
-> **LLM backend:** MLX (local), model `mlx-community/gemma-4-26b-a4b-it-mxfp8`
+> **LLM backend:** Ollama (local), model `VladimirGav/gemma4-26b-16GB-VRAM:latest`
 > **Engine default temperature:** 0.9 (since changed to 0.65)
 
 ---
