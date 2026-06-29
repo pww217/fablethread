@@ -1,69 +1,46 @@
 Extract inventory and condition deltas from the narration. Emit one JSON object. No prose, no markdown fences. Omit fields with no changes — empty arrays are never valid.
 
-The extractor's job is to reconcile the condition and inventory tables against the current turn's narration. The tables define the current state; the narration defines what happened this turn. Decide what the final state should be by comparing the tables against the narration. The extractor is authoritative on the tables — it decides what changes to make. The narrator is authoritative on narration — it writes fiction but must respect the tables.
+The extractor is authoritative on tables; the narrator is authoritative on prose. Reconcile tables against narration — tables define current state, narration defines what changed this turn.
 
-## STEP 0 — Decide first, output second
+## Reason fields — REQUIRED anchors
 
-Before examining the narration for specific items, answer these questions in order:
+Decide IF changes occurred BEFORE populating fields. Reason fields are mandatory when changes exist:
 
-**Q1: Did conditions change this turn?** (PC gained, lost, or modified a condition)
-- If YES → `condition_change_reason` is REQUIRED. You MUST populate it with a one-phrase reason BEFORE outputting any condition fields. If you omit this field when conditions changed, extraction fails and the turn is retried.
-- If NO → `condition_change_reason: "none"`. Omit all condition fields.
-
-**Q2: Did the player GAIN, LOSE, or MODIFY an item this turn?**
-- If NO → `inventory_change_reason: "none"` and omit `inventory_add`, `inventory_remove`, `inventory_update`.
-- If YES → `inventory_change_reason` with a one-phrase reason, then populate the relevant fields.
-
-These decisions come FIRST. The reason fields are anchors — you must commit to whether changes occurred before you decide what changed.
+- `inventory_change_reason`: REQUIRED if any inventory field is non-empty. One short phrase: "Player picked up from ground", "X NPC gave it to player", "Player lost pistol in a brawl". If no change: `"none"`.
+- `condition_change_reason`: REQUIRED if any condition field is non-empty. One short phrase: "Player received medical attention", "Injury healed after rest". If no change: `"none"`.
+⚠️ Outputting condition fields (pc_condition_add, pc_condition_remove) WITHOUT `condition_change_reason` causes a `ValueError` — the turn will retry and waste tokens. ALWAYS include `condition_change_reason` when emitting condition changes.
 
 ## Narration is the sole authority
 
-`player_intent` is context only — it does not mean the action succeeded. Ground all changes in what the narration confirms. Only consider present-tense narration — the player currently has/loses something. Never emit inventory changes for past-tense (already happened) or future-tense (planning to) narration. If the narration doesn't confirm the player acquired, lost, or changed something, do not emit a change.
+Ground all changes in what the narration confirms. `player_intent` is context only — it does not mean the action succeeded. Only consider present-tense narration.
 
-- An item enters inventory only when the narration confirms the player has it in their possession (picked up, handed to them, etc.)
-- An item leaves inventory only when the narration confirms the player no longer has it (used up, given away, destroyed, dropped)
-- An item does NOT enter inventory because it is nearby, visible, or available to take
-- An item does NOT leave inventory because it is used by an NPC or destroyed in the world
+- Item enters inventory only when narration confirms possession (picked up, handed to them).
+- Item leaves inventory only when narration confirms loss (used up, given away, destroyed, dropped).
+- Nearby/visible items do NOT enter inventory. Used by NPCs or destroyed in world does NOT leave inventory.
 
-## Spatial reasoning rules
+## Spatial reasoning
 
-**Already-in-inventory actions (NOT inventory changes):**
-- Drawing, unholstering, aiming, checking, reading, using, swinging, firing, drinking, eating — the item was already possessed. No `inventory_update`, no `inventory_add`, no `inventory_remove`.
-- Repositioning within inventory (e.g., "stowed it in my pocket", "held it close to chest") — this is fiction flavor, not a mechanical change. Do NOT emit `inventory_update` for spatial repositioning.
-- The `notes` field in inventory tracks spatial position. If the narration says "put it in my pocket", update `notes` to reflect that — but ONLY if you're already emitting an `inventory_update` for another reason (damage, name change, upgrade). If the ONLY change is spatial repositioning, do not emit `inventory_update`.
+**Already-in-inventory (NOT changes):** Drawing, aiming, using, drinking, eating, repositioning — the item was already possessed. No update/add/remove. The `notes` field tracks spatial position, but only update it when already emitting an update for another reason.
 
-**Acquisition (inventory_add):**
-- "picked up", "took", "grabbed", "received", "was handed", "found", "acquired", "obtained", "took from", "seized", "snatched" — the player now has something they didn't have before.
+**Acquisition (inventory_add):** "picked up", "took", "grabbed", "received", "found", "acquired", "seized", "snatched".
 
-**Loss (inventory_remove):**
-- "dropped", "gave away", "used up", "lost", "spent", "discarded", "threw", "abandoned", "consumed", "burned", "shattered", "ran out of" — the player no longer has something they had.
+**Loss (inventory_remove):** "dropped", "gave away", "used up", "lost", "spent", "discarded", "threw", "abandoned", "consumed", "burned", "ran out of".
 
-**Modification (inventory_update):**
-- Damage, degradation, name change, upgrade, or a meaningful state change (e.g., "loaded", "primed", "unlocked"). NOT spatial repositioning.
+**Modification (inventory_update):** Damage, degradation, name change, upgrade, meaningful state change (loaded, primed, unlocked). NOT spatial repositioning.
 
 ## ID rules
 
-IDs are `noun` or `adjective_noun`, lowercase, no articles.
-- ✅ `worn_dagger`, `brass_key`, `short_sword`
-- ❌ `the_dagger`, `a_key`, `soldiers_rifle`
-
-IDs are immutable once assigned. If an item is renamed or upgraded, use `inventory_update` with the existing ID.
-
-## Before emitting any inventory change
+IDs are `noun` or `adjective_noun`, lowercase, no articles. Immutable once assigned. Rename/upgrade → `inventory_update` with existing ID.
 
 **CRITICAL — Use canonical IDs from the inventory list, never invent new ones:**
 
-The `## inventory` list shows items by their display name and canonical ID. The narration will mention items by display name or natural language equivalents. You MUST match narration items to the canonical IDs in the inventory list.
-
-1. **If the narration mentions an item that appears in the `## inventory` list by name, you MUST use that item's existing canonical ID.** Do NOT generate a new ID from the narration text. Example: narration says "Colt Detective Special" → use ID `heavy_revolver` (not `colt_detective_special`). Narration says ".38 Caliber Rounds" → use ID `revolver_rounds` (not `.38_caliber_rounds`). Narration says "small arms ammunition" → use ID `pistol_rounds` (not `small_arms_ammo`).
-2. **If the narration mentions an item NOT in the inventory list**, check the `## pack_inventory` list below for known pack items. If it matches a pack item, use that pack item's canonical ID.
-3. **If the narration mentions an item NOT in either list**, it is a genuinely new item — emit `inventory_add` with a new ID, but include `canonical_id` matching the `id` you generate.
-4. For currency or generic terms ("coin," "silver," "roll of cash," "some money"): map to the existing currency ID in inventory. Never invent a new currency ID. If the narration mentions currency but no matching currency ID exists in inventory, emit `inventory_add` with the pack's currency ID (from the seed inventory's currency item).
-5. Clamp all remove amounts to the current stack. Never emit a remove amount exceeding what exists in inventory.
+1. Narration item matches `## inventory` list → use that item's existing canonical ID. Never generate a new ID from narration text.
+2. Narration item NOT in inventory → check `## pack_inventory` list. If it matches, use that pack item's canonical ID.
+3. Narration item NOT in either list → genuinely new item. Emit `inventory_add` with new ID, include `canonical_id` matching the `id` you generate.
+4. Currency/generic terms ("coin", "silver", "roll of cash") → map to existing currency ID in inventory. Never invent new currency ID.
+5. Clamp all remove amounts to current stack. Never emit a remove amount exceeding what exists.
 
 ## Pack inventory — known items for new additions
-
-The following items are defined by the pack but may not yet be in your inventory. If the narration mentions one of these, use the canonical ID shown:
 
 {% if pack_inventory %}
 {% for item in pack_inventory %}
@@ -75,9 +52,9 @@ No pack inventory defined.
 
 ## Quantities
 
-If the narration states a specific number, use it exactly. If no number is stated, infer from context (e.g. "fired multiple rounds" → 3-6). If the player spent the entire stack and no number is given, omit `amount` (treated as full remove).
+Specific number in narration → use it exactly. No number → infer from context ("fired multiple rounds" → 3-6). Player spent entire stack, no number → omit `amount` (full remove).
 
-Ammo is individual rounds. "Shot"→-1, "burst"→2-4. Reloading→no change.
+Ammo: "Shot" → -1, "burst" → 2-4. Reloading → no change.
 
 ## Schema
 
@@ -94,37 +71,17 @@ Ammo is individual rounds. "Shot"→-1, "burst"→2-4. Reloading→no change.
 }
 ```
 
-**CRITICAL: Include `canonical_id` for all `inventory_add` items.** The `canonical_id` must match the item's canonical ID from the inventory list or pack definition. For items already in inventory, use their existing `id`. For genuinely new items, use the ID you generate for the `id` field — it will be canonicalized server-side. Example: `{"id": "case_dismissal_files", "name": "Case Dismissal Files", "canonical_id": "case_dismissal_files"}`.
-
-## Reason fields — REQUIRED
-
-`inventory_change_reason` is the anchor for inventory changes. You must decide whether inventory changed BEFORE you populate any other fields.
-
-- If inventory changed (any of `inventory_add`, `inventory_remove`, `inventory_update` is non-empty): `inventory_change_reason` is REQUIRED. State why inventory changed this turn in one short phrase. Examples: "Player picked up from ground", "X NPC gave it to player", "Player lost pistol in a brawl". Multiple items → one reason covering all changes.
-- If inventory did NOT change: `inventory_change_reason: "none"`. Omit all inventory fields.
-
-`condition_change_reason` is the anchor for condition changes. You must decide whether conditions changed BEFORE you populate any other fields.
-
-- If conditions changed (any of `pc_condition_add`, `pc_condition_remove` is non-empty): `condition_change_reason` is REQUIRED. State why conditions changed this turn in one short phrase. Examples: "Player received medical attention", "Injury healed after rest", "PC took a head wound". One reason covering all condition changes this turn.
-  ⚠️ **FAILURE WARNING:** If you output `pc_condition_add` or `pc_condition_remove` without `condition_change_reason`, extraction fails with `ValueError`. The turn will be retried. Always include this field when conditions change.
-- If conditions did NOT change: `condition_change_reason: "none"`. Omit all condition fields.
+**CRITICAL: Include `canonical_id` for all `inventory_add` items.** Must match the item's canonical ID from inventory list or pack definition. For items already in inventory, use their existing `id`. For genuinely new items, use the ID you generate for the `id` field — it will be canonicalized server-side.
 
 ## Field rules
 
-`inventory_update`: patches to existing items — name changes, notes updates for meaningful state (damage, degradation, loaded, primed), upgrades. Does not support amount changes — use `inventory_remove` instead. `name` and `notes` are optional within an update entry.
+`inventory_update`: patches to existing items — name changes, notes updates for meaningful state (damage, degradation, loaded, primed), upgrades. Does not support amount changes — use `inventory_remove` instead.
 
-**CRITICAL:** Do NOT emit `inventory_update` for spatial repositioning alone. If the narration says "put the flashlight in my pocket" and nothing else changed, do not emit `inventory_update`. The `notes` field tracks spatial position, but only update it when you're already emitting an update for another reason.
+`inventory_remove`: items lost, used up, destroyed, or spent. Set `amount` to count consumed (e.g. `"amount": 1` for one pistol_round). Omit `amount` to remove entire stack. Using a reusable item (unlocking a door with a key, reading a book) does NOT consume it.
 
-`inventory_remove`: items lost, used up, destroyed, or spent. Set `amount` to the count consumed (e.g. `"amount": 1` for one pistol_round). Omit `amount` to remove the entire stack.
-- If narration describes spending, giving away, or parting with an item — even if the amount is vague — emit the remove. If the recipient later rejects it or the action fails, still emit the remove.
-- Using a reusable item (unlocking a door with a key, reading a book) does NOT consume it. Only emit remove when the item is actually lost or used up.
+`inventory_add`: items explicitly received by the player character. Do not cap items explicitly received. Items found incidentally limited to ≤2 per turn. Firearms and finite-use items always come with ammo or uses — infer a realistic starting amount. If compatible ammo already exists in inventory, use `inventory_add` — it merges with the existing stack. Never emit `inventory_add` and `inventory_remove` for the same ID in one turn.
 
-`inventory_add`: items explicitly received by the player character.
-- Do not cap items explicitly received. Items found incidentally (e.g. "searched the crates") are limited to ≤2 per turn.
-- Firearms and finite-use items always come with ammo or uses. Infer a realistic starting amount from context. If compatible ammo already exists in inventory, use `inventory_add` — it merges with the existing stack.
-- Never emit `inventory_add` and `inventory_remove` for the same ID in one turn.
-
-**Inventory notes:** End with spatial position. Prefix is freeform — condition, narrative role, quest status, device metadata. Examples: `"quest item, in locked safe"`, `"handheld screen, in backpack"`, `"worn, in right holster"`. On-person only.
+**Inventory notes:** End with spatial position. Prefix is freeform — condition, narrative role, quest status, device metadata. Examples: `"quest item, in locked safe"`, `"handheld screen, in backpack"`, `"worn, in right holster"`.
 
 `pc_condition_remove`: conditions resolved this turn. Prefer removal over accumulation — if the situation that caused a transient condition (distracted, exposed, cornered, pinned, hesitant) is gone, remove it even if narration doesn't say so explicitly.
 
@@ -135,36 +92,33 @@ Ammo is individual rounds. "Shot"→-1, "burst"→2-4. Reloading→no change.
 Only add a condition if it would plausibly affect at least one future dice roll. Do not add flavor conditions with no mechanical relevance.
 
 **Duration guidance for `turns_remaining`:**
-- 1–2 turns: sensory/transient — winded, ears ringing, dust in eyes, momentary disorientation
-- 3–4 turns: minor discomfort — bruised ribs, muscle strain, sprained ankle, minor cut, rattled, smoke inhalation, dehydration
-- 5–6 turns: significant wounds — deep bruising, serious laceration (no stitches needed), broken nose, moderate burns, concussion symptoms
-- 7+ turns: major long-term threats — severe poisoning, radiation sickness, progressive disease, gangrenous wound
-- "permanent": won't heal without professional/story intervention. Broken bone, amputated limb, permanent disfigurement, cursed, lost eye, severe burns requiring stitches
+- 1–2 turns: sensory/transient — winded, ears ringing, dust in eyes
+- 3–4 turns: minor discomfort — bruised ribs, muscle strain, sprained ankle, minor cut, rattled
+- 5–6 turns: significant wounds — deep bruising, serious laceration, broken nose, moderate burns
+- 7+ turns: major long-term threats — severe poisoning, radiation sickness, progressive disease
+- "permanent": won't heal without professional/story intervention. Broken bone, amputated limb, permanent disfigurement, lost eye
 
-When in doubt, assign a longer duration rather than a shorter one.
+When in doubt, assign longer duration.
 
-**Condition removal guidance — consider age AND severity:**
-
-- Fresh conditions (≤3 turns): Only remove with explicit narrative resolution (medical attention, bandaging, rest, etc.). Do not remove fresh conditions just because the narration moved on.
-- Moderate conditions (4-7 turns): Can be removed if the situation that caused them has ended and the narration has moved past them. A scrape or being dazed may heal in this window; a serious injury likely needs explicit treatment.
-- Old conditions (>7 turns): Can be removed if the narration has moved past them (off-screen healing, time transition, natural recovery). Serious injuries may still need explicit resolution — use judgment based on the condition's severity.
-
-When in doubt, prefer removal over accumulation. If a condition hasn't been mentioned in recent narration and the situation that caused it is gone, it's likely resolved.
+**Condition removal guidance:**
+- Fresh (≤3 turns): Only remove with explicit narrative resolution (medical attention, bandaging, rest).
+- Moderate (4-7 turns): Can remove if situation that caused them has ended and narration moved past.
+- Old (>7 turns): Can remove if narration moved past them (off-screen healing, time transition).
+When in doubt, prefer removal over accumulation.
 
 **Stat-to-condition heuristics:**
-- Combat failure with strength/dexterity → consider `wounded`, `bleeding`
-- Failed wits under pressure → consider `frightened` or `drugged`
-- Failed strength/dexterity with sustained effort → consider `exhausted`
-- After a decisive success or critical success → consider a short-lived positive condition (`focused`, `determined`, `elated`, `second_wind`, `protected`). Max 1 per turn.
-- When an ally or circumstance actively aids the player → consider a brief positive condition (`guided`, `fortified`, `inspired`). Max 1 per turn.
-- Total active conditions must not exceed 5 — remove the least relevant before adding if at cap.
+- Combat failure (str/dex) → `wounded`, `bleeding`
+- Failed wits under pressure → `frightened`, `drugged`
+- Failed str/dex sustained effort → `exhausted`
+- Decisive/crit success → short-lived positive condition (`focused`, `determined`, `elated`, `second_wind`, `protected`). Max 1 per turn.
+- Ally/circumstance aids player → brief positive condition (`guided`, `fortified`, `inspired`). Max 1 per turn.
 
 ## State-presence rule
 
 Sections not shown in the user prompt still exist in live game state. Absence is not removal. Only emit removals you can justify from the narration.
 
-`location_change`: emitted ONLY when the location ID changes. Schema: `{"id": "snake_case", "name": "Display Name", "description": "Stable short description (1 sentence)"}`. Same behavior as the current scene extractor rules for this field.
+`location_change`: emitted ONLY when the location ID changes. Schema: `{"id": "snake_case", "name": "Display Name", "description": "Stable short description (1 sentence)"}`.
 
-**Location change detection rule:** If the narration describes the player arriving at a new place — entering a building, leaving a room, traveling to a new area, arriving at a destination — emit `location_change` regardless of whether the current location ID matches. The narrator writes fiction; the extractor tracks where the player actually is. If the narration shows a spatial transition to a distinct location, that IS a location change.
+**Location change detection rule:** If the narration describes the player arriving at a new place — entering a building, leaving a room, traveling to a new area, arriving at a destination — emit `location_change` regardless of whether the current location ID matches. The narrator writes fiction; the extractor tracks where the player actually is.
 
 `location_description`: emitted ONLY when the physical environment has materially changed — structural damage, new obstacles, light/shift changes, new interactable features. 1-2 sentences. Must describe new tangible details or potential opportunities NOT present in the narration. Do NOT repeat narration. Emit nothing if the environment is unchanged from its current description. The current location description is shown in the user prompt for reference.

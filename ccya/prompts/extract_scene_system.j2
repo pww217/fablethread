@@ -7,7 +7,6 @@ Refer to all characters by their actual names. Never use "PC" or "NPC" as labels
 ## Extraction mandate
 
 Scan narration for every proper name. For each:
-
 1. Match against known_characters → update presence/position if narration indicates change.
 2. New name → create entry with presence="present" (in scene) or presence="nearby" (same location, not interacting).
 3. Mentioned but not physically present → presence="nearby" or "known" by distance.
@@ -27,41 +26,36 @@ Scan narration for every proper name. For each:
 
 `compendium_npc_update`: **UNIVERSAL NPC CHANNEL** — use for ALL NPC changes. Each update carries the full set of fields that have new information:
 
-```json
-{
-  "id": "snake_case_id",
-  "name": "Display Name (omit if unchanged)",
-  "title": "Optional title (omit if unchanged)",
-   "bio": "TWO SENTENCES: (1) appearance and demeanor — how they are physically presented, bearing/posture/expression. (2) personality traits or tangible facts about who they are as a person — background details, habits, reputation that define them. Must be relevant to the story, not generic filler like 'is a merchant'. Omit if unchanged.",
-   "motivation": "what this NPC fundamentally wants",
-  "fear": "what this NPC is most afraid of",
-  "leverage": "what this NPC can offer, threaten, or withhold",
-  "bond": "durable personal history — to the PC, or between two NPCs (name both parties)",
-  "personality": "archetype_id — see archetype reference below; required for named NPCs, omit for unnamed",
-  "presence": "present|nearby|known|departed",
-  "position": "Where the NPC is in the scene and what they are doing. One short phrase. Include spatial barriers and visibility constraints (e.g., 'behind a door, not visible', 'across the bar, watching', 'standing in the doorway blocking exit', 'at the player's elbow, whispering'). Update when narration changes the NPC's position or stance.",
-  "departed_reason": "short label followed by 1-2 sentence prose describing the departure — e.g. 'killed in battle — Caught in the crossfire defending the village gates.'",
-}
-
-`departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. Examples: "killed in battle — Caught in the crossfire defending the village gates.", "sailed away — Booked passage on the evening tide, destination unknown."
+- `id`: snake_case_id
+- `name`: Display Name (omit if unchanged). Must be first name + surname (at least two words, no titles/prefixes).
+- `title`: Optional title (omit if unchanged).
+- `bio`: TWO SENTENCES: (1) appearance and demeanor — how they are physically presented, bearing/posture/expression. (2) personality traits or tangible facts about who they are as a person — background details, habits, reputation. Must be relevant to the story, not generic filler like "is a merchant". Omit if unchanged.
+- `motivation`: what this NPC fundamentally wants. Mandatory for every character.
+- `fear`: what this NPC is most afraid of.
+- `leverage`: what this NPC can offer, threaten, or withhold.
+- `bond`: durable personal history — to the PC, or between two NPCs (name both parties).
+- `personality`: archetype_id — required for named NPCs, omit for unnamed. Valid IDs: cold_pragmatist, desperate_idealist, wary_opportunist, resigned_functionary, volatile_loyalist, charming_manipulator, blunt_survivor, true_believer, detached_observer, conflict_avoidant, ambitious_climber, broken_defeated. Do not invent archetypes outside this list.
+- `presence`: present|nearby|known|departed. REQUIRED for every NPC update — never omit it.
+- `position`: Where the NPC is in the scene and what they are doing. One short phrase. Include spatial barriers and visibility constraints (e.g., 'behind a door, not visible', 'across the bar, watching', 'standing in the doorway blocking exit', 'at the player's elbow, whispering'). Update when narration changes the NPC's position or stance.
+- `departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. Examples: "killed in battle — Caught in the crossfire defending the village gates.", "sailed away — Booked passage on the evening tide, destination unknown."
+- `party`: true/false. Only emit when value changes.
 
 ### How to use compendium_npc_update
 
-- **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. **Presence is REQUIRED for every NPC update — never omit it.** For known NPCs, only set `presence`/`position`.
+- **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`position`.
 - **NPC behavior changes:** Update `position` with a brief situational cue reflecting their current stance toward the player.
 - **Durable identity updates:** Update `name`, `title`, `bio`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes. **EXCEPTION:** If an NPC was previously absent or known and the narration now places them in the scene or nearby, you MUST emit an update even if their other fields haven't changed.
 - **Re-promotion:** If an NPC was demoted to `nearby` by a location change but narration shows they followed, set `presence: "present"` — do NOT create a new compendium entry.
 - **Critical:** If an NPC is mentioned in the narration as being in the same scene as the player, you MUST set `presence: "present"` regardless of their current presence value. The location change demotion happens automatically — your job is to re-promote when the narration shows they followed.
+- **Re-promotion is mandatory:** When narration explicitly names an NPC and places them in the scene (e.g., "Elara Vance is already there, waiting by the door"), you MUST emit a compendium update with `presence: "present"`. Do NOT skip this just because the NPC was previously demoted.
 
 ### Party assignment
 
 NPCs who consistently accompany the PC — companions, allies, hirelings — should be marked with `party: true`. Ask: "Is this character likely to follow the PC, or have they been following them?"
-
 - Set `party: true` when narration shows the NPC is traveling with, accompanying, or staying near the PC by choice.
 - Keep `party: true` until narration clearly shows the NPC parting ways (departure, betrayal, death, different destination). Removal requires a high bar.
 - Do NOT set `party: true` for NPCs who are oppositional, temporary scene characters, or neutral parties. Proximity alone is insufficient.
-- Only emit `party` in `compendium_npc_update` when the value changes — omit the field when unchanged (consistent with existing "omit unchanged fields" rule).
 
 ## NPC ID rules
 
@@ -70,33 +64,21 @@ NPCs who consistently accompany the PC — companions, allies, hirelings — sho
 - If an NPC is known from the compendium, use their existing compendium ID — do NOT create a new ID.
 - When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC — even ambient presence like "crowd" or "bystanders" needs a bio.**
 
-- `name` must be a first name and a surname (at least two words, no titles/prefixes/descriptors). `title` is for honorifics, roles, status descriptors.
-
 ## NPC field requirements
 
 - **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `bio` + `personality` + `motivation` + 2 of {fear, leverage, bond} = 5 fields minimum. On first entry, aim for all 5 fields. Motivation is mandatory for every character.
 - **Unnamed NPCs (name does not look like a proper name — fewer than 2 words, or first/last not both capitalized):** `bio` + `motivation`. Do NOT add personality, fear, leverage, or bond. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace." The engine rejects personality fields on unnamed NPCs — treat this as a hard constraint.
 
-Valid personality archetype IDs: cold_pragmatist, desperate_idealist, wary_opportunist, resigned_functionary, volatile_loyalist, charming_manipulator, blunt_survivor, true_believer, detached_observer, conflict_avoidant, ambitious_climber, broken_defeated. Do not invent archetypes outside this list.
-
 ## Passive NPC extraction
 
 If a named character enters the scene as the **recipient** of a major action (rescue, capture, healing, transport, medical aid), create a compendium entry for them even if they don't perform visible actions. Use whatever information is available from context — including details from recent narration history if needed for the bio.
 
-### Bio examples (READ CAREFULLY)
+## Presence levels — SPATIAL
 
-**Correct bio extraction:**
-- Narration: "A scarred woman in a grease-stained apron wipes her hands on a rag, eyes narrowing at you as she approaches the counter." → `bio: "Tall with a jagged burn scar running from jaw to collarbone; carries herself like someone used to being obeyed. Served five years in the militia before going civilian — knows how to handle weapons and doesn't flinch under pressure."`
-- Narration: "A young man in faded academy robes fumbles with his satchel, nearly dropping it as he stammers a greeting." → `bio: "Lean frame, sharp features, perpetually disheveled dark hair. Earned top marks in tactical theory but has never held a weapon — book-smart, eager to prove himself beyond the classroom."`
-
-**Incorrect bio extraction (too generic / missing one dimension):**
-- Narration: "A merchant approaches your table with a smile." → `bio: "Is a traveling trader who sells various goods."` ❌ Missing appearance entirely; second sentence is just restating their role, not giving personality or tangible facts.
-
-**NPC presence is SPATIAL — choose the most accurate:**
 - `"present"` — in the immediate scene with the player
 - `"nearby"` — still in the area: just outside, next room, watching from shadows, within earshot. Auto-decays to `known` after 2 turns if not re-promoted.
 - `"known"` — physically left the area, but not permanently. The LLM manages this state.
-- `"departed"` — permanently gone: dead, sailed away, imprisoned for life, comatose, ascended, unreachable. Requires `departed_reason` (combined label + prose). Auto-archived after 3 turns.
+- `"departed"` — permanently gone: dead, sailed away, imprisoned for life, comatose, ascended, unreachable. Requires `departed_reason`. Auto-archived after 3 turns.
 
 **Decision rule:** If an NPC is spatially proximate to the player's location, they are `nearby`, not `known`. If they physically left the area, they are `known`. If they can never return, they are `departed`.
 
@@ -106,30 +88,22 @@ If a named character enters the scene as the **recipient** of a major action (re
 - Emit `{ presence: "departed", departed_reason: "..." }` for permanently unreachable NPCs.
 - Do NOT emit presence changes for NPCs not mentioned in narration — absence is not departure.
 
-EXAMPLE — NPC enters (correct):
-Narration: "A red-haired man in boiled leather steps through the door and locks eyes with you."
-Known NPCs in scene: [caron (present)]
-→ Emit: `compendium_npc_update: { id: "red_haired_man", name: "Red-Haired Man", presence: "present", position: "standing in doorway, locking eyes", bio: "..." }`
+## Bio examples
 
-EXAMPLE — NPC exits (correct):
-Narration: "Caron spits on the floor and shoves through the crowd, disappearing into the street."
-→ Emit: `compendium_npc_update: { id: "caron", presence: "known" }`
+**Correct:**
+- Narration: "A scarred woman in a grease-stained apron wipes her hands on a rag, eyes narrowing at you as she approaches the counter." → `bio: "Tall with a jagged burn scar running from jaw to collarbone; carries herself like someone used to being obeyed. Served five years in the militia before going civilian — knows how to handle weapons and doesn't flinch under pressure."`
+- Narration: "A young man in faded academy robes fumbles with his satchel, nearly dropping it as he stammers a greeting." → `bio: "Lean frame, sharp features, perpetually disheveled dark hair. Earned top marks in tactical theory but has never held a weapon — book-smart, eager to prove himself beyond the classroom."`
 
-EXAMPLE — NPC moves (correct):
-Narration: "Caron slides into the seat across from you."
-→ Emit: `compendium_npc_update: { id: "caron", position: "seated across from Mira Sovak" }`
+**Incorrect (too generic):**
+- Narration: "A merchant approaches your table with a smile." → `bio: "Is a traveling trader who sells various goods."` ❌ Missing appearance entirely; second sentence is just restating their role, not giving personality or tangible facts.
 
-EXAMPLE — NPC mentioned but not interacting:
-Narration: "Elara has enough grace to make a captain forget his heading."
-→ Emit: `compendium_npc_update: { id: "elara_vance", name: "Elara Vance", presence: "nearby", position: "in the corner by the lamp", bio: "A woman of grace and fire...", title: "Lounge Worker" }`
+## Examples
 
-EXAMPLE — NPC mentioned at a distance:
-Narration: "The guild's papers are on the quarterdeck, tucked under Cameron's watch."
-→ Emit: `compendium_npc_update: { id: "john_cameron", presence: "nearby", position: "on the quarterdeck, guarding the guild papers" }`
-
-EXAMPLE — NPC not mentioned (correct):
-Narration does not mention Halden this turn.
-→ Do NOT emit any update for Halden — absence ≠ departure.
+- **Enters:** "A red-haired man in boiled leather steps through the door and locks eyes with you." → `{ id: "red_haired_man", name: "Red-Haired Man", presence: "present", position: "standing in doorway, locking eyes", bio: "..." }`
+- **Exits:** "Caron spits on the floor and shoves through the crowd, disappearing into the street." → `{ id: "caron", presence: "known" }`
+- **Moves:** "Caron slides into the seat across from you." → `{ id: "caron", position: "seated across from Mira Sovak" }`
+- **Mentioned not interacting:** "Elara has enough grace to make a captain forget his heading." → `{ id: "elara_vance", presence: "nearby", position: "in the corner by the lamp", bio: "...", title: "Lounge Worker" }`
+- **Not mentioned:** Do NOT emit any update — absence ≠ departure.
 
 ## State-presence rule
 
@@ -138,11 +112,11 @@ Sections not shown in the user prompt still exist in the live game state — abs
 ## NPC dedup — mandatory pre-check (apply BEFORE every compendium_npc_update)
 
 Before you emit `compendium_npc_update` for ANY NPC:
-
 1. Check the `known_characters` compendium section. If the NPC's name or title matches an existing compendium entry (case-insensitive), use that entry's ID.
 2. If the NPC was previously known but had `presence: "known"` and is now present, set `presence: "present"` and update `position`.
 3. If the NPC is already in the compendium, do NOT re-emit `name`, `title`, or `bio` unless the narration reveals new information.
 4. NEVER create a new compendium entry for an NPC that already exists. Always reuse the existing ID.
+5. **SAME ENTITY, DIFFERENT NAMES:** When narration mentions multiple names/titles that refer to the same entity (e.g., "Iron Guard patrol" and "Two able-bodied guards"), create ONE compendium entry with the most specific identifier. Do NOT create separate entries for what is clearly the same group/person.
 
 ## Constraints
 

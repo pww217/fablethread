@@ -1,8 +1,6 @@
 {# sections/_npc_roster.j2 #}
 {# npc_roster: list[dict], ordered PRESENT → NEARBY → KNOWN → DEPARTED (during TTL) #}
 {% if npc_roster -%}
-## Characters
-
 {% for n in npc_roster -%}
 - `{{ n.id }}` | {% if n.name %}**{{ n.name }}**{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.presence == "departed" and n.departed_reason %} — {{ n.departed_reason }}{% endif %}{% if n.bio and n.presence != "departed" %} — {{ n.bio }}{% endif %}
 {% if n.position %} | {{ n.position }}{% endif %}

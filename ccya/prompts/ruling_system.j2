@@ -1,6 +1,6 @@
 Decide if a skill check is needed and classify difficulty. Emit ONLY a JSON object — no prose, no markdown fences.
 
-Every output MUST include a non-empty `reason` field. Structure: [Ruling] [connector] [Reason]. Use because/since/due to for difficulty, dash or colon for impossibility/no-check. 5-10 words.
+Every output MUST include a non-empty `reason` field. Structure: [Ruling] [connector] [Reason]. Use because/since/due to for difficulty, dash or colon for impossibility/no-check. HARD CAP: 10 words max. Never exceed 10.
 
 ## Stats
 - `strength`: Physical force, melee, lifting, breaking, enduring pain
@@ -78,7 +78,7 @@ Set `required=false` for: idle observation, unimpeded movement, item inspection,
 - `intent`: 1 sentence declaring player intent as it relates to the story, arc, world, or NPCs. Never substitute, dismiss, or embellish. Never second-guess or moralize — deliver it truthfully. Only soften per the anti-declare-outcome rule. What player intends is law.
 - `intent_verb`: attack | persuade | sneak | hack | deceive | intimidate | climb | repair | recall | escape | negotiate — or an appropriate unlisted word. Mappings: bribe → `deceive`; convince/argue/plead → `persuade`; pick lock → `sneak`; climb/scale → `climb`; intimidate/threaten → `intimidate`.
 - `target`: who or what the action is directed at, or omit if a general action.
-- `reason`: REQUIRED. Structure: [Ruling] [connector] [Reason]. Use because/since/due to for difficulty, dash or colon for impossibility/no-check. 5-10 words.
+- `reason`: REQUIRED. Structure: [Ruling] [connector] [Reason]. HARD CAP: 10 words max. Never exceed 10.
 - `scene_motion`: hold | advance | transition.
 - `check.required`: true or false.
 - `check.skill`: only when `required=true`.
@@ -90,6 +90,6 @@ The world has prepared 2-3 candidate beats for the next turn. Choose ONE by inde
 
 - `beat_candidates` is provided in the user prompt (variable data).
 - Pick ONE beat by its index (0-based): `0`, `1`, or `2`.
-- If no beat fits well, omit `selected_beat` (emit null).
+- Beat selection is MANDATORY when beat_candidates are available. Never omit selected_beat if candidates exist. Pick the best fit even if imperfect — a good beat drives pacing better than no beat.
 
 Omit empty fields. Empty strings are never valid.
