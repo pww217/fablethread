@@ -119,7 +119,7 @@ class EngineConfig:
     extract_temperature: float = 0.4
     world_temperature: float = 0.55
     narrate_temperature: float = 0.9
-    generate_seed_temperature: float = 0.7
+    prepare_seed_temperature: float = 0.4
 
     # ruling
     ruling_top_p: float = 0.8
@@ -132,8 +132,8 @@ class EngineConfig:
     narrate_top_p: float = 0.95
     narrate_frequency_penalty: float = 0.5
 
-    # generate_seed
-    generate_seed_top_p: float = 0.95
+    # prepare_seed
+    prepare_seed_top_p: float = 0.95
 
     # pack_generation (stub)
     pack_generation_temperature: float = 0.8
@@ -225,7 +225,7 @@ def build_engine_config(
     Args:
         cfg: Raw config dict (output of ``load_config``).
         temperature_override: If set, uniformly override all temperature
-            knobs (rules, narrate, extract, generate_seed).
+            knobs (rules, narrate, extract). Seed steps use config defaults.
     """
     llm = cfg.get("llm", {})
     game = cfg.get("game", {})
@@ -245,8 +245,8 @@ def build_engine_config(
     narrate_top_p = float(narrate_cfg.get("top_p", 0.95))
     narrate_freq_penalty = float(narrate_cfg.get("frequency_penalty") or 0)
 
-    seed_cfg = llm.get("generate_seed", {})
-    seed_t = float(seed_cfg.get("temperature", 0.9))
+    seed_cfg = llm.get("prepare_seed", {})
+    seed_t = float(seed_cfg.get("temperature", 0.4))
     seed_top_p = float(seed_cfg.get("top_p", 0.95))
 
     pack_cfg = llm.get("pack_generation", {})
@@ -255,8 +255,8 @@ def build_engine_config(
 
     if temperature_override is not None:
         t = float(temperature_override)
-        narrate_t = extract_t = ruling_t = seed_t = t
-        _log.debug("build_engine_config temperature_override=%.2f applied", t)
+        narrate_t = extract_t = ruling_t = t
+        _log.debug("build_engine_config temperature_override=%.2f applied (seed uses config default)", t)
 
     if not llm.get("host"):
         _log.warning("build_engine_config: llm.host not configured, using default")
@@ -273,13 +273,13 @@ def build_engine_config(
         extract_temperature=extract_t,
         world_temperature=float(game.get("world_temperature", 0.55)),
         ruling_temperature=ruling_t,
-        generate_seed_temperature=seed_t,
+        prepare_seed_temperature=seed_t,
         ruling_top_p=ruling_top_p,
         extract_top_p=extract_top_p,
         extract_frequency_penalty=extract_freq_penalty,
         narrate_top_p=narrate_top_p,
         narrate_frequency_penalty=narrate_freq_penalty,
-        generate_seed_top_p=seed_top_p,
+        prepare_seed_top_p=seed_top_p,
         pack_generation_temperature=pack_temp,
         pack_generation_top_p=pack_top_p,
         max_llm_retries=int(llm.get("max_llm_retries", 1)),

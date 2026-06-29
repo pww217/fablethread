@@ -118,7 +118,7 @@ See `packs/AUTHORING.md` for the full pack spec.
 ```
 config.yaml              # Server, LLM, and game config
 ccya/                    # Python package
-  engine.py              # Turn pipeline (rules + narrate + extract + generate_seed)
+  engine/                # Turn pipeline (rules + narrate + extract)
   rules.py               # Pure-Python dice resolver (1d12 PbtA, no LLM)
   pack.py                # Pack loader, manifest schema, list_packs()
   llm_client.py          # Thin async OpenAI-compatible client (mlx_lm.server)
@@ -126,7 +126,7 @@ ccya/                    # Python package
   server.py              # FastAPI routes + SSE
   models.py              # Pydantic models + config loader
   logging_setup.py       # JSONL logging
-  prompts/               # Jinja prompt templates (rules, narrate, extract, generate_seed)
+   prompts/               # Jinja prompt templates (rules, narrate, extract, seed)
   templates/             # HTMX/Alpine HTML templates
   static/                # CSS + vendored JS (htmx, alpine, marked)
 saves/default/           # Game save (state.yaml, events.jsonl, chronicle.md)
@@ -163,7 +163,7 @@ Edit `config.yaml` to change the model, port, or other settings. Key sections:
 
 ### New game flow (dynamic packs)
 
-When you click **New Game** and select a pack, the server calls `generate_seed()` — a single LLM call that produces a `SeedEnvelope` containing the full initial state (character, location, NPCs, inventory, quest, established facts) plus an opening narrative. The world bible (`world.md`) and scenario constraints (`scenario.yaml`) shape what the model generates; `style.md` and `extract_examples.yaml` carry over into the regular turn pipeline.
+When you click **New Game** and select a pack, the server calls `prepare_seed()` (temp 0.4) to generate structured game state, then `narrate_seed()` (temp 0.9) to generate opening prose — a two-step pipeline that resolves the temperature tension where low temp gives reliable JSON but formulaic narration, and high temp gives vivid prose but malformed JSON. The world bible (`world.md`) and scenario constraints (`scenario.yaml`) shape what the model generates; `style.md` and `extract_examples.yaml` carry over into the regular turn pipeline.
 
 ### Rules engine
 

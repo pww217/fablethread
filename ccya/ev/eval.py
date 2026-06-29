@@ -39,7 +39,7 @@ def _build_eval_config(
     if model:
         raw_cfg.setdefault("llm", {})["model"] = model
     if temp is not None:
-        for section in ("ruling", "extract", "narrate", "generate_seed"):
+        for section in ("ruling", "extract", "narrate"):
             raw_cfg.setdefault("llm", {}).setdefault(section, {})["temperature"] = temp
     if pack_dir is not None:
         from ccya.pack import load_pack

@@ -1,6 +1,7 @@
 """Pack loader: Pydantic models for world-pack manifests, seed states, and scenario briefs.
 
-The models here are the schema-of-record for generate_seed(pack, overrides) -> SeedEnvelope.
+The models here are the schema-of-record for prepare_seed(pack, overrides) -> SeedStateEnvelope
+followed by narrate_seed(seed_state, ...) -> dict, assembled into SeedEnvelope.
 """
 
 from __future__ import annotations
@@ -76,8 +77,24 @@ class SeedState(BaseModel):
     world: dict[str, Any] = Field(default_factory=dict)
 
 
+class SeedStateEnvelope(BaseModel):
+    """Wraps SeedState without narrative min_length constraints.
+
+    Output of prepare_seed(). Used as intermediate shape before
+    narrate_seed() adds opening_narrative, actions, outcome_summary.
+    """
+
+    seed_state: SeedState
+    opening_narrative: str = ""
+    actions: list[str] = Field(default_factory=list)
+    outcome_summary: str = ""
+    arc: LongTermObjective | None = None
+    arc_origin: str = ""
+    pool_selection: dict[str, Any] | None = None
+
+
 class SeedEnvelope(BaseModel):
-    """Output schema for the generate_seed LLM call.
+    """Output schema for the assembled seed (prepare_seed + narrate_seed).
 
     The LLM may populate compendium.npcs at seed time with 2-3 additional
     NPCs (name, title, bio). These are known-to-but-not-present in the

@@ -12,7 +12,7 @@ from ccya.engine.config import (
     signal_turn_done,
     await_turn_done,
 )
-from ccya.engine.seed import generate_seed
+from ccya.engine.seed import prepare_seed, narrate_seed
 from ccya.engine.changes import format_change_lines
 from ccya.engine.turn import run_turn, warmup
 
@@ -20,7 +20,8 @@ __all__ = [
     "EngineConfig",
     "build_engine_config",
     "format_change_lines",
-    "generate_seed",
+    "prepare_seed",
+    "narrate_seed",
     "is_turn_in_progress",
     "request_cancel",
     "is_cancel_requested",

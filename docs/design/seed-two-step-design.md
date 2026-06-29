@@ -1,6 +1,6 @@
 # Seed Two-Step Design
 
-> **Status:** scoping
+> **Status:** implemented
 > **Discovery:** [Seed Generation Temperature and Reliability](../discovery/seed-generation-temperature-and-reliability.md)
 > **Related designs:**
 > - [03-Seed Worldbuilding Redesign](./complete/03-seed-worldbuilding-redesign.md) — funnel ordering, pc_situation_schema, arc_origin, world state lifecycle
@@ -43,7 +43,7 @@ At any single temperature, one output is compromised. At 0.9, ~50% of first atte
 ### New Pipeline
 
 ```
-prepare_seed (temp: ~0.4)
+prepare_seed (temp: ~0.55)
     ↓
 SeedStateEnvelope (validated SeedState, no narrative constraints)
     ↓
@@ -63,7 +63,7 @@ complete SeedEnvelope (seed_state + opening_narrative + actions + outcome_summar
 - `config: EngineConfig`
 - `overrides: PlayerOverrides | None`
 
-**Temperature:** 0.4–0.5 (initial). Lower to 0.2–0.3 if JSON syntax errors appear.
+**Temperature:** 0.55 (initial). Lower to 0.2–0.3 if JSON syntax errors appear.
 
 **Output:** `SeedStateEnvelope` — a new Pydantic model wrapping `SeedState` without narrative constraints:
 
@@ -197,7 +197,7 @@ generate_seed:
 
 # AFTER
 prepare_seed:
-  temperature: 0.4
+  temperature: 0.55
   top_p: 0.95
 ```
 
@@ -206,7 +206,7 @@ No backward compatibility — no fallback, no migration path. Existing config.ya
 `narrate_seed` reuses the existing `narrate` temperature block — no new config key. (The narrate block is the narrator's temperature for ongoing turns; `narrate_seed` uses the same temp because it's the same kind of prose generation.)
 
 **Config code changes:**
-- `EngineConfig.generate_seed_temperature` → `EngineConfig.prepare_seed_temperature` (default 0.4)
+- `EngineConfig.generate_seed_temperature` → `EngineConfig.prepare_seed_temperature` (default 0.55)
 - `EngineConfig.generate_seed_top_p` → `EngineConfig.prepare_seed_top_p` (default 0.95)
 - `build_engine_config()` reads `llm.prepare_seed` instead of `llm.generate_seed`
 - `config.yaml` top-level key changes from `generate_seed` to `prepare_seed`
@@ -278,7 +278,7 @@ No backward compatibility — no fallback, no migration path. Existing config.ya
 
 ## Decisions
 
-- **Temperature for `prepare_seed`: 0.4.** Start here. If JSON reliability issues surface, lower to 0.2–0.3 on a sliding scale. Configurable via `prepare_seed_temperature` in EngineConfig, read from `llm.prepare_seed` in config.yaml.
+- **Temperature for `prepare_seed`: 0.55.** Start here. If JSON reliability issues surface, lower to 0.2–0.3 on a sliding scale. Configurable via `prepare_seed_temperature` in EngineConfig, read from `llm.prepare_seed` in config.yaml.
 - **Temperature for `narrate_seed`: `narrate_temperature`.** Reuses the existing narrate config key (currently 0.9). Not a separate config entry — the narrate_seed call is the same kind of prose generation as ongoing turns. Inherits narrate's `top_p` (0.95) and `frequency_penalty` (0.5).
 - **Actions in `narrate_seed`.** Actions derive from the narrative scene context, not the raw structured state. Generating them alongside prose is a single concern. The one JSON field (actions array) at high temp has negligible failure risk.
 - **Context passed to `narrate_seed`.** Filtered subset: pc (name, tagline, bio, stats, conditions, situation), location, arc_origin, world.locations (key locations), inventory (only if relevant), pool_selection. NOT passed: world_state, compendium.npcs, arc threads/objective, meta. Opening narrative establishes PC + setting; world facts, NPC rosters, and arc threads belong in ongoing turns.

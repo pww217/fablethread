@@ -1,0 +1,105 @@
+Generate opening narrative, actions, and outcome summary for a new game session. Wrap your entire response in a single ```json code block. No text before or after the block.
+
+## Setting constraints
+
+{% if setting_info %}
+**Genre:** {{ setting_info.genre }}
+
+{% if setting_info.universe_rules %}
+**Universe rules:**
+{% for rule in setting_info.universe_rules %}- {{ rule }}
+{% endfor %}{% endif %}
+
+{% if setting_info.creative_direction %}
+**Creative direction (guidance only — do not borrow phrasing):**
+{% set cd = setting_info.creative_direction %}
+{% if cd.pc %}### PC
+{{ cd.pc }}
+{% endif %}{% if cd.npcs %}### NPCs
+{{ cd.npcs }}
+{% endif %}{% if cd.inventory %}### Inventory
+{{ cd.inventory }}
+{% endif %}{% endif %}
+
+{% else %}
+**HISTORICAL REALISM:** This is a grounded historical setting. No supernatural, paranormal, or sci-fi elements. All technology, weapons, and events must be period-appropriate.
+{% endif %}
+
+## Opening narrative instructions
+
+~700 words. Second person, present tense. Three movements:
+
+1. **Close-up** (1–3 sentences): One live sensory detail that orients the player in the character's immediate physical reality. No summary, no biography.
+2. **Exposition** (middle): What is around the PC — weave in 1–2 environmental details that imply recent action, conflict, or presence. Every detail should do work.
+3. **Crisis moment** (the bulk): The tension arrives. Present NPCs act. The moment the player must respond to. Spend most of your words here.
+
+### What to weave in
+
+The player can see their bio, stats, inventory, and full NPC roster in the UI. Your job is to fill in the gaps — establish the world context, the character's immediate situation, and the arc they're about to pursue.
+
+**Must weave in:**
+- **PC situation** — unit, theater, chain of command, family ties. This is ground truth for how the player and narrator treat the character.
+- **Arc origin** — the world-level event or condition that shaped the current situation. Background pressure.
+- **Arc objective** — what the character is trying to accomplish. Surface it through what the player observes, not what the narrator announces.
+- **Location** — set the scene through environmental detail, not exposition.
+
+**Weave in naturally (only what fits):**
+- Present NPCs — show through action or dialogue, not introduction.
+- Scene bundle details — objects, conditions, sensory elements that fit the moment.
+
+**Do NOT repeat:**
+- Stats (mechanical, shown in UI)
+- Full bio (shown in UI — use tagline for flavor)
+- Inventory (shown in UI)
+- World locations (shown in UI)
+- All compendium NPCs (only present ones matter in the opening)
+
+### Data
+
+**PC:** {{ pc.name }}
+Tagline: {{ pc.tagline }}
+Situation: {{ pc.situation }}
+
+**Location:** {{ location.name }}
+{{ location.description }}
+
+**Arc origin:** {{ arc_origin }}
+
+{% if arc %}
+**Arc:** {{ arc.objective }}
+{% endif %}
+
+{% if compendium_npcs %}
+**Present NPCs:**
+{% for npc in compendium_npcs %}
+{% if npc.presence == "present" %}
+- {{ npc.name }} ({{ npc.title }}) — {{ npc.bio }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if pool_selection and pool_selection.get("scene_bundle") %}
+**Scene bundle:**
+{% set sb = pool_selection["scene_bundle"] %}
+{% if sb["items"] %}Objects: {{ sb["items"] | join(", ") }}.{% endif %}
+{% if sb["conditions"] %}Conditions: {{ sb["conditions"] | join(", ") }}.{% endif %}
+{% if sb["sensory"] %}Sensory: {{ sb["sensory"] | join(", ") }}.{% endif %}
+{% endif %}
+
+## Actions
+
+Exactly 4 choices, 7–10 words each, active voice from the PC's point of view.
+
+- At least 2 must directly advance the arc goal or an active thread
+- One involves a named NPC present in the scene
+- One is environmental
+- One is freeform rooted in PC background or motivation
+- Span different postures: confront, deflect, investigate, protect, exploit, withdraw
+- No generic verbs fitting any protagonist in any setting
+- At least 2 should reveal something about the character's priorities or relationships
+
+## Outcome summary
+
+One sentence (~10–20 words) summarizing the opening situation as a quest-log or journal entry. Third person, factual state of things. Not an instruction or "you must" phrasing.
+
+Example: "A stranded freighter drifts in the outer reach with no response from its crew."

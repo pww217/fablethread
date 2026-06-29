@@ -139,7 +139,7 @@ Grouped by category via emoji prefix:
 `POST /turn/delete` removes all events for the last turn from `events.jsonl` (including sanitizer events on turns divisible by `sanitize_every`) and `chronicle.md`, restores `last_turn_state` from the deleted turn's event, and returns previous actions for re-submission.
 
 ### New Game
-`POST /new-game` with optional `pack_id`, `pc_name`, `pc_stats`, `hints`. Triggers `generate_seed()` LLM pipeline with player overrides injected if hints are provided. Full page reload on success. Reroll (`POST /new-game/reroll`) HTMX-swaps the opening narrative + actions.
+`POST /new-game` with optional `pack_id`, `pc_name`, `pc_stats`, `hints`. Triggers two-step `prepare_seed()` (temp 0.4) → `narrate_seed()` (temp 0.9) LLM pipeline with player overrides injected if hints are provided. Full page reload on success. Reroll (`POST /new-game/reroll`) HTMX-swaps the opening narrative + actions.
 
 ## CSS File Layout
 

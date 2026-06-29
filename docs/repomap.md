@@ -9,7 +9,7 @@
 | `ccya/models/` | Pydantic models: state, extraction, rules, config, compactor |
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
-| `ccya/engine/config.py` | EngineConfig dataclass (fields: convergence_alpha, convergence_enter_threshold, convergence_exit_threshold, RISING_min, CLIMAX_min, BREATHER_min, climax_turn_limit, extension_max, roll_starvation_threshold, threat_density_threshold, etc.); CheckerConfig threshold fields; turn lock management; Jinja env setup |
+| `ccya/engine/config.py` | EngineConfig dataclass (fields: convergence_alpha, convergence_enter_threshold, convergence_exit_threshold, RISING_min, CLIMAX_min, BREATHER_min, climax_turn_limit, extension_max, roll_starvation_threshold, threat_density_threshold, prepare_seed_temperature=0.4, prepare_seed_top_p=0.95, etc.); CheckerConfig threshold fields; turn lock management; Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() orchestrator; pipeline (rules→narrate→scene/state/record); end-of-turn async phases (Sanitize + World) after yield("complete"); deferred atomic write block with last_turn_state capture (appended after async window); extraction_event includes world data under extraction.world |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
 | `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay, TTL condition expiration (_expire_conditions); LongTermObjective.started_turn on arc resolve |
@@ -22,7 +22,7 @@
 | `ccya/engine/extraction/` | Scene/state/record extraction pipeline (3 streams); `gm_beat` field removed from `StorytellerResult`; `candidate_npcs` removed from `SceneExtractResult`; `pacing_context` removed from pipeline signature (World reads directly from turn.py); `rules_outcome` replaced with `band` parameter |
 | `ccya/engine/hints.py` | Hint generation for ruling context (pc.situation) |
 | `ccya/engine/thread_sanitizer.py` | Batch arc/thread cleanup every N turns; atomic world_state swap |
-| `ccya/engine/seed.py` | Dynamic pack seed generation; personality fallback |
+| `ccya/engine/seed.py` | prepare_seed() → SeedStateEnvelope (temp 0.4), narrate_seed() → opening_narrative/actions (temp 0.9); personality fallback |
 | `ccya/engine/changes.py` | State diff → emoji display lines for UI |
 | `ccya/engine/npc_roster.py` | NPC roster builder: presence filter, recency+richness scoring, top-12 selection |
 | `ccya/engine/generate_pack.py` | SSE-driven ephemeral pack generation from world brief |
@@ -62,7 +62,7 @@
 | `ccya/ev/checkers/pacing_convergence.py` | Phase transition signals, convergence recomputation (6 components, no stall_floor), curtain_call, directive-beat alignment |
 | `ccya/ev/checkers/state.py` | State checkers: `location_description_consistency`, `world_state_facts` |
 | `ccya/personality.py` | NpcPersonality dataclass; 12 archetype registry; assign_personality() |
-| `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed or scenario; PackManifest.checkers for pack-level checker overrides |
+| `ccya/pack.py` | SeedStateEnvelope (wraps SeedState without narrative min_length), SeedEnvelope, load_pack(), list_packs() — validates pack has seed or scenario; PackManifest.checkers for pack-level checker overrides |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band) |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → Ollama (10.75.100.51:11434, ornith:35b on RTX 5070 Ti); trim_messages() |
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter; StreamHandler |

@@ -20,8 +20,9 @@ from ccya.engine import (
     await_turn_done,
     clear_cancel,
     format_change_lines,
-    generate_seed,
     is_turn_in_progress,
+    narrate_seed,
+    prepare_seed,
     request_cancel,
     run_turn,
 )
@@ -467,17 +468,34 @@ async def new_game(request: Request):
     try:
         # Dynamic seed path — always uses overrides (empty or not)
         _log.info("new_game dynamic seed pack=%s has_hints=%s", _app_mod._pack_id, has_hints)
-        envelope, pool_selection = await generate_seed(
+        partial, pool_selection = await prepare_seed(
             _app_mod._active_pack,
             _app_mod.engine_config,
             template_dir=str(_app_mod.PROMPTS_DIR),
             overrides=overrides,
         )
-        seed = envelope.seed_state.model_dump(mode="json")
+        narrate_fields = await narrate_seed(
+            partial.seed_state,
+            _app_mod.engine_config,
+            pack=_app_mod._active_pack,
+            template_dir=str(_app_mod.PROMPTS_DIR),
+            pool_selection=partial.pool_selection,
+        )
+        # Assemble final SeedEnvelope
+        from ccya.pack import SeedEnvelope
+        final_envelope = SeedEnvelope(
+            seed_state=partial.seed_state,
+            opening_narrative=narrate_fields["opening_narrative"],
+            actions=narrate_fields["actions"],
+            outcome_summary=narrate_fields["outcome_summary"],
+            arc=partial.seed_state.arc,
+            arc_origin=partial.seed_state.arc_origin,
+        )
+        seed = final_envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
         if pc_stats_dict:
             seed.setdefault("pc", {})["stats"] = pc_stats_dict
-        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
+        _apply_seed_to_save_dir(seed, final_envelope.opening_narrative, final_envelope.actions, outcome_summary=final_envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("new_game failed")
         return HTMLResponse(f"<p class='text-red-400'>Game creation failed: {exc}</p>", status_code=400)
@@ -491,16 +509,33 @@ async def new_game(request: Request):
 @_app_mod.app.post("/new-game/reroll")
 async def new_game_reroll(request: Request):
     try:
-        envelope, pool_selection = await generate_seed(
+        partial, pool_selection = await prepare_seed(
             _app_mod._active_pack,
             _app_mod.engine_config,
             template_dir=str(_app_mod.PROMPTS_DIR),
         )
-        seed = envelope.seed_state.model_dump(mode="json")
+        narrate_fields = await narrate_seed(
+            partial.seed_state,
+            _app_mod.engine_config,
+            pack=_app_mod._active_pack,
+            template_dir=str(_app_mod.PROMPTS_DIR),
+            pool_selection=partial.pool_selection,
+        )
+        # Assemble final SeedEnvelope
+        from ccya.pack import SeedEnvelope
+        final_envelope = SeedEnvelope(
+            seed_state=partial.seed_state,
+            opening_narrative=narrate_fields["opening_narrative"],
+            actions=narrate_fields["actions"],
+            outcome_summary=narrate_fields["outcome_summary"],
+            arc=partial.seed_state.arc,
+            arc_origin=partial.seed_state.arc_origin,
+        )
+        seed = final_envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
-        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
+        _apply_seed_to_save_dir(seed, final_envelope.opening_narrative, final_envelope.actions, outcome_summary=final_envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
-        _app_mod.logger.exception("generate_seed reroll failed")
+        _app_mod.logger.exception("seed generation reroll failed")
         return HTMLResponse(f"<p class='text-red-400'>Re-roll failed: {exc}</p>")
 
     actions_html = "".join(

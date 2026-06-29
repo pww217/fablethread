@@ -56,11 +56,17 @@ Two entirely separate template systems exist — do not conflate them:
 
 - New template. Renders `candidate_npcs` (from Scene Extract), active threads, `pacing_context`, `recent_beats`, `allowed_beat_types`, roll band, and the most recent narration. ~1000-2000 user tokens.
 
-### Seed system prompt (`ccya/prompts/generate_seed_system.j2`)
+### Prepare seed system prompt (`ccya/prompts/prepare_seed_system.j2`)
 
-- Generation order: PC → World state → Campaign arc → Opening scene/NPCs → Inventory (5 steps)
-- Opening narrative instructions: weave world state facts naturally (show effect, not statement), show NPC personal ties through action/dialogue (not exposition), reference compendium NPCs naturally in narration (phone call, rumor, memory)
+- Generation order: World facts → Key locations → Arc origin → PC situation → Campaign arc → Opening scene/NPCs → Inventory (8 steps)
+- Schema shows only `SeedState` shape (not full `SeedEnvelope`) — narrative fields (opening_narrative, actions, outcome_summary) are generated separately by narrate_seed
 - CompendiumEntry model has explicit motivation/fear/leverage/personality optional string fields alongside existing name/title/bio/bond/presence/notes; seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings; seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only) and a 12-archetype reference table
+
+### Narrate seed system prompt (`ccya/prompts/narrate_seed_system.j2`)
+
+- Generates opening_narrative (~700 words, second person, present tense, 3 movements), actions (exactly 4, 7-10 words each), and outcome_summary (one sentence, 10-20 words)
+- Receives filtered context: pc (name, tagline, bio, stats, conditions, situation), location, arc_origin, world_locations, inventory_items, pool_selection
+- Opening narrative weaving: weave pc.situation naturally, weave arc_origin as background pressure, set scene in key location, show NPC personal ties through action/dialogue, reference compendium NPCs naturally
 - Scene ideal: 1–4 present NPCs; narrative pressure for exits above that (soft guidance only, engine does NOT track or enforce NPC count at runtime — hard cap removed per Phase 01)
 - Group NPC bio: must describe individuals in the group with at least one distinguishing feature per person (appearance, demeanor, visible trait). Name stays short with quantity + type; bio carries identity. Prevents generic "Two sailors" with no distinguishing features.
 
