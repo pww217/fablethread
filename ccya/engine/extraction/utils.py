@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from ccya.engine.config import EngineConfig, _find_json, _log_llm_io
+from ccya.engine.config import EngineConfig, _find_json
 from ccya.llm_client import (
     chat as llm_chat,
     strip_thinking,
@@ -171,13 +171,6 @@ async def _call_stream(
     usage: dict[str, Any] = {}
     retry_errors: list[str] = []
     for attempt in range(1 + config.max_llm_retries):
-        if config.log_llm_io:
-            _log_llm_io(
-                trace_id=trace_id,
-                phase=f"{phase}_request_attempt_{attempt}",
-                messages=messages,
-                max_chars=config.log_llm_io_max_chars,
-            )
         result = await llm_chat(
             config.host,
             config.model,
@@ -190,13 +183,6 @@ async def _call_stream(
         )
         raw = result.content
         usage = result.usage
-        if config.log_llm_io:
-            _log_llm_io(
-                trace_id=trace_id,
-                phase=f"{phase}_response_attempt_{attempt}",
-                response=raw,
-                max_chars=config.log_llm_io_max_chars,
-            )
         try:
             return _parse_stream_result(raw, model_cls, strip_keys), usage, attempt + 1, retry_errors
         except Exception as exc:

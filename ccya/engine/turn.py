@@ -12,7 +12,7 @@ from typing import Any, AsyncIterator
 
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
-from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts, is_cancel_requested, register_turn, signal_turn_done
+from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, is_cancel_requested, register_turn, signal_turn_done
 from ccya.engine.extraction import (
     _avg_event_ms,
     _context_meta,
@@ -168,19 +168,10 @@ async def run_turn(
         narr_messages, narr_trimmed, narr_trimmed_chars = trim_messages(
             narr_messages, config.context_window,
         )
-        if config.log_prompts:
-            _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages)
 
         first_ms = 0.0
         t0 = asyncio.get_event_loop().time()
         narr_stream_stats: dict[str, Any] = {}
-        if config.log_llm_io:
-            _log_llm_io(
-                trace_id=trace_id,
-                phase="narrate_request",
-                messages=narr_messages,
-                max_chars=config.log_llm_io_max_chars,
-            )
         first_visible = True
         async for chunk in llm_chat_stream(
             config.host,
@@ -211,14 +202,6 @@ async def run_turn(
             "tokens_out": int(narr_stream_stats.get("eval_count", 0)),
             "output": narrative,
         }
-        if config.log_llm_io:
-            _log_llm_io(
-                trace_id=trace_id,
-                phase="narrate_response",
-                response=narrative,
-                extra={"timing_ms": narr_metrics},
-                max_chars=config.log_llm_io_max_chars,
-            )
 
         if is_cancel_requested(str(save_dir)):
             return

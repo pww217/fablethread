@@ -1,6 +1,6 @@
 ---
 title: "Logging parity between file and console — hard to debug in real time"
-status: new
+status: canceled
 urgency: 3
 size: small
 created: 2026-06-26
@@ -8,9 +8,10 @@ ticket_id: B-14
 labels:
   - logging
   - developer-experience
+superseded_by: I-15
 ---
 
-## Problem
+**Canceled** — Superseded by [I-15](../improvements/I-15-consolidate-logging.md) which covers this plus server log separation, prompts.log removal, and config consolidation.
 
 The file log (`logs/game.log`) and console (stdout) are at different levels by default:
 - File: DEBUG (from `config.yaml`)

@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import logging.handlers
-import os
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +22,9 @@ def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
     level_str = log_cfg.get("level", "INFO")
     level = getattr(logging, level_str, logging.INFO)
 
+    console_level_str = log_cfg.get("console_level", "INFO")
+    console_level = getattr(logging, console_level_str, logging.INFO)
+
     log_path = Path("logs/game.log")
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -37,7 +39,7 @@ def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
     logger.addHandler(fh)
 
     ch = logging.StreamHandler()
-    ch.setLevel(os.getenv("CCYA_LOG_LEVEL", "WARNING"))
+    ch.setLevel(console_level)
     ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
     logger.addHandler(ch)
 
@@ -63,3 +65,25 @@ class _JsonFormatter(logging.Formatter):
             log_data["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_data, default=str)
 
+
+def setup_server_logging() -> logging.Logger:
+    """Set up a dedicated RotatingFileHandler for server errors (logs/server.log).
+
+    Returns a logger named 'ccya.server' that writes to logs/server.log.
+    This is separate from the main 'ccya' logger so server errors can be
+    tracked independently.
+    """
+    server_logger = logging.getLogger("ccya.server")
+    server_logger.setLevel(logging.ERROR)
+
+    server_log_path = Path("logs/server.log")
+    server_log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fh = logging.handlers.RotatingFileHandler(
+        str(server_log_path), maxBytes=5 * 1024 * 1024, backupCount=3
+    )
+    fh.setLevel(logging.ERROR)
+    fh.setFormatter(_JsonFormatter())
+    server_logger.addHandler(fh)
+
+    return server_logger

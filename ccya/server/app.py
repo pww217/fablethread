@@ -16,7 +16,7 @@ from jinja2 import Environment, FileSystemLoader, pass_context
 
 from ccya.engine import build_engine_config, warmup
 from ccya.errors import ErrorKind, LlmcApiError, LlmcRateLimit, LlmcTimeout
-from ccya.logging_setup import setup_logging
+from ccya.logging_setup import setup_logging, setup_server_logging
 from ccya.models import load_config as _load_config
 from ccya.pack import Pack, load_pack
 
@@ -62,6 +62,7 @@ config: dict[str, Any] = _load_config(REPO_ROOT / "config.yaml")
 engine_config = build_engine_config(config)
 
 logger = setup_logging(config)
+server_logger = setup_server_logging()
 
 if SAVE_DIR is not None:
     logger.info("Resumed save: %s", SAVE_DIR)
@@ -130,6 +131,11 @@ def _persist_server_error(exc: Exception, *, kind: str | None = ErrorKind.SERVER
 
     with open(errors_file, "a") as f:
         f.write(json.dumps(entry, default=str) + "\n")
+
+    server_logger.error(
+        "server_error %s", str(exc),
+        extra={"error_kind": kind, **extra_fields},
+    )
 
 
 @app.middleware("http")
