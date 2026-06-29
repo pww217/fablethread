@@ -203,7 +203,7 @@ def _build_prepare_seed_messages(
 
 
 def _soft_validate_seed(
-    envelope: SeedStateEnvelope,
+    _envelope: SeedStateEnvelope,
     pack: Pack,
     overrides: PlayerOverrides | None = None,
 ) -> list[str]:

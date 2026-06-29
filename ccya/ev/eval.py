@@ -613,13 +613,13 @@ def cmd_eval_list() -> None:
             print()
         except ValueError:
             try:
-                sc = load_prompt_scenario(sp)
+                psc: Any = load_prompt_scenario(sp)
                 print(f"  {sp.name}")
-                print(f"    id: {sc.id}")
-                print(f"    save: {sc.save}")
-                print(f"    turn: {sc.turn}")
-                print(f"    stream: {sc.stream}")
-                print(f"    description: {sc.description}")
+                print(f"    id: {psc.id}")
+                print(f"    save: {psc.save}")
+                print(f"    turn: {psc.turn}")
+                print(f"    stream: {psc.stream}")
+                print(f"    description: {psc.description}")
                 print()
             except Exception as e2:
                 print(f"  {sp.name}: error: {e2}")

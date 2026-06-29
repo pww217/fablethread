@@ -325,7 +325,6 @@ def thread_cooldown(events: list[dict[str, Any]]) -> CheckerResult:
             if last_turn_created is None:
                 pass  # First turn, no cooldown check
             else:
-                last_turn_created = last_turn_created if last_turn_created is not None else 0
                 turns_since_last = turn_no - last_turn_created
                 if turns_since_last < cfg.thread_creation_cooldown:
                     findings.append({
