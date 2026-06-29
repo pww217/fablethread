@@ -203,17 +203,14 @@ def _debug_context() -> dict[str, Any]:
             "turns": [],
             "mock_mode": mock_mode,
             "state": {"meta": {}},
-            "log_llm_io": _app.engine_config.log_llm_io,
-            "log_prompts": _app.engine_config.log_prompts,
             "log_file": "logs/game.log",
         }
     state = _load_current_state()
     _log.debug("_debug_context state_keys=%s mock=%s", list(state.keys()), mock_mode)
     return {
-        "errors": [],        "turns": _recent_turn_metrics(_app.SAVE_DIR, 10),
+        "errors": [],
+        "turns": _recent_turn_metrics(_app.SAVE_DIR, 10),
         "mock_mode": mock_mode,
         "state": state,
-        "log_llm_io": _app.engine_config.log_llm_io,
-        "log_prompts": _app.engine_config.log_prompts,
         "log_file": "logs/game.log",
     }

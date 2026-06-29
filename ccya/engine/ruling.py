@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 
 
-from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _PROMPTS_LOG_PATH, _render
+from ccya.engine.config import EngineConfig, _find_json, _render
 from ccya.engine.extraction import _avg_event_ms
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine._pacing import _compute_ages, derive_allowed_beat_types
@@ -99,13 +99,6 @@ async def _call_ruling(
 
     for attempt in range(1 + config.max_llm_retries):
         try:
-            if config.log_llm_io:
-                _log_llm_io(
-                    trace_id=trace_id,
-                    phase=f"ruling_request_attempt_{attempt}",
-                    messages=messages,
-                    max_chars=config.log_llm_io_max_chars,
-                )
             result = await llm_chat(
                 config.host,
                 config.model,
@@ -117,13 +110,6 @@ async def _call_ruling(
             )
             raw = result.content
             usage = result.usage
-            if config.log_llm_io:
-                _log_llm_io(
-                    trace_id=trace_id,
-                    phase=f"ruling_response_attempt_{attempt}",
-                    response=raw,
-                    max_chars=config.log_llm_io_max_chars,
-                )
             cleaned = strip_thinking(raw)
             j = _find_json(cleaned)
             if j is None:
@@ -163,45 +149,6 @@ async def _call_ruling(
     return _no_intent, _no_usage, "", parse_error, None
 
 
-
-def _log_ruling_outcome(
-    turn: int, intent: "IntentEnvelope", outcome: "RulesOutcome"
-) -> None:
-    lines: list[str] = []
-    lines.append(f"## Turn {turn} — ruling engine output")
-    lines.append("")
-    lines.append("--- [Intent] ---")
-    lines.append(f"intent:        {intent.intent}")
-    lines.append(f"intent_verb:   {intent.intent_verb}")
-    lines.append(f"target:        {intent.target}")
-    lines.append("")
-    lines.append("--- [Dice Roll] ---")
-    if outcome.rolled:
-        lines.append("rolled:       True")
-        lines.append(f"skill:        {outcome.skill}")
-        lines.append(f"stat_value:   {outcome.stat_value}")
-        lines.append(f"stat_mod:     {outcome.stat_mod}")
-        lines.append(f"difficulty:   {outcome.difficulty}")
-        lines.append(f"diff_mod:     {outcome.diff_mod}")
-        lines.append(f"reason:       {intent.reason}")
-        lines.append(f"dice:         {outcome.dice}")
-        lines.append(f"raw_total:    {outcome.raw_total}")
-        lines.append(f"final_total:  {outcome.final_total}")
-        lines.append(f"band:         {outcome.band}")
-        lines.append(f"directive:    {outcome.directive}")
-    else:
-        lines.append("rolled:       False (no dice check required)")
-    lines.append("")
-    lines.append("---")
-    lines.append("")
-
-    try:
-        with open(_PROMPTS_LOG_PATH, "a") as f:
-            f.write("\n".join(lines))
-    except OSError:
-        _log.warning("failed to write prompts.log (ruling outcome)", exc_info=True)
-
-
 async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], float, list[tuple[str, Any]]]:
     """Execute ruling phase. Returns (intent, outcome, metrics, deescalate, phase_events)."""
     config = ctx.config
@@ -234,8 +181,6 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     ruling_messages, ruling_trimmed, ruling_trimmed_chars = trim_messages(
         ruling_messages, config.context_window,
     )
-    if config.log_prompts:
-        _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "ruling", ruling_messages)
 
     intent, ruling_usage, ruling_raw_response, ruling_parse_error, selected_beat = await _call_ruling(
         ruling_messages, config, trace_id,
@@ -356,11 +301,6 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     if "combat" in _tags:
         _scene_age += 2
     ctx._ages["effective_scene_age"] = _scene_age
-
-    if config.log_prompts:
-        _log_ruling_outcome(
-            state.get("meta", {}).get("turn", 0) + 1, intent, outcome
-        )
 
     ruling_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
     ruling_metrics = {

@@ -34,10 +34,8 @@ server:
   bind_port: 8765
   
   logging:
-    level: DEBUG
-    log_llm_io: false
-    log_llm_io_max_chars: 4000
-    log_prompts: true
+    level: INFO
+    console_level: INFO
 
 game:
   thread_deescalate_on_success: true

@@ -49,7 +49,9 @@ Two template systems exist — see `docs/architecture/cross-module-contracts.md`
 - Use `logging.getLogger(__name__)` — never global loggers.
 - Structured logging for new features: turn pipeline phases, state mutations, LLM calls, config changes.
 - Follow existing logging patterns.
-- Existing infra: `logging_setup.py` (JSONL file handler + console handler).
+- Existing infra: `logging_setup.py` (JSONL RotatingFileHandler for `logs/game.log` + console handler).
+- Server errors use `ccya.server` logger → `logs/server.log` (rotated) + `saves/server_errors.jsonl` (for turn viewer).
+- Config: `server.logging.level` (file, default INFO), `server.logging.console_level` (stdout, default INFO).
 - No bare `except: pass` — every exception handler must log at minimum a warning with the exception string.
 
 Log level standards: see `docs/architecture/logging-standards.md`.

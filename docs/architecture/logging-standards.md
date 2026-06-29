@@ -1,5 +1,28 @@
 # Logging Standards
 
+## Log files
+
+| File | What it has | Rotation |
+|---|---|---|
+| `logs/game.log` | Game engine logs (all levels from `server.logging.level`) | Yes (5MB, 3 backups) |
+| `logs/server.log` | Server HTTP errors (middleware: LlmcTimeout, LlmcRateLimit, LlmcApiError, unhandled) | Yes (5MB, 3 backups) |
+| `saves/server_errors.jsonl` | Server HTTP errors (middleware) — kept for turn viewer | No |
+| `saves/*/prompts.jsonl` | Per-turn rendered prompts | No (data file) |
+| `saves/*/events.jsonl` | Game events (including ruling outcomes) | No (data file) |
+
+`logs/prompts.log` was removed — redundant with per-save `prompts.jsonl` and `events.jsonl`.
+
+## Config keys
+
+```yaml
+server:
+  logging:
+    level: INFO              # File handler level (game.log)
+    console_level: INFO      # Console handler level (stdout)
+```
+
+Both default to `INFO`. The `CCYA_LOG_LEVEL` env var is no longer supported.
+
 ## Log levels
 
 | Level | When to use | Required extra context |

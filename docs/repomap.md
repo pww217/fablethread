@@ -65,7 +65,7 @@
 | `ccya/pack.py` | SeedStateEnvelope (wraps SeedState without narrative min_length), SeedEnvelope, load_pack(), list_packs() — validates pack has seed or scenario; PackManifest.checkers for pack-level checker overrides |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band) |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → Ollama (10.75.100.51:11434, ornith:35b on RTX 5070 Ti); trim_messages() |
-| `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter; StreamHandler |
+| `ccya/logging_setup.py` | JSONL RotatingFileHandler for `logs/game.log` + console handler; `setup_server_logging()` for `logs/server.log` |
 | `ccya/prompts/` | Jinja2 prompt templates (system + user) + shared includes (sections/) |
 | `ccya/templates/` | HTML UI templates (sidebar, modals, character sheets) |
 | `ccya/static/tokens.css` | Design tokens, base reset, fluid typography |
@@ -124,7 +124,7 @@
 ## Cross-module contracts (summary)
 
 - **EV checkers** import from `ccya/engine/config` and `ccya/rules` deliberately — checkers need engine constants to validate mechanical invariants. Checkers read events.jsonl directly, not the turn pipeline.
-- **Error propagation**: LLM failure → typed LlmcError → server middleware → server_errors.jsonl + SSE error event. Engine modules use structured logging via `extra={}` (error_kind, trace_id).
+- **Error propagation**: LLM failure → typed LlmcError → server middleware → `logs/server.log` (rotated) + `saves/server_errors.jsonl` (for turn viewer) + SSE error event. Engine modules use structured logging via `extra={}` (error_kind, trace_id).
 - **Thread lifecycle**: Three-layer governance (auto-dormant at 8 turns, urgency decay at 8 turns, completion threshold auto-resolve). Scene-scoped threads purged on location change. State key: `state["long_term_objective"]` (renamed from `state["arc"]`). Model: `LongTermObjective` (renamed from `CampaignArc`). See [cross-module-contracts.md](./architecture/cross-module-contracts.md) for full state machine.
 - **World state lifecycle**: `ThreadResolution.world_state_candidate` collected in `_apply_thread_resolutions()`. Two-step promotion: storyteller proposes (stored as `world_state_candidates` in state), thread sanitizer evaluates via atomic `world_state` swap (complete replacement array). TTL expiry pass in `_apply_state_updates()` removes facts whose `expires_turn` has passed. Valence enum: threat, complication, neutral, boon. Tier: global (immutable) or local (may expire). See [state-models.md](./architecture/state-models.md) for model details.
 - **Extraction routing**: SceneExtractResult (tagline, location, NPC updates), StateExtractResult (inventory, conditions), StorytellerResult (threads, goals, arcs — `gm_beat` field removed; beats are now World→Ruling flow). World reads NPC profiles directly from compendium via `build_npc_roster()` instead of receiving `candidate_npcs` from scene. GMBeat output includes `npcs` field. See [state-models.md](./architecture/state-models.md) for field routing details.

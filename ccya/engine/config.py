@@ -6,7 +6,6 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
@@ -141,9 +140,6 @@ class EngineConfig:
 
     max_llm_retries: int = 1
     context_window: int = 32768
-    log_llm_io: bool = False
-    log_llm_io_max_chars: int = 4000
-    log_prompts: bool = False
 
     # Max entries in recent_beats history list
     recent_beats_max: int = 5
@@ -229,7 +225,6 @@ def build_engine_config(
     """
     llm = cfg.get("llm", {})
     game = cfg.get("game", {})
-    logging_cfg = cfg.get("server", {}).get("logging", {})
 
     ruling_cfg = llm.get("ruling", {})
     ruling_t = float(ruling_cfg.get("temperature", 0.2))
@@ -283,9 +278,6 @@ def build_engine_config(
         pack_generation_temperature=pack_temp,
         pack_generation_top_p=pack_top_p,
         max_llm_retries=int(llm.get("max_llm_retries", 1)),
-        log_llm_io=bool(logging_cfg.get("log_llm_io", False)),
-        log_llm_io_max_chars=int(logging_cfg.get("log_llm_io_max_chars", 4000)),
-        log_prompts=bool(logging_cfg.get("log_prompts", False)),
 
         thread_deescalate_on_success=bool(
             game.get("thread_deescalate_on_success", True)
@@ -360,8 +352,6 @@ def _render(env: Environment, template_name: str, ctx: dict[str, Any]) -> str:
 # and extraction.py)
 # ---------------------------------------------------------------------------
 
-_PROMPTS_LOG_PATH = Path("logs/prompts.log")
-
 
 def _find_json(text: str) -> dict[str, Any] | None:
     text = text.strip()
@@ -426,51 +416,3 @@ def _truncate(s: str, n: int) -> str:
     if len(s) <= n:
         return s
     return s[:n] + f"…[truncated, {len(s) - n} more chars]"
-
-
-def _log_llm_io(
-    *,
-    trace_id: str,
-    phase: str,
-    messages: list[dict[str, Any]] | None = None,
-    response: str | None = None,
-    extra: dict[str, Any] | None = None,
-    max_chars: int = 4000,
-) -> None:
-    payload: dict[str, Any] = {"phase": phase, "trace_id": trace_id}
-    if messages is not None:
-        payload["messages"] = [
-            {
-                "role": m.get("role"),
-                "content": _truncate(m.get("content", ""), max_chars),
-            }
-            for m in messages
-        ]
-    if response is not None:
-        payload["response"] = _truncate(response, max_chars)
-    if extra:
-        payload.update(extra)
-    _log.debug(
-        "llm_io %s", json.dumps(payload, default=str), extra={"trace_id": trace_id}
-    )
-
-
-def _log_prompts(turn: int, call: str, messages: list[dict[str, str]]) -> None:
-    lines: list[str] = []
-    lines.append(f"## Turn {turn} — {call}")
-    lines.append("")
-    for msg in messages:
-        role = msg.get("role", "unknown").upper()
-        content = msg.get("content", "")
-        lines.append(f"--- [{role}] ---")
-        lines.append(content)
-        lines.append("")
-    lines.append("---")
-    lines.append("")
-
-    try:
-        _PROMPTS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(_PROMPTS_LOG_PATH, "a") as f:
-            f.write("\n".join(lines))
-    except OSError:
-        _log.warning("failed to write prompts.log", exc_info=True)

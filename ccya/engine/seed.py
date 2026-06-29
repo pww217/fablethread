@@ -11,7 +11,7 @@ from pathlib import Path
 
 import re
 
-from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _log_llm_io, _log_prompts, _render
+from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _render
 from ccya.engine.names import generate_name_pool, generate_npc_names
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
 from ccya.models import InventoryItem, WorldStateFact
@@ -236,19 +236,9 @@ async def prepare_seed(
     messages, pool_selection = _build_prepare_seed_messages(env, pack, overrides)
     messages, _, _ = trim_messages(messages, config.context_window)
 
-    if config.log_prompts:
-        _log_prompts(0, "prepare_seed", messages)
-
     for attempt in range(1 + config.max_llm_retries):
         # Source world_facts from scenario (new) or fall back to manifest baseline_facts / world.md parsing (legacy)
 
-        if config.log_llm_io:
-            _log_llm_io(
-                trace_id=trace_id,
-                phase=f"prepare_seed_request_attempt_{attempt}",
-                messages=messages,
-                max_chars=config.log_llm_io_max_chars,
-            )
         try:
             result = await llm_chat(
                 config.host,
@@ -273,13 +263,6 @@ async def prepare_seed(
             )
             raise
         raw = result.content
-        if config.log_llm_io:
-            _log_llm_io(
-                trace_id=trace_id,
-                phase=f"prepare_seed_response_attempt_{attempt}",
-                response=raw,
-                max_chars=config.log_llm_io_max_chars,
-            )
 
         cleaned = strip_thinking(raw)
         j = _find_json(cleaned)
@@ -584,17 +567,7 @@ async def narrate_seed(
     messages, _ = _build_narrate_seed_messages(env, seed_state, pool_selection, pack=pack)
     messages, _, _ = trim_messages(messages, config.context_window)
 
-    if config.log_prompts:
-        _log_prompts(0, "narrate_seed", messages)
-
     for attempt in range(1 + config.max_llm_retries):
-        if config.log_llm_io:
-            _log_llm_io(
-                trace_id=trace_id,
-                phase=f"narrate_seed_request_attempt_{attempt}",
-                messages=messages,
-                max_chars=config.log_llm_io_max_chars,
-            )
         try:
             result = await llm_chat(
                 config.host,
@@ -619,13 +592,6 @@ async def narrate_seed(
             )
             raise
         raw = result.content
-        if config.log_llm_io:
-            _log_llm_io(
-                trace_id=trace_id,
-                phase=f"narrate_seed_response_attempt_{attempt}",
-                response=raw,
-                max_chars=config.log_llm_io_max_chars,
-            )
 
         cleaned = strip_thinking(raw)
         j = _find_json(cleaned)
