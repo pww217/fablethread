@@ -83,7 +83,8 @@ def _build_rubric_areas(checker_results: dict[str, CheckerResult]) -> list[dict[
         "Ruling": ["ruling_reason_quality", "ruling_band_distribution", "ruling_intent_match"],
         "Narration": ["directive_tone_match", "beat_narrative_chain", "state_fidelity"],
         "Pacing": ["pacing_directives", "phase_transition", "climax_turn_counting",
-                    "breather_enforcement", "convergence_components"],
+                    "breather_enforcement", "phase_transition_signals", "convergence_recompute",
+                    "curtain_call", "directive_beat_alignment"],
         "State": ["location_change", "inventory_integrity", "conditions_lifecycle",
                   "location_description_consistency", "world_state_facts"],
         "Threads": ["thread_lifecycle", "thread_resolution_validity", "new_thread_validity",
@@ -158,7 +159,7 @@ def _store_checker_warnings(
     warning_checkers = {
         "ruling_reason_quality",
         "ruling_band_distribution",
-        "convergence_components",
+        "convergence_recompute",
         "world_state_facts",
         "location_description_consistency",
     }
