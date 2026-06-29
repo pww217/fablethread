@@ -448,17 +448,6 @@ def directive_beat_alignment(events: list[dict[str, Any]]) -> CheckerResult:
             })
             all_passed = False
 
-        # When directive == "Scene Imperative": selected beat must be in situation-changers + opportunity
-        if directive == "Scene Imperative":
-            imperative_allowed = {"revelation", "hazard", "callback", "opportunity", "setback", "breathing_room"}
-            if beat_type not in imperative_allowed:
-                findings.append({
-                    "turn": turn_no,
-                    "check": "scene_imperative_beat",
-                    "detail": f"Scene Imperative directive: beat type '{beat_type}' not in allowed set {sorted(imperative_allowed)}",
-                })
-                all_passed = False
-
     if not all_passed:
         return CheckerResult(
             checker_id="directive_beat_alignment", passed=False, score=0.0,

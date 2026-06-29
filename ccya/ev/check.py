@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
 
 # Checker domain groupings for summary output
 _CHECKER_DOMAINS: dict[str, list[str]] = {
-    "Pacing": ["pacing_directives", "phase_transition", "climax_turn_counting", "breather_enforcement", "roll_band_consistency", "convergence_components"],
+    "Pacing": ["pacing_directives", "phase_transition", "climax_turn_counting", "breather_enforcement", "roll_band_consistency", "phase_transition_signals", "convergence_recompute", "curtain_call", "directive_beat_alignment"],
     "Threads": ["thread_lifecycle", "sanitizer_lifecycle", "thread_resolution_validity", "new_thread_validity", "arc_resolution_validity"],
     "Beats": ["gm_beat_lifecycle", "beat_phase_validity"],
     "Goals": ["arc_goal_updates", "goal_update_validity"],
