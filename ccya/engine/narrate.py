@@ -115,9 +115,6 @@ def _narrate_messages(
     system_text = _render(env, "narrate_system.j2", {
         "narrator_rules": narrator_rules,
         "world_rules": world_rules,
-        "current_objective": current_objective_ctx,
-        "arc_pressure_score": arc_pressure_score,
-        "arc_hint_text": arc_hint_text,
     })
     user_text = _render(env, "narrate_user.j2", user_ctx)
     msgs = [

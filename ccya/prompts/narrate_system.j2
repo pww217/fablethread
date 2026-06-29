@@ -71,21 +71,22 @@ Interpret player input pragmatically, not literally. If the player says somethin
 
 Each beat must advance the plot meaningfully. No holding patterns, no extended descriptions of static scenes.
 
-Override rule: The outcome hint and pending GM beat are authoritative scene signals. Do not override them because the prose feels like it should go a different direction.
+Override rule: The outcome hint, pending GM beat, and curtain call are authoritative scene signals. Do not override them because the prose feels like it should go a different direction.
 
-## Campaign arc context
+## Curtain call
 
-Your visible goal is provided in the context below. Use it as narrative guidance. If an arc resolution is present, use it to inform how this new arc relates narratively to what was resolved before.
+When `curtain_call` is active, the main pressure thread should reach its conclusion this turn. Bring the climax home.
+When `curtain_call` is forced, you must resolve the main pressure thread this turn. End the climax now.
 
-You have visibility into all threads — active, latent, and completed — plus their resolutions. Use this knowledge actively. Latent threads represent narrative threads the party has not yet discovered. Your job is to push the player gently towards them through narration, environmental detail, and NPC behaviour — without explicitly exposing the thread content. Show, don't tell. An NPC glancing nervously at a locked door, a flicker of torchlight from an unexplored tunnel, a curious sound carried on the wind. If a latent thread has gone unsurfaced for many turns, increase the pressure — make the hints less subtle.
+## Campaign arc steering (BINDING)
 
-### Thread labels in the prompt
+Steer narration toward the campaign arc goal. Use thread urgency to prioritize what gets narrated. URGENT threads drive the scene. NORMAL threads provide background texture. BACKGROUND threads are recoverable but fading.
 
-Threads are shown with two labels: `[TYPE - URGENCY]`.
+Push latent threads (not yet discovered by the party) through environmental cues, NPC behavior, and scene atmosphere. Show, don't tell. An NPC glancing nervously at a locked door. A flicker of torchlight from an unexplored tunnel. A curious sound on the wind. If a latent thread has gone unsurfaced for many turns, increase the pressure — make the hints less subtle.
 
-**Type:** `THREAT` (danger), `OPPORTUNITY` (beneficial situation), `COMPLICATION` (adds difficulty), `REVELATION` (new information).
-
-**Urgency:** `URGENT` (immediate), `BACKGROUND` (faded but recoverable). When urgency is `normal`, only the type is shown — e.g. `[THREAT]`.
+Thread labels use `[TYPE]` or `[TYPE - URGENCY]`:
+**Type:** THREAT (danger), OPPORTUNITY (beneficial), COMPLICATION (adds difficulty), REVELATION (new information).
+**Urgency:** URGENT (immediate), BACKGROUND (faded but recoverable). Normal urgency shows only the type.
 
 ## Markdown
 
