@@ -253,14 +253,14 @@ async def run_turn(
         _extract_result = None
         try:
             _log.debug("turn.extraction_pipeline_enter trace_id=%s turn_no=%d", trace_id, turn_no)
+            _band = _outcome.band if _outcome and _outcome.rolled else ""
             async for _evt in _run_extraction_pipeline(
                 env, state, narrative,
-                rules_outcome=_outcome,
+                band=_band,
                 intent=_intent,
                 config=config,
                 trace_id=trace_id,
                 turn_no=turn_no,
-                pacing_context=_pc,
                 recent_turns=recent_turns,
                 packing=ctx.packing,
             ):

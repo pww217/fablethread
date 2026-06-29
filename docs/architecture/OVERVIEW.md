@@ -104,7 +104,7 @@ The pipeline produces several state objects at different points. Understanding w
 
 | State | When captured | Stored in events? | Purpose |
 |---|---|---|---|
-| `PacingContext` (dataclass) | Step 0, after phase engine | No (serialized as `pacing_context` dict) | Internal pacing signal for Steps 1–2c |
+| `PacingContext` (dataclass) | Step 0, after phase engine | No (serialized as `pacing_context` dict) | Internal pacing signal for Steps 1 and 2d (World); removed from extraction pipeline (Steps 2a-2c) |
 | `_ExtractionContext` (dataclass) | Step 2c, before record LLM call | No | Carries post-delta NPCs/location/candidate_npcs/inventory/conditions into record prompt |
 | `last_turn_state` | End of turn (after all processing) | Yes (`event["last_turn_state"]`) | Full persisted state at turn end; used by checkers |
 | `changes` | After sanitizer | Yes (`event["changes"]`) | What the sanitizer actually changed |

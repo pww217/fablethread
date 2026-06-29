@@ -136,7 +136,7 @@ flowchart LR
     classDef extractor fill:#500724,color:#fbcfe8,stroke:#ec4899
 
     NARRATE["engine/narrate.py<br>_narrate_setup() calls _compute_pacing_context()"]:::pyNode
-    PIPELINE["_run_extraction_pipeline()<br>pass PacingContext struct (Record only)"]:::pyNode
+    PIPELINE["_run_extraction_pipeline()<br>NO PacingContext — removed from pipeline signature"]:::pyNode
     EXTRACT_FN["_record_messages()<br>extraction/record.py"]:::pyNode
     USER_TMPL["record_user.j2<br>no pacing context"]:::prompt
     SYS_TMPL["record_system.j2<br>no PacingContext guidance"]:::prompt
@@ -151,7 +151,7 @@ flowchart LR
 ```
 
 1. **Computed** once in `run_turn()` via `_compute_pacing_context()`.
-2. **Passed through** `_run_extraction_pipeline()` → Record only (Record's `record_user.j2` does not render PacingContext — those inputs moved to World).
+2. **Not passed to extraction pipeline** — `pacing_context` removed from `_run_extraction_pipeline()` signature. World reads `pacing_context` directly from `turn.py` (async, end-of-turn). Record does not use pacing context.
 3. **Narrator template** (`narrate_user.j2`) renders `outcome_hint` (scene motion: hold/advance/transition) with value-specific guidance. No Jinja2 pacing computation remains — all pacing computed by Python.
 4. **World template** (`world_user.j2`) reads `pacing_context.directive` and `pacing_context.outcome_hint` from the live state (passed via `state` reference, end-of-turn async). World uses these to constrain beat-candidate generation (roll-band guidance, phase derivation). Guidance maps each directive to appropriate beat actions:
 
