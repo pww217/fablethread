@@ -146,7 +146,7 @@ Configured in `config.yaml` under `llm.host`, `llm.model`, `llm.num_ctx`, and `l
 
 ### PacingContext (see [step0-ruling](./step0-ruling.md#pacing-context))
 
-Computed by `_compute_pacing_context()` in `_pacing.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when Scene Imperative fires), `summary` (human-readable log string), `spiral_detected` (bool, set by `detect_spiral()` from recent roll history before narrate setup), `convergence_score` (int 0-6+, computed by `compute_convergence_score()` in turn.py before ruling for RISING→CLIMAX transition).
+Computed by `_compute_pacing_context()` in `_pacing.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when Scene Imperative fires), `summary` (human-readable log string), `convergence_score` (int 0-6+, 6-component EMA-smoothed score computed by `compute_convergence_score()` in narrate.py for RISING→CLIMAX transition).
 
 ### GMBeat (see [step2d-world](./step2d-world.md#gmbeat-schema-repurposed))
 

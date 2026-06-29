@@ -80,17 +80,16 @@ Defined in `ccya/engine/turn_context.py`.
 
 ```
 PacingContext:
-  directive: str           # "" | "Scene Imperative" | "Scene Pressure"; used by Storytell pipeline (Scene Imperative now purely age-based, CLIMAX turn-limit removed)
-  outcome_hint: str | None # "hold" | "advance" | "transition" — narrator's primary scene motion instruction
-  summary: str             # human-readable log string, never sent to LLM
-  spiral_detected: bool    # death spiral flag from recent rolls (set by _apply_state_updates, not _compute_pacing_context)
-  convergence_score: int   # 5-component score for RISING→CLIMAX transition (set by _apply_state_updates, not _compute_pacing_context)
-  convergence_components: dict[str, int]  # breakdown of convergence score components
+   directive: str           # "" | "Scene Imperative" | "Scene Pressure"; used by Storytell pipeline (Scene Imperative now purely age-based, CLIMAX turn-limit removed)
+   outcome_hint: str | None # "hold" | "advance" | "transition" — narrator's primary scene motion instruction
+   summary: str             # human-readable log string, never sent to LLM
+   convergence_score: int   # 6-component (0-7 range, urgent_thread 0-2 count-capped) EMA-smoothed score for RISING→CLIMAX transition (set by _narrate_setup, not _compute_pacing_context)
+   convergence_components: dict[str, int]  # breakdown of convergence score components
 ```
 
 ### Computation
 
-`_compute_pacing_context()` in `engine/_pacing.py` computes the base struct from inputs (`scene_phase`, `thread_urgency_count`, `effective_scene_age`, `scene_motion`, `scene_pressure_threshold`, `scene_imperative_threshold`). It returns a PacingContext with `directive` derived from a priority stack and `outcome_hint` from scene_motion (overridden to "transition" when Scene Imperative fires). Additional fields (`spiral_detected`, `convergence_score`, `convergence_components`) are set later in `_narrate_setup()` in `engine/narrate.py` after convergence score and spiral detection run.
+`_compute_pacing_context()` in `engine/_pacing.py` computes the base struct from inputs (`scene_phase`, `thread_urgency_count`, `effective_scene_age`, `scene_motion`, `scene_pressure_threshold`, `scene_imperative_threshold`). It returns a PacingContext with `directive` derived from a priority stack and `outcome_hint` from scene_motion (overridden to "transition" when Scene Imperative fires). Additional fields (`convergence_score`, `convergence_components`) are set later in `_narrate_setup()` in `engine/narrate.py` after convergence score computation and EMA smoothing.
 
 ```mermaid
 flowchart TD

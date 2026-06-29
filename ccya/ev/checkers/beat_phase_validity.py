@@ -46,7 +46,6 @@ def beat_phase_validity(events: list[dict[str, Any]]) -> CheckerResult:
         allowed: list[str] = derive_allowed_beat_types(
             scene_phase,
             directive=pacing_ctx.get("directive", ""),
-            spiral_detected=pacing_ctx.get("spiral_detected", False),
         )
         if beat_type not in allowed:
             findings.append({

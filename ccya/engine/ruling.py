@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _PROMPTS_LOG_PATH, _render
 from ccya.engine.extraction import _avg_event_ms
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.engine._pacing import _compute_ages
+from ccya.engine._pacing import _compute_ages, derive_allowed_beat_types
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
 from ccya.models import Band, IntentEnvelope, RulesCheck, RulesOutcome
 from ccya.personality import ARCHETYPES
@@ -253,6 +253,19 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     if selected_beat is not None and isinstance(selected_beat, int) and 0 <= selected_beat < len(beat_candidates):
         beat = beat_candidates[selected_beat]
 
+    # Validate selected beat type against phase constraints
+    if beat and beat.get("type"):
+        pc = state.get("pc") or {}
+        directive = pc.get("directive", "") if isinstance(pc, dict) else ""
+        allowed = derive_allowed_beat_types(scene_phase, directive=directive)
+        if beat["type"] not in allowed:
+            _log.warning(
+                "ruling.beat_phase_violation type=%s phase=%s allowed=%s",
+                beat["type"], scene_phase, allowed,
+                extra={"trace_id": trace_id, "turn": turn_no},
+            )
+            beat = None
+
     if beat and beat.get("type"):
         state.setdefault("meta", {})["pending_gm_beat"] = {
             "type": beat["type"],
@@ -269,6 +282,15 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
             meta["recent_beats"] = meta["recent_beats"][-max_beats:]
     else:
         state.get("meta", {}).pop("pending_gm_beat", None)
+        meta = state.setdefault("meta", {})
+        meta.setdefault("recent_beats", []).append({
+            "turn": turn_no,
+            "type": "",
+            "effect": "",
+        })
+        max_beats = config.recent_beats_max or 5
+        if len(meta["recent_beats"]) > max_beats:
+            meta["recent_beats"] = meta["recent_beats"][-max_beats:]
 
     # Always discard candidates
     state.get("meta", {}).pop("beat_candidates", None)

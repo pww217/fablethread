@@ -280,13 +280,6 @@ def _tv_state_diff(ev: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[
             "label": f"allowed_beat_types: [{', '.join(str(x) for x in allowed_beat_types)}]",
         })
 
-    spiral_detected = pacing_ctx.get("spiral_detected")
-    if spiral_detected:
-        pacing_items.append({
-            "section": "spiral_detected",
-            "label": "spiral_detected: true",
-        })
-
     # --- State changes (organized by concern) ---
 
     # Helper: extract parsed output from a stream path

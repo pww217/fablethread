@@ -159,11 +159,18 @@ class EngineConfig:
     # Scene phase thresholds
     climax_turn_limit: int = 4          # max turns in CLIMAX before forced RESOLUTION
     breather_max_turns: int = 3         # max turns in BREATHER before forced RISING transition
-    convergence_threshold: int = 3
+    # EMA smoothing for convergence score
+    convergence_alpha: float = 0.4
+    # Hysteresis thresholds for phase transitions
+    convergence_enter_threshold: int = 3
+    convergence_exit_threshold: int = 1
+    # Configurable phase minimums
+    RISING_min: int = 3
+    CLIMAX_min: int = 3
+    BREATHER_min: int = 2
     # New convergence components
     roll_starvation_threshold: int = 3    # turns without a roll before +1
     threat_density_threshold: int = 3     # active threat threads before +1
-    stall_floor_max: int = 3              # cap on stall floor extra score
     # CLIMAX extension
     extension_max: int = 2               # max additional CLIMAX turns beyond climax_turn_limit
     # Near-miss softening: whether near-fails get softer narration directive text
@@ -173,10 +180,6 @@ class EngineConfig:
     arc_memory_ttl: int = 3
     # Max active threads before eviction of oldest
     thread_max_active: int = 5
-
-    # Death spiral detection
-    spiral_consecutive_hard: int = 3        # N consecutive hard+ rolls triggers spiral flag
-    spiral_hard_ratio: tuple[int, int] = (3, 5)  # M of last N hard+ triggers spiral flag
 
     # Urgency decay: demote urgent→normal→background after N turns at same urgency level
     thread_urgency_max_age: int = 8
@@ -295,10 +298,14 @@ def build_engine_config(
         scene_imperative_threshold=int(game.get("scene_imperative_threshold", 5)),
         climax_turn_limit=int(game.get("climax_turn_limit", 4)),
         breather_max_turns=int(game.get("breather_max_turns", 3)),
-        convergence_threshold=int(game.get("convergence_threshold", 2)),
+        convergence_alpha=float(game.get("convergence_alpha", 0.4)),
+        convergence_enter_threshold=int(game.get("convergence_enter_threshold", 3)),
+        convergence_exit_threshold=int(game.get("convergence_exit_threshold", 1)),
+        RISING_min=int(game.get("RISING_min", 3)),
+        CLIMAX_min=int(game.get("CLIMAX_min", 3)),
+        BREATHER_min=int(game.get("BREATHER_min", 2)),
         roll_starvation_threshold=int(game.get("roll_starvation_threshold", 3)),
         threat_density_threshold=int(game.get("threat_density_threshold", 3)),
-        stall_floor_max=int(game.get("stall_floor_max", 3)),
         extension_max=int(game.get("extension_max", 2)),
         near_miss_softening=bool(game.get("near_miss_softening", True)),
         thread_memory_ttl=int(game.get("thread_memory_ttl", 3)),

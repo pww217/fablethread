@@ -145,7 +145,7 @@ async def run_turn(
                 trace_id, turn_no, expired_ids, extra={"trace_id": trace_id, "turn": turn_no},
             )
 
-        # Append roll to recent_rolls rolling window for spiral detection
+        # Append roll to recent_rolls rolling window
         if ctx.outcome and ctx.outcome.rolled:
             recent_rolls = state.setdefault("meta", {}).setdefault("recent_rolls", [])
             recent_rolls.insert(0, {"turn": turn_no, "band": ctx.outcome.band})
@@ -410,7 +410,6 @@ async def run_turn(
             "pacing_context": {
                 "directive": _pc.directive if _pc else "",
                 "outcome_hint": _pc.outcome_hint if _pc else None,
-                "spiral_detected": _pc.spiral_detected if _pc else False,
                 "summary": _pc.summary if _pc else "",
                 "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
                 "climax_turn_count": state.get("scene", {}).get("climax_turn_count", 0),
@@ -423,7 +422,6 @@ async def run_turn(
             "allowed_beat_types": derive_allowed_beat_types(
                 state.get("scene", {}).get("scene_phase", "SETUP"),
                 directive=_pc.directive if _pc else "",
-                spiral_detected=_pc.spiral_detected if _pc else False,
             ),
             "post_turn_location_id": state.get("location", {}).get("id"),
             "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),

@@ -49,7 +49,6 @@ async def _run_world_step(
     allowed_beat_types = derive_allowed_beat_types(
         scene_phase,
         directive=pacing_context.directive if pacing_context else "",
-        spiral_detected=pacing_context.spiral_detected if pacing_context else False,
     )
 
     rules_outcome_dict: dict[str, Any] = {}
@@ -138,6 +137,13 @@ async def _run_world_step(
         except ValidationError:
             continue
         if not beat.type:
+            continue
+        if beat.type not in allowed_beat_types:
+            _log.warning(
+                "world.beat_phase_violation type=%s phase=%s allowed=%s",
+                beat.type, scene_phase, allowed_beat_types,
+                extra={"trace_id": trace_id, "turn": turn_no},
+            )
             continue
         valid_beats.append({"type": beat.type, "effect": beat.effect, "npcs": entry.get("npcs", [])})
         if len(valid_beats) >= 3:

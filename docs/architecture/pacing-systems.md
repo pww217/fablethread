@@ -36,7 +36,7 @@ flowchart TD
 
 ### Definition
 
-The phase engine tracks `state["scene"]["scene_phase"]` through five states: SETUP, RISING, CLIMAX, RESOLUTION, BREATHER. Transitions are driven by convergence score (6 boolean components + stall_floor integer floor) and scene age.
+The phase engine tracks `state["scene"]["scene_phase"]` through five states: SETUP, RISING, CLIMAX, RESOLUTION, BREATHER. Transitions are driven by convergence score (6 components, urgent_thread 0-2, EMA smoothed) and scene age.
 
 ### Phase transitions
 
@@ -50,9 +50,9 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 
 ### Convergence score
 
-`compute_convergence_score()` computes a 6-component score (0-6) each turn to drive RISING→CLIMAX transition. Components: (1) any urgent thread (dormant-aware) (+1), (2) any threat thread (dormant-aware) (+1), (3) scene age ≥ threshold (+1), (4) beat streak: ≥60% pressure beats in recent window with carry-over for null types (+1), (5) roll_starvation: turns since last roll ≥ threshold (+1), (6) threat_density: active threat threads ≥ threshold (+1). Returns `(score, components_dict)`.
+`compute_convergence_score()` computes a 6-component score (0-7) each turn to drive RISING→CLIMAX transition. Components: (1) urgent thread count (dormant-aware, capped at 2), (2) any threat thread (dormant-aware) (+1), (3) scene age ≥ threshold (+1), (4) beat streak: ≥60% pressure beats in recent window with carry-over for null types (+1), (5) roll_starvation: turns since last roll ≥ threshold (+1), (6) threat_density: active threat threads ≥ threshold (+1). Returns `(score, components_dict)`.
 
-`stall_floor` is computed externally in `turn.py` from `meta.consecutive_low_convergence` (global counter across BREATHER→RISING cycles). When `consecutive_low_convergence ≥ 3`, `stall_floor = min(1 + ((clc - 3) // 3), config.stall_floor_max)`. Total score = convergence_score + stall_floor (7th component, integer floor). `consecutive_low_convergence` resets on reaching threshold or cancel/retry.
+The raw score is smoothed using exponential moving average (EMA) each turn: `smoothed = alpha * raw + (1 - alpha) * prev_smoothed`. Phase transitions use the smoothed value. First turn uses raw score as initial smoothed value.
 
 ## 2.5. Curtain Call — CLIMAX phase soft close
 
@@ -151,8 +151,7 @@ PacingContext:
   directive: str           # "Scene Imperative" | "Scene Pressure" | ""
   outcome_hint: str | None # "hold" | "transition"
   summary: str             # Human-readable log, never sent to LLM
-  spiral_detected: bool    # Death spiral flag from recent rolls (set in narrate.py, not _compute_pacing_context)
-  convergence_score: int   # 6 components + stall_floor for RISING→CLIMAX transition (set in turn.py, not _compute_pacing_context)
+  convergence_score: int   # 6 components, EMA smoothed for RISING→CLIMAX transition (set in narrate.py, not _compute_pacing_context)
 ```
 
 ### How each field is computed
@@ -216,8 +215,8 @@ flowchart LR
 | `_pacing.py` | 171-205 | `_compute_pacing_context()` |
 | `_pacing.py` | 145-168 | `_compute_narration_directive()` |
 | `turn.py` | 317 | `_apply_state_updates()` calls thread operations (via turn_state.py) |
-| `turn.py` | ~100-150 | Phase machine: calls `_compute_ages`, `compute_convergence_score`, `_compute_scene_phase`, computes stall_floor; sets convergence_score on PacingContext |
-| `narrate.py` | 199-262 | `_narrate_setup()` sets spiral_detected on PacingContext; reads convergence_score from ctx (no recomputation if _phase_computed flag is True) |
+| `turn.py` | ~100-150 | Phase machine: calls `_compute_ages`, `compute_convergence_score`, `_compute_scene_phase`; sets convergence_score on PacingContext |
+| `narrate.py` | 147-262 | `_narrate_setup()` computes EMA-smoothed convergence_score; sets convergence_score on PacingContext |
 | `narrate_user.j2` | 100-103 | `outcome_hint`, `pacing_context` |
 | `world_user.j2` | — | `directive`, `outcome_hint`, `recent_beats`, `allowed_beat_types` |
 | `record_user.j2` | — | (no PacingContext — Record is backward-looking) |
@@ -310,7 +309,7 @@ flowchart TD
 
 | Variable | Set by | Consumed by | Effect |
 |----------|--------|-------------|--------|
-| `convergence_score` | turn.py (thread urgency, age, beats, roll_starvation, threat_density + stall_floor from consecutive_low_convergence) | RISING→CLIMAX transition | 6 boolean components + integer floor |
+| `convergence_score` | narrate.py (urgent_thread 0-2, threat, age, beats, roll_starvation, threat_density, EMA smoothed) | RISING→CLIMAX transition | 6 components (0-7 range), EMA smoothed |
 | `scene_phase` | Phase engine | Directive, beat constraints, outcome_hint | Primary pacing signal |
 | `pending_gm_beat` | Ruling (selects from `state.meta.beat_candidates`) | Narrator (same turn), beat history | Forward-facing storytelling beat |
 | `arc.threads[].urgency` | Storytell (thread_update) + Python decay | Phase transitions, directive computation | Scene tension level |
@@ -356,12 +355,16 @@ T6:  normal climax rhythm continues
 
 | Config key | Default | System | Effect |
 |------------|---------|--------|--------|
-| `convergence_threshold` | 2 | Phase Engine | Convergence score needed for CLIMAX transition |
+| `convergence_alpha` | 0.4 | Convergence | EMA smoothing factor for convergence score |
+| `convergence_enter_threshold` | 3 | Phase Engine | Convergence score needed for RISING→CLIMAX transition |
+| `convergence_exit_threshold` | 1 | Phase Engine | Convergence score for CLIMAX early exit |
+| `RISING_min` | 3 | Phase Engine | Minimum turns in RISING phase |
+| `CLIMAX_min` | 3 | Phase Engine | Minimum turns in CLIMAX phase |
+| `BREATHER_min` | 2 | Phase Engine | Minimum turns in BREATHER phase |
 | `climax_turn_limit` | 4 | Phase Engine | Base turns in CLIMAX before RESOLUTION (signal-gated exit) |
 | `extension_max` | 2 | Phase Engine | Additional CLIMAX turns beyond limit on sustained pressure |
 | `roll_starvation_threshold` | 3 | Convergence | Turns without a roll before +1 convergence |
 | `threat_density_threshold` | 3 | Convergence | Active threat threads before +1 convergence |
-| `stall_floor_max` | 3 | Convergence | Cap on stall floor extra score |
 | `breather_max_turns` | 3 | Phase Engine | Max turns in BREATHER before forced RISING |
 | `scene_pressure_threshold` | 3 | Pacing Context | Scene Pressure secondary directive threshold |
 | `scene_imperative_threshold` | 5 | Pacing Context | Scene Imperative directive threshold |
@@ -382,9 +385,8 @@ T6:  normal climax rhythm continues
 | `_compute_narration_directive()` | `_pacing.py` | 145-168 | scene_age → directive (Scene Imperative purely age-based) |
 | `_compute_pacing_context()` | `_pacing.py` | 171-205 | scene_phase + urgency + age → PacingContext |
 | `_compute_ages()` | `_pacing.py` | 208-219 | Scene age computation |
-| `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls)` | `_pacing.py` | 86-148 | 6-component score (any_urgent, any_threat, scene_age, beat_streak with carry-over, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
-| `derive_allowed_beat_types()` | `_pacing.py` | 61-83 | Phase + directive + spiral → allowed beat types |
-| `detect_spiral()` | `_pacing.py` | 33-58 | Recent roll bands → spiral flag (consecutive/ratio thresholds) |
+| `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls)` | `_pacing.py` | 60-127 | 6-component score (urgent_thread 0-2 count-capped, any_threat, scene_age, beat_streak with carry-over, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
+| `derive_allowed_beat_types()` | `_pacing.py` | 61-73 | Phase + directive → allowed beat types |
 | `sanitize_threads()` | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
 
 ### Beat lifecycle functions
@@ -408,6 +410,10 @@ T6:  normal climax rhythm continues
 
 | Checker | File | What it validates |
 |---------|------|-------------------|
+| `phase_transition_signals` | `ccya/ev/checkers/pacing_convergence.py` | Phase transition triggers match engine logic |
+| `convergence_recompute` | `ccya/ev/checkers/pacing_convergence.py` | Independently recompute convergence score from raw state |
+| `curtain_call` | `ccya/ev/checkers/pacing_convergence.py` | Curtain call state matches CLIMAX phase rules |
+| `directive_beat_alignment` | `ccya/ev/checkers/pacing_convergence.py` | Selected beat aligns with directive and phase constraints |
 | `phase_transition` | `ccya/ev/checkers/phase_transition.py` | Phase engine transitions follow the state machine, outcome_hint consistency |
 
 | `recent_beats` | `ccya/ev/checkers/recent_beats.py` | recent_beats list structure, cap, monotonic turn numbers |
