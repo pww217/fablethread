@@ -1,7 +1,7 @@
 {# Left sidebar: Scene, Location, Objective, Compendium #}
 {% set comp = (state.compendium.npcs if state.compendium and state.compendium.npcs else {}) %}
-{% set _present = namespace(items=[]) %}
-{% if comp is mapping and comp %}{% for _k, _v in comp.items() %}{% if _v is mapping and _v.get("presence") == "present" %}{% set _present.items = _present.items + [_v] %}{% endif %}{% endfor %}{% endif %}
+{% set _present = namespace(items=[], nearby_items=[]) %}
+{% if comp is mapping and comp %}{% for _k, _v in comp.items() %}{% if _v is mapping %}{% if _v.get("presence") == "present" %}{% set _present.items = _present.items + [_v] %}{% elif _v.get("presence") == "nearby" %}{% set _present.nearby_items = _present.nearby_items + [_v] %}{% endif %}{% endif %}{% endfor %}{% endif %}
 {% set present_npcs = (_present.items | sort(attribute="display_name")) if _present.items else [] %}
 {% if (state.scene.tags or []) or present_npcs %}
 <details class="sidebar-card" id="card-scene" data-card="scene" open>
@@ -36,8 +36,41 @@
             </div>
             {% endfor %}
         </div>
-        {% else %}
-        <span class="empty-state">No one else is around.</span>
+        {% endif %}
+        {% if present_npcs %}
+        {% set _nearby = namespace(items=[]) %}
+        {% if comp is mapping and comp %}{% for _k, _v in comp.items() %}{% if _v is mapping and _v.get("presence") == "nearby" %}{% set _nearby.items = _nearby.items + [_v] %}{% endif %}{% endfor %}{% endif %}
+        {% set nearby_npcs = (_nearby.items | sort(attribute="display_name")) if _nearby.items else [] %}
+        {% if nearby_npcs %}
+        <hr class="npc-divider">
+        <div class="npc-list nearby-list">
+            {% for npc in nearby_npcs %}
+            {% set npc_name = (npc.get('display_name') or npc.get('id') or npc) if npc is mapping else npc %}
+            {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
+            {% set npc_position = npc.get('position', '') if npc is mapping else '' %}
+            {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}
+            {% set _mot = npc.get('motivation', '') if npc is mapping else '' %}
+            {% set npc_bond = npc.get('bond_label', '') or npc.get('bond', '') if npc is mapping else '' %}
+            {% set npc_pl = npc.get('personality_label', '') if npc is mapping else '' %}
+            {% set npc_pt = npc.get('personality_traits', '') if npc is mapping else '' %}
+            {% set _has_tt = npc_bio or npc_pl or _mot or npc_bond %}
+            <div class="npc-item nearby-item{% if _has_tt %} has-tooltip{% endif %}">
+                <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
+                {% if npc_position %}
+                <span class="npc-position-inline">{{ npc_position }}</span>
+                {% endif %}
+                {% if _has_tt %}
+                <div class="tooltip-body" data-md-compendium>
+                    {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
+                    {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}{% if npc_pt %} — {{ npc_pt }}{% endif %}</p>{% endif %}
+                    {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% endif %}
+                    {% if npc_bond %}<p><strong>Bond:</strong> {{ npc_bond }}</p>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% endif %}
     </div>
 </details>

@@ -89,8 +89,8 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
             #   - hard cap: climax_turn_count >= limit
             elif prev_phase == "CLIMAX" and phase == "RESOLUTION":
                 thread_resolved_prev = any(
-                    ct for ct in completed_threads
-                    if ct.get("resolved_turn") == turn_no - 1
+                    (rt := ct.get("resolved_turn")) is not None and rt == turn_no - 1  # type: ignore[operator]
+                    for ct in completed_threads
                 )
                 prev_turns_in_phase = prev_scene.get("turns_in_phase", 0)
                 early_exit = thread_resolved_prev and (convergence_score is None or convergence_score < cfg.convergence_exit_threshold) and (prev_turns_in_phase + 1 >= cfg.CLIMAX_min)
@@ -200,7 +200,8 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
         # Compute scene_age
         # meta.turn in last_turn_state is already incremented (post-turn),
         # but _compute_ages runs at ruling time (pre-increment), so subtract 1
-        current_turn = meta.get("turn", turn_no) - 1
+        mt = meta.get("turn")
+        current_turn = (mt if mt is not None else turn_no) - 1  # type: ignore[operator]
         # scene.turn_entered in last_turn_state is set by delta_builder AFTER
         # ruling, but _compute_ages runs at ruling time. Read from previous
         # turn's state to get the pre-delta_builder value.

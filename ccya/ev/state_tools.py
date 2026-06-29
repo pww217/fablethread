@@ -1573,7 +1573,7 @@ def _match_single_query(
     elif field == "scene_phase":
         pc = ev.get("pacing_context") or {}
         phase = pc.get("scene_phase", "")
-        if op == "eq" and isinstance(value, str):
+        if op == "eq" and isinstance(value, str) and isinstance(phase, str):
             return phase.lower() == value.lower()
         return False
 

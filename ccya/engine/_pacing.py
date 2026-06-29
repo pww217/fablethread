@@ -12,7 +12,7 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig
 from ccya.engine.turn_context import PacingContext
-from ccya.models import ArcThread, RulesOutcome
+from ccya.models import ArcThread
 
 
 BEAT_BUCKETS: dict[str, list[str]] = {
@@ -54,7 +54,6 @@ def compute_convergence_score(
     active_threads: list[dict[str, Any]],
     scene_age: int,
     recent_beats: list[dict[str, Any]],
-    current_outcome: RulesOutcome | None,
     config: EngineConfig,
     turn_no: int,
     recent_rolls: list[dict[str, Any]],
@@ -232,15 +231,9 @@ def _compute_scene_phase(
     CLIMAX→RESOLUTION: signal-gated exit (early exit on thread resolution + low convergence,
     extension on sustained pressure, hard cap at climax_turn_limit + extension_max).
 
-    Mutates state["scene"] in place. Returns the updated scene dict.
+    Returns the updated scene dict.
     """
-    scene = state.setdefault("scene", {})
-
-    # Initialize new fields if missing
-    scene.setdefault("scene_phase", "SETUP")
-    scene.setdefault("climax_turn_count", 0)
-    scene.setdefault("breather_turn_count", 0)
-    scene.setdefault("turns_in_phase", 0)
+    scene = state.get("scene") or {}
 
     phase = scene.get("scene_phase", "SETUP")
     climax_turn_count = scene.get("climax_turn_count", 0)

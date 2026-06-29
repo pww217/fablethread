@@ -44,6 +44,7 @@ class TurnResult:
     scene_phase: str = field(default="")
     summary: str = field(default="")
     ts: str = field(default="")
+    state_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
 def load_config(path: str | os.PathLike[str] = "config.yaml") -> dict[str, Any]:
