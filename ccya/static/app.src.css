@@ -1164,6 +1164,18 @@ body {
   color: var(--text-muted);
 }
 
+.npc-divider {
+  border: none;
+  border-top: 1px dashed var(--border-subtle);
+  margin: 8px 0;
+}
+
+.npc-item.nearby-item {
+  opacity: 0.55;
+  border-left-color: var(--border-subtle);
+  background: transparent;
+}
+
 /* =========================================================
    SIDEBAR — INVENTORY
    ========================================================= */

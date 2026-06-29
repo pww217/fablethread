@@ -327,7 +327,7 @@ async def get_turn(input: str = ""):
                                 "diff": result.diff,
                                 "changes": ch,
                                 "change_lines": format_change_lines(ch),
-                                "state": _load_current_state(),
+                                "state": result.state_snapshot,
                                 "metrics": result.metrics,
                                 "ruling": result.ruling,
                                 "outcome_summary": result.outcome_summary,

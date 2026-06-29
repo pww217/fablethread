@@ -339,8 +339,7 @@ async def _run_extraction_pipeline(
         actions=record_result.actions or [],
     )
 
-    # mypy cannot express heterogeneous 7-tuple yield from async generator
-    yield (  # type: ignore[misc]
+    yield (
         merged,
         record_result.actions,
         record_result.outcome_summary,
