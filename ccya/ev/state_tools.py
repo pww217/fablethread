@@ -483,7 +483,7 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
         if selected is not None:
             print(f"  ruling.selected_beat: {selected}")
         else:
-            print(f"  ruling.selected_beat: null")
+            print("  ruling.selected_beat: null")
 
 
 def cmd_goals(events: list[dict[str, Any]], include_compaction: bool = False) -> None:

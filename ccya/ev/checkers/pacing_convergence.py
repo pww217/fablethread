@@ -29,21 +29,9 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
         turn_no = ev.get("turn")
         snap = extract_field(ev, "last_turn_state") or {}
         arc = snap.get("arc") or snap.get("long_term_objective") or {}
-        threads = arc.get("threads") or []
         completed_threads = arc.get("completed_threads") or []
-        meta = snap.get("meta") or {}
-        scene = snap.get("scene") or {}
-
         convergence_score = pc.get("convergence_score")
-        turns_in_phase = pc.get("turns_in_phase", 0)
         climax_turn_count = pc.get("climax_turn_count", 0)
-        breather_turn_count = pc.get("breather_turn_count", 0)
-
-        # Count urgent threads
-        urgent_count = sum(
-            1 for t in threads
-            if isinstance(t, dict) and t.get("urgency") == "urgent" and not t.get("dormant", False)
-        )
 
         # For transition checks, we need the PREVIOUS turn's state
         # because the current turn's state reflects post-transition values
@@ -111,7 +99,6 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
                 prev_climax_turn_count = prev_pc.get("climax_turn_count", 0)
                 hard_cap = prev_climax_turn_count + 1 >= cfg.climax_turn_limit
                 if not early_exit and not hard_cap:
-                    resolved_turns = [ct.get("resolved_turn") for ct in completed_threads if ct.get("resolved_turn")]
                     findings.append({
                         "turn": turn_no,
                         "check": "climax_resolution_signal",
@@ -195,18 +182,14 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
         pc = extract_field(ev, "pacing_context") or {}
         raw_components = pc.get("convergence_components") or {}
         convergence_score = pc.get("convergence_score")
-        scene_phase = pc.get("scene_phase", "")
         turn_no = ev.get("turn")
 
         if not raw_components:
             continue
 
         snap = extract_field(ev, "last_turn_state") or {}
-        arc = snap.get("arc") or snap.get("long_term_objective") or {}
-        threads = arc.get("threads") or []
         meta = snap.get("meta") or {}
         scene = snap.get("scene") or {}
-
         # Use convergence_threads from event if available (threads used for computation),
         # otherwise can't accurately recompute for old saves
         convergence_threads = pc.get("convergence_threads")

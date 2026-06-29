@@ -18,7 +18,6 @@ _log = logging.getLogger(__name__)
 def condition_ttl(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
-    cfg = EngineConfig()
     filtered = filter_turn_events(events)
 
     for ev in filtered:
@@ -33,7 +32,6 @@ def condition_ttl(events: list[dict[str, Any]]) -> CheckerResult:
 
             cid = c.get("id")
             turns_remaining = c.get("turns_remaining")
-            added_turn = c.get("added_turn", 0)
 
             # Permanent conditions should stay permanent
             if turns_remaining == "permanent":
