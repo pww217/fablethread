@@ -65,8 +65,8 @@ SITUATION ARCHETYPE: {{ pool_selection.situation.id }} (tags: {{ pool_selection.
 ARC CATEGORY: {{ pool_selection.arc.id }} (tags: {{ pool_selection.arc.tags | join(", ") }})
 CHARACTER DYNAMIC: {{ pool_selection.character_dynamic.id }} (tags: {{ pool_selection.character_dynamic.tags | join(", ") }})
 MORAL PRESSURE: {{ pool_selection.moral_pressure.id }} (tags: {{ pool_selection.moral_pressure.tags | join(", ") }})
-{% if pool_selection and pool_selection.npc_tie %}
-NPC TIE (write the DESCRIPTION as the `tie` value — NOT the ID): {{ pool_selection.npc_tie.description }}
+{% if pool_selection and pool_selection.npc_bond %}
+NPC BOND (create a unique description — do not use the raw template text): {{ pool_selection.npc_bond.description }}
 {% endif %}
 {% if pool_selection and pool_selection.scene_bundle %}
 SCENE BUNDLE "{{ pool_selection["scene_bundle"]["id"] }}":
