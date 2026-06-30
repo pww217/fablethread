@@ -216,15 +216,6 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
             "type": beat["type"],
             "effect": beat.get("effect", ""),
         }
-        meta = state.setdefault("meta", {})
-        meta.setdefault("recent_beats", []).append({
-            "turn": turn_no,
-            "type": beat["type"],
-            "effect": beat.get("effect", ""),
-        })
-        max_beats = config.recent_beats_max or 5
-        if len(meta["recent_beats"]) > max_beats:
-            meta["recent_beats"] = meta["recent_beats"][-max_beats:]
     else:
         state.get("meta", {}).pop("pending_gm_beat", None)
 

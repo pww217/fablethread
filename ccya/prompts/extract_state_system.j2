@@ -8,7 +8,8 @@ Decide IF changes occurred BEFORE populating fields. Reason fields are mandatory
 
 - `inventory_change_reason`: REQUIRED if any inventory field is non-empty. One short phrase: "Player picked up from ground", "X NPC gave it to player", "Player lost pistol in a brawl". If no change: `"none"`.
 - `condition_change_reason`: REQUIRED if any condition field is non-empty. One short phrase: "Player received medical attention", "Injury healed after rest". If no change: `"none"`.
-⚠️ Outputting condition fields (pc_condition_add, pc_condition_remove) WITHOUT `condition_change_reason` causes a `ValueError` — the turn will retry and waste tokens. ALWAYS include `condition_change_reason` when emitting condition changes.
+
+**CRITICAL — `condition_change_reason` is mandatory when emitting `pc_condition_add` or `pc_condition_remove`.** Omitting it causes a `ValueError` and wastes a full turn retry. Always include it.
 
 ## Narration is the sole authority
 
@@ -119,6 +120,6 @@ Sections not shown in the user prompt still exist in live game state. Absence is
 
 `location_change`: emitted ONLY when the location ID changes. Schema: `{"id": "snake_case", "name": "Display Name", "description": "Describe where this location sits in the broader world — geographical setting, terrain, climate, political territory, nearby major landmarks. Feel free to invent details that fit the world's theme. 1 sentence."}`.
 
-**Location change detection rule:** If the narration describes the player arriving at a new place — entering a building, leaving a room, traveling to a new area, arriving at a destination — emit `location_change` regardless of whether the current location ID matches. The narrator writes fiction; the extractor tracks where the player actually is.
+**Location change detection rule:** If the narration describes the player arriving at a new place — entering a building, leaving a room, traveling to a new area, arriving at a destination — emit `location_change`. Also detect transit language: "scramble through," "run to," "travel to," "head to," "move into," "cross into" — these describe movement between locations and imply a change. The narrator writes fiction; the extractor tracks where the player actually is.
 
 `location_description`: describe where this location sits in the broader world. Think "where on the map" — geographical setting, terrain, climate, political territory, nearby major landmarks, trade routes, regional features. Feel free to invent details that fit the world's theme. Can include a brief atmospheric detail if it reinforces the macro context. 1-2 sentences. Emit nothing if the location hasn't changed. The current location description is shown in the user prompt for reference.

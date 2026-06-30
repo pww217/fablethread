@@ -213,17 +213,33 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
             prev_scene_entered = prev_scene.get("turn_entered")
             if prev_scene_entered is not None:
                 scene_entered = prev_scene_entered
+            elif scene_entered is not None:
+                # turn_entered was just set by delta_builder on this turn (location change),
+                # but _compute_ages ran before delta_builder. Use 0 to match pre-delta_builder state.
+                scene_entered = 0
         if scene_entered is None:
-            # Fallback: scene_entered = current_turn - turns_in_phase + 1
-            turns_in_phase = scene.get("turns_in_phase", 1)
-            scene_entered = current_turn - turns_in_phase + 1
+            # Fallback: match _compute_ages() which defaults to 0 when turn_entered is not set
+            scene_entered = 0
         scene_age = current_turn - scene_entered
 
-        # Get recent_beats
-        recent_beats = meta.get("recent_beats") or []
+        # Get recent_beats — read from previous turn's state to match
+        # what was used for convergence calculation (before world step appended new beats)
+        # On turn 1 (i==0), recent_beats should be empty for convergence purposes
+        recent_beats: list[dict[str, Any]] = []
+        if i > 0:
+            prev_ev = filtered[i - 1]
+            prev_lts = extract_field(prev_ev, "last_turn_state") or {}
+            prev_meta = prev_lts.get("meta") or {}
+            prev_recent_beats = prev_meta.get("recent_beats") or []
+            if prev_recent_beats:
+                recent_beats = prev_recent_beats
 
-        # Get recent_rolls
-        recent_rolls = meta.get("recent_rolls") or []
+        # Get recent_rolls — same logic, read from previous turn's state
+        recent_rolls: list[dict[str, Any]] = []
+        if i > 0:
+            prev_recent_rolls = prev_meta.get("recent_rolls") or []
+            if prev_recent_rolls:
+                recent_rolls = prev_recent_rolls
 
         # Recompute each component independently
         components: dict[str, int] = {}
