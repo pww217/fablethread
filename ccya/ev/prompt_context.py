@@ -41,7 +41,7 @@ def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
             "motivation": ndata.get("wants", ""),
             "fear": ndata.get("fears", ""),
             "leverage": ndata.get("leverage", ""),
-            "bond": ndata.get("bond", ""),
+            "tie": ndata.get("tie", ""),
             "personality_label": "",
             "personality_traits": "",
             "personality_speech_hint": "",

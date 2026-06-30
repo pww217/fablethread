@@ -791,8 +791,8 @@ function _renderNpcListItem(npc) {
     const pl = npc.personality_label || '';
     const pt = npc.personality_traits || '';
     const mot = npc.motivation || '';
-    const bond = (npc.bond_label || npc.bond || '');
-    const hasTooltip = bio || pl || mot || bond;
+    const tie = (npc.tie_label || npc.tie || '');
+    const hasTooltip = bio || pl || mot || tie;
     const nameHtml = title ? `${_escapeHtml(name)}<span class="npc-title"> — ${_escapeHtml(title)}</span>` : _escapeHtml(name);
     const posHtml = position ? `<span class="npc-position-inline">${_escapeHtml(position)}</span>` : '';
     let tipHtml = '';
@@ -800,7 +800,7 @@ function _renderNpcListItem(npc) {
         if (bio) tipHtml += `<p>${bio}</p>`;
         if (pl) tipHtml += `<p><strong>Personality:</strong> ${_escapeHtml(pl)}${pt ? ' — ' + _escapeHtml(pt) : ''}</p>`;
         if (mot) tipHtml += `<p><strong>Motivation:</strong> ${_escapeHtml(mot)}</p>`;
-        if (bond) tipHtml += `<p><strong>Bond:</strong> ${_escapeHtml(bond)}</p>`;
+        if (tie) tipHtml += `<p><strong>Tie:</strong> ${_escapeHtml(tie)}</p>`;
     }
     return `<div class="npc-item${hasTooltip ? ' has-tooltip' : ''}"><span class="npc-name">${nameHtml}</span>${posHtml}${hasTooltip ? `<div class="tooltip-body" data-md-compendium>${tipHtml}</div>` : ''}</div>`;
 }

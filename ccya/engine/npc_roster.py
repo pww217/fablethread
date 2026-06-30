@@ -42,7 +42,7 @@ def _compute_npc_score(entry: dict[str, Any], comp: dict[str, Any], turn_no: int
     else:
         recency = 0
     richness = 0
-    for field in ("motivation", "fear", "leverage", "bond"):
+    for field in ("motivation", "fear", "leverage", "tie"):
         val = entry.get(field)
         if val and val != "unknown":
             richness += 1
@@ -64,7 +64,7 @@ def build_npc_roster(
 
     When slim=True, only includes id, name, title, presence.
     Otherwise returns list of dicts with keys: id, name, title, bio, presence, motivation,
-    fear, leverage, bond, notes, last_presence_turn, last_seen_location,
+    fear, leverage, tie, notes, last_presence_turn, last_seen_location,
     departed_reason.
     """
     seen: dict[str, dict[str, Any]] = {}
@@ -97,7 +97,7 @@ def build_npc_roster(
                 "motivation": entry.get("motivation") or None,
                 "fear": entry.get("fear") or None,
                 "leverage": entry.get("leverage") or None,
-                "bond": entry.get("bond") or None,
+                "tie": entry.get("tie") or None,
                 "notes": entry.get("notes") or None,
                 "last_presence_turn": entry.get("last_presence_turn"),
                 "last_seen_location": entry.get("last_seen_location") or None,

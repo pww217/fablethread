@@ -9,7 +9,7 @@
 Location: {{ location.name or location.id or "Unknown" }}
 {%- if npc_roster %}
 ## Present NPCs (in scene right now)
-{% for n in npc_roster %}{% if n.presence == "present" %}- {% if n.name %}{{ n.name }}{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.bond %} | bond: {{ n.bond }}{% endif %}{% endif %}
+{% for n in npc_roster %}{% if n.presence == "present" %}- {% if n.name %}{{ n.name }}{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.tie %} | tie: {{ n.tie }}{% endif %}{% endif %}
 {% endfor -%}
 {% endif -%}
 

@@ -35,7 +35,7 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
     /* location.description MUST be a substantive description (15+ words, 2+ sentences) of the opening scene location. This is the location the PC starts in — not a generic setting description but the specific room/area/place. Example: "A cramped detective office with peeling wallpaper, a desk buried under case files, and a window overlooking a rain-slicked alley." */
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {tags: string[], world_state: Array<{id: string, text: string, tier: "global" | "local", permanent: boolean, valence: "threat" | "complication" | "neutral" | "boon", expires_turn: int | null}>},
-    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, presence: "present" | "nearby" | "known", bond?: string, motivation?: string, fear?: string, leverage?: string, personality?: archetype_id  /* see Personality archetypes table below — required for named NPCs, omit for unnamed */}}},
+    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, presence: "present" | "nearby" | "known", tie?: string, motivation?: string, fear?: string, leverage?: string, personality?: archetype_id  /* see Personality archetypes table below — required for named NPCs, omit for unnamed */}}},
     arc: {long_term_objective: string, threads: ArcThread[], completed_threads: null, started_turn: int | null},
     arc_origin: string,
     world: {locations: Array<{id: string, name: string, description: string, status: string, tags: string[]}>}
@@ -83,12 +83,12 @@ Build in this order, using everything already established before generating what
 
 - **At least 1 NPC must have `presence: "present"`.** This is mandatory — the opening scene must include at least one NPC that is physically present. If you cannot generate an NPC with presence="present", you must generate one. This is not optional.
 - `presence` is required for all NPCs: set to `"present"` for NPCs in the opening scene, `"nearby"` for those nearby but not in the scene, `"known"` for those the PC knows but aren't nearby. All seed NPCs that appear in the opening narrative must have `presence: "present"`.
-- NPCs have 5 personality-related fields: `personality`, `motivation`, `fear`, `leverage`, `bond`.
+- NPCs have 5 personality-related fields: `personality`, `motivation`, `fear`, `leverage`, `tie`.
 How many depends on the NPC's role:
 
 - **Unnamed NPCs (name does not look like a proper name — fewer than 2 words, or first/last not both capitalized):**
-  `bio` + `motivation`. Do NOT add personality, fear, leverage, or bond. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace." The engine rejects personality fields on unnamed NPCs — treat this as a hard constraint.
-- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `bio`, `personality` (from the table below), `motivation`, and 2 of {fear, leverage, bond} — 5 fields minimum. Motivation is mandatory for every character.
+  `bio` + `motivation`. Do NOT add personality, fear, leverage, or tie. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace." The engine rejects personality fields on unnamed NPCs — treat this as a hard constraint.
+- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `bio`, `personality` (from the table below), `motivation`, and 2 of {fear, leverage, tie} — 5 fields minimum. Motivation is mandatory for every character.
 - **Important NPCs (seed characters, arc goal characters, faction leaders):** All 5 fields.
   These are the characters the story revolves around — give them depth.
 

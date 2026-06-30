@@ -559,12 +559,12 @@ def _resolve_npc_personalities(state: dict[str, Any]) -> None:
     from ccya.personality import ARCHETYPES
 
     npcs = (state.get("compendium") or {}).get("npcs") or {}
-    # Build bond lookup: id → description from the active pack's scenario
-    bond_lookup: dict[str, str] = {}
+    # Build tie lookup: id → description from the active pack's scenario
+    tie_lookup: dict[str, str] = {}
     try:
         scenario = _app_mod._active_pack.scenario
         if scenario and scenario.npc_bonds:
-            bond_lookup = {b.id: b.description for b in scenario.npc_bonds if b.description}
+            tie_lookup = {b.id: b.description for b in scenario.npc_bonds if b.description}
     except Exception:
         pass
 
@@ -583,10 +583,10 @@ def _resolve_npc_personalities(state: dict[str, Any]) -> None:
             arch = ARCHETYPES[arch_id]
             entry["personality_label"] = arch.label
             entry["personality_traits"] = ", ".join(arch.traits)
-        # Resolve bond ID to human-readable description
-        raw_bond = entry.get("bond")
-        if raw_bond and raw_bond in bond_lookup:
-            entry["bond_label"] = bond_lookup[raw_bond]
+        # Resolve tie ID to human-readable description
+        raw_tie = entry.get("tie")
+        if raw_tie and raw_tie in tie_lookup:
+            entry["tie_label"] = tie_lookup[raw_tie]
 
 
 @_app_mod.app.get("/panels/state-left")

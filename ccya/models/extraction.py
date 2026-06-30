@@ -27,7 +27,7 @@ class CompendiumNpcUpdate(BaseModel):
     position: str | None = None   # spatial position in current scene
     first_seen_turn: int | None = None  # set by engine on initial entry creation
     personality: str | None = None  # archetype id; immutable once set
-    bond: str | None = None         # durable personal history — human-readable description
+    tie: str | None = None          # durable personal history — human-readable description
     departed_reason: str | None = None     # combined: "short label — prose" describing the departure
     departed_turn: int | None = None       # set by engine on first presence:"departed"
     party: bool | None = None              # companion flag — exempts from location-change auto-demotion
