@@ -86,7 +86,7 @@ def apply_npc_scene_management(
                     "motivation": None,
                     "fear": None,
                     "leverage": None,
-                    "bond": None,
+                    "tie": None,
                     "personality": None,
                     "party": None,
                 })
@@ -96,8 +96,8 @@ def apply_npc_scene_management(
                 entry["fear"] = comp_upd.fear
             if comp_upd.leverage is not None:
                 entry["leverage"] = comp_upd.leverage
-            if comp_upd.bond is not None:
-                entry["bond"] = comp_upd.bond
+            if comp_upd.tie is not None:
+                entry["tie"] = comp_upd.tie
             if comp_upd.personality is not None and not entry.get("personality"):
                 entry["personality"] = comp_upd.personality
                 _log.info(

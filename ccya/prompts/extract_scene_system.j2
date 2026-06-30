@@ -18,7 +18,7 @@ Scan narration for every proper name. For each:
 
 ```json
 {
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "position": "...", "party": true}]
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "motivation": "...", "fear": "...", "leverage": "...", "tie": "...", "personality": "...", "presence": "present|nearby|known|departed", "position": "...", "party": true}]
 }
 ```
 
@@ -33,7 +33,7 @@ Scan narration for every proper name. For each:
 - `motivation`: what this NPC fundamentally wants. Mandatory for every character.
 - `fear`: what this NPC is most afraid of.
 - `leverage`: what this NPC can offer, threaten, or withhold.
-- `bond`: durable personal history — to the PC, or between two NPCs (name both parties).
+- `tie`: durable personal history — to the PC, or between two NPCs (name both parties).
 - `personality`: archetype_id — required for named NPCs, omit for unnamed. Valid IDs: cold_pragmatist, desperate_idealist, wary_opportunist, resigned_functionary, volatile_loyalist, charming_manipulator, blunt_survivor, true_believer, detached_observer, conflict_avoidant, ambitious_climber, broken_defeated. Do not invent archetypes outside this list.
 - `presence`: present|nearby|known|departed. REQUIRED for every NPC update — never omit it.
 - `position`: Where the NPC is in the scene and what they are doing. One short phrase. Include spatial barriers and visibility constraints (e.g., 'behind a door, not visible', 'across the bar, watching', 'standing in the doorway blocking exit', 'at the player's elbow, whispering'). Update when narration changes the NPC's position or stance.
@@ -66,8 +66,8 @@ NPCs who consistently accompany the PC — companions, allies, hirelings — sho
 
 ## NPC field requirements
 
-- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `bio` + `personality` + `motivation` + 2 of {fear, leverage, bond} = 5 fields minimum. On first entry, aim for all 5 fields. Motivation is mandatory for every character.
-- **Unnamed NPCs (name does not look like a proper name — fewer than 2 words, or first/last not both capitalized):** `bio` + `motivation`. Do NOT add personality, fear, leverage, or bond. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace." The engine rejects personality fields on unnamed NPCs — treat this as a hard constraint.
+- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `bio` + `personality` + `motivation` + 2 of {fear, leverage, tie} = 5 fields minimum. On first entry, aim for all 5 fields. Motivation is mandatory for every character.
+- **Unnamed NPCs (name does not look like a proper name — fewer than 2 words, or first/last not both capitalized):** `bio` + `motivation`. Do NOT add personality, fear, leverage, or tie. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace." The engine rejects personality fields on unnamed NPCs — treat this as a hard constraint.
 
 ## Passive NPC extraction
 
@@ -91,18 +91,21 @@ If a named character enters the scene as the **recipient** of a major action (re
 ## Bio examples
 
 **Correct:**
-- Narration: "A scarred woman in a grease-stained apron wipes her hands on a rag, eyes narrowing at you as she approaches the counter." → `bio: "Tall with a jagged burn scar running from jaw to collarbone; carries herself like someone used to being obeyed. Served five years in the militia before going civilian — knows how to handle weapons and doesn't flinch under pressure."`
-- Narration: "A young man in faded academy robes fumbles with his satchel, nearly dropping it as he stammers a greeting." → `bio: "Lean frame, sharp features, perpetually disheveled dark hair. Earned top marks in tactical theory but has never held a weapon — book-smart, eager to prove himself beyond the classroom."`
+- Narration: "A scarred woman in a grease-stained apron wipes her hands on a rag, eyes narrowing at you as she approaches the counter."
+  `bio: "Tall with a jagged burn scar running from jaw to collarbone; carries herself like someone used to being obeyed. Served five years in the militia before going civilian — knows how to handle weapons and doesn't flinch under pressure."`
+- Narration: "A young man in faded academy robes fumbles with his satchel, nearly dropping it as he stammers a greeting."
+  `bio: "Lean frame, sharp features, perpetually disheveled dark hair. Earned top marks in tactical theory but has never held a weapon — book-smart, eager to prove himself beyond the classroom."`
 
 **Incorrect (too generic):**
-- Narration: "A merchant approaches your table with a smile." → `bio: "Is a traveling trader who sells various goods."` ❌ Missing appearance entirely; second sentence is just restating their role, not giving personality or tangible facts.
+- Narration: "A merchant approaches your table with a smile."
+  `bio: "Is a traveling trader who sells various goods."` — Missing appearance entirely; second sentence just restates their role, not giving personality or tangible facts.
 
 ## Examples
 
-- **Enters:** "A red-haired man in boiled leather steps through the door and locks eyes with you." → `{ id: "red_haired_man", name: "Red-Haired Man", presence: "present", position: "standing in doorway, locking eyes", bio: "..." }`
-- **Exits:** "Caron spits on the floor and shoves through the crowd, disappearing into the street." → `{ id: "caron", presence: "known" }`
-- **Moves:** "Caron slides into the seat across from you." → `{ id: "caron", position: "seated across from Mira Sovak" }`
-- **Mentioned not interacting:** "Elara has enough grace to make a captain forget his heading." → `{ id: "elara_vance", presence: "nearby", position: "in the corner by the lamp", bio: "...", title: "Lounge Worker" }`
+- **Enters:** "A red-haired man in boiled leather steps through the door and locks eyes with you." → `{"id": "red_haired_man", "name": "Red-Haired Man", "presence": "present", "position": "standing in doorway, locking eyes", "bio": "..."}`
+- **Exits:** "Caron spits on the floor and shoves through the crowd, disappearing into the street." → `{"id": "caron", "presence": "known"}`
+- **Moves:** "Caron slides into the seat across from you." → `{"id": "caron", "position": "seated across from Mira Sovak"}`
+- **Mentioned not interacting:** "Elara has enough grace to make a captain forget his heading." → `{"id": "elara_vance", "presence": "nearby", "position": "in the corner by the lamp", "bio": "...", "title": "Lounge Worker"}`
 - **Not mentioned:** Do NOT emit any update — absence ≠ departure.
 
 ## State-presence rule

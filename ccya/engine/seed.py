@@ -114,7 +114,7 @@ def _build_synthesis_context(
     arc: dict[str, Any],
     character_dynamic: dict[str, Any],
     moral_pressure: dict[str, Any],
-    npc_bond: dict[str, Any] | None = None,
+    npc_tie: dict[str, Any] | None = None,
     scene_bundle: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a context dictionary with the six selected entries' ids and tags."""
@@ -124,8 +124,8 @@ def _build_synthesis_context(
         "character_dynamic": character_dynamic,
         "moral_pressure": moral_pressure,
     }
-    if npc_bond:
-        ctx["npc_bond"] = npc_bond
+    if npc_tie:
+        ctx["npc_tie"] = npc_tie
     if scene_bundle:
         ctx["scene_bundle"] = scene_bundle
     return ctx
@@ -144,14 +144,14 @@ def _preselect_pools(scenario: Any, name_seed: int) -> dict[str, Any]:
         scenario.moral_pressures, name_seed, "moral_pressure"
     )
 
-    npc_bond = _select_from_pool(
-        scenario.npc_bonds, name_seed, "npc_bond"
+    npc_tie = _select_from_pool(
+        scenario.npc_bonds, name_seed, "npc_tie"
     )
     scene_bundle = _select_from_pool(
         scenario.scene_detail_bundles, name_seed, "scene_detail_bundle"
     )
 
-    return _build_synthesis_context(situation, arc, character_dynamic, moral_pressure, npc_bond, scene_bundle)
+    return _build_synthesis_context(situation, arc, character_dynamic, moral_pressure, npc_tie, scene_bundle)
 
 
 _log = logging.getLogger(__name__)
