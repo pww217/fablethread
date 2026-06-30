@@ -248,7 +248,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         pending_beat=_pending_gm_beat,
         pacing_context=_pc, ages=ctx._ages, pc_allegiance=_pc_allegiance, turn_no=turn_no,
         world_factions=_world_factions,
-        npc_roster=build_npc_roster(_comp, turn_no=turn_no, personality_registry=None),
+        npc_roster=[n for n in build_npc_roster(_comp, turn_no=turn_no, personality_registry=None) if n.get("presence") == "present"],
         arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
         curtain_call=_curtain_call,
     )

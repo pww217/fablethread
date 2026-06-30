@@ -47,6 +47,11 @@ def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any]) -> 
         for t in arc.get("threads") or []:
             if isinstance(t, dict) and t.get("id"):
                 state_threads[t["id"]] = t
+        # Also include completed_threads — threads resolved on the same turn
+        # are already moved to completed_threads by the time last_turn_state is captured
+        for t in arc.get("completed_threads") or []:
+            if isinstance(t, dict) and t.get("id"):
+                state_threads[t["id"]] = t
 
         # threads_updated IDs exist in state.arc.threads at this turn
         for tid in (sev.get("threads_updated") or []):

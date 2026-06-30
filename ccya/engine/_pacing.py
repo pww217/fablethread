@@ -161,7 +161,6 @@ def _compute_pacing_context(
     scene_motion: str = "hold",
     scene_pressure_threshold: int = 3,
     scene_imperative_threshold: int = 5,
-    climax_turn_count: int = 0,
     config: EngineConfig | None = None,
     convergence_score: int = 0,
 ) -> PacingContext:
@@ -178,13 +177,9 @@ def _compute_pacing_context(
 
     # outcome_hint: primarily driven by scene_motion from ruling engine.
     # When Scene Imperative fires (scene stale or crisis expired), override to "transition".
-    # During CLIMAX past limit, also override to "transition".
     outcome_hint: str | None = scene_motion
 
     if effective_scene_age >= scene_imperative_threshold:
-        outcome_hint = "transition"
-
-    if scene_phase == "CLIMAX" and config and climax_turn_count >= config.climax_turn_limit:
         outcome_hint = "transition"
 
     # Convergence score hard gate — cannot be overridden by LLM scene_motion

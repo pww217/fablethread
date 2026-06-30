@@ -44,7 +44,10 @@ async def _run_world_step(
 
     comp = state.get("compendium", {}).get("npcs", {})
     npc_roster = build_npc_roster(comp, turn_no=turn_no, personality_registry=ARCHETYPES)
-    npc_roster = [n for n in npc_roster if n.get("presence") in ("present", "nearby")]
+    # Only include present NPCs in beat generation to avoid re-injecting nearby NPCs
+    # that should be decaying. Nearby NPCs are excluded from beats to prevent the
+    # feedback loop: beats -> narration -> extractor re-promotion -> beats for present.
+    npc_roster = [n for n in npc_roster if n.get("presence") == "present"]
 
     pc = state.get("pc") or {}
     pc_directive = pc.get("directive", "") if isinstance(pc, dict) else ""
@@ -187,6 +190,19 @@ async def _run_world_step(
         valid_beats.append({"type": beat.type, "effect": beat.effect, "npcs": entry.get("npcs", [])})
         if len(valid_beats) >= 3:
             break
+
+    # Append all generated beats to recent_beats for diversity tracking
+    # (not just selected beats — unselected beats should still be tracked to avoid repetition)
+    meta = state.setdefault("meta", {})
+    for vb in valid_beats:
+        meta.setdefault("recent_beats", []).append({
+            "turn": turn_no,
+            "type": vb.get("type"),
+            "effect": vb.get("effect", ""),
+        })
+    max_beats = 5
+    if len(meta["recent_beats"]) > max_beats:
+        meta["recent_beats"] = meta["recent_beats"][-max_beats:]
 
     _log.debug("world.step_complete trace_id=%s turn=%d valid_beats=%d", trace_id, turn_no, len(valid_beats))
     return valid_beats, system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}

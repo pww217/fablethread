@@ -51,7 +51,7 @@
 
 {% include "sections/_arc.j2" %}
 
-## This Turn's (Turn {{ meta.get('turn', '?') if meta is mapping else '?' }}) Result
+## This Turn's (Turn {{ meta.turn | default('?') }}) Result
 {% if rules_outcome and rules_outcome.impossible %}
 
 **IMPOSSIBLE:** This action cannot succeed — {{ rules_outcome.reason }}.
