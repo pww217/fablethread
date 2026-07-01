@@ -467,11 +467,9 @@ def cmd_thread_audit(events: list[dict[str, Any]]) -> None:
                 if tid in thread_lifecycle:
                     thread_lifecycle[tid]["updates"] += 1
                 else:
-                    violations.append({
-                        "turn": t,
-                        "thread_id": tid,
-                        "issue": "thread_updated_but_not_found",
-                    })
+                    # Thread was created in last_turn_state this turn but sanitizer
+                    # runs before last_turn_state is written — create it with this update
+                    thread_lifecycle[tid] = {"created_turn": t, "resolved_turn": None, "updates": 1}
 
             for tid in (ev.get("threads_resolved") or []):
                 if tid in thread_lifecycle and thread_lifecycle[tid]["resolved_turn"] is None:
@@ -498,9 +496,10 @@ def cmd_thread_audit(events: list[dict[str, Any]]) -> None:
                         thread_lifecycle[tid]["updates"] += 1
 
             for tr in (output.get("thread_resolve") or []):
-                if isinstance(tr, str) and tr:
-                    if tr in thread_lifecycle and thread_lifecycle[tr]["resolved_turn"] is None:
-                        thread_lifecycle[tr]["resolved_turn"] = t
+                if isinstance(tr, dict):
+                    tid = tr.get("id")
+                    if tid and tid in thread_lifecycle and thread_lifecycle[tid]["resolved_turn"] is None:
+                        thread_lifecycle[tid]["resolved_turn"] = t
 
         # From state.arc.threads
         last_state = ev.get("last_turn_state") or {}
@@ -510,6 +509,16 @@ def cmd_thread_audit(events: list[dict[str, Any]]) -> None:
                 tid = th["id"]
                 if tid not in thread_lifecycle:
                     thread_lifecycle[tid] = {"created_turn": t, "resolved_turn": None, "updates": 0}
+
+        # From state.arc.completed_threads
+        for ct in (arc.get("completed_threads") or []):
+            if isinstance(ct, dict) and ct.get("id"):
+                tid = ct["id"]
+                if tid not in thread_lifecycle:
+                    thread_lifecycle[tid] = {"created_turn": t, "resolved_turn": None, "updates": 0}
+                resolved_turn = ct.get("resolved_turn")
+                if resolved_turn and tid in thread_lifecycle and thread_lifecycle[tid]["resolved_turn"] is None:
+                    thread_lifecycle[tid]["resolved_turn"] = resolved_turn
 
     # Check for orphaned threads (resolved but not in lifecycle)
     for tid, info in thread_lifecycle.items():
