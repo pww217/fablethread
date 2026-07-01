@@ -476,17 +476,15 @@ def _apply_state_updates(
             state = state.set_last_condition_change_reason(None)
 
         # Stamp last_presence_turn and last_seen_location on touched NPCs; create minimal entry if new
-        comp = state.compendium.npcs or {}
         location = state.location
         for cu in (delta.compendium_npc_update or []):
-            entry = comp.get(cu.id)
+            entry = state.compendium.npcs.get(cu.id)
             if entry is None:
                 new_entry = NPCEntry(
                     name=cu.id.replace("_", " ").title(),
                     presence="nearby",
                 )
                 state = state.add_npc(cu.id, new_entry)
-                entry = state.compendium.npcs[cu.id]
             state = state.update_npc(
                 cu.id,
                 last_presence_turn=turn_no,
