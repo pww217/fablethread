@@ -356,15 +356,6 @@ def _render(env: Environment, template_name: str, ctx: dict[str, Any]) -> str:
 def _find_json(text: str) -> dict[str, Any] | None:
     text = text.strip()
 
-    def _fix_malformed_keys(t: str) -> str:
-        """Fix patterns like "key: value" where the colon is inside the quotes."""
-        # Pattern: "key: value" -> "key": value
-        # This handles LLM outputting "dormant: true" instead of "dormant": true
-        import re
-        # Match "key: value" where key contains no quotes and value is a JSON value
-        result = re.sub(r'"([^":]+):\s*(true|false|null|\d+|"[^"]*"|[a-zA-Z_][a-zA-Z0-9_]*)"', r'"\1": \2', t)
-        return result
-
     def _try(t: str) -> dict[str, Any] | None:
         try:
             result = json.loads(t)
@@ -373,11 +364,6 @@ def _find_json(text: str) -> dict[str, Any] | None:
             return None
         except (json.JSONDecodeError, ValueError):
             return None
-
-    # 0. Fix malformed keys like "dormant: true" -> "dormant": true
-    fixed = _fix_malformed_keys(text)
-    if fixed != text:
-        text = fixed
 
     # 1. Try parsing the entire text as JSON first
     j = _try(text)
@@ -390,9 +376,7 @@ def _find_json(text: str) -> dict[str, Any] | None:
             p = part.strip()
             if p.lower().startswith("json"):
                 p = p[4:].strip()
-            # Fix malformed keys in code block content
-            p_fixed = _fix_malformed_keys(p)
-            r = _try(p_fixed) if p_fixed != p else _try(p)
+            r = _try(p)
             if r is not None:
                 return r
 

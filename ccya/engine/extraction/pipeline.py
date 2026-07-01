@@ -98,10 +98,10 @@ async def _run_extraction_pipeline(
         _log.warning("extract_scene LLM timeout", extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id})
         extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
     except Exception as exc:
-        _log.warning(
-            "extract_scene failed: %s", exc, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
+        _log.error(
+            "extract_scene failed (FATAL): %s", exc, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
         )
-        extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
+        raise
 
     _log.debug("extraction.scene.done trace_id=%s result_type=%s tokens_in=%d tokens_out=%d", trace_id, type(scene_result).__name__, scene_usage.get("prompt_tokens", 0), scene_usage.get("completion_tokens", 0))
 
