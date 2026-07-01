@@ -45,6 +45,28 @@ Space-western run (25 turns): wits 40%, dexterity 40%, charisma 4%, ?: 2. Much b
 
 Note: This run used the updated ruling prompt. The skill distribution is much improved but charisma is still low. The fix is working but may need further refinement.
 
+## Phase 6 Data — Fresh 25-Turn Runs (4 runs, 2026-06-30)
+
+Examined 4 fresh runs at commit `12332bab` (post-band-aid-removal):
+- Golden-piracy: dexterity 3, charisma 1, strength 1 (5 rolls)
+- Space-western: dexterity 3, wits 1 (4 rolls)
+- Noir-1930s: charisma 2, dexterity 2, wits 4 (8 rolls)
+
+**Charisma usage improved significantly:**
+- Golden-piracy: charisma appeared (turn 20) — was 0% in earlier runs
+- Noir-1930s: charisma appeared twice (turns 5, 10) — intent_verb `intimidate` and `persuade` mapped correctly
+
+**Wits usage improved in noir:**
+- Noir-1930s: wits appeared 4 times out of 8 rolls (50%) — intent_verb `wits` and `recall` mapped correctly
+- This reflects the noir pack's investigative focus
+
+**Dexterity still dominant in space-western/golden-piracy:**
+- Space-western: 3/4 rolls (75%) — reflects stealth/combat focus of the pack
+- Golden-piracy: 3/5 rolls (60%) — reflects combat focus of the pack
+- This may be appropriate for these packs rather than a prompt issue
+
+**Assessment:** The intent_verb → skill mapping is working. Charisma usage improved from earlier runs. The fix is effective but dexterity dominance in certain packs may reflect pack design rather than a prompt issue. Further refinement may be needed if charisma remains low across all packs.
+
 ## Investigation Update (2026-06-30)
 
 prepare_seed temperature was lowered from 0.4 to 0.2 to fix intermittent JSON output failures. Note: this only affects initial seed generation, not ruling. Ruling already has temperature 0.2. The skill distribution fix (narrowed dexterity, intent_verb → skill mapping) should be tested with fresh runs at the ruling temperature. The prepare_seed fix didn't solve the problem — still getting failures at 0.2 (2 out of 13 calls). The issue is in the LLM output format, not temperature.

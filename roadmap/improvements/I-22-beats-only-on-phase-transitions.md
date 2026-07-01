@@ -21,6 +21,35 @@ The world step generates beat candidates every turn. This causes two issues:
 
 The noun-ban band-aid (`world.py:45-57`, `world_user.j2:34-37`) doesn't work well — the LLM works around it by using banned words as modifiers ("heavy iron rod", "heavy timber") or the extraction catches adjectives instead of nouns.
 
+## Status Update (2026-06-30)
+
+**Thematic repetition RESOLVED by band-aid removal.** Examined 4 fresh 25-turn runs at commit `12332bab` (post-band-aid-removal):
+- Golden-piracy: No noun-verb pair repeats across 25 turns
+- Space-western: No noun-verb pair repeats across 25 turns
+- Noir-1930s: No noun-verb pair repeats across 25 turns
+
+The banned_nouns band-aid was ineffective (LLM worked around it). Removing it entirely + keeping recent_beats tracking resolved the issue. The LLM generates genuinely different beats each turn without explicit noun bans.
+
+**I-22 is now a compute optimization, not a thematic repetition fix.** The proposal to run world step only on phase transitions is still valid for reducing LLM calls (~25 → ~5-8 per session), but thematic repetition is no longer a blocker.
+
+## Alternatives considered
+
+### Keep current approach (every turn)
+- Thematic repetition resolved by band-aid removal
+- LLM calls are wasteful but acceptable
+- Simpler implementation
+
+### Hybrid: beats on phase transitions + every N turns
+- Generate beats on phase transitions AND every 3 turns within a phase
+- Gives periodic beat refresh without the repetition problem
+- More complex, partially retains the original problem
+- Lower priority now that thematic repetition is resolved
+
+### Keep current approach, fix noun ban
+- The noun ban band-aid doesn't work — LLM works around it
+- Would require a much more sophisticated extraction and enforcement
+- Unlikely to be effective
+
 ## Proposed Solution
 
 Run the world step only when `scene.scene_phase` changes, not every turn.
