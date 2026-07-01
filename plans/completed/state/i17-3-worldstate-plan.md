@@ -1,7 +1,7 @@
 # I-17 #3 Plan: WorldState Model
 
 **Ticket:** I-17 #3 — `dict[str, Any]` state everywhere
-**Status:** up-next
+**Status:** completed
 **Size:** large (5 phases, ~15 files, ~800 lines of model code, ~500 lines of migration)
 **Risk:** medium — foundational change, but no behavioral change expected
 

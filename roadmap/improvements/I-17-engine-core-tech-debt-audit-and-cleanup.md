@@ -9,7 +9,7 @@ labels:
   - engine
   - refactoring
   - type-safety
-plan: plans/i17-3-worldstate-plan.md
+plan: plans/completed/state/i17-3-worldstate-plan.md
 ---
 
 ## Summary
