@@ -27,52 +27,8 @@ def _coerce_enums(obj: Any) -> Any:
     return obj
 
 
-def _default_state() -> dict[str, Any]:
-    return {
-        "meta": {
-            "turn": 0,
-            "setting_pack": "",
-            "model": "",
-            "session_name": "",
-            "compendium_touch_order": [],
-            "prior_history": [],
-        },
-        "pc": {
-            "name": "",
-            "tagline": "",
-            "bio": "",
-            "stats": {
-                "strength": 2,
-                "dexterity": 2,
-                "wits": 2,
-                "charisma": 2,
-            },
-            "conditions": [],
-            "allegiance": None,
-            "situation": {},
-        },
-        "location": {"id": "", "name": "", "description": ""},
-        "inventory": [],
-        "long_term_objective": {
-            "long_term_objective": "",
-            "threads": [],
-            "completed_threads": [],
-            "resolution": None,
-            "last_thread_created_turn": 0,
-        },
-        "resolved_arcs": [],
-        "scene": {
-            "tags": [],
-            "world_state": [],
-            "turn_entered": 0,
-        },
-        "compendium": {"npcs": {}},
-        "world_state_candidates": [],
-        "world": {
-            "factions": [],
-            "locations": [],
-        },
-    }
+def default_world_state() -> WorldState:
+    return WorldState()
 
 
 def load_state(save_dir: Path) -> WorldState:
@@ -80,7 +36,7 @@ def load_state(save_dir: Path) -> WorldState:
     if not path.exists():
         _log.error("load_state path=%s not found — returning default state", path,
                     extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
-        return WorldState.from_dict(_default_state())
+        return default_world_state()
     with open(path) as f:
         content = f.read()
     try:
@@ -88,11 +44,11 @@ def load_state(save_dir: Path) -> WorldState:
     except yaml.YAMLError as e:
         _log.error("load_state path=%s malformed YAML — returning default state: %s", path, e,
                     extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
-        return WorldState.from_dict(_default_state())
+        return default_world_state()
     if not raw:
         _log.error("load_state path=%s empty — returning default state", path,
                     extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
-        return WorldState.from_dict(_default_state())
+        return default_world_state()
     return WorldState.from_dict(raw)
 
 

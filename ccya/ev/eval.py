@@ -13,21 +13,23 @@ from ccya.ev.events import find_turn, load_events
 from ccya.ev.play import EV_SAVES_DIR, play_turn
 from ccya.ev.scenario import Scenario, discover_scenarios, load_scenario
 from ccya.models import WorldState, load_config
-from ccya.state.io import _default_state, init_save_dir, load_state
+from ccya.state.io import default_world_state, init_save_dir, load_state
 
 _log = logging.getLogger(__name__)
 
 
-def _apply_seed_overrides(state: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any]:
+def _apply_seed_overrides(state: WorldState, overrides: dict[str, Any]) -> WorldState:
+    updates: dict[str, Any] = {}
     for path, value in overrides.items():
-        parts = path.split(".")
-        target = state
-        for part in parts[:-1]:
-            if part not in target:
-                target[part] = {}
-            target = target[part]
-        target[parts[-1]] = value
-    return state
+        if "." not in path:
+            continue
+        section, key = path.split(".", 1)
+        section_map = updates.setdefault(section, {})
+        if isinstance(section_map, dict):
+            section_map[key] = value
+    if not updates:
+        return state
+    return state.model_copy(update=updates)
 
 
 def _build_eval_config(
@@ -59,12 +61,12 @@ def _create_eval_session(scenario: Scenario) -> Path:
     session_dir = EV_SAVES_DIR / session_name
     session_dir.mkdir(parents=True, exist_ok=True)
 
-    state = _default_state()
-    state["meta"]["session_name"] = scenario.id
+    state = default_world_state()
+    state = state.model_copy(update={"meta": state.meta.model_copy(update={"session_name": scenario.id})})
     if scenario.seed_overrides:
-        _apply_seed_overrides(state, scenario.seed_overrides)
+        state = _apply_seed_overrides(state, scenario.seed_overrides)
 
-    init_save_dir(session_dir, WorldState.from_dict(state))
+    init_save_dir(session_dir, state)
     return session_dir
 
 

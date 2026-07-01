@@ -14,7 +14,7 @@ from ccya.engine.turn import run_turn
 from ccya.errors import LlmcError, LlmcTimeout
 from ccya.models import TurnResult, WorldState, load_config
 from ccya.pack import load_pack, list_packs
-from ccya.state.io import _default_state, init_save_dir, load_state
+from ccya.state.io import default_world_state, init_save_dir, load_state
 
 from ccya.ev.personality import resolve_personality
 from ccya.ev.session_config import load_session_config, resolve_auto_report, resolve_player_config
@@ -369,9 +369,9 @@ def _create_play_session(
     session_dir.mkdir(parents=True, exist_ok=True)
 
     if pack:
-        init_save_dir(session_dir, WorldState.from_dict(_default_state()))
+        init_save_dir(session_dir, default_world_state())
     else:
-        init_save_dir(session_dir, WorldState.from_dict(_default_state()))
+        init_save_dir(session_dir, default_world_state())
 
     _write_run_meta(session_dir, pack, personality, max_turns)
 
