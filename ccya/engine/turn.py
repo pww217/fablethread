@@ -114,9 +114,9 @@ async def run_turn(
         ruling_trimmed_chars = ctx._ruling_trimmed_chars
 
         turn_no = state.meta.turn + 1
-        # NOTE: turn_no is pre-increment (before state["meta"]["turn"] is updated at line ~355).
+        # NOTE: turn_no is pre-increment (before state.meta.turn is updated via set_turn).
         # It's used for LLM calls (ruling/narrate/extraction) which need the "current" turn number.
-        # The canonical state update happens at line ~355: state["meta"]["turn"] = state.get("meta", {}).get("turn", 0) + 1
+        # The canonical state update happens via state.set_turn(state.meta.turn + 1).
         _log.info(
             "turn.ruling_complete trace_id=%s turn=%d intent=%s outcome=%s",
             trace_id, turn_no, _intent.intent, _outcome.reason,
@@ -132,7 +132,7 @@ async def run_turn(
                 if fact_id:
                     expired_ids.append(fact_id)
         if expired_ids:
-            state = state.model_copy(update={"scene": state.scene.model_copy(update={"world_state": [f for f in ws if not (isinstance(f, dict) and f.get("id") in expired_ids)]})})
+            state = state.expire_world_state_facts(expired_ids)
             _log.info(
                 "world_state.ttl_expiry trace_id=%s turn=%d expired=%s",
                 trace_id, turn_no, expired_ids, extra={"trace_id": trace_id, "turn": turn_no},
@@ -140,11 +140,7 @@ async def run_turn(
 
         # Append roll to recent_rolls rolling window
         if ctx.outcome and ctx.outcome.rolled:
-            recent_rolls = list(state.meta.recent_rolls)
-            recent_rolls.insert(0, {"turn": turn_no, "band": ctx.outcome.band})
-            if len(recent_rolls) > 5:
-                recent_rolls.pop()
-            state = state.model_copy(update={"meta": state.meta.model_copy(update={"recent_rolls": recent_rolls})})
+            state = state.add_recent_roll({"turn": turn_no, "band": ctx.outcome.band})
 
         # === Call 1: Narration setup (extracted) + streaming ===
         exp_narrate_ms = _avg_event_ms(save_dir, "narrate.total_ms")
@@ -343,7 +339,7 @@ async def run_turn(
         changes = summarize_changes(state_pre_apply, state, rejected)
 
         # === Turn increment (single source of truth: here) ===
-        state = state.model_copy(update={"meta": state.meta.model_copy(update={"turn": state.meta.turn + 1})})
+        state = state.set_turn(state.meta.turn + 1)
 
         if is_cancel_requested(str(save_dir)):
             return
@@ -466,12 +462,7 @@ async def run_turn(
         # now run as end-of-turn async phases after yield("complete"))
         if outcome_summary and outcome_summary.strip():
             turn_no = state.meta.turn
-            bullet = f"- [T{turn_no}] {outcome_summary}"
-            prior = list(state.meta.prior_history)
-            prior.append(bullet)
-            if len(prior) > 10:
-                prior = prior[-10:]
-            state = state.model_copy(update={"meta": state.meta.model_copy(update={"prior_history": prior})})
+            state = state.add_prior_history_bullet(f"- [T{turn_no}] {outcome_summary}")
 
         # Single atomic write block (deferred past async window to include world data)
         # event["last_turn_state"] and append_event/save_state moved to after async window
@@ -552,7 +543,7 @@ async def run_turn(
             _log.debug("turn.world_failed trace_id=%s turn=%d error=%s", trace_id, state.meta.turn, exc)
         world_ms = (asyncio.get_event_loop().time() - t_world) * 1000
         _log.debug("turn.world_complete trace_id=%s turn=%d beats=%d world_ms=%d", trace_id, state.meta.turn, len(beat_candidates or []), round(world_ms, 1))
-        state = state.model_copy(update={"meta": state.meta.model_copy(update={"beat_candidates": beat_candidates or []})})
+        state = state.set_beat_candidates(beat_candidates or [])
 
         # Build world extraction event and write prompts (deferred past async window)
         extraction_event["world"] = {

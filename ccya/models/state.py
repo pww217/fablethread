@@ -71,6 +71,7 @@ class NpcPresence(str, Enum):
     NEARBY = "nearby"
     KNOWN = "known"
     DEPARTED = "departed"
+    ARCHIVED = "archived"
 
 
 class NPCEntry(BaseModel):
@@ -145,6 +146,113 @@ class WorldState(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         """Export WorldState to raw dict for YAML serialization."""
         return self.model_dump(exclude_none=False)
+
+    # ------------------------------------------------------------------
+    # Typed mutators (Phase 04 of I-17 #3)
+    # ------------------------------------------------------------------
+    # Each mutator returns a new WorldState (immutable pattern). Avoids
+    # copy.deepcopy and makes mutation intent explicit at call sites.
+
+    def set_turn(self, turn: int) -> "WorldState":
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"turn": turn})})
+
+    def add_recent_beat(self, beat: dict[str, Any], max_size: int = 5) -> "WorldState":
+        beats = list(self.meta.recent_beats)
+        beats.append(beat)
+        beats = beats[-max_size:]
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"recent_beats": beats})})
+
+    def add_recent_roll(self, roll: dict[str, Any], max_size: int = 5) -> "WorldState":
+        rolls = [roll] + list(self.meta.recent_rolls)
+        rolls = rolls[:max_size]
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"recent_rolls": rolls})})
+
+    def add_prior_history_bullet(self, bullet: str) -> "WorldState":
+        history = list(self.meta.prior_history)
+        history.append(bullet)
+        history = history[-10:]
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"prior_history": history})})
+
+    def set_pending_beat(self, beat: dict[str, Any] | None) -> "WorldState":
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"pending_gm_beat": beat})})
+
+    def set_beat_candidates(self, candidates: list[dict[str, Any]]) -> "WorldState":
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"beat_candidates": candidates})})
+
+    def set_last_inventory_change_reason(self, reason: str | None) -> "WorldState":
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"last_inventory_change_reason": reason})})
+
+    def set_last_condition_change_reason(self, reason: str | None) -> "WorldState":
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"last_condition_change_reason": reason})})
+
+    def set_last_rules_outcome(self, outcome: dict[str, Any] | None) -> "WorldState":
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"last_rules_outcome": outcome})})
+
+    def set_last_thread_creation_turn(self, turn: int) -> "WorldState":
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"last_thread_creation_turn": turn})})
+
+    def set_last_arc_resolve_turn(self, turn: int) -> "WorldState":
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"last_arc_resolve_turn": turn})})
+
+    def set_smoothed_convergence(self, score: float) -> "WorldState":
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"smoothed_convergence": score})})
+
+    def set_compendium_touch_order(self, order: list[str]) -> "WorldState":
+        return self.model_copy(update={"meta": self.meta.model_copy(update={"compendium_touch_order": order})})
+
+    def set_world_state(self, facts: list[dict[str, Any]]) -> "WorldState":
+        return self.model_copy(update={"scene": self.scene.model_copy(update={"world_state": facts})})
+
+    def expire_world_state_facts(self, expired_ids: list[str]) -> "WorldState":
+        facts = [f for f in self.scene.world_state if not (isinstance(f, dict) and f.get("id") in expired_ids)]
+        return self.model_copy(update={"scene": self.scene.model_copy(update={"world_state": facts})})
+
+    def set_scene_phase(self, phase: str, **kwargs: Any) -> "WorldState":
+        scene = self.scene.model_copy(update={"scene_phase": phase, **kwargs})
+        return self.model_copy(update={"scene": scene})
+
+    def add_npc(self, npc_id: str, entry: NPCEntry) -> "WorldState":
+        npcs = dict(self.compendium.npcs)
+        npcs[npc_id] = entry
+        return self.model_copy(update={"compendium": self.compendium.model_copy(update={"npcs": npcs})})
+
+    def update_npc(self, npc_id: str, **kwargs: Any) -> "WorldState":
+        npcs = dict(self.compendium.npcs)
+        if npc_id in npcs:
+            npcs[npc_id] = npcs[npc_id].model_copy(update=kwargs)
+        return self.model_copy(update={"compendium": self.compendium.model_copy(update={"npcs": npcs})})
+
+    def add_condition(self, condition: Condition) -> "WorldState":
+        conditions = list(self.pc.conditions)
+        conditions.append(condition)
+        return self.model_copy(update={"pc": self.pc.model_copy(update={"conditions": conditions})})
+
+    def remove_condition(self, condition_id: str) -> "WorldState":
+        conditions = [c for c in self.pc.conditions if c.id != condition_id]
+        return self.model_copy(update={"pc": self.pc.model_copy(update={"conditions": conditions})})
+
+    def expire_conditions(self, expired_ids: list[str] | None = None) -> "WorldState":
+        """Decrement turns_remaining on all conditions, remove expired.
+
+        If expired_ids is provided, only those IDs are decremented/removed.
+        Otherwise all conditions are processed. ``"permanent"`` is kept as-is.
+        """
+        updated_conds: list[Condition] = []
+        for c in self.pc.conditions:
+            if expired_ids is not None and c.id not in expired_ids:
+                updated_conds.append(c)
+                continue
+            if c.turns_remaining == "permanent":
+                updated_conds.append(c)
+                continue
+            if isinstance(c.turns_remaining, int):
+                new_remaining = c.turns_remaining - 1
+                if new_remaining <= 0:
+                    continue
+                updated_conds.append(c.model_copy(update={"turns_remaining": new_remaining}))
+            else:
+                updated_conds.append(c)
+        return self.model_copy(update={"pc": self.pc.model_copy(update={"conditions": updated_conds})})
 
 
 class ProgressEntry(BaseModel):

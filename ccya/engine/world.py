@@ -195,20 +195,13 @@ async def _run_world_step(
 
     # Append all generated beats to recent_beats for diversity tracking
     # (not just selected beats — unselected beats should still be tracked to avoid repetition)
-    new_beats = list(state.meta.recent_beats or [])
     for vb in valid_beats:
-        new_beats.append({
-            "turn": turn_no,
-            "type": vb.get("type"),
-            "effect": vb.get("effect", ""),
-        })
-    max_beats = config.recent_beats_max
-    if len(new_beats) > max_beats:
-        new_beats = new_beats[-max_beats:]
+        state = state.add_recent_beat(
+            {"turn": turn_no, "type": vb.get("type"), "effect": vb.get("effect", "")},
+            max_size=config.recent_beats_max,
+        )
 
     _log.debug("world.step_complete trace_id=%s turn=%d valid_beats=%d", trace_id, turn_no, len(valid_beats))
-    if new_beats != list(state.meta.recent_beats or []):
-        state = state.model_copy(update={"meta": state.meta.model_copy(update={"recent_beats": new_beats})})
     return valid_beats, system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}
 
 

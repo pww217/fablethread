@@ -486,8 +486,10 @@ def _apply_sanitization(
     # 6. world_state — atomic swap: replace entire world_state array
     new_world_state = parsed.get("world_state")
     if new_world_state is not None:
-        scene_update = {"world_state": [SanitizedWorldStateFact(**ws).model_dump(exclude_none=True) for ws in new_world_state]}
-        state = state.model_copy(update={"scene": state.scene.model_copy(update=scene_update), "meta": state.meta.model_copy(update={"world_state_candidates": []})})
+        state = state.set_world_state(
+            [SanitizedWorldStateFact(**ws).model_dump(exclude_none=True) for ws in new_world_state]
+        )
+        state = state.model_copy(update={"world_state_candidates": []})
 
     # Write back mutated arc (only if something changed)
     has_changes = bool(updated_ids or resolved_ids or added_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])

@@ -11,7 +11,7 @@ import re
 from typing import Any
 
 from ccya.errors import ErrorKind
-from ccya.models import Condition, InventoryItem, LongTermObjective, SceneExtractResult, StateDelta, WorldState
+from ccya.models import Condition, InventoryItem, LongTermObjective, NpcPresence, SceneExtractResult, StateDelta, WorldState
 from ccya.state.inventory import (
     _fuzzy_match_inventory,
     resolve_inventory_canonical_id,
@@ -210,18 +210,11 @@ def apply_delta(
     inv.sort(key=lambda x: 0 if x.get("id") == "credits" else 1)
 
     if delta.location_change and (delta.location_change.id or delta.location_change.name):
-        comp = state.compendium
-        comp_updated = False
-        comp_npcs = dict(comp.npcs or {})
-        for nid, entry in list(comp_npcs.items()):
-            if isinstance(entry, dict) and entry.get("presence") == "present":
-                if entry.get("party"):
+        for nid, entry in list(state.compendium.npcs.items()):
+            if entry.presence == NpcPresence.PRESENT:
+                if entry.party:
                     continue
-                comp_npcs[nid] = {**entry, "presence": "nearby"}
-                comp_npcs[nid].pop("notes", None)
-                comp_updated = True
-        if comp_updated:
-            comp = comp.model_copy(update={"npcs": comp_npcs})
+                state = state.update_npc(nid, presence=NpcPresence.NEARBY)
 
         _stamp_turn = state.meta.turn + 1
         scene = state.scene.model_copy(update={
@@ -231,7 +224,6 @@ def apply_delta(
         state = state.model_copy(update={
             "inventory": [InventoryItem(**i) for i in inv],
             "location": delta.location_change,
-            "compendium": comp,
             "scene": scene,
         })
         _log.info("location_change.applied location=%s name=%s", delta.location_change.id, delta.location_change.name,

@@ -31,7 +31,7 @@ def touch_compendium_order(state: WorldState, npc_id: str) -> WorldState:
         order.remove(nid)
     order.append(nid)
     _log.debug("touch_compendium_order npc=%s order_len=%d", npc_id, len(order))
-    return state.model_copy(update={"meta": state.meta.model_copy(update={"compendium_touch_order": order})})
+    return state.set_compendium_touch_order(order)
 
 
 def _strip_non_ascii(text: str) -> str:
@@ -51,8 +51,6 @@ def apply_npc_scene_management(
 
     Returns a new WorldState with updated compendium. Compendium entries are merged.
     """
-    comp = dict(state.compendium.npcs)
-
     if scene_result.compendium_npc_update:
         _log.info(
             "apply_npc_scene_management compendium_update=%d", len(scene_result.compendium_npc_update),
@@ -63,8 +61,8 @@ def apply_npc_scene_management(
             nid = normalize_inventory_id(comp_upd.id)
             resolved_id = nid
 
-            is_new = resolved_id not in comp
-            entry = comp.get(resolved_id) or NPCEntry()
+            is_new = resolved_id not in state.compendium.npcs
+            entry = state.compendium.npcs.get(resolved_id) or NPCEntry()
 
             updates: dict[str, Any] = {}
 
@@ -138,6 +136,10 @@ def apply_npc_scene_management(
                 updates["position"] = comp_upd.position
 
             if updates:
-                comp[resolved_id] = entry.model_copy(update=updates)
+                if is_new:
+                    new_entry = NPCEntry(**updates)
+                    state = state.add_npc(resolved_id, new_entry)
+                else:
+                    state = state.update_npc(resolved_id, **updates)
 
-    return state.model_copy(update={"compendium": state.compendium.model_copy(update={"npcs": comp})})
+    return state

@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from ccya.engine.config import EngineConfig
-from ccya.models import ArcThread, LongTermObjective, NPCEntry, ProgressEntry, StorytellerResult, StateDelta, WorldState
+from ccya.models import ArcThread, LongTermObjective, NPCEntry, NpcPresence, ProgressEntry, StorytellerResult, StateDelta, WorldState
 from ccya.state import resolve_inventory_remove_target
 from ccya.state.delta_builder import _merge_arc_update
 
@@ -217,12 +217,11 @@ def _apply_arc_resolve(
         started_turn=turn_no,
     )
 
-    new_meta = state.meta.model_copy(update={"last_arc_resolve_turn": turn_no})
+    state = state.set_last_arc_resolve_turn(turn_no)
 
     return state.model_copy(update={
         "arc": new_arc,
         "resolved_arcs": new_resolved_arcs,
-        "meta": new_meta,
     })
 
 
@@ -288,7 +287,7 @@ def _apply_thread_resolutions(
                 "text": res.world_state_candidate,
                 "resolved_turn": turn_no,
             })
-            state = state.model_copy(update={"meta": state.meta.model_copy(update={"world_state_candidates": candidates})})
+            state = state.model_copy(update={"world_state_candidates": candidates})
 
     if not any_found:
         return state
@@ -413,7 +412,7 @@ def _expire_conditions(
             extra={"trace_id": trace_id, "turn": turn_no},
         )
 
-    return state.model_copy(update={"pc": state.pc.model_copy(update={"conditions": updated_conds})})
+    return state.expire_conditions(expired_ids)
 
 
 def _apply_state_updates(
@@ -462,23 +461,19 @@ def _apply_state_updates(
                     )
 
         # Persist inventory change reason for right-panel tooltip
-        meta = state.meta
         if delta and (delta.inventory_add or delta.inventory_remove or delta.inventory_update):
-            if delta.inventory_change_reason:
-                meta = meta.model_copy(update={"last_inventory_change_reason": delta.inventory_change_reason})
-            else:
-                meta = meta.model_copy(update={"last_inventory_change_reason": None})
+            state = state.set_last_inventory_change_reason(delta.inventory_change_reason or None)
         else:
-            meta = meta.model_copy(update={"last_inventory_change_reason": None})
+            state = state.set_last_inventory_change_reason(None)
 
         # Persist condition change reason for debugging
         if delta and (delta.pc_condition_add or delta.pc_condition_remove):
             if hasattr(delta, "condition_change_reason") and delta.condition_change_reason:
-                meta = meta.model_copy(update={"last_condition_change_reason": delta.condition_change_reason})
+                state = state.set_last_condition_change_reason(delta.condition_change_reason)
             else:
-                meta = meta.model_copy(update={"last_condition_change_reason": None})
+                state = state.set_last_condition_change_reason(None)
         else:
-            meta = meta.model_copy(update={"last_condition_change_reason": None})
+            state = state.set_last_condition_change_reason(None)
 
         # Stamp last_presence_turn and last_seen_location on touched NPCs; create minimal entry if new
         comp = state.compendium.npcs or {}
@@ -486,15 +481,17 @@ def _apply_state_updates(
         for cu in (delta.compendium_npc_update or []):
             entry = comp.get(cu.id)
             if entry is None:
-                comp = {**comp, cu.id: NPCEntry(
+                new_entry = NPCEntry(
                     name=cu.id.replace("_", " ").title(),
                     presence="nearby",
-                )}
-                entry = comp[cu.id]
-            comp = {**comp, cu.id: entry.model_copy(update={
-                "last_presence_turn": turn_no,
-                "last_seen_location": location.name or "",
-            })}
+                )
+                state = state.add_npc(cu.id, new_entry)
+                entry = state.compendium.npcs[cu.id]
+            state = state.update_npc(
+                cu.id,
+                last_presence_turn=turn_no,
+                last_seen_location=location.name or "",
+            )
 
         # Arc director: process thread updates and arc resolution
         if storyteller_result and (state.arc or storyteller_result.thread_add):
@@ -569,7 +566,8 @@ def _apply_state_updates(
                                             trace_id, evict.id, len(non_dormant), config.thread_max_active,
                                             extra={"trace_id": trace_id, "turn": turn_no},
                                         )
-                                state = state.model_copy(update={"arc": arc_with_new_thread, "meta": meta.model_copy(update={"last_thread_created_turn": turn_no_for_add})})
+                                state = state.model_copy(update={"arc": arc_with_new_thread})
+                                state = state.set_last_thread_creation_turn(turn_no_for_add)
                                 delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
                             else:
                                 _log.warning(
@@ -621,35 +619,24 @@ def _apply_state_updates(
 
     # --- NPC lifecycle: nearby decay and departed archive ---
     nearby_ttl = config.nearby_decay_ttl if config else 2
-    comp = state.compendium.npcs or {}
-    comp_updated = False
-    for nid, entry in list(comp.items()):
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("presence") == "nearby":
-            last_presence = entry.get("last_presence_turn")
+    for nid, entry in list(state.compendium.npcs.items()):
+        if entry.presence == NpcPresence.NEARBY:
+            last_presence = entry.last_presence_turn
             if isinstance(last_presence, int) and turn_no - last_presence >= nearby_ttl:
-                comp = {**comp, nid: {**entry, "presence": "known"}}
-                comp_updated = True
+                state = state.update_npc(nid, presence=NpcPresence.KNOWN)
 
     archive_ttl = config.departed_archive_ttl if config else 3
     archived_ids: list[str] = []
-    for nid, entry in list(comp.items()):
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("presence") == "departed":
-            dep_turn = entry.get("departed_turn")
+    for nid, entry in list(state.compendium.npcs.items()):
+        if entry.presence == NpcPresence.DEPARTED:
+            dep_turn = entry.departed_turn
             if isinstance(dep_turn, int) and turn_no - dep_turn >= archive_ttl:
-                comp = {**comp, nid: {**entry, "presence": "archived"}}
+                state = state.update_npc(nid, presence=NpcPresence.ARCHIVED)
                 archived_ids.append(nid)
-                comp_updated = True
     if archived_ids:
         _log.info(
             "archived_departed_npcs ids=%s", sorted(archived_ids),
             extra={"turn": turn_no},
         )
-
-    if comp_updated:
-        state = state.model_copy(update={"compendium": state.compendium.model_copy(update={"npcs": comp})})
 
     return state, delta, applied, rejected, reconcile_warnings, thread_dedup_rejections
