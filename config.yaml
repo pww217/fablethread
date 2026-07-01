@@ -43,5 +43,8 @@ game:
   warmup_on_start: false
   character_creation_enabled: true
 
+  # Max entries in recent_beats history passed to world step
+  recent_beats_max: 10
+
   debug:
     enabled: true

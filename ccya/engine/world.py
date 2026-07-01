@@ -200,7 +200,7 @@ async def _run_world_step(
             "type": vb.get("type"),
             "effect": vb.get("effect", ""),
         })
-    max_beats = 5
+    max_beats = config.recent_beats_max
     if len(meta["recent_beats"]) > max_beats:
         meta["recent_beats"] = meta["recent_beats"][-max_beats:]
 

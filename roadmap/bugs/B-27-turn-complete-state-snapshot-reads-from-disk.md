@@ -1,6 +1,6 @@
 ---
 title: "turn_complete state snapshot reads from disk — panels show stale data after turn"
-status: new
+status: done
 urgency: 2
 size: small
 created: 2026-06-29

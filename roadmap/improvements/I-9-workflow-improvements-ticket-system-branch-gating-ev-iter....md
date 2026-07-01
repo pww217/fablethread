@@ -1,6 +1,6 @@
 ---
 title: "Workflow improvements: ticket system, branch gating, EV iteration, cross-linking"
-status: new
+status: done
 urgency: 2
 size: large
 created: 2026-06-27

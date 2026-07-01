@@ -274,6 +274,18 @@ async def prepare_seed(
                 parse_error,
                 extra={"trace_id": trace_id},
             )
+            # Save full response to file for debugging
+            failed_dir = Path("saves") / "prepare_seed_failures"
+            failed_dir.mkdir(parents=True, exist_ok=True)
+            failed_file = failed_dir / f"{trace_id}_attempt{attempt + 1}.txt"
+            failed_file.write_text(raw)
+            _log.warning(
+                "prepare_seed failed (attempt %d): %s — full response saved to %s",
+                attempt + 1,
+                parse_error,
+                failed_file,
+                extra={"trace_id": trace_id},
+            )
             if attempt < config.max_llm_retries:
                 fb = f"Your output failed to parse: {parse_error}. Re-emit a valid SeedState JSON only."
                 messages.append({"role": "user", "content": fb})

@@ -1,6 +1,6 @@
 ---
 title: "Pacing volatility — convergence score too reactive, phase flip-flopping"
-status: new
+status: testing
 urgency: 2
 size: medium
 created: 2026-06-29

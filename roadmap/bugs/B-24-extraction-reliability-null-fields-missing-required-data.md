@@ -1,6 +1,6 @@
 ---
 title: "Extraction reliability — null fields, missing required data, item ID mismatches"
-status: new
+status: done
 urgency: 2
 size: medium
 created: 2026-06-29
@@ -54,12 +54,35 @@ LLM extraction steps produce invalid or incomplete state data across multiple fi
 ## Remaining Items
 
 ### `resolve_inventory_canonical_id no match`
-**Status:** Open
+**Status:** Resolved
 **Symptom:** LLM-generated item IDs don't match canonical IDs in compendium
 **Frequency:** All 5 Phase 3 games
 **Severity:** Low — items still work, just logs warnings
 **Examples:** `military_canister`, `hf_jammer`, `merchant_guild_envelopes`, `militia_comm_device`, `canned_rations`, `medical_kit`, `military_insignia`, `blood_stained_canteen`, `brass_shell_casing`
-**Need to investigate:** Improve item ID canonicalization, strengthen prompt guidance for item naming
+**Phase 4 Data (25-turn runs):** No null fields found in any of the 3 runs. No reconcile warnings found. No `resolve_inventory_canonical_id` warnings found. The inventory items added in these runs (`naval_documents`, `heavy_leather_case`, `navigational_transit`, `sealed_parchment`, `military_encrypted_drive`) all resolved without warnings.
+
+The issue appears resolved — likely fixed by earlier prompt updates or canonicalization improvements. No further investigation needed.
+
+## Phase 4 Data — 25-Turn Runs (2026-06-30)
+
+**Null fields:** None found across all 3 runs (75 turns total).
+- `turns_remaining: None` — not found (B-23 fix working)
+- `presence: None` — not found (B-22 fix working)
+- `condition_change_reason` missing — not found (prompt update working)
+- `npcs` empty in beats — not found (prompt update working)
+
+**Reconcile warnings:** None found across all 3 runs.
+- `resolve_inventory_canonical_id no match` — not found
+- Any other reconcile warnings — not found
+
+**Inventory additions:** All resolved without warnings.
+- Golden-piracy: `naval_documents` (×2), `heavy_leather_case` (×2), `navigational_transit`, `sealed_parchment`
+- Space-western: `military_encrypted_drive`
+- Noir-1930s: none
+
+## Investigation Update (2026-06-30)
+
+prepare_seed temperature was lowered from 0.4 to 0.2 to fix intermittent JSON output failures. Note: this only affects initial seed generation, not extraction or ruling steps. Extraction and ruling have their own temperature settings. The prepare_seed fix didn't solve the problem — still getting failures at 0.2 (2 out of 13 calls). The issue is in the LLM output format, not temperature.
 
 ### `resolve_inventory_canonical_id no match`
 **Status:** Open

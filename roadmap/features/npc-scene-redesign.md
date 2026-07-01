@@ -1,9 +1,10 @@
 ---
 title: "NPC scene redesign — drop aliases, drop plurals, simplify unnamed detection"
-status: validated
+status: testing
 urgency: 2
 size: large
 created: 2026-06-25
+ticket_id: I-18
 labels:
   - npc
   - scene

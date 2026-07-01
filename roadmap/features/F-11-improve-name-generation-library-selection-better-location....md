@@ -1,6 +1,6 @@
 ---
 title: "Improve Name Generation: Library Selection + Better Location Names"
-status: scoping
+status: done
 urgency: 3
 size: medium
 created: 2026-06-24

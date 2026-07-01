@@ -71,12 +71,16 @@ def main() -> None:
         print(__doc__.strip() if __doc__ else "ev.py — Debug CLI for CCYA events.jsonl")
         sys.exit(0)
 
+    # Set up logging for CLI commands
+    from ccya.logging_setup import setup_logging
+    setup_logging()
+
     flags, args = _strip_flags(args)
     if not args:
-        print("Error: no command specified.", file=sys.stderr)
-        print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes, prompt-eval", file=sys.stderr)
-        print("\nUsage: .venv/bin/python scripts/debug/ev.py <command> [args...]", file=sys.stderr)
-        sys.exit(1)
+       print("Error: no command specified.", file=sys.stderr)
+       print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes, prompt-eval", file=sys.stderr)
+       print("\nUsage: .venv/bin/python scripts/debug/ev.py <command> [args...]", file=sys.stderr)
+       sys.exit(1)
 
     cmd = args[0]
 

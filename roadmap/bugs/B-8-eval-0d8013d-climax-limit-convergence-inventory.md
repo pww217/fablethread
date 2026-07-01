@@ -1,6 +1,6 @@
 ---
 title: Eval 0d8013d — CLIMAX hardcoded limit, convergence score, inventory canonical IDs, ruling JSON parse warnings
-status: new
+status: done
 created: 2026-06-27
 ticket_id: B-8
 labels:

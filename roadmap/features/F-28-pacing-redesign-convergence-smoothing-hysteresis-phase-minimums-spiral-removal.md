@@ -1,6 +1,6 @@
 ---
 title: "Pacing redesign — convergence smoothing, hysteresis, phase minimums, spiral removal"
-status: up-next
+status: done
 plan: plans/pacing-redesign-plan.md
 urgency: 1
 size: large

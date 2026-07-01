@@ -1,6 +1,6 @@
 ---
 title: Deferred state persistence — single atomic write at turn end
-status: validated
+status: done
 urgency: 2
 size: large
 created: 2026-06-24
