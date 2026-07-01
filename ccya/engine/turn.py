@@ -473,8 +473,8 @@ async def run_turn(
             meta = state.setdefault("meta", {})
             prior = meta.setdefault("prior_history", [])
             prior.append(bullet)
-            if len(prior) > 20:
-                meta["prior_history"] = prior[-20:]
+            if len(prior) > 10:
+                meta["prior_history"] = prior[-10:]
 
         # Single atomic write block (deferred past async window to include world data)
         # event["last_turn_state"] and append_event/save_state moved to after async window

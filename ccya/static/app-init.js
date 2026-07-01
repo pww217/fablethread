@@ -88,6 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
     _inlinePillsLayout();
     window.addEventListener('resize', _inlinePillsLayout);
 
+    // Restore persisted debug metadata row on the last narrative block.
+    _restoreDebugMetadata();
+
     // Auto-scroll narrative to bottom (shows most recent history entry)
     const np = document.getElementById('narrative-panel');
     if (np) np.scrollTo({ top: np.scrollHeight, behavior: 'instant' });

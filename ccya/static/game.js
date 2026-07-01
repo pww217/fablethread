@@ -1022,11 +1022,24 @@ function game() {
                     const debugDiv = document.createElement('div');
                     debugDiv.className = 'debug-metadata-row';
 
-                    const gmBeatText = result.gm_beat ? `${result.gm_beat.type} — ${result.gm_beat.effect || '—'}` : '\u2014';
+                    const pendingGm = (result.state?.meta?.pending_gm_beat) || {};
+                    const gmBeatText = pendingGm.type ? `${pendingGm.type} — ${pendingGm.effect || '—'}` : '\u2014';
 
                     debugDiv.innerHTML = `<span class="debug-label">Phase:</span> ${_capitalizeFirst(result.scene_phase || '')}&ensp;|&ensp;<span class="debug-label">GM Beat:</span> ${gmBeatText}&ensp;|&ensp;<span class="debug-label">Hint:</span> ${_capitalizeFirst(result.outcome_hint || '')}&ensp;|&ensp;<span class="debug-label">Summary:</span> ${_capitalizeFirst(result.summary || '')}`;
                     lastInserted.after(debugDiv);
                     lastInserted = debugDiv;
+
+                    // Persist debug metadata for restoration on page refresh.
+                    try {
+                        const saveKey = result.state?.meta?.session_name || 'default';
+                        localStorage.setItem('ccya_debug_' + saveKey, JSON.stringify({
+                            scene_phase: result.scene_phase,
+                            gm_beat: { type: pendingGm.type, effect: pendingGm.effect },
+                            outcome_hint: result.outcome_hint,
+                            summary: result.summary,
+                            turn: result.turn,
+                        }));
+                    } catch {}
                 }
 
                 _applyMarkdown(block);

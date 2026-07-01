@@ -42,6 +42,12 @@ Threads in the user prompt are shown with two labels: `[TYPE - URGENCY]`.
 
 **CRITICAL: Only reference threads that appear in the active threads list.** The user prompt shows all active threads with their IDs. You MUST use those exact IDs. If a thread ID is not shown in the active threads list, do NOT create or update it. Hallucinating thread IDs causes silent failures.
 
+**MANDATORY — EXACT THREAD ID PRESERVATION:** Thread IDs are opaque handles, not descriptions. When referencing a thread, copy the ID EXACTLY as shown in the prompt — character for character. Do NOT paraphrase, shorten, rename, or rephrase IDs.
+  - Example: if prompt shows `dockside_enforcer_confrontation`, your output MUST use `"id": "dockside_enforcer_confrontation"`.
+  - WRONG: `"id": "enforcer_pursuit"` (paraphrased from `dockside_enforcer_confrontation`)
+  - WRONG: `"id": "enforcer_confrontation"` (abbreviated from `dockside_enforcer_confrontation`)
+  - RIGHT: `"id": "dockside_enforcer_confrontation"` (exact copy from prompt)
+
 **CRITICAL: Do NOT resolve threads that do not exist.** `thread_resolve` may only reference IDs from the active threads list.
 
 **CRITICAL: Never both update AND resolve the same thread in one turn.** If you are resolving a thread, emit it ONLY in `thread_resolve`. Do NOT also include a `thread_update` for that same ID.

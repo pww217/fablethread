@@ -60,7 +60,7 @@ flowchart TD
 | Step | Docs | When it runs | Key inputs | Key outputs | Mechanics it owns |
 |---|---|---|---|---|---|
 | **Step 0 — Ruling/Intent** | [step0-ruling](./step0-ruling.md) | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input`, `arc.threads` (urgent only), `state.meta.beat_candidates` | `IntentEnvelope`, `RulesOutcome`, `selected_beat` → `state.meta.pending_gm_beat` | Intent classification, impossibility check, dice roll resolution (1d12 + stat_mod + diff_mod → band), LLM-driven difficulty adjustment factoring conditions/inventory, anti-declare-outcome enforcement. Roll criteria tightened to major narrative pivots only. Urgent threads context provided to LLM. When `impossible=true`, no roll occurs and Python synthesizes a `fail` outcome. **Beat selection** — reads `state.meta.beat_candidates` (prepared by previous turn's World step) and selects one by index (or null) for the upcoming narration. Always replaces or pops `state.meta.pending_gm_beat`; always pops `state.meta.beat_candidates`. |
-| **Phase Engine** | — | Every turn (always, Python, runs before ruling in turn.py) | `state["scene"]`, `ages`, `EngineConfig`, `convergence_score` | `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER), `climax_turn_count`, `breather_turn_count` in `state["scene"]` | 5-state phase machine driven by convergence score (6-component composite + stall_floor) and scene age. Phase drives directive computation and beat constraints. Convergence threshold default is 2. Phase computation deduplicated via `_phase_computed` flag on state. |
+| **Phase Engine** | — | Every turn (always, Python, runs before ruling in turn.py) | `state["scene"]`, `ages`, `EngineConfig`, `convergence_score` | `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER), `climax_turn_count`, `breather_turn_count` in `state["scene"]` | 5-state phase machine driven by convergence score (6-component composite + stall_floor) and scene age. Phase drives directive computation and beat constraints. Convergence enter threshold default is 3. Phase computation deduplicated via `_phase_computed` flag on state. |
 | **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `prior_history` (last 20 bullets, all but last rendered), `recent_turns[-1:]`, `pacing_context`, `pending_gm_beat` (set by Ruling same turn), `npc_roster` (from build_npc_roster()), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption (pure reader of `pending_gm_beat`). Scene motion shaped by `PacingContext.outcome_hint`; impossible actions narrated as natural failures. |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc`, `npc_roster` (from build_npc_roster()), conditions, compendium entries | `SceneExtractResult`: compendium_npc_update, candidate_npcs (per-NPC beat candidates: [{id, type, effect}]) | NPC presence, durable NPC compendium identity, per-NPC beat candidate signals with driver assignment. |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, conditions | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove, location_change, location_description | Inventory delta accuracy, condition lifecycle, location deltas. |
@@ -118,14 +118,14 @@ See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for full details on
 
 ## LLM Backend
 
-The engine uses an OpenAI-compatible chat API (`/v1/chat/completions`).
+The engine uses an OpenAI-compatible chat API (`/v1/chat/completions`) or Ollama native `/api/chat` (auto-detected by host URL). The client (`ccya/llm_client.py`) supports both backends via `LLMResult` wrapper (frozen dataclass with `content`, `usage` normalized dict, `elapsed_ms`). Ollama native path uses raw `httpx.AsyncClient` with Ollama-specific payload format; OpenAI-compatible path uses the `openai` Python SDK with `api_key="local"`. `num_ctx` is passed via `extra_body` for OpenAI compat or as direct payload key for Ollama native. Default `num_ctx=16384`. Client-side token trimming via `trim_messages()` preserves 2000 head + 500 tail tokens; system messages are never dropped.
 
 | Backend | Host | Model | Hardware | Speed |
 |---|---|---|---|---|
-| **Primary (preferred)** | `10.75.100.51:11434` | `ornith:35b` | RTX 5070 Ti | Fast |
-| Fallback | `127.0.0.1:8080` | `mlx-community/gemma-4-26b-a4b-it-mxfp8` | MacBook (MLX) | Slower |
+| **Primary (preferred)** | `10.75.100.51:11434` (Ollama native `/api/chat`) | `VladimirGav/gemma4-26b-16GB-VRAM:latest` | RTX 5070 Ti | Fast |
+| Fallback | `127.0.0.1:8080` (llama-swap, OpenAI compat) | `VladimirGav/gemma4-26b-16GB-VRAM:latest` | MacBook (MLX) | Slower |
 
-Configured in `config.yaml` under `llm.host`, `llm.model`, `llm.num_ctx`, and `llm.context_window`. The client (`ccya/llm_client.py`) uses the `openai` Python SDK with `api_key="local"` — no authentication required. `num_ctx` is passed via `extra_body` to control the server-side input context window (KV cache pre-allocation in llama.cpp). `context_window` controls client-side trimming via `trim_messages()` — must be ≤ `num_ctx` to avoid sending more tokens than the server can handle.
+Configured in `config.yaml` under `llm.host`, `llm.model`, `llm.num_ctx`, and `llm.context_window`. The client (`ccya/llm_client.py`) auto-detects Ollama native (`/api/chat` in host URL) vs OpenAI-compatible path. `num_ctx` is passed to control the server-side input context window. `context_window` controls client-side trimming via `trim_messages()` — must be ≤ `num_ctx` to avoid sending more tokens than the server can handle.
 
 ## Key Models Glossary
 
@@ -146,7 +146,7 @@ Configured in `config.yaml` under `llm.host`, `llm.model`, `llm.num_ctx`, and `l
 
 ### PacingContext (see [step0-ruling](./step0-ruling.md#pacing-context))
 
-Computed by `_compute_pacing_context()` in `_pacing.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when Scene Imperative fires), `summary` (human-readable log string), `convergence_score` (int 0-6+, 6-component EMA-smoothed score computed by `compute_convergence_score()` in narrate.py for RISING→CLIMAX transition).
+Computed by `_compute_pacing_context()` in `_pacing.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Scene Imperative → Scene Pressure → empty), `outcome_hint` (driven by scene_motion from ruling + Scene Imperative override + convergence hard gate), `summary` (human-readable log string), `convergence_score` (int 0-7, raw 6-component score computed by `compute_convergence_score()` in narrate.py), `convergence_components` (dict of 6 component names to int values), `convergence_threads` (thread dicts used for convergence computation).
 
 ### GMBeat (see [step2d-world](./step2d-world.md#gmbeat-schema-repurposed))
 

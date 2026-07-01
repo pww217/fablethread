@@ -47,7 +47,7 @@ Record's prompt was previously the unified "Storytell" prompt. The split removed
 
 ## Campaign Arc System
 
-The campaign arc system tracks story threads across turns. Thread state is **storyteller-managed** — the LLM explicitly controls urgency, progress, and goal direction via `thread_update` and `goal_update` directives. The engine applies these without enforcement of caps, cooldowns, or silent timers.
+The campaign arc system tracks story threads across turns. Thread state is **Record-managed** (formerly Storytell-managed — the rename is from Storytell → Record, same ownership) — the LLM explicitly controls urgency, progress, and goal direction via `thread_update` and `goal_update` directives. The engine applies these without enforcement of caps, cooldowns, or silent timers.
 
 ### Arc Data Model
 
@@ -67,14 +67,14 @@ ProgressEntry
 ArcThread
    id: str                    — Unique identifier
    summary: str               — What this thread is about
-   dormant: bool = False      — Engine-set after 4 turns with no activity (urgent threads excluded); also settable via thread_update by storyteller/sanitizer
+   dormant: bool = False      — Engine-set after 8 turns with no activity (urgent threads excluded); also settable via thread_update by Record/sanitizer
    type: Literal["threat", "opportunity", "complication", "revelation"] | None = None  — Semantic type; required in prompt guidance (Schema examples + "REQUIRED" directive) even though model field is optional
    urgency: Literal["background", "normal", "urgent"] = "normal"  # Storyteller-controlled; Python enforces stepwise decay (urgent→normal→background) after N turns at same level
    progress: list[ProgressEntry] = []   — Append-only log of structured progress updates
    resolution_state: str | None # Set when thread_resolve processes resolved/failed/abandoned
    outcome: str | None        # Set from ThreadResolution.outcome when moved to completed_threads
    resolved_turn: int | None  — Turn when thread was resolved; used for TTL filtering in prompts
-   last_updated_turn: int | None — Turn when thread was last updated via thread_update; used for auto-dormant (4 turns), culling (oldest by last_updated_turn), and staleness display
+   last_updated_turn: int | None — Turn when thread was last updated via thread_update; used for auto-dormant (8 turns), culling (oldest by last_updated_turn), and staleness display
    added_turn: int | None     — Turn when thread was created (thread_add or seed); enables age calculations for decay/expiration passes
    urgency_set_turn: int | None — Turn when urgency was last set; enables Python-side urgency decay pass to measure how long a thread has been at its current level
 ```
@@ -92,7 +92,7 @@ flowchart TD
 
     subgraph UPDATES["_apply_thread_updates(config)"]
         U1["For each ThreadUpdate:<br>Find thread by id → apply<br>dormant/urgency/type/summary/progress changes<br>progress is append-only (list[ProgressEntry])<br>Progress dedup via difflib (≥70% overlap → reject)<br>Sets last_updated_turn = current turn"]
-        U2["Auto-dormant:<br>threads untouched for 4 turns (urgent threads excluded)<br>→ dormant: True, urgency: background"]
+        U2["Auto-dormant:<br>threads untouched for 8 turns (urgent threads excluded)<br>→ dormant: True, urgency: background"]
         U3["Urgency decay pass:<br>for each active thread with urgency_set_turn,<br>If age >= thread_urgency_max_age:<br>  urgent → normal, then normal → background<br>Sets urgency_set_turn = current turn on demotion"]
     end
 
@@ -160,7 +160,7 @@ flowchart TD
         N1["_narrate_messages() reads state['arc']<br>→ current_arc_ctx in system prompt"]:::pyNode
     end
 
-    subgraph EXTRACT["Step 2c — Storytell Extract"]
+    subgraph EXTRACT["Step 2c — Record Extract"]
         E1["Storyteller emits<br>thread_update: list[ThreadUpdate],<br>goal_update: str | None,<br>arc_resolve: ArcResolution | None,<br>thread_resolve: list[ThreadResolution],<br>thread_add (gated by PacingContext.gate)"]:::pyNode
     end
 
@@ -207,7 +207,7 @@ For each ThreadUpdate:
     - If `progress` is non-None: wrap in `ProgressEntry(kind=update.progress_kind or "advancement", text=update.progress)`. If thread already has progress, compare against last entry via `difflib.SequenceMatcher` — ≥70% overlap rejects with WARNING. Otherwise append.
     - Set `last_updated_turn` to current turn number
  4. Log applied changes at INFO level
- 5. **Auto-dormant** (post-loop, after every thread_updates loop): For each active (dormant=False) thread whose `last_updated_turn` is ≥ 4 turns ago AND is not urgent, set `dormant: True` and `urgency: background`.
+ 5. **Auto-dormant** (post-loop, after every thread_updates loop): For each active (dormant=False) thread whose `last_updated_turn` is ≥ 8 turns ago AND is not urgent, set `dormant: True` and `urgency: background`.
  6. **Urgency decay pass**: For each active thread with `urgency_set_turn` set, if age (`turn_no - urgency_set_turn`) >= `thread_urgency_max_age`, demote stepwise (urgent→normal, normal→background). Sets `urgency_set_turn = current turn` on demotion. Skips threads without `urgency_set_turn` (pre-existing data degrades gracefully).
 
 **Progress model:** Every progress entry is a `ProgressEntry` with `kind` field (`"advancement"` or `"setback"`) and `text`. The `major_update_signal` field on `ThreadUpdate` tags each emitted progress entry; default is `"advancement"`. Progress is rendered to prompts as `[KIND] text` by `_fmt_progress()` (module-level function in `ccya/prompts/context.py` — relocated from a static method on `ArcThreadBlock` and from `ccya/engine/narrate.py`).

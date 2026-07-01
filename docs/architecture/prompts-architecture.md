@@ -60,7 +60,7 @@ Two entirely separate template systems exist — do not conflate them:
 
 - Generation order: World facts → Key locations → Arc origin → PC situation → Campaign arc → Opening scene/NPCs → Inventory (8 steps)
 - Schema shows only `SeedState` shape (not full `SeedEnvelope`) — narrative fields (opening_narrative, actions, outcome_summary) are generated separately by narrate_seed
-- CompendiumEntry model has explicit motivation/fear/leverage/personality optional string fields alongside existing name/title/bio/bond/presence/notes; seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings; seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only) and a 12-archetype reference table
+- CompendiumEntry model has explicit motivation/fear/leverage/personality optional string fields alongside existing name/title/bio/presence/notes; seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings; seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only) and a 12-archetype reference table; runtime code uses `tie` (CompendiumNpcUpdate.tie), seed-time model uses `bond` (CompendiumEntry.bond)
 
 ### Narrate seed system prompt (`ccya/prompts/narrate_seed_system.j2`)
 

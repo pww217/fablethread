@@ -443,6 +443,32 @@ function _capitalizeFirst(str) {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function _restoreDebugMetadata() {
+    try {
+        const stateScript = document.getElementById('initial-state');
+        if (!stateScript) return;
+        const initState = JSON.parse(stateScript.textContent);
+        const sessionName = (initState.meta || {}).session_name || 'default';
+        const raw = localStorage.getItem('ccya_debug_' + sessionName);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data || !data.turn) return;
+        // Only restore if the saved turn matches the last history turn.
+        if (data.turn !== initState.last_history_turn) return;
+        // Find the last narrative block and append the debug row.
+        const blocks = document.querySelectorAll('.narrative-block');
+        if (!blocks.length) return;
+        const lastBlock = blocks[blocks.length - 1];
+        const existing = lastBlock.querySelector('.debug-metadata-row');
+        if (existing) return;
+        const debugDiv = document.createElement('div');
+        debugDiv.className = 'debug-metadata-row';
+        const gmText = data.gm_beat?.type ? `${data.gm_beat.type} — ${data.gm_beat.effect || '—'}` : '\u2014';
+        debugDiv.innerHTML = `<span class="debug-label">Phase:</span> ${_capitalizeFirst(data.scene_phase || '')}&ensp;|&ensp;<span class="debug-label">GM Beat:</span> ${gmText}&ensp;|&ensp;<span class="debug-label">Hint:</span> ${_capitalizeFirst(data.outcome_hint || '')}&ensp;|&ensp;<span class="debug-label">Summary:</span> ${_capitalizeFirst(data.summary || '')}`;
+        lastBlock.appendChild(debugDiv);
+    } catch { /* skip */ }
+}
+
 function _escapeHtml(str) {
     return String(str)
         .replace(/&/g, '&amp;')

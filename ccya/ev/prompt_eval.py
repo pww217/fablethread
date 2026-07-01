@@ -147,9 +147,14 @@ def _extract_prompt_from_event(
     if isinstance(output, dict):
         output = json.dumps(output, indent=2)
 
+    # Support both old format (rendered_user/rendered_system) and new format (context_meta)
+    meta = blob.get("context_meta") or {}
+    system = blob.get("rendered_system") or meta.get("system_text") or ""
+    user = blob.get("rendered_user") or meta.get("user_text") or ""
+
     return {
-        "system": blob.get("rendered_system") or "",
-        "user": blob.get("rendered_user") or "",
+        "system": system,
+        "user": user,
         "output": output,
     }
 

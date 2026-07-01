@@ -32,15 +32,15 @@ The output must be a JSON object with this structure:
 ```json
 {
   "seed_state": {
-    "meta": {"turn": 0, "model": "string", "setting_pack": "string", "session_name": "string"},
-    "pc": {"name": "string", "tagline": "string", "bio": "string", "stats": {"strength": int, "dexterity": int, "wits": int, "charisma": int}, "conditions": [], "situation": {"key": "string"}},
-    "location": {"id": "snake_case", "name": "string", "description": "string"},
-    "inventory": [{"id": "snake_case", "name": "string", "notes": "string", "amount": int}],
-    "scene": {"tags": ["string"], "world_state": [{"id": "string", "text": "string", "tier": "global" | "local", "permanent": boolean, "valence": "threat" | "complication" | "neutral" | "boon", "expires_turn": int | null}]},
-    "compendium": {"npcs": {"snake_case": {"name": "string", "title": "string", "bio": "string", "presence": "present" | "nearby" | "known", "tie": "string", "motivation": "string", "fear": "string", "leverage": "string", "personality": "string"}}},
-    "arc": {"long_term_objective": "string", "threads": [{"id": "string", "summary": "string", "type": "threat" | "opportunity" | "complication" | "revelation", "dormant": boolean, "urgency": "background" | "normal" | "urgent"}], "completed_threads": null, "started_turn": int | null},
-    "arc_origin": "string",
-    "world": {"locations": [{"id": "string", "name": "string", "description": "string", "status": "string", "tags": ["string"]}]}
+    "meta": {"turn": 0, "model": "mlx-community/Qwen3-32B", "setting_pack": "expanse", "session_name": "The Last Crossing"},
+    "pc": {"name": "Mira Sovak", "tagline": "Structural engineer, nine months sober", "bio": "Built bridges in the outer districts before the collapse.", "stats": {"strength": 3, "dexterity": 4, "wits": 3, "charisma": 2}, "conditions": [], "situation": {"key": "evacuated"}},
+    "location": {"id": "district_checkpoints", "name": "Outer District Checkpoint", "description": "Faction-controlled barrier with armed guards and scanning equipment."},
+    "inventory": [{"id": "steel_water_bottle", "name": "Steel Water Bottle", "notes": "dented, in pack", "amount": 1}],
+    "scene": {"tags": ["checkpoint", "tension"], "world_state": [{"id": "border_closures", "text": "Travel between districts requires a valid faction pass.", "tier": "global", "permanent": true, "valence": "threat", "expires_turn": null}]},
+    "compendium": {"npcs": {"guard_captain": {"name": "Hale Voss", "title": "Checkpoint Captain", "bio": "Veteran of the border wars, now manning this post.", "presence": "present", "tie": "controls PC's passage", "motivation": "Keep the checkpoint running without incident", "fear": "Being held responsible for a breach", "leverage": "Can grant or deny passage", "personality": "resigned_functionary"}}},
+    "arc": {"long_term_objective": "Reach the inner districts and find the person who can help with the crisis.", "threads": [{"id": "border_closures", "summary": "Faction-controlled checkpoints block all inter-district travel without passes.", "type": "threat", "dormant": false, "urgency": "normal"}], "completed_threads": null, "started_turn": 0},
+    "arc_origin": "The border walls were erected after the refugee crisis.",
+    "world": {"locations": [{"id": "district_checkpoints", "name": "Outer District Checkpoints", "description": "Faction-controlled barriers between districts.", "status": "active", "tags": ["checkpoint", "controlled"]}, {"id": "inner_district", "name": "Inner District", "description": "The fortified core where faction leadership resides.", "status": "restricted", "tags": ["forbidden", "target"]}]}
   }
 }
 ```

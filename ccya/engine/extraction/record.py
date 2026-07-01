@@ -70,6 +70,8 @@ def _record_messages(
             "turn_no": turn_no,
             "band": band,
             "pc_name": (state.get("pc") or {}).get("name", "Unnamed"),
+            "scene_phase": scene.get("scene_phase", ""),
+            "curtain_call": scene.get("curtain_call", ""),
         },
     )
     msgs = [

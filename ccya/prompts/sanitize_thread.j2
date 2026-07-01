@@ -8,6 +8,12 @@ Rules:
 - Do not output anything outside the <sanitize> tags.
 - Progress entries must be 5–7 words max, factual, and describe only what the narrative evidence confirms.
 
+**MANDATORY — EXACT THREAD ID PRESERVATION:** Thread IDs are opaque handles, not descriptions. When referencing a thread, copy the ID EXACTLY as shown in the "Active Threads" section — character for character. Do NOT paraphrase, shorten, rename, or rephrase IDs.
+  - Example: if prompt shows `internal_affairs_watch`, your output MUST use `"id": "internal_affairs_watch"`.
+  - WRONG: `"id": "internal_affairs"` (abbreviated)
+  - WRONG: `"id": "affairs_watch"` (paraphrased)
+  - RIGHT: `"id": "internal_affairs_watch"` (exact copy from prompt)
+
 [USER]
 ## Current Arc
 
@@ -95,6 +101,13 @@ Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold
 ### World state evaluation
 Thread resolutions may propose new world state facts via `world_state_candidate`. Evaluate all candidates against current world state and return a complete replacement array:
 - **Include** confirmed facts with `id`, `text`, `tier` ("global" or "local"), `permanent` (boolean), `valence` ("threat"|"complication"|"neutral"|"boon"), and optionally `expires_turn` (turn number when it expires).
+- **MANDATORY — EXACT ID PRESERVATION:** The "Current World State" section shows facts with their IDs. When including a fact that already exists, you MUST copy the `id` field EXACTLY as shown — character for character. Do NOT paraphrase, shorten, rename, or rephrase IDs. The ID is an opaque handle, not a description.
+  - Example: if prompt shows `police_corruption_crackdown`, your output MUST use `"id": "police_corruption_crackdown"`.
+  - Example: if prompt shows `city_wide_curfew`, your output MUST use `"id": "city_wide_curfew"`.
+  - WRONG: `"id": "internal_affairs_audit"` (paraphrased from `police_corruption_crackdown`)
+  - WRONG: `"id": "ia_audit"` (abbreviated from `internal_affairs_audit`)
+  - WRONG: `"id": "curfew_active"` (paraphrased from `city_wide_curfew`)
+  - RIGHT: `"id": "police_corruption_crackdown"` (exact copy from prompt)
 - **Omit** rejected facts — they are simply not included in the returned array.
 - Global facts are immutable constraints affecting the whole world. Local facts are area-specific and may be temporary.
 - Never include world state facts that are just narrative flavor — they must be gameplay-affecting constraints.

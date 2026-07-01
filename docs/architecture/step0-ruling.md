@@ -68,11 +68,11 @@ The ruling LLM also determines how the scene should progress: `"hold"` (scene co
 
 ## Key forward dependency
 
-`rules_outcome` feeds into `_compute_pacing_context()` which produces the single authoritative `PacingContext` struct passed to both Narrator and Storytell pipeline.
+`rules_outcome` feeds into `_compute_pacing_context()` which produces the single authoritative `PacingContext` struct passed to both Narrator and Record pipeline.
 
 ## Pacing Context
 
-All pacing signals are collapsed into one Python-computed struct (`PacingContext`) passed to both the Narrator and Storytell pipeline. The narrator receives `outcome_hint` (scene motion); Storytell receives the full struct including `directive`.
+All pacing signals are collapsed into one Python-computed struct (`PacingContext`) passed to both the Narrator and Record pipeline. The narrator receives `outcome_hint` (scene motion); Record receives the full struct including `directive`.
 
 ### Struct definition
 
@@ -80,16 +80,17 @@ Defined in `ccya/engine/turn_context.py`.
 
 ```
 PacingContext:
-   directive: str           # "" | "Scene Imperative" | "Scene Pressure"; used by Storytell pipeline (Scene Imperative now purely age-based, CLIMAX turn-limit removed)
-   outcome_hint: str | None # "hold" | "advance" | "transition" — narrator's primary scene motion instruction
-   summary: str             # human-readable log string, never sent to LLM
-   convergence_score: int   # 6-component (0-7 range, urgent_thread 0-2 count-capped) EMA-smoothed score for RISING→CLIMAX transition (set by _narrate_setup, not _compute_pacing_context)
+   directive: str                    # "" | "Scene Imperative" | "Scene Pressure"; used by Narrator pipeline (Scene Imperative now purely age-based, CLIMAX turn-limit removed)
+   outcome_hint: str | None          # "hold" | "advance" | "transition" — driven by scene_motion from ruling + Scene Imperative override + convergence hard gate
+   summary: str                      # human-readable log string, never sent to LLM
+   convergence_score: int            # 6-component (0-7 range, urgent_thread 0-2 count-capped) raw score for RISING→CLIMAX transition (set by _narrate_setup, not _compute_pacing_context)
    convergence_components: dict[str, int]  # breakdown of convergence score components
+   convergence_threads: list[dict]   # thread dicts used for convergence computation
 ```
 
 ### Computation
 
-`_compute_pacing_context()` in `engine/_pacing.py` computes the base struct from inputs (`scene_phase`, `thread_urgency_count`, `effective_scene_age`, `scene_motion`, `scene_pressure_threshold`, `scene_imperative_threshold`). It returns a PacingContext with `directive` derived from a priority stack and `outcome_hint` from scene_motion (overridden to "transition" when Scene Imperative fires). Additional fields (`convergence_score`, `convergence_components`) are set later in `_narrate_setup()` in `engine/narrate.py` after convergence score computation and EMA smoothing.
+`_compute_pacing_context()` in `engine/_pacing.py` computes the base struct from inputs (`scene_phase`, `thread_urgency_count`, `effective_scene_age`, `scene_motion`, `scene_pressure_threshold`, `scene_imperative_threshold`). It returns a PacingContext with `directive` derived from a priority stack and `outcome_hint` from scene_motion (overridden to "transition" when Scene Imperative fires or convergence hard gate triggers). Additional fields (`convergence_score`, `convergence_components`, `convergence_threads`) are set later in `_narrate_setup()` in `engine/narrate.py` after convergence score computation.
 
 ```mermaid
 flowchart TD

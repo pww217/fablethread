@@ -213,6 +213,7 @@ async def index(request: Request):
     opening_actions = _load_opening_actions(_app_mod.SAVE_DIR) if not history and not last_actions else []
     ctx = _debug_context()
     ctx["state"] = state
+    state["last_history_turn"] = history[-1].get("turn") if history else None
     ctx["history"] = history
     ctx["last_actions"] = last_actions
     ctx["opening"] = opening

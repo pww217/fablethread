@@ -45,9 +45,13 @@ def extract_prompt(
                 pass
         elif isinstance(raw_out, dict):
             raw_out = json.dumps(raw_out, indent=2)
+    # Support both old format (rendered_user/rendered_system) and new format (context_meta)
+    meta = blob.get("context_meta") or {}
+    system = blob.get("rendered_system") or meta.get("system_text") or ""
+    user = blob.get("rendered_user") or meta.get("user_text") or ""
     return {
-        "system": blob.get("rendered_system") or "",
-        "user": blob.get("rendered_user") or "",
+        "system": system,
+        "user": user,
         "output": str(raw_out) if raw_out else "",
     }
 
