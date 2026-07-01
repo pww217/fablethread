@@ -162,12 +162,9 @@ def _list_saves() -> list[dict[str, Any]]:
         except Exception:
             continue
 
-        meta = state.get("meta", {}) or {}
-        pack_name = meta.get("setting_pack") or meta.get("pack")
-        pc = state.get("pc", {}) or {}
-        pc_name = pc.get("name")
-        loc = state.get("location", {}) or {}
-        location_name = loc.get("name")
+        pack_name = state.meta.setting_pack
+        pc_name = state.pc.name
+        location_name = state.location.name
 
         resolved = entry.resolve()
         kind = "eval" if str(resolved).startswith(str(Path("evals/runs").resolve())) else "user"
@@ -217,7 +214,7 @@ async def index(request: Request):
     ctx["last_actions"] = last_actions
     ctx["opening"] = opening
     ctx["opening_actions"] = opening_actions
-    ctx["opening_outcome_summary"] = (state.seed_meta or {}).get("outcome_summary", "") or (_get_opening_outcome_summary() if opening else "")
+    ctx["opening_outcome_summary"] = _get_opening_outcome_summary() if opening else ""
     ctx["has_narrative"] = bool(opening or history)
     ctx["pack_name"] = _app_mod._active_pack.manifest.name
     ctx["character_creation_enabled"] = _app_mod.config.get("game", {}).get(

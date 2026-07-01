@@ -1,12 +1,12 @@
 {# Right sidebar: Player, Inventory, World State, Debug #}
-{% set pc_tag = state.pc.get('tagline') or state.pc.get('concept') %}
+{% set pc_tag = state.pc.tagline %}
 
 <details class="sidebar-card" id="card-player" data-card="player" open>
     <summary><span class="has-tooltip">Player{% if state.meta.last_condition_change_reason %}<div class="tooltip-body">{{ state.meta.last_condition_change_reason }}</div>{% else %}<div class="tooltip-body">No condition changes this turn</div>{% endif %}</span></summary>
     <div class="sidebar-card-body">
         <div class="stat-row{% if state.pc.bio %} has-tooltip{% endif %}">
             <span class="stat-label">Name</span>
-            <span class="stat-value">{{ state.pc.get('name') or '—' }}</span>
+            <span class="stat-value">{{ state.pc.name or '—' }}</span>
             {% if state.pc.bio %}
             <div class="tooltip-body" data-md>{{ state.pc.bio }}</div>
             {% endif %}
@@ -53,10 +53,10 @@
     <div class="sidebar-card-body">
         {% if state.inventory %}
         {% for item in state.inventory %}
-        {% set amt = item.get("amount") or 1 %}
-        {% set notes = item.get("notes") or "" %}
-        <div class="inventory-item{% if item.get('id') == 'credits' %} inventory-item-credits{% endif %}{% if notes %} has-tooltip has-tooltip-right{% endif %}">
-            <span class="inventory-item-name">{{ item.get("name", item.get("id", "?")) }}{% if amt > 1 or item.get("id") == "credits" %} <span class="inventory-item-amount">×{{ amt }}</span>{% endif %}</span>
+        {% set amt = item.amount or 1 %}
+        {% set notes = item.notes or "" %}
+        <div class="inventory-item{% if item.id == 'credits' %} inventory-item-credits{% endif %}{% if notes %} has-tooltip has-tooltip-right{% endif %}">
+            <span class="inventory-item-name">{{ item.name or item.id or "?" }}{% if amt > 1 or item.id == "credits" %} <span class="inventory-item-amount">×{{ amt }}</span>{% endif %}</span>
             {% if notes %}
             <div class="tooltip-body" data-md>{{ notes }}</div>
             {% endif %}

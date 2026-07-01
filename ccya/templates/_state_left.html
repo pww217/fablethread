@@ -1,8 +1,8 @@
 {# Left sidebar: Scene, Location, Objective, Compendium #}
 {% set comp = (state.compendium.npcs if state.compendium and state.compendium.npcs else {}) %}
 {% set _present = namespace(items=[], nearby_items=[]) %}
-{% if comp is mapping and comp %}{% for _k, _v in comp.items() %}{% if _v is mapping %}{% if _v.get("presence") == "present" %}{% set _present.items = _present.items + [_v] %}{% elif _v.get("presence") == "nearby" %}{% set _present.nearby_items = _present.nearby_items + [_v] %}{% endif %}{% endif %}{% endfor %}{% endif %}
-{% set present_npcs = (_present.items | sort(attribute="display_name")) if _present.items else [] %}
+{% if comp %}{% for _k, _v in comp.items() %}{% set _presence = _v.presence.value if _v.presence else "known" %}{% if _presence == "present" %}{% set _present.items = _present.items + [_v] %}{% elif _presence == "nearby" %}{% set _present.nearby_items = _present.nearby_items + [_v] %}{% endif %}{% endfor %}{% endif %}
+{% set present_npcs = (_present.items | sort(attribute="name")) if _present.items else [] %}
 {% if (state.scene.tags or []) or present_npcs %}
 <details class="sidebar-card" id="card-scene" data-card="scene" open>
     <summary>Scene</summary>
@@ -10,15 +10,13 @@
         {% if present_npcs %}
         <div class="npc-list">
             {% for npc in present_npcs %}
-            {% set npc_name = (npc.get('display_name') or npc.get('id') or npc) if npc is mapping else npc %}
-            {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
-            {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
-            {% set npc_position = npc.get('position', '') if npc is mapping else '' %}
-            {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}
-            {% set _mot = npc.get('motivation', '') if npc is mapping else '' %}
-            {% set npc_tie = npc.get('tie_label', '') or npc.get('tie', '') if npc is mapping else '' %}
-            {% set npc_pl = npc.get('personality_label', '') if npc is mapping else '' %}
-            {% set npc_pt = npc.get('personality_traits', '') if npc is mapping else '' %}
+            {% set npc_name = npc.name or npc.id %}
+            {% set npc_title = npc.title %}
+            {% set npc_position = npc.position %}
+            {% set npc_bio = npc.bio %}
+            {% set _mot = npc.motivation %}
+            {% set npc_tie = npc.tie %}
+            {% set npc_pl = npc.personality %}
             {% set _has_tt = npc_bio or npc_pl or _mot or npc_tie %}
             <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
@@ -39,20 +37,19 @@
         {% endif %}
         {% if present_npcs %}
         {% set _nearby = namespace(items=[]) %}
-        {% if comp is mapping and comp %}{% for _k, _v in comp.items() %}{% if _v is mapping and _v.get("presence") == "nearby" %}{% set _nearby.items = _nearby.items + [_v] %}{% endif %}{% endfor %}{% endif %}
-        {% set nearby_npcs = (_nearby.items | sort(attribute="display_name")) if _nearby.items else [] %}
+        {% if comp %}{% for _k, _v in comp.items() %}{% set _presence = _v.presence.value if _v.presence else "known" %}{% if _presence == "nearby" %}{% set _nearby.items = _nearby.items + [_v] %}{% endif %}{% endfor %}{% endif %}
+        {% set nearby_npcs = (_nearby.items | sort(attribute="name")) if _nearby.items else [] %}
         {% if nearby_npcs %}
         <hr class="npc-divider">
         <div class="npc-list nearby-list">
             {% for npc in nearby_npcs %}
-            {% set npc_name = (npc.get('display_name') or npc.get('id') or npc) if npc is mapping else npc %}
-            {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
-            {% set npc_position = npc.get('position', '') if npc is mapping else '' %}
-            {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}
-            {% set _mot = npc.get('motivation', '') if npc is mapping else '' %}
-            {% set npc_tie = npc.get('tie_label', '') or npc.get('tie', '') if npc is mapping else '' %}
-            {% set npc_pl = npc.get('personality_label', '') if npc is mapping else '' %}
-            {% set npc_pt = npc.get('personality_traits', '') if npc is mapping else '' %}
+            {% set npc_name = npc.name or npc.id %}
+            {% set npc_title = npc.title %}
+            {% set npc_position = npc.position %}
+            {% set npc_bio = npc.bio %}
+            {% set _mot = npc.motivation %}
+            {% set npc_tie = npc.tie %}
+            {% set npc_pl = npc.personality %}
             {% set _has_tt = npc_bio or npc_pl or _mot or npc_tie %}
             <div class="npc-item nearby-item{% if _has_tt %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
@@ -88,13 +85,13 @@
     </div>
 </details>
 
-{% set _arc = state.get('arc') %}
+{% set _arc = state.arc %}
 {% if _arc %}
 <details class="sidebar-card" id="card-arc" data-card="arc" open>
     <summary><span>Objective</span></summary>
     <div class="sidebar-card-body arc-card-body">
-        {% set _goal = _arc.get('long_term_objective', '') %}
-        {% set _arc_origin = state.get('arc_origin', '') %}
+        {% set _goal = _arc.long_term_objective %}
+        {% set _arc_origin = '' %}
 
         {% if _goal %}
         <div class="arc-goal has-tooltip">
@@ -105,15 +102,15 @@
         </div>
         {% endif %}
 
-        {% set _active = (_arc.get('threads') | selectattr('dormant', 'equalto', false) | list | reverse | list) if _arc.get('threads') else [] %}
-        {% set _completed = (_arc.get('completed_threads', [])[:20] | reverse | list) if _arc else [] %}
-        {% set _resolved_arcs = (state.get('resolved_arcs', [])[:5]) if state.get('resolved_arcs') else [] %}
+        {% set _active = (_arc.threads | selectattr('dormant', 'equalto', false) | list | reverse | list) if _arc.threads else [] %}
+        {% set _completed = (_arc.completed_threads[:20] | reverse | list) if _arc else [] %}
+        {% set _resolved_arcs = (state.resolved_arcs[:5]) if state.resolved_arcs else [] %}
         {% if _active %}
         {% for thread in _active %}
-        {% set _urg = thread.get('urgency', 'normal') %}
-        {% set _progress = thread.get('major_updates', []) %}
+        {% set _urg = thread.urgency %}
+        {% set _progress = thread.major_updates %}
         <div class="arc-thread{% if _urg == 'immediate' %} arc-thread-urgent{% elif _urg == 'building' %} arc-thread-building{% endif %}{% if _progress %} has-tooltip{% endif %}">
-            <span class="arc-thread-summary" data-md>{{ thread.get('summary', '') | striptags }}</span>
+            <span class="arc-thread-summary" data-md>{{ thread.summary | striptags }}</span>
             {% if _progress %}
             <div class="tooltip-body">{% for p in _progress %}<p style="margin:0 0 4px 0;">{% if p is mapping %}[{{ (p.get('kind', 'advancement') | upper) }}] {{ p.text or p.get('text', '') }}{% else %}{{ p }}{% endif %}</p>{% endfor %}</div>
             {% endif %}
@@ -121,7 +118,7 @@
         {% endfor %}
         {% endif %}
 
-        {% if _arc.get('resolution') %}
+        {% if _arc.resolution %}
         <details class="arc-section arc-section-resolution">
             <summary class="arc-section-summary">
                 <span class="arc-eye">✓</span>
@@ -174,24 +171,23 @@
         {% if comp %}
         <div class="compendium-list">
             {% for nid, entry in comp | dictsort %}
-            {% set nm = entry.get('name', '') if entry is mapping else '' %}
-            {% set ttl = entry.get('title', '') if entry is mapping else '' %}
-            {% set bio = entry.get('bio', '') if entry is mapping else '' %}
-            {% set last_presence = entry.get('last_presence_turn') if entry is mapping else None %}
-            {% set last_loc = entry.get('last_seen_location') if entry is mapping else None %}
-            {% set is_departed = entry.get('presence') == 'departed' %}
-            {% set npc_tie = (entry.get('tie_label', '') or entry.get('tie', '')) if entry is mapping else '' %}
-            {% set _mot = entry.get('motivation', '') if entry is mapping else '' %}
-            {% set npc_pl = entry.get('personality_label', '') if entry is mapping else '' %}
-            {% set npc_pt = entry.get('personality_traits', '') if entry is mapping else '' %}
+            {% set nm = entry.name %}
+            {% set ttl = entry.title %}
+            {% set bio = entry.bio %}
+            {% set last_presence = entry.last_presence_turn %}
+            {% set last_loc = entry.last_seen_location %}
+            {% set is_departed = entry.presence.value == 'departed' if entry.presence else False %}
+            {% set npc_tie = entry.tie %}
+            {% set _mot = entry.motivation %}
+            {% set npc_pl = entry.personality %}
             <div class="compendium-item has-tooltip">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
                 <div class="tooltip-body" data-md-compendium>
                     {% if bio %}<p>{{ bio }}</p>{% else %}—{% endif %}{% set _has = false %}
-                    {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}{% if npc_pt %} — {{ npc_pt }}{% endif %}</p>{% set _has = true %}{% endif %}
+                    {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}</p>{% set _has = true %}{% endif %}
                     {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% set _has = true %}{% endif %}
                     {% if npc_tie %}<p><strong>Tie:</strong> {{ npc_tie }}</p>{% set _has = true %}{% endif %}
-                    {% if is_departed and entry.get('departed_reason') %}
+                    {% if is_departed and entry.departed_reason %}
                     <p>Last seen: {{ last_loc or 'unknown' }} — {{ entry.departed_reason }}{% if last_presence %} ({{ state.meta.turn - last_presence }} turns ago){% endif %}</p>
                     {% elif last_loc %}
                     <p>Last seen: {{ last_loc }}{% if last_presence %} ({{ state.meta.turn - last_presence }} turns ago){% endif %}</p>

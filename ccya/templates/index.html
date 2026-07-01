@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if no_save %}Choose Your Own Adventure{% elif state.meta.session_name %}CCYA: {{ state.meta.session_name }}{% elif state.location.id %}{{ state.pc.get('name') or 'Player' }} @ {{ state.location.get('name') or state.location.get('id', '') }}{% else %}Choose Your Own Adventure{% endif %}</title>
+    <title>{% if no_save %}Choose Your Own Adventure{% elif state.meta.session_name %}CCYA: {{ state.meta.session_name }}{% elif state.location.id %}{{ state.pc.name or 'Player' }} @ {{ state.location.name or state.location.id }}{% else %}Choose Your Own Adventure{% endif %}</title>
     <script>
         window.__CCYA_INITIAL_STATE__ = {
             noSave: {{ 'true' if no_save else 'false' }},
@@ -29,7 +29,7 @@
 
     <!-- Header -->
     <header class="header-bar">
-        <span class="header-logo" id="header-logo">{% if no_save %}Choose Your Own Adventure{% else %}{{ state.meta.get('session_name') or ((state.pc.get('name') or 'Player') + ' @ ' + (state.location.get('name') or state.location.get('id', '')) if state.location.id else '') or 'Choose Your Own Adventure' }}{% endif %}</span>
+        <span class="header-logo" id="header-logo">{% if no_save %}Choose Your Own Adventure{% else %}{{ state.meta.session_name or ((state.pc.name or 'Player') + ' @ ' + (state.location.name or state.location.id if state.location.id else '') if state.location.id else '') or 'Choose Your Own Adventure' }}{% endif %}</span>
         <button class="sidebar-toggle sidebar-toggle--right"
                 @click="toggleDrawer('right')"
                 :aria-expanded="rightDrawerOpen"
@@ -499,7 +499,7 @@
 <div id="hint-right" class="gutter-hint gutter-hint--right"></div>
 
 <!-- Initial game state for client-side entity highlighting -->
-<script id="initial-state" type="application/json">{{ (state if state else {}) | tojson | safe }}</script>
+<script id="initial-state" type="application/json">{{ (state.to_dict() if state else {}) | tojson | safe }}</script>
 
 </body>
 </html>
