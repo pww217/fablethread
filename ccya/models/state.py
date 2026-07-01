@@ -131,16 +131,18 @@ class WorldState(BaseModel):
         Handles backward-compat aliases:
         - ``long_term_objective`` key → ``arc`` field
         - ``active`` → ``dormant`` on ArcThread (handled by ArcThread validator)
-        - Missing sections filled with model defaults
+        - Missing fields use model defaults; None values replaced with type-appropriate empties
         """
         merged = dict(raw)
         # Backward-compat: ``long_term_objective`` key was used in old YAML
         if "long_term_objective" in merged and "arc" not in merged:
             merged["arc"] = merged.pop("long_term_objective")
-        # Ensure missing sections get defaults
-        for field_name in ("meta", "pc", "location", "inventory", "arc", "scene", "compendium", "resolved_arcs", "world_state_candidates", "world"):
-            if field_name not in merged or merged[field_name] is None:
-                merged[field_name] = {}
+        # Replace None values with type-appropriate empty values (model_validate
+        # already handles missing fields with model defaults)
+        _LIST_FIELDS = frozenset({"inventory", "resolved_arcs", "world_state_candidates"})
+        for field_name in _LIST_FIELDS:
+            if merged.get(field_name) is None:
+                merged[field_name] = []
         return cls.model_validate(merged)
 
     def to_dict(self) -> dict[str, Any]:

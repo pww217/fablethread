@@ -565,7 +565,7 @@ async def run_turn(
         append_prompts(save_dir, prompts_list)
 
         # Save event/state AFTER async window (with world data included)
-        event["last_turn_state"] = state
+        event["last_turn_state"] = state.to_dict()
         append_event(save_dir, event)
         save_state(save_dir, state)
         _log.debug("turn.async_save_complete trace_id=%s turn=%d", trace_id, state.meta.turn)
