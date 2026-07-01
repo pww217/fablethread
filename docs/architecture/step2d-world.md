@@ -82,7 +82,7 @@ World reads NPC profiles directly from the compendium via `build_npc_roster()`, 
 
 ## GMBeat schema (repurposed)
 
-The `GMBeat` Pydantic model is used as the validation schema for World candidates. Ruling no longer validates against GMBeat — it selects by index. The `npc_id`, `driver`, and `beat_expires_turn` fields are removed (no TTL — see "Beat lifecycle" below).
+The `GMBeat` Pydantic model is used as the validation schema for World candidates. Ruling no longer validates against GMBeat — it selects by index. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str), `npcs` (list[str] — NPC IDs involved in this beat). The `npc_id`, `driver`, and `beat_expires_turn` fields are removed (no TTL — see "Beat lifecycle" below).
 
 ```
 GMBeat
@@ -92,7 +92,7 @@ GMBeat
   npcs: list[str]                   # NPC IDs involved in this beat
 ```
 
-A candidate whose `type` ends up empty is dropped. Beat candidates include an `npcs` field listing which NPCs are involved in each beat.
+A candidate whose `type` ends up empty is dropped.
 
 ## Phase validation layer
 

@@ -69,7 +69,7 @@ Hard cutoff at `climax_turn_limit` unchanged (phase machine handles it). For def
 
 ### Definition
 
-Forward-facing storytelling beats emitted by **World** (Step 2d, async) as candidates, selected by **Ruling** (Step 0) for the upcoming turn, consumed by the narrator the same turn. Lifecycle state lives in `state.meta.pending_gm_beat` (the selected beat) and `state.meta.beat_candidates` (the world-prepared candidates). Each beat has a `type`, `effect`, `npc_id`, `driver`. **No TTL** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic.
+Forward-facing storytelling beats emitted by **World** (Step 2d, async) as candidates, selected by **Ruling** (Step 0) for the upcoming turn, consumed by the narrator the same turn. Lifecycle state lives in `state.meta.pending_gm_beat` (the selected beat) and `state.meta.beat_candidates` (the world-prepared candidates). Each beat has a `type`, `effect`, `npcs` (list of NPC IDs involved). **No TTL** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic.
 
 ### Beat types
 
@@ -121,7 +121,7 @@ flowchart TD
 ```mermaid
 flowchart LR
     BEAT["pending_gm_beat.type"] -. "narrative guidance" .-> NARR["Narrator<br>weaves beat into prose"]
-    WORLD["World" ] -. "diversity guidance (recent_beats)" .-> WORLD_GEN["World<br>avoid repeat types"]
+    WORLD["World" ] -. "diversity: recent_beats dedup (exact + first-5-words semantic + within-batch)" .-> WORLD_GEN["World<br>avoid repeat effects"]
 
     style BEAT fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
 ```
@@ -148,10 +148,12 @@ Defined in `ccya/engine/turn_context.py`.
 
 ```
 PacingContext:
-  directive: str           # "Scene Imperative" | "Scene Pressure" | ""
-  outcome_hint: str | None # "hold" | "transition"
-  summary: str             # Human-readable log, never sent to LLM
-  convergence_score: int   # 6 components, EMA smoothed for RISING→CLIMAX transition (set in narrate.py, not _compute_pacing_context)
+  directive: str                    # "Scene Imperative" | "Scene Pressure" | ""
+  outcome_hint: str | None          # "hold" | "transition" (driven by scene_motion + Scene Imperative override + convergence hard gate)
+  summary: str                      # Human-readable log, never sent to LLM
+  convergence_score: int            # Raw 6-component score (0-7), set in narrate.py
+  convergence_components: dict[str, int]  # {urgent_thread, threat_thread, scene_age, beat_streak, roll_starvation, threat_density}
+  convergence_threads: list[dict]   # Thread dicts used for convergence computation
 ```
 
 ### How each field is computed
@@ -216,7 +218,7 @@ flowchart LR
 | `_pacing.py` | 145-168 | `_compute_narration_directive()` |
 | `turn.py` | 317 | `_apply_state_updates()` calls thread operations (via turn_state.py) |
 | `turn.py` | ~100-150 | Phase machine: calls `_compute_ages`, `compute_convergence_score`, `_compute_scene_phase`; sets convergence_score on PacingContext |
-| `narrate.py` | 147-262 | `_narrate_setup()` computes EMA-smoothed convergence_score; sets convergence_score on PacingContext |
+| `narrate.py` | 198-236 | `_narrate_setup()` computes raw convergence score, EMA-smoothed value; sets convergence_score, convergence_components, convergence_threads on PacingContext |
 | `narrate_user.j2` | 100-103 | `outcome_hint`, `pacing_context` |
 | `world_user.j2` | — | `directive`, `outcome_hint`, `recent_beats`, `allowed_beat_types` |
 | `record_user.j2` | — | (no PacingContext — Record is backward-looking) |
@@ -245,12 +247,11 @@ flowchart LR
 
 | Constraint | Condition | Effect |
 |------------|-----------|--------|
-| Auto-dormant | Thread untouched for 4 turns (urgent threads excluded) | `dormant: True`, `urgency: background` |
+| Auto-dormant | Thread untouched for 8 turns (urgent threads excluded) | `dormant: True`, `urgency: background` |
 | Urgency decay | Thread at same urgency for 8 turns | `urgent→normal→background` |
-| Thread cap eviction | Active threads > 5 on `thread_add` | Evict oldest active |
+| Thread cap eviction | Non-dormant threads > 5 on `thread_add` | Evict oldest non-dormant (by last_updated_turn) |
 | Engine culling | ≥3 dormant threads | Oldest (by last_updated_turn) → completed_threads with resolution_state: "abandoned" |
 | Progress dedup | ≥70% overlap with last progress entry | Reject new entry |
-| Thread completion | ≥3 progress entries | Auto-resolve thread |
 
 ### Code locations
 
@@ -309,11 +310,11 @@ flowchart TD
 
 | Variable | Set by | Consumed by | Effect |
 |----------|--------|-------------|--------|
-| `convergence_score` | narrate.py (urgent_thread 0-2, threat, age, beats, roll_starvation, threat_density, EMA smoothed) | RISING→CLIMAX transition | 6 components (0-7 range), EMA smoothed |
+| `convergence_score` | narrate.py (urgent_thread 0-2, threat, age, beats, roll_starvation, threat_density) | RISING→CLIMAX transition | Raw 6-component score (0-7), EMA smoothed value stored in state.meta.smoothed_convergence |
 | `scene_phase` | Phase engine | Directive, beat constraints, outcome_hint | Primary pacing signal |
 | `pending_gm_beat` | Ruling (selects from `state.meta.beat_candidates`) | Narrator (same turn), beat history | Forward-facing storytelling beat |
-| `arc.threads[].urgency` | Storytell (thread_update) + Python decay | Phase transitions, directive computation | Scene tension level |
-| `PacingContext.directive` | `_compute_pacing_context()` | Narrator, Storytell, prompt rendering | Primary scene instruction |
+| `arc.threads[].urgency` | Record (thread_update) + Python decay | Phase transitions, directive computation | Scene tension level |
+| `PacingContext.directive` | `_compute_pacing_context()` | Narrator, Record, prompt rendering | Primary scene instruction |
 | `PacingContext.outcome_hint` | `_compute_pacing_context()` (scene_age ≥ imperative_threshold) | Narrator scene motion | How the scene should progress |
 
 ## 7. Typical Rhythm Patterns

@@ -578,7 +578,7 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - `narrate_seed_system.j2` uses `setting_info`, `pc`, `location`, `arc_origin`, `arc`, `compendium_npcs`, `pool_selection` — all available
 
 #### G.3 Schema/output discipline
-- **Schema uses TypeScript syntax (`{ seed_state: { ... } }`):** Unusual for a JSON output prompt. Should use JSON syntax for clarity.
+- **Schema uses TypeScript syntax (`{ seed_state: { ... } }`):** Fixed — replaced with full JSON example with realistic values.
 - `pc.situation` schema is dynamic: `{% if scenario and scenario.pc_situation_schema %}{% for s in scenario.pc_situation_schema %}{{ s.key }}: string{% endfor %}{% else %}key: string{% endif %}` — correct, adapts to pack
 - `compendium.npcs` schema: `{snake_case: {name, title, bio, presence, bond?, motivation?, fear?, leverage?, personality?}}` — correct nested structure
 - **`arc.completed_threads: null`:** Set to `null` in seed state. Correct — no completed threads at game start.

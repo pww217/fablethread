@@ -101,7 +101,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 - **SkillName**: 4 skills (strength, dexterity, wits, charisma)
 - **Difficulty**: 5 difficulty levels with modifiers in DIFFICULTY_MOD
 - **Band**: crit_fail, fail, setback, partial, success, crit_success (1d12 natural: 1=crit_fail, 12=crit_success)
-- **EngineConfig**: thread_max_active, nearby_decay_ttl, departed_archive_ttl, climax_turn_limit, breather_max_turns, convergence_threshold, roll_starvation_threshold, threat_density_threshold, stall_floor_max, extension_max, thread_creation_cooldown, thread_urgency_max_age, sanitize_every, arc_memory_ttl, thread_memory_ttl, debug_mode, plus sampling params per stage (ruling_temperature, narrate_temperature, etc.)
+- **EngineConfig**: thread_max_active, nearby_decay_ttl, departed_archive_ttl, climax_turn_limit, breather_max_turns, convergence_alpha, convergence_enter_threshold, convergence_exit_threshold, roll_starvation_threshold, threat_density_threshold, stall_floor_max, extension_max, thread_creation_cooldown, thread_urgency_max_age, sanitize_every, arc_memory_ttl, thread_memory_ttl, debug_mode, plus sampling params per stage (ruling_temperature, narrate_temperature, etc.)
 
 ### Compactor models (ccya/models/compactor.py) — dormant
 
@@ -110,8 +110,8 @@ world.factions: [str], world.locations: list[KeyLocation]
 ## Non-obvious model behavior
 
 ### GMBeat
-- Repurposed as the validation schema for World candidates and Ruling's `selected_beat`. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str), `npc_id` (str | None), `driver` (Literal — silently coerced to `None` if not in valid set).
-- **`beat_expires_turn` field removed** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic. No orphan can survive a turn boundary.
+- Repurposed as the validation schema for World candidates and Ruling's `selected_beat`. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str), `npcs` (list[str] — NPC IDs involved in this beat).
+- **`npc_id`, `driver`, `beat_expires_turn` fields removed** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic. No orphan can survive a turn boundary.
 - The old `StorytellerResult._nullify_invalid_gm_beat` validator is gone; its logic (drop beat if `type` is None/falsy) now lives inline in `ruling.py:_ruling_phase`.
 
 ### WorldStateFact
@@ -140,6 +140,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 - Reason persisted to `state.meta.last_condition_change_reason` for debugging
 
 ### CompendiumEntry
-- Has explicit `motivation`/`fear`/`leverage`/`bond`/`personality` optional string fields alongside existing `name`/`title`/`bio`/`presence`/`position`
+- Has explicit `motivation`/`fear`/`leverage`/`bond`/`personality` optional string fields alongside existing `name`/`title`/`bio`/`presence`/`position`; runtime code uses `tie` (CompendiumNpcUpdate.tie), seed-time model uses `bond` (CompendiumEntry.bond)
+- **bond→tie rename:** Runtime code (`CompendiumNpcUpdate.tie` in `extraction.py`) uses `tie`; seed-time model (`CompendiumEntry.bond` in `pack.py`) still uses `bond`. The scenario model field is `npc_bonds`. Most templates and prompts use `tie`.
 - Seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings
 - Seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only)

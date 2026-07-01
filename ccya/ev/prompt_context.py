@@ -22,6 +22,14 @@ def _find_prev_event(events: list[dict[str, Any]], turn_no: int) -> dict[str, An
     return None
 
 
+def _find_next_event(events: list[dict[str, Any]], turn_no: int) -> dict[str, Any] | None:
+    """Find the immediately following turn event."""
+    for ev in events:
+        if isinstance(ev.get("turn"), int) and ev["turn"] > turn_no:
+            return ev
+    return None
+
+
 def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
     """Build an NPC roster from the compendium, matching engine shape."""
     entries: list[dict[str, Any]] = []
@@ -98,6 +106,12 @@ def build_prompt_context(
     prev_snap = (prev_ev.get("last_turn_state") or {}) if prev_ev else {}
     prev_meta = prev_snap.get("meta") or {}
 
+    # Look ahead to next turn's last_turn_state for scene data (scene is computed
+    # at end of turn, so it's in the next turn's state)
+    next_ev = _find_next_event(events, turn_no)
+    next_snap = (next_ev.get("last_turn_state") or {}) if next_ev else {}
+    next_scene = next_snap.get("scene") or {}
+
     narration = (turn_ev.get("narrate") or {}).get("output", "")
     intent = (turn_ev.get("ruling") or {}).get("intent")
 
@@ -137,8 +151,8 @@ def build_prompt_context(
         curtain_call = ""
         scene_phase = turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP")
         if scene_phase == "CLIMAX":
-            climax_turn_count = scene.get("climax_turn_count", 0)
-            climax_turn_limit = scene.get("climax_turn_limit", 5)
+            climax_turn_count = turn_ev.get("pacing_context", {}).get("climax_turn_count", 0)
+            climax_turn_limit = next_scene.get("climax_turn_limit", 4)
             if climax_turn_count >= climax_turn_limit - 1:
                 curtain_call = "forced"
             elif climax_turn_count == 1:
@@ -198,7 +212,7 @@ def build_prompt_context(
             "npc_roster": npc_roster,
             "inventory": prev_snap.get("inventory") or [],
             "recent_turns": [],
-            "scene_phase": prev_snap.get("scene", {}).get("scene_phase", "SETUP"),
+            "scene_phase": turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP"),
             "urgent_threads": urgent_threads,
             "state": prev_snap,
         }
@@ -210,6 +224,9 @@ def build_prompt_context(
         scene = prev_snap.get("scene") or {}
         meta = prev_snap.get("meta") or {}
         pc = prev_snap.get("pc") or {}
+        # Merge scene data from next turn's last_turn_state into state for templates
+        turn_scene = turn_ev.get("scene") or {}
+        state_with_scene = {**prev_snap, "scene": {**scene, **turn_scene, **next_scene}}
         current_objective_ctx = None
         if arc:
             all_threads = [t for t in (arc.get("threads") or [])]
@@ -232,15 +249,16 @@ def build_prompt_context(
                 "completed_threads": [],
             }
         curtain_call = ""
-        if scene.get("scene_phase") == "CLIMAX":
-            climax_turn_count = scene.get("climax_turn_count", 0)
-            climax_turn_limit = scene.get("climax_turn_limit", 5)
+        scene_phase = turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP")
+        if scene_phase == "CLIMAX":
+            climax_turn_count = turn_ev.get("pacing_context", {}).get("climax_turn_count", 0)
+            climax_turn_limit = next_scene.get("climax_turn_limit", 4)
             if climax_turn_count >= climax_turn_limit - 1:
                 curtain_call = "forced"
             elif climax_turn_count == 1:
                 curtain_call = "active"
         return {
-            "state": prev_snap,
+            "state": state_with_scene,
             "pc": pc,
             "prior_history": list((meta.get("prior_history") or [])[:-1]),
             "recent_turns": [],

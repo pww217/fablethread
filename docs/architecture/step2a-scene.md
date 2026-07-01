@@ -40,4 +40,4 @@ Four additions prevent common NPC compendium quality issues:
 
 ## Key forward dependency
 
-Step 2c receives `npc_roster` (from `build_npc_roster()`) built from comp_this_turn. World generates beat candidates from full NPC profiles (motivation, fear, leverage, bond) directly from the compendium. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Storytell (Step 2c).
+Step 2c receives `npc_roster` (from `build_npc_roster()`) built from comp_this_turn. World generates beat candidates from full NPC profiles (motivation, fear, leverage, tie) directly from the compendium. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Record (Step 2c).

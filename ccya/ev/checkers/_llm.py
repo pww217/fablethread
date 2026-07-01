@@ -61,8 +61,9 @@ def _call_llm_checker(
     1. Ensure checker model is loaded (_load_checker_model)
     2. Call llm_chat with system + user prompt
     3. Try to parse response as JSON
-    4. If parsing fails, return {"error": "parse_failed", "raw": response}
-    5. Return parsed dict
+    4. If parsing fails, retry once with "Return ONLY JSON" instruction
+    5. If parsing still fails, return {"error": "parse_failed", "raw": response}
+    6. Return parsed dict
 
     The LLM is instructed to return a JSON object with keys:
     {"passed": bool, "score": float, "reasoning": str, "findings": list[dict]}
@@ -91,6 +92,27 @@ def _call_llm_checker(
         raw = response.content
         parsed = _try_parse_json(raw)
         if parsed is None:
+            # Retry once with explicit "ONLY JSON" instruction
+            retry_messages = messages + [
+                {"role": "system", "content": "CRITICAL: Return ONLY a valid JSON object. No markdown, no explanation, no other text. Start with { and end with }."}
+            ]
+            try:
+                retry_response = loop.run_until_complete(
+                    llm_chat(
+                        config.host,
+                        config.model,
+                        retry_messages,
+                        temperature=0.1,
+                        timeout=float(config.request_timeout_s),
+                        num_ctx=config.num_ctx,
+                    ),
+                )
+                retry_raw = retry_response.content
+                parsed = _try_parse_json(retry_raw)
+                if parsed is not None:
+                    return parsed
+            except Exception:
+                pass
             return {"error": "parse_failed", "raw": raw}
         return parsed
     except Exception as exc:
