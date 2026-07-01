@@ -230,20 +230,17 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
         scene_age = current_turn - scene_entered
 
         # Get recent_beats — read from previous turn's state to match
-        # what was used for convergence calculation (before world step appended new beats)
-        # On turn 1 (i==0), recent_beats should be empty for convergence purposes
+        # what was used for convergence calculation (convergence runs in
+        # narrate phase, before world step appends new beats).
         recent_beats: list[dict[str, Any]] = []
         if i > 0:
             prev_recent_beats = prev_turn_meta.get("recent_beats") or []
             if prev_recent_beats:
                 recent_beats = prev_recent_beats
 
-        # Get recent_rolls — same logic, read from previous turn's state
-        recent_rolls: list[dict[str, Any]] = []
-        if i > 0 and prev_turn_meta:
-            prev_recent_rolls = prev_turn_meta.get("recent_rolls") or []
-            if prev_recent_rolls:
-                recent_rolls = prev_recent_rolls
+        # Get recent_rolls — read from current turn's state because
+        # convergence runs in narrate phase, after ruling appends rolls.
+        recent_rolls: list[dict[str, Any]] = meta.get("recent_rolls") or []
 
         # Recompute each component independently
         components: dict[str, int] = {}

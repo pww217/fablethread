@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -364,6 +365,18 @@ def _find_json(text: str) -> dict[str, Any] | None:
             return None
         except (json.JSONDecodeError, ValueError):
             return None
+
+    # 0. Fix malformed keys like "dormant: true" -> "dormant": true
+    # This handles LLMs outputting "key: value" with colon inside quotes
+    # Also handles "key:=value" where colon+equals are inside the opening quote
+    fixed = re.sub(r'"(\w+):="(\w+)"', r'"\1": "\2"', text)
+    fixed = re.sub(
+        r'"([^":]+):\s*(true|false|null|\d+|"[^"]*"|[a-zA-Z_][a-zA-Z0-9_]*)"',
+        r'"\1": \2',
+        fixed,
+    )
+    if fixed != text:
+        text = fixed
 
     # 1. Try parsing the entire text as JSON first
     j = _try(text)
