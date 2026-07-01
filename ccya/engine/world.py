@@ -92,6 +92,8 @@ async def _run_world_step(
                 config.host,
                 config.model,
                 messages,
+                fallback_host=config.fallback_host,
+                fallback_cooldown_s=config.fallback_cooldown_s,
                 temperature=config.world_temperature,
                 top_p=config.extract_top_p,
                 timeout=60.0,  # asyncio.timeout() handles wall-clock timeout
