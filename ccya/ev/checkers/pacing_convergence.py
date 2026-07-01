@@ -208,9 +208,18 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
         scene_entered = scene.get("turn_entered")
         if i > 0:
             prev_ev = filtered[i - 1]
-            prev_lts = extract_field(prev_ev, "last_turn_state") or {}
-            prev_scene = prev_lts.get("scene") or {}
-            prev_scene_entered = prev_scene.get("turn_entered")
+            prev_turn = prev_ev.get("turn")
+            # Find the last event from the previous turn (not just previous event)
+            prev_turn_meta: dict[str, Any] = {}
+            prev_turn_scene: dict[str, Any] = {}
+            for j in range(i - 1, -1, -1):
+                candidate = filtered[j]
+                if candidate.get("turn") != turn_no:
+                    prev_lts = extract_field(candidate, "last_turn_state") or {}
+                    prev_turn_meta = prev_lts.get("meta") or {}
+                    prev_turn_scene = prev_lts.get("scene") or {}
+                    break
+            prev_scene_entered = prev_turn_scene.get("turn_entered")
             if prev_scene_entered is not None:
                 scene_entered = prev_scene_entered
             elif scene_entered is not None:
@@ -227,17 +236,14 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
         # On turn 1 (i==0), recent_beats should be empty for convergence purposes
         recent_beats: list[dict[str, Any]] = []
         if i > 0:
-            prev_ev = filtered[i - 1]
-            prev_lts = extract_field(prev_ev, "last_turn_state") or {}
-            prev_meta = prev_lts.get("meta") or {}
-            prev_recent_beats = prev_meta.get("recent_beats") or []
+            prev_recent_beats = prev_turn_meta.get("recent_beats") or []
             if prev_recent_beats:
                 recent_beats = prev_recent_beats
 
         # Get recent_rolls — same logic, read from previous turn's state
         recent_rolls: list[dict[str, Any]] = []
-        if i > 0:
-            prev_recent_rolls = prev_meta.get("recent_rolls") or []
+        if i > 0 and prev_turn_meta:
+            prev_recent_rolls = prev_turn_meta.get("recent_rolls") or []
             if prev_recent_rolls:
                 recent_rolls = prev_recent_rolls
 

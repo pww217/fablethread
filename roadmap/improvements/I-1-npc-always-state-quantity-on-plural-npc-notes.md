@@ -1,6 +1,6 @@
 ---
 title: "[NPC] Always state quantity on plural NPC notes"
-status: scoping
+status: canceled
 urgency: 3
 size: small
 created: 2026-06-12

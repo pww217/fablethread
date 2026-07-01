@@ -1,6 +1,6 @@
 ---
 title: "Pacing redesign — 15-turn noir-1930s cycle trace (pre-redesign baseline)"
-status: new
+status: done
 urgency: 3
 size: medium
 created: 2026-06-29

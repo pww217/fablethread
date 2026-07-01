@@ -14,15 +14,18 @@ import asyncio
 import difflib
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _render
+from ccya.pack import load_pack
 from ccya.ev.checkers import CheckerResult
 from ccya.ev.events import find_turn, load_events, load_prompts
 from ccya.ev.prompt_context import build_prompt_context
 from ccya.ev.scenario import PromptEvalScenario, load_prompt_scenario
+from ccya.engine.seed import _build_prepare_seed_messages
 
 PROMPTS_DIR = str(Path(__file__).parent.parent / "prompts")
 
@@ -149,6 +152,69 @@ def _extract_prompt_from_event(
         "user": blob.get("rendered_user") or "",
         "output": output,
     }
+
+
+def cmd_prompt_eval_seed(
+    pack_id: str,
+    model: str | None = None,
+    temp: float | None = None,
+) -> None:
+    """Render seed prompt, call LLM, check JSON output."""
+    config = EngineConfig()
+    model = model or config.model
+    temp = temp if temp is not None else config.prepare_seed_temperature
+
+    packs_dir = Path(__file__).parent.parent.parent / "packs"
+    pack = load_pack(pack_id, packs_dir)
+
+    env = _build_jinja_env(PROMPTS_DIR)
+    messages, _ = _build_prepare_seed_messages(env, pack)
+
+    from ccya.llm_client import chat as llm_chat
+
+    try:
+        llm_result = asyncio.run(llm_chat(
+            host=config.host,
+            model=model,
+            messages=messages,
+            temperature=temp,
+            timeout=180.0,
+            num_ctx=config.num_ctx,
+        ))
+        output = llm_result.content
+    except Exception as exc:
+        print(f"Error: LLM call failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"=== Seed Generation — {pack.manifest.id} ===\n")
+    print("--- SYSTEM ---")
+    print(messages[0]["content"])
+    print()
+    print("--- USER ---")
+    print(messages[1]["content"])
+    print()
+    print("--- OUTPUT ---")
+    print(output)
+    print()
+
+    # Check JSON format
+    from ccya.engine.config import _find_json
+    parsed = _find_json(output)
+    if parsed is None:
+        print("## JSON format: FAIL")
+        print("  Could not extract valid JSON from output")
+        # Save full response for debugging
+        failed_dir = Path("saves") / "prepare_seed_failures"
+        failed_dir.mkdir(parents=True, exist_ok=True)
+        failed_file = failed_dir / f"prompt-eval_{pack.manifest.id}_{temp}_{os.urandom(4).hex()}.txt"
+        failed_file.write_text(output)
+        print(f"  Full response saved to: {failed_file}")
+    else:
+        print("## JSON format: PASS")
+        print(f"  Extracted JSON with keys: {', '.join(parsed.keys())}")
+        if "seed_state" in parsed:
+            ss = parsed["seed_state"]
+            print(f"  seed_state keys: {', '.join(ss.keys())}")
 
 
 def cmd_prompt_eval_call(
@@ -349,9 +415,16 @@ def _run_extraction_format(output: str, stream: str) -> CheckerResult:
 def cmd_prompt_eval(flags: dict[str, str], args: list[str]) -> None:
     """Main entry point for ev.py prompt-eval command."""
     if "help" in flags or len(args) < 1:
-        print("Usage: ev.py prompt-eval <dump|call> [args...]")
+        print("Usage: ev.py prompt-eval <seed|dump|call> [args...]")
         print()
         print("Subcommands:")
+        print("  seed <pack> [--model MODEL] [--temp TEMP]")
+        print("    Render seed prompt, call LLM, check JSON output.")
+        print()
+        print("    Flags:")
+        print("      --model MODEL   Override model")
+        print("      --temp TEMP     Override temperature")
+        print()
         print("  dump <save-dir> --turn N --stream STREAM [--from-events]")
         print("    Re-render a prompt from a saved session for inspection.")
         print()
@@ -370,16 +443,26 @@ def cmd_prompt_eval(flags: dict[str, str], args: list[str]) -> None:
         sys.exit(0)
 
     if len(args) < 2:
-        print("Usage: ev.py prompt-eval <dump|call> [args...]", file=sys.stderr)
+        print("Usage: ev.py prompt-eval <seed|dump|call> [args...]", file=sys.stderr)
         print("\nSubcommands:")
-        print("  dump <save-dir> --turn N --stream STREAM [--from-events]")
+        print("  seed <pack> [--model MODEL] [--temp TEMP]")
+        print("  dump <save-dir> --turn N [--stream STREAM] [--all] [--user-only] [--from-events]")
         print("  call <scenario.yaml> [--from-events]")
         sys.exit(1)
 
     subcmd = args[0]
     from_events = "from-events" in flags
 
-    if subcmd == "dump":
+    if subcmd == "seed":
+        if len(args) < 2:
+            print("Usage: ev.py prompt-eval seed <pack> [--model MODEL] [--temp TEMP]", file=sys.stderr)
+            sys.exit(1)
+        pack_id = args[1]
+        model = flags.get("model")
+        temp = float(flags["temp"]) if "temp" in flags else None
+        cmd_prompt_eval_seed(pack_id, model, temp)
+
+    elif subcmd == "dump":
         if len(args) < 2:
             print("Usage: ev.py prompt-eval dump <save-dir> --turn N [--stream STREAM] [--all] [--user-only] [--from-events]", file=sys.stderr)
             sys.exit(1)

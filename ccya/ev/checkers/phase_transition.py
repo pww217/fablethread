@@ -34,16 +34,6 @@ def phase_transition(events: list[dict[str, Any]]) -> CheckerResult:
         climax_count = pc.get("climax_turn_count", 0)
         outcome_hint = pc.get("outcome_hint")
 
-        # Check outcome_hint consistency during climax limit
-        if phase == "CLIMAX" and climax_count >= 4:
-            if outcome_hint != "transition":
-                findings.append({
-                    "turn": ev.get("turn"),
-                    "check": "outcome_hint_consistency",
-                    "detail": f"CLIMAX with climax_turn_count={climax_count} >= limit but outcome_hint={outcome_hint!r} (expected 'transition')",
-                })
-                all_passed = False
-
         # Check transitions (skip first turn)
         if i > 0:
             prev_ev = filtered[i - 1]

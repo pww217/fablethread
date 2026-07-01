@@ -1,6 +1,6 @@
 ---
 title: "World step not blending NPC psychological hints into story beats"
-status: new
+status: canceled
 urgency: 3
 size: medium
 created: 2026-06-29
@@ -11,6 +11,10 @@ labels: [world-step, npc, narrative]
 ## Description
 
 World step uses NPC hints separately instead of blending them into coherent story points. Environmental fallbacks are used instead of character-driven beats. `candidate_npcs` is empty on ~20% of turns due to scene extractor LLM failure.
+
+## Canceled
+
+Superseded by I-11. The `candidate_npcs` field was removed from the scene extractor entirely — world step now reads NPC profiles directly from compendium via `build_npc_roster()`. The problem described in this ticket no longer exists.
 
 ## Symptoms
 

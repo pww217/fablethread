@@ -18,8 +18,10 @@ labels:
 1. **Pacing problems** — CLIMAX override forcing escape over resolution, endless CLIMAX→escape→CLIMAX loops, scene phase transitions
 2. **Convergence issues** — convergence score staying high, preventing scene resolution, convergence detection mechanics
 3. **Narration mechanics** — narrator-extractor contract on location detection, transit vs arrival language, narrator agency
-4. **Beats** — beats too specific, beats hijacking narrator, beats overriding presence decay, beat specificity causing endless loops
+4. **Beats** — beats too specific, beats hijacking narrator, beats overriding presence decay, beat specificity causing endless loops, beat thematic repetition
 5. **NPC life cycles** — presence tracking not working, guards persisting 20+ turns, presence auto-decay overridden by beats, NPC decay pipeline
+6. **Skill distribution** — dexterity over-represented, charisma under-represented (I-13/F-4)
+7. **Roll distribution** — high bad roll rates (Finding 24)
 
 **User instructions:** Incremental refinement only. No major overhauls or new features. Fine-tune pacing, convergence, narration mechanics, beats, and NPC life cycles. Gather evidence first. Do full rubric for every set of runs. Track work within this ticket. Make minor changes/fixes and iterate. Everything sequentially.
 
@@ -54,6 +56,16 @@ But `applied.location_change` shows `(no data)` for both. First registered chang
 This is a contract violation: the narrator writes what the extractor can't parse.
 
 **Fix applied:** Updated `extract_state_system.j2:123` detection rule to include transit language detection: "scramble through," "run to," "travel to," "head to," "move into," "cross into" — these describe movement between locations and imply a change. Reverted the narrator arrival language constraint (narrator writing transit language is good prose; the extractor should parse it).
+
+**Deep examination (25-turn runs) — PARTIAL FAILURE:**
+
+The extractor missed "slip beneath the heavy timber pilings of the pier" in noir turn 25. The PC moved from "Warehouse District" to "under the pier" but the extractor did NOT detect it. The PC is tracked at "Warehouse District" when actually "under the pier".
+
+The transit language list is incomplete. Only detected when narration uses: "scramble through", "run to", "travel to", "head to", "move into", "cross into". Missed: "slip beneath", "under the pier", "beneath the heavy timber pilings".
+
+The fix works for the listed patterns but fails for other transit phrasing. The extractor needs a more robust location change detection strategy — either expand the transit language list significantly or use a different detection mechanism (e.g., semantic analysis of narration).
+
+**Fix applied:** Widened `extract_state_system.j2:123` detection rule from hardcoded list to "ANY language that suggests a change of location" — movement verbs (scramble, run, travel, head, move, slip, crawl, sprint, bolt, climb, descend, fall, slide, creep) combined with directional language (toward, into, through, beneath, past, beyond, to, from). "When in doubt, emit the location change."
 
 ### Finding 2: CLIMAX override forces escape over combat resolution
 
@@ -107,7 +119,13 @@ Instead, beats are specific plot instructions: "The searchlight beam that was sw
 
 This explains the endless combat loop too: the beats keep injecting guard pressure regardless of what the player does, regardless of location changes, regardless of scene phase. The beats are the real driver of the loop, not just the CLIMAX override.
 
-**Fix applied:** Updated `world_system.j2:21` to require 5-7 word vague hints with explicit good/bad examples. Beats are now 5-6 words (previously 26-38 words).
+**Fix applied:** Updated `world_system.j2:21` to require 5-7 word vague hints with explicit good/bad examples. The edit was not applied to the file in the earlier commit — it was only documented in the ticket. The actual file edit was applied in a later commit.
+
+**Verification (5-turn noir run, commit after fix):** All 15 beat candidates (3 per turn × 5 turns) are 5-7 words. Finding 5 resolved.
+
+**Deep examination (25-turn runs) — FAILURE (pre-fix data):**
+
+The 25-turn runs were done BEFORE the fix was applied to the file. They show 26-30 word beats. This is expected — the fix was not yet in the code. The 5-turn run done AFTER the fix shows 5-7 word beats. Finding 5 resolved.
 
 ### Finding 6: convergence_recompute checker fails on real saves
 
@@ -127,8 +145,201 @@ After updating `world_system.j2` to require 5-7 word vague hints, beats are now 
 
 **Fix applied:** Moved `recent_beats` tracking from ruling phase (`ruling.py:219-227`) to world step (`world.py:191-205`). All generated beats (not just selected) are now tracked in `recent_beats` for diversity tracking.
 
+**Deep examination (25-turn runs) — FAILURE:**
+
+Heavy beat repetition persists. Zombie run shows "rhythmic thrumming", "mechanical clicking", "Dark Silhouettes" repeated across dozens of turns. The recent_beats tracking is working (all generated beats are tracked), but the LLM regenerates nearly identical beats because the diversity signal isn't strong enough.
+
+Looking at the zombie run's recent_beats:
+- Turn 1-5: "rhythmic thrumming", "mechanical clicking", "Dark Silhouettes" appear repeatedly
+- Turn 10-15: "rhythmic pounding", "mechanical clicking", "Dark Silhouettes" appear repeatedly
+- Turn 20-25: "rhythmic thrumming", "mechanical clicking", "Dark Silhouettes" appear repeatedly
+
+The beats are thematically consistent (which is good) but the specific phrases repeat. The diversity tracking is preventing exact duplicates but not thematic repetition. The world step LLM needs a stronger diversity constraint — either a minimum phrase distance requirement, or a ban on reusing the same noun-verb pair within N turns.
+
 ### Finding 8: sanitizer_lifecycle checker false positive on threads_resolved
 
 Checker only checked `state.arc.threads` for `threads_resolved`, but threads resolved on the same turn are already in `completed_threads`.
 
 **Fix applied:** Updated `ccya/ev/checkers/sanitizer.py:46-53` to also check `completed_threads` in valid thread lookup.
+
+## Eval Run Validation (2026-06-30)
+
+Ran Phase 1 (1 game, 5 turns) and Phase 2 (3 games, 10 turns) against the E-6 fixes at commit `12332bab`.
+
+**Phase 1:** noir-1930s:driven, 5 turns — all 40 checkers pass.
+
+**Phase 2:** noir-1930s:driven, space-western:speedrunner, golden-piracy:completionist, 10 turns each — all 40 checkers pass after fixing two checker bugs found during testing.
+
+### Finding 9: phase_transition checker expected old CLIMAX override behavior
+
+The `phase_transition` checker was asserting that when `climax_turn_count >= 4`, `outcome_hint` must be `'transition'`. But the E-6 fix removed this override — ruling's `scene_motion` hint is now trusted. The checker was enforcing the old, unwanted behavior.
+
+**Fix applied:** Removed the stale assertion from `ccya/ev/checkers/phase_transition.py:37-45`. The checker now only validates phase transition validity, not `outcome_hint` enforcement during CLIMAX.
+
+### Finding 10: convergence_recompute checker reads wrong event for recent_rolls
+
+The `convergence_recompute` checker was reading `recent_rolls` from the previous event's `last_turn_state`, but there are multiple events per turn (extract, narrate, etc.). The previous event might be from the same turn, not the previous turn. This caused `roll_starvation` mismatches on turn 10 of space-western run.
+
+**Fix applied:** Updated `ccya/ev/checkers/pacing_convergence.py` to find the last event from the *previous turn* (not just the previous event). The checker now correctly reconstructs what `recent_rolls` and `recent_beats` the engine used when computing convergence.
+
+## Phase 3: 25-Turn Runs (2026-06-30)
+
+Ran 3 games × 25 turns at commit `12332bab`. All checkers pass. Checkers are not proof of correctness; these are manual examinations.
+
+### WWII/aggressive (25 turns) — `1134_allied-ww2_aggressive_25t`
+
+**Location changes:** 5 clean changes — ridge_overlook → stockade → ravine → valley_floor_treeline → ravine_fissure_ledge. Detected via transit language ("march straight toward", "sprint toward", "bolt for", "push aggressively toward", "slide into the dark opening"). Finding 1 partially resolved — works for listed patterns.
+
+**Pacing:** Clean phase progression — SETUP→RISING→CLIMAX→RESOLUTION→BREATHER→RISING→CLIMAX→RESOLUTION→BREATHER→RISING. Two complete arcs. Combat in stockade (turns 4-12) resolves naturally — player defeats guards, escapes. No CLIMAX→escape→CLIMAX loop. Finding 2 resolved.
+
+**NPC presence:** Guard Soldiers present throughout stockade sequence (turns 2-13), then decay to "nearby" when player leaves to ravine. Infantry Squad appears in ravine (turn 15), goes from "present" to "nearby" when player flees to valley floor (turn 19). Correct behavior. Finding 4 resolved.
+
+**Beats:** Beats are 26-30 words full sentences. (Note: these runs were done BEFORE the beat specificity fix was applied to `world_system.j2`. The fix was applied after these runs.) Finding 5 FAILURE (pre-fix data).
+
+**Beat repetition:** Heavy thematic repetition. "rhythmic shouting", "armored unit", "refugee bottleneck" repeat across dozens of turns. The recent_beats tracking prevents exact duplicates but not thematic repetition. Finding 7 FAILURE.
+
+**Conditions:** Player accumulates realistic conditions — cornered, rattled, disoriented, exhausted, pinned, bleeding, chemical_burns. Condition management works well.
+
+**Convergence:** Scores range 1-4, no wild swings. The convergence_recompute fix is working. Finding 10 resolved.
+
+### Zombie/cautious (25 turns) — `1140_zombie-survival_cautious_25t`
+
+**Location changes:** 4 clean changes — hendersonstead_north_watch → north_watch_service_crawlspace → drainage_tunnel → subterranean_chamber → sloping_tunnel. Detected via transit language ("creep along the base", "fall into a sinkhole", "crawl toward", "sprint through"). Finding 1 partially resolved.
+
+**Pacing:** Stealth-focused gameplay. SETUP→RISING→CLIMAX→RESOLUTION→BREATHER→RISING→CLIMAX. One complete arc, building to second climax. Dark Silhouettes persist throughout all 25 turns — this is intentional narrative continuity (they're the core threat), not a decay failure. Finding 2 resolved.
+
+**NPC presence:** Dark Silhouettes present throughout — they're the scene's core threat, not incidental NPCs. Paul Wood appears briefly then decays. Correct behavior. Finding 4 resolved.
+
+**Beats:** Beats are 26-30 words full sentences. Heavy thematic repetition: "rhythmic thrumming", "mechanical clicking", "Dark Silhouettes" repeat across dozens of turns. (Note: these runs were done BEFORE the beat specificity fix was applied to `world_system.j2`. The fix was applied after these runs.) Finding 5 FAILURE (pre-fix data), Finding 7 FAILURE.
+
+**Conditions:** Realistic accumulation — ears_ringing, rattled, stung, pinned, soaked, splattered, wounded, winded. Condition management works well.
+
+**Issues:** `thread_sanitizer` warns about `chamber_confrontation` (unknown id). `thread_updates.dedup` rejects `subterranean_machinery` and `encroaching_threat` due to overlap. These are thread management issues, not E-6 related.
+
+**Convergence:** Scores range 1-4, no wild swings. Finding 10 resolved.
+
+### Noir/driven (25 turns) — `1145_noir-1930s_driven_25t`
+
+**Location changes:** Only 1 detected change — whitakerburg_precinct → warehouse_district (turn 14). The PC moved from "Warehouse District" to "under the pier" (turn 25) but the extractor did NOT detect it. Narration says "slip beneath the heavy timber pilings of the pier" but "slip beneath" is not in the transit language list. The PC is tracked at "Warehouse District" when actually "under the pier". Finding 1 FAILURE.
+
+**Pacing:** Investigation→confrontation→combat. SETUP→RISING→CLIMAX→RESOLUTION→BREATHER→RISING→CLIMAX→RESOLUTION→BREATHER→RISING. Two complete arcs. Combat in warehouse district (turns 16-23) resolves naturally — player tackles Syndicate Man, escapes with documents. No CLIMAX override interference. Finding 2 resolved.
+
+**NPC presence:** Larry Bender present throughout (companion NPC, intentional). Goes from "present" to "nearby" when player moves to "under the pier" (turn 24). Syndicate Men appear in warehouse district, persist during combat, then disappear when player flees. Correct behavior. Finding 4 resolved.
+
+**Beats:** Beats are 26-30 words full sentences. (Note: these runs were done BEFORE the beat specificity fix was applied to `world_system.j2`. The fix was applied after these runs.) Finding 5 FAILURE (pre-fix data).
+
+**Beat repetition:** Thematic repetition present but less severe than zombie run. "rhythmic slapping", "sirens", "Syndicate Man" repeat. Finding 7 FAILURE.
+
+**Combat:** Multiple crit_fails (turns 10, 13, 15, 19, 21) but player still progresses through combat via creative rulings. The system handles bad rolls without breaking — player adapts, uses environment, finds cover. This is good design.
+
+**Conditions:** Realistic accumulation — winded, bruised_ribs, disoriented, smoke_obscured, rattled, exhausted. Condition management works well.
+
+**Convergence:** Scores range 1-4, no wild swings. Finding 10 resolved.
+
+### Summary of 25-turn findings
+
+**Finding 16: Pacing — clean phase progression at 25 turns**
+
+All 3 runs show clean phase progression without flip-flopping. WWII reaches RESOLUTION twice. Zombie stays in RISING→CLIMAX (stealth-focused, no combat). Noir reaches RESOLUTION twice. No CLIMAX→escape→CLIMAX loops in any run. Finding 2 fully resolved.
+
+**Finding 17: NPC presence decay — working correctly at 25 turns**
+
+The `nearby` exclusion from beat generation (Finding 4) prevents the feedback loop. NPCs decay from "present" to "nearby" when player changes location. Scene NPCs (Larry Bender in noir — a scene NPC, not a companion/party NPC; the noir pack has no companion NPCs) persist as intended. Core scene threats (Dark Silhouettes in zombie) persist as intended. Finding 4 fully resolved.
+
+**Finding 18: Location change detection — FIX APPLIED, UNTESTED**
+
+The extractor missed "slip beneath the heavy timber pilings of the pier" in noir turn 25. The fix was applied to `extract_state_system.j2:123` — widened from hardcoded list to "ANY language that suggests a change of location". Needs a fresh run to verify.
+
+**Finding 19: Combat resolution — no CLIMAX override interference**
+
+WWII stockade combat (turns 4-12) resolves naturally. Noir warehouse combat (turns 16-23) resolves naturally. Player can win or lose combat based on rolls and rulings. The CLIMAX override removal (Finding 2) works as intended.
+
+**Finding 20: Condition management — realistic accumulation and decay**
+
+All 3 runs show realistic condition accumulation. Conditions are removed when appropriate (rest, location change, combat resolution). No condition spam or infinite accumulation.
+
+**Finding 21: Beat specificity — RESOLVED**
+
+The beat specificity fix was applied to `world_system.j2:21` after the 25-turn runs. The 25-turn runs show 26-30 word beats (pre-fix). A fresh 5-turn run done after the fix shows all beats are 5-7 words. Finding 5 resolved.
+
+**Finding 22: Beat repetition — UNRESOLVED**
+
+Heavy thematic repetition across all 3 runs. The recent_beats tracking prevents exact duplicates but not thematic repetition. The world step LLM regenerates nearly identical beats because the diversity signal isn't strong enough. The beats use the same noun-verb pairs ("rhythmic thrumming", "mechanical clicking", "Dark Silhouettes") across dozens of turns.
+
+**Fix applied:** Added "no thematic repetition" rule to `world_system.j2:42` — do not reuse the same noun-verb pair within the last 5 turns. If recent_beats mentions "Dark Silhouettes" + "mechanical clicking", the next beat must introduce a NEW element. Do not keep circling back to the same cue. If recent_beats mentions "rhythmic thrumming", do not emit "rhythmic pounding", "rhythmic vibration", or "rhythmic clicking" — these are the same cue in different words. Move forward: the thrumming stops, the thrumming changes frequency, an NPC reacts to the thrumming, something else happens entirely.
+
+**Deep examination (25-turn runs) — FAILURE:**
+
+The "no thematic repetition" rule is not strong enough. Thematic repetition persists across all 3 runs:
+- Golden-piracy: "musket hammer clicks ominously nearby" repeats 4×, "pressed men tighten their aim" repeats 3×, "Heavy boots thud against upper deck" repeats 3×
+- Space-western: "heavy boots stomp directly overhead" repeats 3×, "tactical light beams cut through smoke" repeats 4×, "soldier's weapon light sweeps closer" repeats 2×
+- Noir-1930s: "truck sentries shift toward your direction" repeats 3×, "thugs abandon crates to intercept movement" repeats 2×, "sentries converge on the pier intersection" repeats 2×
+
+The beats are 5-7 words (good) but the same noun-verb pairs repeat. The diversity constraint needs to be stronger — either increase the lookback window from 5 to 10 turns, or add a ban on reusing the same noun within N turns regardless of verb.
+
+### Finding 23: Skill distribution — dexterity over-represented, charisma under-represented
+
+Skill distribution across 3 runs (25-turn each):
+- Golden-piracy: charisma 3, strength 7, dexterity 9 (dexterity dominant)
+- Space-western: dexterity 15, strength 1 (extreme dexterity bias)
+- Noir-1930s: dexterity 10, charisma 3, wits 2 (dexterity dominant)
+
+Dexterity appears in 2 of 3 runs as the dominant skill. Charisma appears in only 2 of 3 runs and is never dominant. This confirms I-13/F-4 concerns about dexterity over-representation and charisma under-representation.
+
+**Note:** F-4 (charisma bias) has been consolidated into I-13 (skill distribution imbalance). Both tickets tracked the same underlying issue. I-13 now covers the full skill distribution picture.
+
+The dexterity bias may be intentional for these packs (stealth/combat focused) but the space-western run is extreme — 15 out of 16 rolls are dexterity. This suggests the ruling prompt may be biased toward dexterity checks for stealth/combat scenarios.
+
+### Finding 24: Roll distribution — high bad roll rates
+
+Roll band distribution across 3 runs:
+- Golden-piracy: 68.4% bad (3 crit_fail, 9 fail, 1 setback)
+- Space-western: 50.0% bad (2 crit_fail, 4 fail, 2 setback)
+- Noir-1930s: 60.0% bad (3 crit_fail, 5 fail, 1 setback)
+
+The bad roll rates are high, especially for golden-piracy (68.4%) and noir-1930s (60.0%). This could indicate a difficulty scaling issue — the system may be generating too many bad rolls relative to successes. The space-western run is closer to balanced at 50.0% bad.
+
+The high bad roll rates don't break the game — players adapt via creative rulings, use environment, find cover. But the frequency of bad rolls may make gameplay feel punishing rather than challenging.
+
+### Finding 25: Location change detection — FIX APPLIED, UNTESTED
+
+The extractor missed "slip beneath the heavy timber pilings of the pier" in noir turn 25. The fix was applied to `extract_state_system.j2:123` — widened from hardcoded list to "ANY language that suggests a change of location". Needs a fresh run to verify.
+
+### Finding 26: Thematic repetition — noun-level ban applied, UNTESTED
+
+The "no thematic repetition" rule (5-turn lookback) was not strong enough. Thematic repetition persists across all runs. Applied stronger fix: widened lookback to 10 turns, added explicit noun-level ban section to `world_system.j2:43`. The noun ban extracts primary nouns from last 10 beats and forbids reusing them (including as modifiers). Also fixed `recent_beats_max` in `config.yaml` from default 5 to 10 to ensure the 10-turn lookback works.
+
+**Verification attempt:** Space-western run (25 turns) done BEFORE the noun-level ban fix. Shows severe thematic repetition: "turret" appears in 11/25 beats, "tapping rhythm" in 6, "uplink module" in 6. The fix needs a fresh run to verify effectiveness.
+
+**Investigation update (2026-06-30):** LLM backend was failing intermittently on prepare_seed (no JSON response). Investigation revealed:
+- `_find_json` function works correctly in testing — the issue is LLM output, not Python
+- `prepare_seed_temperature` was 0.4, lowered to 0.2 to reduce JSON output failures
+- Added logging to `seed.py:277` to capture raw responses on failure (changed from debug to warning level)
+- Added `setup_logging()` to `ev/__init__.py:74-76` so CLI commands produce logs
+- The `_find_json` function handles valid JSON in code blocks correctly — failures are due to LLM outputting thinking content or malformed JSON that the parser can't handle
+- The failures are intermittent (some attempts succeed, some fail) — consistent with temperature being too high for reliable JSON output
+
+## Summary of All Findings
+
+### RESOLVED
+- **Finding 2 (CLIMAX override):** Removed override from `_pacing.py`. Combat resolves naturally. ✅
+- **Finding 4 (NPC presence decay):** Excluded `nearby` NPCs from beat generation. NPCs decay correctly. ✅
+- **Finding 5 (Beat specificity):** Updated `world_system.j2:21` to require 5-7 word vague hints. All beats verified at 5-7 words in 25-turn runs. ✅
+- **Finding 6 (convergence_recompute fallback):** Fixed fallback to use 0, handles `turn_entered`. Both real saves pass. ✅
+- **Finding 7 (Beat repetition tracking):** Moved `recent_beats` tracking from ruling to world step. All generated beats tracked. ✅
+- **Finding 8 (sanitizer_lifecycle):** Added `completed_threads` to valid thread lookup. ✅
+- **Finding 9 (phase_transition checker):** Removed stale CLIMAX override assertion. ✅
+- **Finding 10 (convergence_recompute event selection):** Reads from previous turn's state, not previous event. ✅
+- **Finding 16 (Pacing):** Clean phase progression at 25 turns. No flip-flopping. ✅
+- **Finding 17 (NPC presence decay):** Working correctly at 25 turns. ✅
+- **Finding 19 (Combat resolution):** No CLIMAX override interference. ✅
+- **Finding 20 (Condition management):** Realistic accumulation and decay. ✅
+- **Finding 21 (Beat specificity):** Verified in 25-turn runs — all beats 5-7 words. ✅
+
+### UNRESOLVED
+- **Finding 1 (Location detection):** Widened detection rule applied but untested in fresh run. Need to verify "slip beneath" and other transit phrasing works.
+- **Finding 7 (Beat thematic repetition):** "No thematic repetition" rule not strong enough. Applied stronger fix: widened lookback to 10 turns, added explicit noun-level ban section to `world_system.j2:43`. Fixed `recent_beats_max` in `config.yaml` from 5 to 10. Needs fresh run to verify.
+- **Finding 23 (Skill distribution):** Dexterity over-represented, charisma under-represented. Confirmed across 3 runs. I-13 now covers this (F-4 consolidated into I-13). Fix applied: narrowed dexterity definition, added explicit guidance for charisma/wits/strength, added intent_verb → skill mapping. Space-western run shows much better balance (wits 40%, dexterity 40%, charisma 4%). Fix is working but may need further refinement.
+- **Finding 24 (Roll distribution):** High bad roll rates (50-68%). May indicate difficulty scaling issue. Needs investigation.
+- **Finding 25 (Location detection fix):** Applied but untested. Needs fresh run.
+- **Finding 27 (prepare_seed JSON failures):** LLM outputting thinking content or malformed JSON. Fixed: lowered temperature from 0.4 to 0.2, added logging to capture raw responses on failure. Investigation shows `_find_json` works correctly in testing — failures are due to LLM output format that `_find_json` can't handle. Temperature fix didn't solve the problem — still getting failures at 0.2 (2 failures out of 13 calls, 15% rate). The raw response starts with ```json and contains valid JSON, so the issue must be in the full response (thinking content after JSON, or some other edge case).

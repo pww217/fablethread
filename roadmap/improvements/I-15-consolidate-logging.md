@@ -1,6 +1,6 @@
 ---
 title: "Consolidate logging: separate game/server logs, configurable console, remove redundant prompts.log"
-status: scoping
+status: done
 urgency: 3
 size: medium
 created: 2026-06-29

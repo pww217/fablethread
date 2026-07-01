@@ -8,8 +8,7 @@
 
 - **Game server:** `localhost:8765` — turn reviewer at `localhost:8765/turn_reviewer`
 - **LLM backend (primary):** `10.75.100.51:11434` — Ollama, `VladimirGav/gemma4-26b-16GB-VRAM:latest` on RTX 5070 Ti
-- **LLM backend (fallback):** `localhost:8080` — OpenAI-compatible API, Qwen3.6-35B-A3B-OptiQ-4bit on MacBook
-- **Dev model:** Qwen3.6-35B-A3B-OptiQ-4bit on Apple Silicon (MLX backend)
+- **LLM backend (fallback):** `localhost:8080` — OpenAI-compatible API, `VladimirGav/gemma4-26b-16GB-VRAM:latest` via llama-swap
 - **Makefile:** primary reference for build/lint/run targets
 
 Treat **8k tokens as your effective working context per session.** Do not load more than you need.
@@ -57,6 +56,10 @@ Two template systems exist — see `docs/architecture/cross-module-contracts.md`
 Log level standards: see `docs/architecture/logging-standards.md`.
 
 ---
+
+## Checkers
+
+Just because a checker passes doesn't mean the thing is healthy. It just means it passed a simple deterministic check that signals the thing *might* be healthy and nothing more. Checkers are not a substitute for subjective examination. When validating tickets, use CLI to pull live data from runs and examine it directly — don't rely on checker pass/fail as proof of correctness.
 
 ## Test & lint workflow
 

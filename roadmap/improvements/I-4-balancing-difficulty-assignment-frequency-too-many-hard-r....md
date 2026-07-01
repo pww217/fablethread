@@ -1,6 +1,6 @@
 ---
 title: "[Balancing] Difficulty assignment frequency too many hard rolls"
-status: scoping
+status: up-next
 urgency: 4
 size: small
 created: 2026-06-11
