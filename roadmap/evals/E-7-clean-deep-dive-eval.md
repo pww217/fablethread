@@ -63,6 +63,7 @@ labels:
 2. **World state fact IDs now stable** — VERIFIED FIXED. noir-1930s:driven 15-turn run (SHA 9965fcd) shows `police_curfew` and `evidence_tampering` persist unchanged from T1→T15. The "MANDATORY — EXACT ID PRESERVATION" guidance with examples is working.
 3. **Prompt size growth varies significantly** — space-western -29.3/turn (decreasing), golden-piracy +151.1/turn (highest), noir +91.7/turn. Root causes: (a) prior_history (fixed: reduced from 20 to 10), (b) accumulated NPC roster with full details, (c) thread progress entries growing over time. **Question:** Should we limit NPC roster to present/nearby only? Known NPCs add ~50-100 tokens but provide narrative continuity.
 4. **extraction_retry_rates** — LLM occasionally forgets `condition_change_reason` despite clear instruction in extract_state_system.j2:12. This is an LLM reliability issue, not an engine bug. The retry mechanism handles it but wastes a turn. No engine fix needed.
+5. **NPC roster personality fields are dead weight** — Each NPC in scene prompt includes personality label, traits, and speech_hint (~50-100 chars per NPC). With 5 NPCs, that's ~250-500 chars of redundant data. Motivation, tie, leverage, and fear already provide behavioral signals. (I-20 created)
 
 ### Status Updates
 - **B-25:** canceled (volatility fixed by F-28)
@@ -70,6 +71,7 @@ labels:
 - **npc-scene-redesign (I-18):** scoping (design doc, not planned/executed)
 - **I-13:** testing (skill distribution improved, strength 28.6%, dexterity 42.9%, wits 7.1%, charisma 21.4% in current run)
 - **I-19:** created (seed threads not surfacing — design question)
+- **I-20:** created (NPC roster personality fields are dead weight — prompt size optimization)
 - **E-7:** done (full rubric deep dive complete, 38/39 checkers PASS, REPORT.md written)
 
 ## Eval Context
@@ -166,7 +168,7 @@ Work through each rubric section ONE AT A TIME. Write findings immediately.
 - [x] Checker scores table — 38/39 PASS (97.4%), average score 0.97
 - [x] Ticket updated with findings — E-7 ticket updated with all rubric findings
 - [x] REPORT.md with executive summary — Written to `evals/runs/2026-07-01_0.30.0-87-g9965fcdd_9965fcd/0348_noir-1930s_driven_15t/report.md`
-- [x] New tickets created for findings — I-19 (seed threads not surfacing) created in previous session
+- [x] New tickets created for findings — I-19 (seed threads not surfacing), I-20 (NPC personality fields dead weight)
 
 ## Rubric Findings
 
@@ -285,9 +287,9 @@ Work through each rubric section ONE AT A TIME. Write findings immediately.
 - **Total in growth:** +102.1 tokens/turn (noir), +91.7/turn (noir), -29.3/turn (space-western), +151.1/turn (golden-piracy)
 - **Root causes:**
   1. **NPC roster accumulation** — Scene prompt grew from 3 NPCs (T1, 2478 chars) to 10 NPCs (T15, 5961 chars). Each NPC entry adds ~500-600 chars. This is expected behavior — NPCs persist through lifecycle (present → nearby → known → departed → archived).
-  2. **prior_history** — Fixed: reduced from 20 to 10 entries, cutting max memory from ~1400 tokens to ~700 tokens.
-  3. **Thread progress entries** — Growing over time as threads accumulate progress entries.
-- **Question:** Should we limit NPC roster to present/nearby only? Known NPCs add ~50-100 tokens but provide narrative continuity.
+  2. **NPC personality fields** — Each NPC includes personality label, traits, and speech_hint (~50-100 chars per NPC). With 5 NPCs, that's ~250-500 chars of redundant data. Motivation, tie, leverage, and fear already provide behavioral signals. (I-20 created)
+  3. **prior_history** — Fixed: reduced from 20 to 10 entries, cutting max memory from ~1400 tokens to ~700 tokens.
+  4. **Thread progress entries** — Growing over time as threads accumulate progress entries.
 
 ### 14. LLM-Based Quality
 
@@ -306,7 +308,7 @@ Work through each rubric section ONE AT A TIME. Write findings immediately.
 2. **convergence_recompute checker** — Had logic bug reading `recent_rolls` from wrong turn's state. Fixed. 39/39 checkers now PASS on all runs.
 3. **extraction_retry_rates** — Real issue in space-western run: LLM generates condition changes without `condition_change_reason`, causing 2 extraction retries. Retry mechanism handles it but wastes a turn.
 4. **World state fact IDs** — FIXED. noir-1930s:driven 15-turn run (SHA 9965fcd) shows IDs now stable across turns. "MANDATORY — EXACT ID PRESERVATION" guidance working.
-5. **Prompt size growth** — Root causes identified: NPC roster accumulation (3→10 NPCs, 2478→5961 chars), prior_history (fixed: reduced from 20 to 10), thread progress entries.
+5. **Prompt size growth** — Root causes identified: NPC roster accumulation (3→10 NPCs, 2478→5961 chars), NPC personality fields (~50-100 chars/NPC dead weight), prior_history (fixed: reduced from 20 to 10), thread progress entries.
 6. **Seed threads not surfacing** — navy_patrols and guild_bounty stayed dormant entire golden-piracy run. No engine mechanism to surface dormant threads. Design decision needed.
 7. **Checker trust** — Checkers are false positives more often than not. Always verify against live data.
 
