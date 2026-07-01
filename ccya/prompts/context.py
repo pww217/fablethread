@@ -19,6 +19,7 @@ from ccya.models import (
     Condition,
     InventoryItem,
     IntentEnvelope,
+    LongTermObjective,
     NpcPresence,
     ProgressEntry,
     RulesOutcome,
@@ -104,14 +105,14 @@ def _fmt_progress(progress: Any) -> list[str]:
     return result
 
 
-def _filter_completed_threads(arc: dict[str, Any], turn_no: int, ttl: int = 3) -> list[dict[str, Any]]:
+def _filter_completed_threads(arc: "LongTermObjective", turn_no: int, ttl: int = 3) -> list[dict[str, Any]]:
     """Filter completed threads by TTL — only include recent ones."""
-    raw_threads = arc.get("completed_threads") or []
+    raw_threads = list(arc.completed_threads)
     result: list[dict[str, Any]] = []
     for t in raw_threads:
-        resolved_turn = t.get("resolved_turn") if isinstance(t, dict) else getattr(t, "resolved_turn", None)
+        resolved_turn = t.resolved_turn
         if resolved_turn is not None and (turn_no - resolved_turn) <= ttl:
-            result.append(dict(t) if isinstance(t, dict) else t.model_dump())
+            result.append(t.model_dump())
     return result
 
 

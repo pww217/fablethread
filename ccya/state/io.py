@@ -11,6 +11,7 @@ import yaml
 from enum import Enum
 
 from ccya.errors import ErrorKind
+from ccya.models import WorldState
 
 _log = logging.getLogger(__name__)
 
@@ -74,12 +75,12 @@ def _default_state() -> dict[str, Any]:
     }
 
 
-def load_state(save_dir: Path) -> dict[str, Any]:
+def load_state(save_dir: Path) -> WorldState:
     path = save_dir / "state.yaml"
     if not path.exists():
         _log.error("load_state path=%s not found — returning default state", path,
                     extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
-        return _default_state()
+        return WorldState.from_dict(_default_state())
     with open(path) as f:
         content = f.read()
     try:
@@ -87,28 +88,29 @@ def load_state(save_dir: Path) -> dict[str, Any]:
     except yaml.YAMLError as e:
         _log.error("load_state path=%s malformed YAML — returning default state: %s", path, e,
                     extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
-        return _default_state()
+        return WorldState.from_dict(_default_state())
     if not raw:
         _log.error("load_state path=%s empty — returning default state", path,
                     extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
-        return _default_state()
-    return raw
+        return WorldState.from_dict(_default_state())
+    return WorldState.from_dict(raw)
 
 
-def save_state(save_dir: Path, state: dict[str, Any]) -> None:
+def save_state(save_dir: Path, state: WorldState) -> None:
     tmp_path = save_dir / "state.yaml.tmp"
     real_path = save_dir / "state.yaml"
-    state = _coerce_enums(state)
+    raw = state.to_dict()
+    raw = _coerce_enums(raw)
     with open(tmp_path, "w") as f:
-        yaml.dump(state, f, default_flow_style=False, allow_unicode=True)
+        yaml.dump(raw, f, default_flow_style=False, allow_unicode=True)
     os.replace(str(tmp_path), str(real_path))
 
-def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
+def init_save_dir(save_dir: Path, seed: WorldState) -> None:
     save_dir.mkdir(parents=True, exist_ok=True)
     save_state(save_dir, seed)
     chronicle_path = save_dir / "chronicle.md"
-    seed_meta = seed.get("__seed_meta__") or {}
-    opening = seed_meta.get("opening_narrative")
+    chronicle_path.write_text("")
+    opening = seed.pc.situation.get("opening")
     if opening:
         chronicle_path.write_text(f"\n## Turn 0 — Seed\n\n{opening.strip()}")
     else:

@@ -12,7 +12,7 @@ from ccya.ev.checkers import CheckerResult, list_checkers, run_checkers
 from ccya.ev.events import find_turn, load_events
 from ccya.ev.play import EV_SAVES_DIR, play_turn
 from ccya.ev.scenario import Scenario, discover_scenarios, load_scenario
-from ccya.models import load_config
+from ccya.models import WorldState, load_config
 from ccya.state.io import _default_state, init_save_dir, load_state
 
 _log = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ def _create_eval_session(scenario: Scenario) -> Path:
     if scenario.seed_overrides:
         _apply_seed_overrides(state, scenario.seed_overrides)
 
-    init_save_dir(session_dir, state)
+    init_save_dir(session_dir, WorldState.from_dict(state))
     return session_dir
 
 

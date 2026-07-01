@@ -13,7 +13,7 @@ from ccya.engine._pacing import (
     _compute_scene_phase,
     compute_convergence_score,
 )
-from ccya.models import ArcThread, RulesOutcome
+from ccya.models import ArcThread, RulesOutcome, WorldState
 from ccya.engine.hints import compute_arc_pressure_score
 from ccya.prompts.context import _fmt_progress, _filter_completed_threads
 
@@ -26,7 +26,7 @@ _log = logging.getLogger(__name__)
 
 def _narrate_messages(
     env: Any,
-    state: dict[str, Any],
+    state: WorldState,
     user_input: str,
     *,
     recent_turns: list[dict[str, Any]] = [],
@@ -48,47 +48,45 @@ def _narrate_messages(
     if npc_roster is None:
         from ccya.personality import ARCHETYPES
 
-        comp = (state.get("compendium") or {}).get("npcs") or {}
-        npc_roster = build_npc_roster(comp, turn_no=turn_no, personality_registry=ARCHETYPES)
+        npc_roster = build_npc_roster(state.compendium.npcs, turn_no=turn_no, personality_registry=ARCHETYPES)
     _log.debug(
         "narrate entry turn=%d npc_roster_len=%d",
         turn_no, len(npc_roster),
     )
 
     # Build arc context for narrator (needed by both system and user prompts)
-    arc = state.get("arc") or {}
+    arc = state.arc
     arc_pressure_score = 0
     arc_hint_text = None
     if arc:
-        all_threads = [t for t in (arc.get("threads") or [])]
+        all_threads = list(arc.threads)
         current_objective_ctx = {
-            "long_term_objective": arc.get("long_term_objective", ""),
-            "resolution": arc.get("resolution"),
+            "long_term_objective": arc.long_term_objective,
+            "resolution": arc.resolution,
             "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
             "threads": [
                 {
-                    "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
-                    "urgency": t.get("urgency", "normal") if isinstance(t, dict) else getattr(t, "urgency", "normal"),
-                    "type": t.get("type") if isinstance(t, dict) else getattr(t, "type", None),
-                    "id": t.get("id", "") if isinstance(t, dict) else getattr(t, "id", ""),
-                    "dormant": t.get("dormant", False) if isinstance(t, dict) else getattr(t, "dormant", False),
-                    "progress": _fmt_progress(t.get("major_updates")) if isinstance(t, dict) else (_fmt_progress(t.major_updates) if hasattr(t, "major_updates") else []),
-                    "last_updated_turn": t.get("last_updated_turn") if isinstance(t, dict) else getattr(t, "last_updated_turn", None),
+                    "summary": t.summary,
+                    "urgency": t.urgency,
+                    "type": t.type,
+                    "id": t.id,
+                    "dormant": t.dormant,
+                    "progress": _fmt_progress(t.major_updates),
+                    "last_updated_turn": t.last_updated_turn,
                 }
-                for t in all_threads if not (isinstance(t, dict) and t.get("dormant") is True) or not hasattr(t, "dormant") or not getattr(t, "dormant", False)
+                for t in all_threads if not t.dormant
             ],
             "completed_threads": _filter_completed_threads(arc, turn_no, ttl=thread_ttl),
         }
         # Compute arc pressure score
-        arc_obj = arc
-        arc_pressure_score, arc_hint_text = compute_arc_pressure_score(arc_obj, turn_no)
+        arc_pressure_score, arc_hint_text = compute_arc_pressure_score(arc, turn_no)
     else:
         current_objective_ctx = None
 
     user_ctx = {
         "state": state,
-        "pc": state.get("pc") or {},
-        "prior_history": list((state.get("meta") or {}).get("prior_history") or [])[:-1],
+        "pc": state.pc,
+        "prior_history": list(state.meta.prior_history)[:-1],
         "recent_turns": recent_turns,
         "rules_outcome": rules_outcome,
         "npc_name_pool": npc_name_pool,
@@ -97,7 +95,7 @@ def _narrate_messages(
         "pacing_context": pacing_context,
         "turn_no": turn_no,
         "meta": {"turn": turn_no},
-        "scene": state.get("scene", {}),
+        "scene": state.scene,
         "ages": ages or {},
         "pc_allegiance": pc_allegiance,
         "world_factions": world_factions,
@@ -107,9 +105,9 @@ def _narrate_messages(
         "arc_hint_text": arc_hint_text,
         "curtain_call": curtain_call,
         "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
-        "inventory": state.get("inventory") or [],
-        "location": state.get("location") or {},
-        "conditions": list((state.get("pc") or {}).get("conditions") or []),
+        "inventory": list(state.inventory),
+        "location": state.location,
+        "conditions": list(state.pc.conditions),
     }
 
     system_text = _render(env, "narrate_system.j2", {
@@ -129,9 +127,9 @@ def _narrate_messages(
     return msgs
 
 
-def _get_resolved_arcs(state: dict[str, Any], turn_no: int, *, ttl: int = 3) -> list[dict[str, Any]]:
+def _get_resolved_arcs(state: WorldState, turn_no: int, *, ttl: int = 3) -> list[dict[str, Any]]:
     """Get all TTL-filtered resolved arcs from state's resolved_arcs list."""
-    resolved_arcs = state.get("resolved_arcs") or []
+    resolved_arcs = state.resolved_arcs
     result: list[dict[str, Any]] = []
     for ra in reversed(resolved_arcs):
         resolved_turn = ra.get("resolved_turn", 0)
@@ -148,14 +146,14 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     if is_cancel_requested(str(ctx.save_dir)):
         return None, None
 
-    turn_no = state.get("meta", {}).get("turn", 0) + 1
+    turn_no = state.meta.turn + 1
 
     # Rolling NPC name pool for mid-game cultural anchoring (split by gender)
     _npc_name_pool: dict[str, list[str]] = {}
     if ctx.packing.get("name_locales"):
         _npc_name_pool = generate_npc_names_split(
             ctx.packing["name_locales"],
-            male_count=5, female_count=5, seed=state.get("meta", {}).get("turn", 0),
+            male_count=5, female_count=5, seed=state.meta.turn,
         )
 
     # pending_gm_beat from this turn's ruling is read here to set
@@ -165,58 +163,53 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     # always-replace-or-pop rule keeps state hygienic.
     # Immediate feedback for roll outcomes is handled by the roll-band narration
     # directive (rules.py build_directive()), not by the beat system.
-    _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
+    _pending_gm_beat = state.meta.pending_gm_beat
 
     # PC allegiance and world context
-    _pc_allegiance = (state.get("pc") or {}).get("allegiance")
+    _pc_allegiance = state.pc.allegiance
     _pack_narrator_rules = ctx.packing.get("narrator_rules", [])
     _pack_world_rules = ctx.packing.get("world_rules", [])
     _world_factions = ctx.packing.get("factions", [])
 
     # Phase engine: compute scene_phase before directive computation
-    scene = state.setdefault("scene", {})
-    scene.setdefault("scene_phase", "SETUP")
-    scene.setdefault("climax_turn_count", 0)
-    scene.setdefault("breather_turn_count", 0)
-    scene_phase = scene.get("scene_phase", "SETUP")
+    scene_phase = state.scene.scene_phase
 
     # Count urgent threads for phase engine
-    _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict)]
+    _raw_thread_dicts = [t.model_dump() for t in state.arc.threads if isinstance(t, ArcThread)]
     thread_urgency_count = 0
-    for td in _raw_thread_dicts:
-        try:
-            t = ArcThread.model_validate(td)
+    for t in state.arc.threads:
+        if isinstance(t, ArcThread):
             if t.urgency == "urgent":
                 thread_urgency_count += 1
-        except Exception:
-            _log.warning(
-                "Malformed ArcThread entry: %s", td,
-                extra={"turn": turn_no, "trace_id": ctx.trace_id},
-            )
+        else:
+            try:
+                t_obj = ArcThread.model_validate(t)
+                if t_obj.urgency == "urgent":
+                    thread_urgency_count += 1
+            except Exception:
+                _log.warning(
+                    "Malformed ArcThread entry: %s", t,
+                    extra={"turn": turn_no, "trace_id": ctx.trace_id},
+                )
 
     # Compute convergence score before phase machine — passes raw thread list
     _convergence_score, _convergence_components = compute_convergence_score(
         scene_phase=scene_phase,
         active_threads=_raw_thread_dicts,
         scene_age=ctx._ages.get("scene_age", 0),
-        recent_beats=state.get("meta", {}).get("recent_beats", []),
+        recent_beats=list(state.meta.recent_beats),
         config=config,
         turn_no=turn_no,
-        recent_rolls=state.get("meta", {}).get("recent_rolls", []),
+        recent_rolls=list(state.meta.recent_rolls),
     )
 
     # EMA smoothing on convergence score
-    meta = state.setdefault("meta", {})
-    if "smoothed_convergence" in meta:
-        prev_smoothed = meta["smoothed_convergence"]
-        smoothed_convergence = config.convergence_alpha * _convergence_score + (1 - config.convergence_alpha) * prev_smoothed
-    else:
-        smoothed_convergence = float(_convergence_score)
-    meta["smoothed_convergence"] = smoothed_convergence
+    prev_smoothed = state.meta.smoothed_convergence
+    smoothed_convergence = config.convergence_alpha * _convergence_score + (1 - config.convergence_alpha) * prev_smoothed
 
-    # Compute phase (mutates state["scene"] in place)
-    state["scene"] = _compute_scene_phase(state, ctx._ages, config, _convergence_score, turn_no)
-    scene_phase = state["scene"].get("scene_phase", "SETUP")
+    # Compute phase (returns new scene model)
+    new_scene = _compute_scene_phase(state, ctx._ages, config, _convergence_score, turn_no)
+    scene_phase = new_scene.scene_phase
 
     # Compute unified pacing context with new signal set
     _scene_motion = ctx.intent.scene_motion if ctx.intent else "hold"
@@ -228,7 +221,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         scene_pressure_threshold=config.scene_pressure_threshold,
         scene_imperative_threshold=config.scene_imperative_threshold,
         config=config,
-        convergence_score=smoothed_convergence,
+        convergence_score=int(smoothed_convergence),
     )
 
     _pc.convergence_score = _convergence_score
@@ -236,9 +229,8 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     _pc.convergence_threads = _raw_thread_dicts
 
     # Curtain Call signal for CLIMAX phase
-    _curtain_call = scene.get("curtain_call", "")
+    _curtain_call = state.scene.curtain_call
 
-    _comp = (state.get("compendium") or {}).get("npcs") or {}
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
         recent_turns=ctx.recent_turns[-1:],
@@ -247,7 +239,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         pending_beat=_pending_gm_beat,
         pacing_context=_pc, ages=ctx._ages, pc_allegiance=_pc_allegiance, turn_no=turn_no,
         world_factions=_world_factions,
-        npc_roster=[n for n in build_npc_roster(_comp, turn_no=turn_no, personality_registry=None) if n.get("presence") == "present"],
+        npc_roster=[n for n in build_npc_roster(state.compendium.npcs, turn_no=turn_no, personality_registry=None) if n.get("presence") == "present"],
         arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
         curtain_call=_curtain_call,
     )

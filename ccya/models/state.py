@@ -66,6 +66,13 @@ class Scene(BaseModel):
     location_entered_turn: int = 0
 
 
+class NpcPresence(str, Enum):
+    PRESENT = "present"
+    NEARBY = "nearby"
+    KNOWN = "known"
+    DEPARTED = "departed"
+
+
 class NPCEntry(BaseModel):
     name: str = ""
     title: str | None = None
@@ -94,6 +101,15 @@ class World(BaseModel):
     locations: list[KeyLocation] = Field(default_factory=list)
 
 
+class LongTermObjective(BaseModel):
+    long_term_objective: str = ""
+    threads: list[ArcThread] = Field(default_factory=list)
+    completed_threads: list[ArcThread] = Field(default_factory=list)
+    resolution: str | None = None
+    last_thread_created_turn: int = 0
+    started_turn: int | None = None
+
+
 class WorldState(BaseModel):
     meta: Meta = Field(default_factory=Meta)
     pc: PC = Field(default_factory=PC)
@@ -105,6 +121,7 @@ class WorldState(BaseModel):
     resolved_arcs: list[dict[str, Any]] = Field(default_factory=list)
     world_state_candidates: list[dict[str, Any]] = Field(default_factory=list)
     world: World = Field(default_factory=World)
+    seed_meta: dict[str, Any] | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "WorldState":
@@ -128,13 +145,6 @@ class WorldState(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         """Export WorldState to raw dict for YAML serialization."""
         return self.model_dump(exclude_none=False)
-
-
-class NpcPresence(str, Enum):
-    PRESENT = "present"
-    NEARBY = "nearby"
-    KNOWN = "known"
-    DEPARTED = "departed"
 
 
 class ProgressEntry(BaseModel):
@@ -180,15 +190,6 @@ class ArcThread(BaseModel):
         if self.dormant and self.urgency == "urgent":
             self.urgency = "background"
         return self
-
-
-class LongTermObjective(BaseModel):
-    long_term_objective: str = ""
-    threads: list[ArcThread] = Field(default_factory=list)
-    completed_threads: list[ArcThread] = Field(default_factory=list)
-    resolution: str | None = None
-    last_thread_created_turn: int = 0
-    started_turn: int | None = None
 
 
 class Condition(BaseModel):

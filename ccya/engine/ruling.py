@@ -8,13 +8,12 @@ from jinja2 import Environment
 from typing import TYPE_CHECKING, Any
 
 
-
 from ccya.engine.config import EngineConfig, _find_json, _render
 from ccya.engine.extraction import _avg_event_ms
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine._pacing import _compute_ages, derive_allowed_beat_types
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
-from ccya.models import Band, IntentEnvelope, RulesCheck, RulesOutcome
+from ccya.models import ArcThread, Band, IntentEnvelope, RulesCheck, RulesOutcome, WorldState
 from ccya.personality import ARCHETYPES
 from ccya.rules import resolve_check, build_directive
 
@@ -26,7 +25,7 @@ _log = logging.getLogger(__name__)
 
 def _ruling_messages(
     env: Environment,
-    state: dict[str, Any],
+    state: WorldState,
     user_input: str,
     *,
     turn_no: int = 0,
@@ -36,20 +35,20 @@ def _ruling_messages(
     scene_phase: str = "SETUP",
     beat_candidates: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
-    pc = state.get("pc") or {}
-    location = state.get("location") or {}
+    pc = state.pc
+    location = state.location
     system_text = _render(env, "ruling_system.j2", {})
 
     # Build urgent_threads from arc.threads with urgency == "urgent"
-    arc = state.get("arc") or {}
-    threads = arc.get("threads") or []
+    arc = state.arc
+    threads = list(arc.threads)
     urgent_threads = []
     for t in threads:
-        if t.get("urgency") == "urgent":
+        if isinstance(t, ArcThread) and t.urgency == "urgent":
             urgent_threads.append({
-                "id": t.get("id", ""),
-                "summary": t.get("summary", ""),
-                "progress": t.get("major_updates", []),
+                "id": t.id,
+                "summary": t.summary,
+                "progress": list(t.major_updates),
             })
 
     user_text = _render(
@@ -65,9 +64,9 @@ def _ruling_messages(
             "recent_turns": recent_turns or [],
             "scene_phase": scene_phase,
             "urgent_threads": urgent_threads,
-            "conditions": list(pc.get("conditions") or []),
+            "conditions": list(pc.conditions),
             "state": state,
-            "pc_situation": pc.get("situation") or {},
+            "pc_situation": pc.situation,
             "beat_candidates": beat_candidates or [],
         },
     )
@@ -157,21 +156,21 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     config = ctx.config
     state = ctx.state
     trace_id = ctx.trace_id
-    turn_no = state.get("meta", {}).get("turn", 0) + 1
+    turn_no = state.meta.turn + 1
 
     exp_ruling_ms = _avg_event_ms(ctx.save_dir, "ruling.total_ms")
     phase_events: list[tuple[str, Any]] = [("phase", {"phase": "ruling_start", "expected_ms": exp_ruling_ms})]
     t_rules = asyncio.get_event_loop().time()
 
     # Build ruling messages
-    _comp = state.get("compendium", {}).get("npcs", {})
-    scene_phase = (state.get("scene") or {}).get("scene_phase", "SETUP")
-    beat_candidates = (state.get("meta") or {}).get("beat_candidates") or []
+    _comp = state.compendium.npcs
+    scene_phase = state.scene.scene_phase
+    beat_candidates = list(state.meta.beat_candidates)
     ruling_messages = _ruling_messages(
         ctx._env, state, ctx.user_input,
         turn_no=turn_no,
         npc_roster=build_npc_roster(_comp, turn_no=turn_no, personality_registry=ARCHETYPES),
-        inventory=state.get("inventory") or None,
+        inventory=[item.model_dump() for item in state.inventory] or None,
         recent_turns=ctx.recent_turns[-1:],
         scene_phase=scene_phase,
         beat_candidates=beat_candidates,
@@ -196,15 +195,14 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     ctx._selected_beat = selected_beat
 
     # Beat lifecycle: index-based selection from beat_candidates
-    beat_candidates = (state.get("meta") or {}).get("beat_candidates") or []
+    beat_candidates = list(state.meta.beat_candidates)
     beat: dict[str, Any] | None = None
     if selected_beat is not None and isinstance(selected_beat, int) and 0 <= selected_beat < len(beat_candidates):
         beat = beat_candidates[selected_beat]
 
     # Validate selected beat type against phase constraints
     if beat and beat.get("type"):
-        pc = state.get("pc") or {}
-        directive = pc.get("directive", "") if isinstance(pc, dict) else ""
+        directive = state.pc.directive
         allowed = derive_allowed_beat_types(scene_phase, directive=directive)
         if beat["type"] not in allowed:
             _log.warning(
@@ -215,15 +213,12 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
             beat = None
 
     if beat and beat.get("type"):
-        state.setdefault("meta", {})["pending_gm_beat"] = {
-            "type": beat["type"],
-            "effect": beat.get("effect", ""),
-        }
+        state = state.model_copy(update={"meta": state.meta.model_copy(update={"pending_gm_beat": {"type": beat["type"], "effect": beat.get("effect", "")}})})
     else:
-        state.get("meta", {}).pop("pending_gm_beat", None)
+        state = state.model_copy(update={"meta": state.meta.model_copy(update={"pending_gm_beat": None})})
 
     # Always discard candidates
-    state.get("meta", {}).pop("beat_candidates", None)
+    state = state.model_copy(update={"meta": state.meta.model_copy(update={"beat_candidates": []})})
 
     # Handle impossible actions: no dice roll, synthesize failure outcome
     if intent.impossible:
@@ -250,7 +245,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
             outcome = resolve_check(
                 skill=intent.check.skill,
                 difficulty=intent.check.difficulty,
-                pc_stats=(state.get("pc") or {}).get("stats") or {},
+                pc_stats=dict(state.pc.stats),
                 intent_verb=intent.intent_verb,
                 intent=intent.intent,
                 difficulty_mods=config._resolve_difficulty_modifiers(),
@@ -265,7 +260,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     elif intent.check.required and not intent.check.skill:
         _log.warning(
             "rules: check required on T%d but skill=%s — no roll will occur",
-            state.get("meta", {}).get("turn", 0) + 1,
+            state.meta.turn + 1,
             intent.check.skill,
             extra={"trace_id": trace_id, "turn": turn_no},
         )
@@ -281,8 +276,8 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     deescalate: float = 0.0
     if config.thread_deescalate_on_success and outcome.rolled and outcome.band in ("success", "crit_success"):
         if any(
-            isinstance(t, dict) and t.get("urgency") == "urgent"
-            for t in ((state.get("arc") or {}).get("threads") or [])
+            isinstance(t, ArcThread) and t.urgency == "urgent"
+            for t in state.arc.threads
         ):
             deescalate = 1.0 if outcome.band == "crit_success" else 0.6
 
@@ -291,7 +286,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
 
     # Pre-compute effective scene age with combat boost for directive thresholds.
     _scene_age = ctx._ages.get("scene_age", 0)
-    _tags: list[str] = (state.get("scene") or {}).get("tags") or []
+    _tags = list(state.scene.tags)
     if "combat" in _tags:
         _scene_age += 2
     ctx._ages["effective_scene_age"] = _scene_age

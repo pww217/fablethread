@@ -11,7 +11,7 @@ import re
 from typing import Any
 
 from ccya.errors import ErrorKind
-from ccya.models import LongTermObjective, SceneExtractResult, StateDelta
+from ccya.models import Condition, InventoryItem, LongTermObjective, SceneExtractResult, StateDelta, WorldState
 from ccya.state.inventory import (
     _fuzzy_match_inventory,
     resolve_inventory_canonical_id,
@@ -50,29 +50,25 @@ def _item_to_dict(item: Any) -> dict[str, Any]:
     return result
 
 
-def _merge_arc_update(arc: dict[str, Any], au: LongTermObjective) -> None:
-    """Merge arc_update into live arc dict. long_term_objective/resolution merged conditionally; threads[] and completed_threads[] always replaced."""
+def _merge_arc_update(arc: LongTermObjective, au: LongTermObjective) -> LongTermObjective:
+    """Merge arc_update into live arc. long_term_objective/resolution merged conditionally; threads[] and completed_threads[] always replaced."""
+    updates: dict[str, Any] = {}
     if au.long_term_objective:
-        arc["long_term_objective"] = au.long_term_objective
+        updates["long_term_objective"] = au.long_term_objective
     if au.resolution is not None:
-        arc["resolution"] = au.resolution
+        updates["resolution"] = au.resolution
     if au.last_thread_created_turn and au.last_thread_created_turn != 0:
-        arc["last_thread_created_turn"] = au.last_thread_created_turn
-    arc["threads"] = [
-        t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
-        for t in au.threads
-    ]
-    arc["completed_threads"] = [
-        t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
-        for t in au.completed_threads
-    ]
+        updates["last_thread_created_turn"] = au.last_thread_created_turn
+    updates["threads"] = list(au.threads)
+    updates["completed_threads"] = list(au.completed_threads)
+    return arc.model_copy(update=updates)
 
 
-def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelta, list[str]]:
+def reconcile_delta(state: WorldState, delta: StateDelta) -> tuple[StateDelta, list[str]]:
     """Validate and clean `delta` against current `state`.
 
     Returns a ``(reconciled_delta, warnings)`` tuple.  Does NOT mutate
-    the original ``delta`` — creates a copy, reconciles the copy, and
+    the original ``delta`` -- creates a copy, reconciles the copy, and
     returns it.
     """
     delta = copy.deepcopy(delta)
@@ -88,8 +84,7 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelt
         _log.warning("reconcile_delta %s", msg)
 
     existing_conds = {
-        c.get("id") for c in (state.get("pc") or {}).get("conditions") or []
-        if isinstance(c, dict)
+        c.id for c in (state.pc.conditions or [])
     }
     remove_ids = {r.id for r in delta.pc_condition_remove}
     dupes = [c for c in delta.pc_condition_add if c.id in existing_conds and c.id not in remove_ids]
@@ -115,20 +110,15 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelt
 
 
 def apply_delta(
-    state: dict[str, Any], delta: StateDelta,
+    state: WorldState, delta: StateDelta,
     *, trace_id: str | None = None,
-) -> dict[str, Any]:
-    state = copy.deepcopy(state)
+) -> WorldState:
+    current_turn = state.meta.turn
 
-    current_turn = (state.get("meta") or {}).get("turn", 0)
-
-    inv: list[dict[str, Any]] = copy.deepcopy(state.get("inventory", []))
-    for it in inv:
-        if it.get("amount") is None or int(it.get("amount", 0) or 0) < 1:
-            it["amount"] = 1
+    inv: list[dict[str, Any]] = [item.model_dump() for item in state.inventory]
 
     def _by_id() -> dict[str, dict[str, Any]]:
-        return {i["id"]: i for i in inv}
+        return {str(i["id"]): i for i in inv}
 
     by_id = _by_id()
 
@@ -163,7 +153,7 @@ def apply_delta(
                             existing_aliases.add(a.lower())
                     ex["aliases"] = list(existing_aliases)
                 _log.info(
-                    "inventory fuzzy merge: %s → %s (score via _fuzzy_match_inventory)",
+                    "inventory fuzzy merge: %s -> %s (score via _fuzzy_match_inventory)",
                     d.get("name", item.id),
                     fuzzy_id,
                 )
@@ -218,39 +208,40 @@ def apply_delta(
             ex["notes"] = inv_upd.notes
 
     inv.sort(key=lambda x: 0 if x.get("id") == "credits" else 1)
-    state["inventory"] = inv
 
     if delta.location_change and (delta.location_change.id or delta.location_change.name):
-        state["location"] = {
-            "id": delta.location_change.id,
-            "name": _strip_non_ascii(delta.location_change.name),
-            "description": delta.location_change.description,
-        }
-        # Transition all present NPCs to nearby on location change.
-        # The scene extractor will re-add logically-following NPCs next turn.
-        comp = state.setdefault("compendium", {}).setdefault("npcs", {})
-        for entry in comp.values():
+        comp = state.compendium
+        comp_updated = False
+        comp_npcs = dict(comp.npcs or {})
+        for nid, entry in list(comp_npcs.items()):
             if isinstance(entry, dict) and entry.get("presence") == "present":
                 if entry.get("party"):
                     continue
-                entry["presence"] = "nearby"
-                entry.pop("notes", None)
-        _stamp_turn = state.get("meta", {}).get("turn", 0) + 1
-        state["scene"]["turn_entered"] = _stamp_turn
-        state["scene"]["location_entered_turn"] = _stamp_turn
+                comp_npcs[nid] = {**entry, "presence": "nearby"}
+                comp_npcs[nid].pop("notes", None)
+                comp_updated = True
+        if comp_updated:
+            comp = comp.model_copy(update={"npcs": comp_npcs})
+
+        _stamp_turn = state.meta.turn + 1
+        scene = state.scene.model_copy(update={
+            "turn_entered": _stamp_turn,
+            "location_entered_turn": _stamp_turn,
+        })
+        state = state.model_copy(update={
+            "inventory": [InventoryItem(**i) for i in inv],
+            "location": delta.location_change,
+            "compendium": comp,
+            "scene": scene,
+        })
         _log.info("location_change.applied location=%s name=%s", delta.location_change.id, delta.location_change.name,
                   extra={"trace_id": trace_id, "turn": current_turn})
     elif delta.location_description:
-        state.setdefault("location", {})["description"] = delta.location_description
+        loc = state.location
+        state = state.model_copy(update={"location": loc.model_copy(update={"description": delta.location_description})})
 
-    state.setdefault("pc", {}).setdefault("conditions", [])
-    existing_conds: list[dict[str, Any]] = []
-    for c in state["pc"]["conditions"]:
-        if isinstance(c, dict):
-            existing_conds.append(c)
-        elif isinstance(c, str):
-            cid = c.lower().strip().replace(" ", "_")
-            existing_conds.append({"id": cid, "label": c, "description": "", "added_turn": 0})
+    # Conditions
+    existing_conds: list[dict[str, Any]] = [c.model_dump() for c in state.pc.conditions]
     remove_ids = {r.id for r in delta.pc_condition_remove}
     existing_conds = [c for c in existing_conds if c.get("id") not in remove_ids]
     existing_ids = {c.get("id") for c in existing_conds}
@@ -272,7 +263,7 @@ def apply_delta(
             cond_dict["turns_remaining"] = ca.turns_remaining
         existing_conds.append(cond_dict)
         existing_ids.add(cid)
-    state["pc"]["conditions"] = existing_conds
+    pc = state.pc.model_copy(update={"conditions": [Condition(**c) for c in existing_conds]})
     if delta.pc_condition_remove or delta.pc_condition_add:
         _log.info("condition_change.applied adds=%d removes=%d",
                   len(delta.pc_condition_add), len(delta.pc_condition_remove),
@@ -286,15 +277,14 @@ def apply_delta(
 
     # --- Arc update: merge arc_update into state arc ---
     if delta.arc_update is not None:
-        _merge_arc_update(state.setdefault("arc", {}), delta.arc_update)
+        state = state.model_copy(update={"arc": _merge_arc_update(state.arc, delta.arc_update)})
 
     # --- Persist storyteller actions as rolling window ---
     if delta.actions:
-        pc = state.setdefault("pc", {})
-        pc["actions"] = list(delta.actions[-10:])
+        pc = pc.model_copy(update={"actions": list(delta.actions[-10:])})
         _log.info(
             "Applied %d Storyteller Actions", len(delta.actions),
             extra={"turn": current_turn, "trace_id": trace_id or "", "pack": "", "kind": "actions"},
         )
 
-    return state
+    return state.model_copy(update={"pc": pc})

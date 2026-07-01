@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from ccya.engine.config import EngineConfig
-from ccya.models import ArcThread, LongTermObjective, ProgressEntry, StorytellerResult, StateDelta
+from ccya.models import ArcThread, LongTermObjective, NPCEntry, ProgressEntry, StorytellerResult, StateDelta, WorldState
 from ccya.state import resolve_inventory_remove_target
 from ccya.state.delta_builder import _merge_arc_update
 
@@ -15,7 +15,7 @@ _log = logging.getLogger(__name__)
 
 
 def _apply_thread_updates(
-    state: dict[str, Any],
+    state: WorldState,
     storyteller_result: StorytellerResult,
     config: EngineConfig | None = None,
     dedup_rejections: list[dict[str, Any]] | None = None,
@@ -24,8 +24,8 @@ def _apply_thread_updates(
     if not storyteller_result.thread_update:
         return None
 
-    arc_raw = state.get("arc")
-    turn_no = state.get("meta", {}).get("turn", 0) + 1
+    arc_raw = state.arc
+    turn_no = state.meta.turn + 1
 
     if not arc_raw:
         _log.debug(
@@ -166,34 +166,27 @@ def _apply_thread_updates(
 
 
 def _apply_arc_resolve(
-    state: dict[str, Any],
+    state: WorldState,
     storyteller_result: StorytellerResult,
     config: EngineConfig,
-) -> LongTermObjective | None:
+) -> WorldState:
     """Process arc resolution from the storyteller.
 
     Resolves current arc, stores it in resolved_arcs with TTL tracking,
     then creates a new successor arc with all threads carried forward.
+    Returns updated state.
     """
     if not storyteller_result.arc_resolve:
-        return None
+        return state
 
-    arc_raw = state.get("arc")
-    turn_no = state.get("meta", {}).get("turn", 0) + 1
+    turn_no = state.meta.turn + 1
+    old_arc = state.arc
 
-    if not arc_raw:
+    if not old_arc:
         _log.warning(
             "arc_resolve.no_arc trace_id=%d, skipping", turn_no, extra={"turn": turn_no},
         )
-        return None
-
-    try:
-        old_arc = LongTermObjective.model_validate(arc_raw)
-    except Exception as exc:
-        _log.warning(
-            "arc_resolve.validation_failed trace_id=%d: %s", turn_no, exc, extra={"turn": turn_no},
-        )
-        return None
+        return state
 
     resolution = storyteller_result.arc_resolve
 
@@ -202,10 +195,9 @@ def _apply_arc_resolve(
         "long_term_objective": old_arc.long_term_objective,
         "resolution": resolution.resolution,
         "resolved_turn": turn_no,
-
     }
 
-    state.setdefault("resolved_arcs", []).append(resolved_arc_entry)
+    new_resolved_arcs = list(state.resolved_arcs or []) + [resolved_arc_entry]
 
     _log.info(
         "arc_resolve.applied trace_id=%d goal='%s'",
@@ -225,16 +217,19 @@ def _apply_arc_resolve(
         started_turn=turn_no,
     )
 
-    state["arc"] = new_arc.model_dump()
-    state.setdefault("meta", {})["last_arc_resolve_turn"] = turn_no
+    new_meta = state.meta.model_copy(update={"last_arc_resolve_turn": turn_no})
 
-    return new_arc
+    return state.model_copy(update={
+        "arc": new_arc,
+        "resolved_arcs": new_resolved_arcs,
+        "meta": new_meta,
+    })
 
 
 def _apply_thread_resolutions(
-    state: dict[str, Any],
+    state: WorldState,
     storyteller_result: StorytellerResult,
-) -> LongTermObjective | None:
+) -> WorldState:
     """Process thread_resolve from StorytellerResult.
 
     Moves resolved/failed/abandoned threads from arc.threads[] to
@@ -242,28 +237,20 @@ def _apply_thread_resolutions(
     Handles missing IDs gracefully (warning + skip). Deduplicates
     completed_threads entries by updating existing entry instead of
     creating a duplicate.
+    Returns updated state.
     """
     if not storyteller_result.thread_resolve:
-        return None
+        return state
 
-    arc_raw = state.get("arc")
-    turn_no = state.get("meta", {}).get("turn", 0) + 1
+    turn_no = state.meta.turn + 1
+    arc = state.arc
 
-    if not arc_raw:
+    if not arc:
         _log.debug(
             "thread_resolutions: no arc in state at T%d, skipping",
             turn_no, extra={"turn": turn_no},
         )
-        return None
-
-    try:
-        arc = LongTermObjective.model_validate(arc_raw)
-    except Exception as exc:
-        _log.warning(
-            "thread_resolutions: failed to validate arc at T%d: %s",
-            turn_no, exc, extra={"turn": turn_no},
-        )
-        return None
+        return state
 
     # Collect resolution targets by ID, building updated ArcThread for each
     resolved_ids: set[str] = set()
@@ -295,14 +282,16 @@ def _apply_thread_resolutions(
 
         # Collect world_state_candidate for two-step promotion via thread sanitizer
         if res.world_state_candidate:
-            state.setdefault("world_state_candidates", []).append({
+            candidates = list(state.world_state_candidates or [])
+            candidates.append({
                 "thread_id": res.id,
                 "text": res.world_state_candidate,
                 "resolved_turn": turn_no,
             })
+            state = state.model_copy(update={"meta": state.meta.model_copy(update={"world_state_candidates": candidates})})
 
     if not any_found:
-        return None
+        return state
 
     # Build new threads[] — exclude all resolved threads
     remaining_threads = [t for t in arc.threads if t.id not in resolved_ids]
@@ -314,21 +303,24 @@ def _apply_thread_resolutions(
     for u in updates:
         completed_map[u.id] = u
 
-    return arc.model_copy(update={
-        "threads": remaining_threads,
-        "completed_threads": list(completed_map.values()),
+    return state.model_copy(update={
+        "arc": arc.model_copy(update={
+            "threads": remaining_threads,
+            "completed_threads": list(completed_map.values()),
+        }),
     })
 
 
-def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
+def _validate(state: WorldState, delta: StateDelta) -> list[dict[str, Any]]:
     rejections: list[dict[str, Any]] = []
 
-    inv_list: list[dict[str, Any]] = state.get("inventory", [])
+    inv_list = list(state.inventory)
+    inv_dicts: list[dict[str, Any]] = [it.model_dump() for it in inv_list]
     inv_by_id: dict[str, dict[str, Any]] = {
-        str(it.get("id", "")): it for it in inv_list if isinstance(it, dict)
+        str(it.id): it.model_dump() for it in inv_list
     }
     for rem in delta.inventory_remove:
-        canonical = resolve_inventory_remove_target(inv_list, rem.id)
+        canonical = resolve_inventory_remove_target(inv_dicts, rem.id)
         if canonical is None:
             rejections.append({
                 "field": "inventory_remove",
@@ -376,14 +368,14 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
 
 
 def _expire_conditions(
-    state: dict[str, Any],
+    state: WorldState,
     turn_no: int,
     trace_id: str,
     save_dir: str,
-) -> None:
+) -> WorldState:
     """Decrement turns_remaining on all conditions. Remove expired ones. Log events."""
-    conditions = (state.get("pc") or {}).get("conditions") or []
-    updated_conds = []
+    conditions = list(state.pc.conditions)
+    updated_conds: list[dict[str, Any]] = []
     expired_ids: list[str] = []
 
     for c in conditions:
@@ -421,18 +413,18 @@ def _expire_conditions(
             extra={"trace_id": trace_id, "turn": turn_no},
         )
 
-    (state.setdefault("pc", {})["conditions"])[:] = updated_conds
+    return state.model_copy(update={"pc": state.pc.model_copy(update={"conditions": updated_conds})})
 
 
 def _apply_state_updates(
-    state: dict[str, Any],
+    state: WorldState,
     delta: StateDelta | None,
     storyteller_result: StorytellerResult | None,
     config: EngineConfig,
     trace_id: str,
     turn_no: int,
     save_dir: str,
-) -> tuple[dict[str, Any], StateDelta | None, dict[str, Any], list[dict[str, Any]], list[str], list[dict[str, Any]]]:
+) -> tuple[WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[str], list[dict[str, Any]]]:
     """Apply state updates from extraction pipeline: delta, beats, NPCs, arcs.
 
     Returns (state, delta, applied, rejected, reconcile_warnings, thread_dedup_rejections).
@@ -452,13 +444,13 @@ def _apply_state_updates(
         else:
             delta, reconcile_warnings = reconcile_delta(state, delta)
             for w in reconcile_warnings:
-                _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
+                _log.warning("[reconcile] turn %s: %s", state.meta.turn, w, extra={"trace_id": trace_id})
             state = apply_delta(
                 state, delta, trace_id=trace_id,
             )
 
             # TTL decrement pass: expire conditions whose turns_remaining reached 0
-            _expire_conditions(state, turn_no, trace_id, save_dir)
+            state = _expire_conditions(state, turn_no, trace_id, save_dir)
 
             applied = delta.model_dump(exclude_none=True)
             for r in rejected:
@@ -470,45 +462,45 @@ def _apply_state_updates(
                     )
 
         # Persist inventory change reason for right-panel tooltip
-        meta = state.setdefault("meta", {})
+        meta = state.meta
         if delta and (delta.inventory_add or delta.inventory_remove or delta.inventory_update):
             if delta.inventory_change_reason:
-                meta["last_inventory_change_reason"] = delta.inventory_change_reason
+                meta = meta.model_copy(update={"last_inventory_change_reason": delta.inventory_change_reason})
             else:
-                meta.pop("last_inventory_change_reason", None)
+                meta = meta.model_copy(update={"last_inventory_change_reason": None})
         else:
-            meta.pop("last_inventory_change_reason", None)
+            meta = meta.model_copy(update={"last_inventory_change_reason": None})
 
         # Persist condition change reason for debugging
         if delta and (delta.pc_condition_add or delta.pc_condition_remove):
             if hasattr(delta, "condition_change_reason") and delta.condition_change_reason:
-                meta["last_condition_change_reason"] = delta.condition_change_reason
+                meta = meta.model_copy(update={"last_condition_change_reason": delta.condition_change_reason})
             else:
-                meta.pop("last_condition_change_reason", None)
+                meta = meta.model_copy(update={"last_condition_change_reason": None})
         else:
-            meta.pop("last_condition_change_reason", None)
+            meta = meta.model_copy(update={"last_condition_change_reason": None})
 
         # Stamp last_presence_turn and last_seen_location on touched NPCs; create minimal entry if new
-        comp = state.get("compendium", {}).get("npcs", {})
-        location = state.get("location", {})
+        comp = state.compendium.npcs or {}
+        location = state.location
         for cu in (delta.compendium_npc_update or []):
             entry = comp.get(cu.id)
             if entry is None:
-                comp[cu.id] = {
-                    "name": cu.id.replace("_", " ").title(),
-                    "presence": "nearby",
-                }
+                comp = {**comp, cu.id: NPCEntry(
+                    name=cu.id.replace("_", " ").title(),
+                    presence="nearby",
+                )}
                 entry = comp[cu.id]
-            entry["last_presence_turn"] = turn_no
-            entry["last_seen_location"] = location.get("name", "")
+            comp = {**comp, cu.id: entry.model_copy(update={
+                "last_presence_turn": turn_no,
+                "last_seen_location": location.name or "",
+            })}
 
         # Arc director: process thread updates and arc resolution
-        if storyteller_result and (state.get("arc", {}) or storyteller_result.thread_add):
+        if storyteller_result and (state.arc or storyteller_result.thread_add):
             thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
             if thread_delta is not None:
-                _merge_arc_update(
-                    state.setdefault("arc", {}), thread_delta
-                )
+                state = state.model_copy(update={"arc": _merge_arc_update(state.arc, thread_delta)})
                 if delta is not None:
                     delta = delta.model_copy(
                         update={"arc_update": thread_delta}
@@ -516,7 +508,7 @@ def _apply_state_updates(
 
             # Apply goal_update (mid-arc long_term_objective change, separate from arc_resolve)
             if storyteller_result.goal_update:
-                state.setdefault("arc", {})["long_term_objective"] = storyteller_result.goal_update["long_term_objective"]
+                state = state.model_copy(update={"arc": state.arc.model_copy(update={"long_term_objective": storyteller_result.goal_update["long_term_objective"]})})
                 _log.info(
                     "goal_update trace_id=%s long_term_objective='%s'",
                     trace_id, storyteller_result.goal_update["long_term_objective"],
@@ -534,30 +526,14 @@ def _apply_state_updates(
                 )
 
             # Process arc resolution (resolves arc + creates successor)
-            resolved_arc = _apply_arc_resolve(state, storyteller_result, config)
-            if resolved_arc is not None:
-                _merge_arc_update(
-                    state.setdefault("arc", {}), resolved_arc
-                )
-                if delta is not None:
-                    delta = delta.model_copy(
-                        update={"arc_update": resolved_arc}
-                    )
+            state = _apply_arc_resolve(state, storyteller_result, config)
 
             # Process thread resolutions (resolved/failed/abandoned -> completed)
-            resolved_arc = _apply_thread_resolutions(state, storyteller_result)
-            if resolved_arc is not None:
-                _merge_arc_update(
-                    state.setdefault("arc", {}), resolved_arc
-                )
-                if delta is not None:
-                    delta = delta.model_copy(
-                        update={"arc_update": resolved_arc}
-                    )
+            state = _apply_thread_resolutions(state, storyteller_result)
 
             if storyteller_result.thread_add:
                 # Cooldown gate: only allow thread_add if cooldown satisfied
-                _last_add = state.get("meta", {}).get("last_thread_creation_turn")
+                _last_add = state.meta.last_thread_creation_turn
                 if _last_add is not None and config and (turn_no - _last_add < config.thread_creation_cooldown):
                     _log.debug(
                         "thread_add.cooldown trace_id=%s turn=%d last_add=%d cooldown=%d — skipping",
@@ -566,33 +542,20 @@ def _apply_state_updates(
                     )
                 else:
                     _new_thread = storyteller_result.thread_add
-                    turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
-                    arc_raw = state.get("arc")
+                    turn_no_for_add = state.meta.turn + 1
+                    arc = state.arc
                     if delta is not None:
                         try:
-                            if arc_raw:
-                                _existing_arc = LongTermObjective.model_validate(arc_raw)
-                                existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
-                            else:
-                                _existing_arc = None
-                                existing_ids = set()
+                            existing_ids = {t.id for t in arc.threads} | {t.id for t in arc.completed_threads}
                             if _new_thread.id not in existing_ids:
                                 _updated_t = _new_thread.model_copy(update={
                                     "added_turn": turn_no_for_add,
                                     "urgency_set_turn": turn_no_for_add,
                                 })
-                                if _existing_arc:
-                                    arc_with_new_thread = _existing_arc.model_copy(
-                                        update={"threads": list(_existing_arc.threads) + [_updated_t],
-                                                "last_thread_created_turn": turn_no_for_add}
-                                    )
-                                else:
-                                    arc_with_new_thread = LongTermObjective(
-                                        long_term_objective="",
-                                        threads=[_updated_t],
-                                        completed_threads=[],
-                                        last_thread_created_turn=turn_no_for_add,
-                                    )
+                                arc_with_new_thread = arc.model_copy(
+                                    update={"threads": list(arc.threads) + [_updated_t],
+                                            "last_thread_created_turn": turn_no_for_add}
+                                )
                                 if config:
                                     non_dormant = [t for t in arc_with_new_thread.threads if not t.dormant]
                                     if len(non_dormant) > config.thread_max_active:
@@ -606,8 +569,7 @@ def _apply_state_updates(
                                             trace_id, evict.id, len(non_dormant), config.thread_max_active,
                                             extra={"trace_id": trace_id, "turn": turn_no},
                                         )
-                                _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
-                                state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
+                                state = state.model_copy(update={"arc": arc_with_new_thread, "meta": meta.model_copy(update={"last_thread_created_turn": turn_no_for_add})})
                                 delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
                             else:
                                 _log.warning(
@@ -628,9 +590,9 @@ def _apply_state_updates(
                             )
 
             # Engine culling: when >= 3 dormant threads, move oldest to completed
-            if state.get("arc", {}):
+            if state.arc:
                 try:
-                    arc = LongTermObjective.model_validate(state.get("arc", {}))
+                    arc = state.arc
                     dormant_threads = [t for t in arc.threads if t.dormant]
                     if len(dormant_threads) >= 3:
                         to_cull = min(dormant_threads, key=lambda t: t.last_updated_turn or 0)
@@ -640,9 +602,11 @@ def _apply_state_updates(
                             "resolved_turn": turn_no,
                         })
                         remaining = [t for t in arc.threads if t.id != to_cull.id]
-                        arc.threads = remaining
-                        arc.completed_threads.append(culled)
-                        _merge_arc_update(state.setdefault("arc", {}), arc)
+                        arc = arc.model_copy(update={
+                            "threads": remaining,
+                            "completed_threads": list(arc.completed_threads) + [culled],
+                        })
+                        state = state.model_copy(update={"arc": arc})
                         if delta is not None:
                             delta = delta.model_copy(update={"arc_update": arc})
                         _log.info(
@@ -652,34 +616,40 @@ def _apply_state_updates(
                 except Exception as exc:
                     _log.warning(
                         "thread_cull.failed trace_id=%s: %s",
-                        trace_id, exc, extra={"trace_id": trace_id},
+                        trace_id, exc, extra={"trace_id": trace_id, "turn": turn_no},
                     )
 
     # --- NPC lifecycle: nearby decay and departed archive ---
     nearby_ttl = config.nearby_decay_ttl if config else 2
-    comp = state.get("compendium", {}).get("npcs", {})
-    for entry in comp.values():
+    comp = state.compendium.npcs or {}
+    comp_updated = False
+    for nid, entry in list(comp.items()):
         if not isinstance(entry, dict):
             continue
         if entry.get("presence") == "nearby":
             last_presence = entry.get("last_presence_turn")
             if isinstance(last_presence, int) and turn_no - last_presence >= nearby_ttl:
-                entry["presence"] = "known"
+                comp = {**comp, nid: {**entry, "presence": "known"}}
+                comp_updated = True
 
     archive_ttl = config.departed_archive_ttl if config else 3
-    archived_ids = []
-    for nid, entry in comp.items():
+    archived_ids: list[str] = []
+    for nid, entry in list(comp.items()):
         if not isinstance(entry, dict):
             continue
         if entry.get("presence") == "departed":
             dep_turn = entry.get("departed_turn")
             if isinstance(dep_turn, int) and turn_no - dep_turn >= archive_ttl:
-                entry["presence"] = "archived"
+                comp = {**comp, nid: {**entry, "presence": "archived"}}
                 archived_ids.append(nid)
+                comp_updated = True
     if archived_ids:
         _log.info(
             "archived_departed_npcs ids=%s", sorted(archived_ids),
             extra={"turn": turn_no},
         )
+
+    if comp_updated:
+        state = state.model_copy(update={"compendium": state.compendium.model_copy(update={"npcs": comp})})
 
     return state, delta, applied, rejected, reconcile_warnings, thread_dedup_rejections

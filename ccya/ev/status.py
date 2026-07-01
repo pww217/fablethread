@@ -36,7 +36,7 @@ def cmd_status(flags: dict[str, str]) -> None:
     session_config = load_session_config(save_dir)
 
     print(f"Session: {save_dir}")
-    print(f"Turn:    {state.get('meta', {}).get('turn', '?')}")
+    print(f"Turn:    {state.meta.turn}")
 
     if session_config:
         if session_config.get("pack"):
