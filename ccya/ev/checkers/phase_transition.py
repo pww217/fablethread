@@ -31,8 +31,6 @@ def phase_transition(events: list[dict[str, Any]]) -> CheckerResult:
     for i, ev in enumerate(filtered):
         pc = extract_field(ev, "pacing_context") or {}
         phase = pc.get("scene_phase", "SETUP")
-        climax_count = pc.get("climax_turn_count", 0)
-        outcome_hint = pc.get("outcome_hint")
 
         # Check transitions (skip first turn)
         if i > 0:

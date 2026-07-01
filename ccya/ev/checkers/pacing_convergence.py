@@ -207,8 +207,6 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
         # turn's state to get the pre-delta_builder value.
         scene_entered = scene.get("turn_entered")
         if i > 0:
-            prev_ev = filtered[i - 1]
-            prev_turn = prev_ev.get("turn")
             # Find the last event from the previous turn (not just previous event)
             prev_turn_meta: dict[str, Any] = {}
             prev_turn_scene: dict[str, Any] = {}
