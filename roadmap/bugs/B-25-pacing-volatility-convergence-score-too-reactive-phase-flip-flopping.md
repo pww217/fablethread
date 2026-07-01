@@ -1,12 +1,22 @@
 ---
 title: "Pacing volatility — convergence score too reactive, phase flip-flopping"
-status: testing
+status: canceled
 urgency: 2
 size: medium
 created: 2026-06-29
 ticket_id: B-25
 labels: [pacing, convergence, engine]
 ---
+
+## Status
+
+**Canceled** — volatility symptom resolved by F-28 (hysteresis + phase minimums).
+
+E-7 evaluation across 5 runs shows 1-5 phase transitions in 15 turns, well below the "10+ phase changes" symptom.
+
+## Related finding (not fixed)
+
+**Too stable when threads don't build:** Golden-piracy stayed RISING for 10 turns (T3-T12). Root cause: seed threads (`navy_patrols`, `guild_bounty`) stayed dormant entire run, never contributing to convergence. This is a thread system issue (seed threads not being surfaced), not a pacing volatility issue. See E-7 thread audit findings.
 
 ## Description
 

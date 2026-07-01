@@ -8,6 +8,23 @@ ticket_id: I-13
 labels: [ruling, skill-check, balancing]
 ---
 
+## E-7 Assessment (5 runs, 54 rolls)
+
+| Skill     | Count | %    | Target | Delta  |
+|-----------|-------|------|--------|--------|
+| Charisma  | 22    | 40.7%| 25%    | +15.7% |
+| Dexterity | 16    | 29.6%| 25%    | +4.6%  |
+| Wits      | 10    | 18.5%| 25%    | -6.5%  |
+| Strength  | 6     | 11.1%| 25%    | -13.9% |
+
+**Regression:** Charisma went from under-represented to over-represented. The intent_verb → skill mapping fix was too aggressive for charisma. Persuade (11) and intimidate (8) are dominant intent verbs.
+
+**Still under-represented:** Strength (-13.9%). Attack intent verb only 5 occurrences across 54 rolls.
+
+**Near target:** Wits (-6.5%), Dexterity (+4.6%).
+
+**Recommendation:** Narrow charisma intent verb mapping. Reduce persuade/intimidate weight in ruling prompt. Add explicit strength use cases beyond attack (lift, break, carry, shove, etc.).
+
 ## Description
 
 Skill distribution in rulings is heavily skewed toward dexterity. Target is ~25% each across dexterity, strength, charisma, wits. Phase 3 data (86 checks) shows dexterity 58.1%, wits 21%, charisma 14%, strength 7%.

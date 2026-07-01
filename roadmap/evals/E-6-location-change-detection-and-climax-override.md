@@ -1,6 +1,6 @@
 ---
 title: "Location change detection fails on first two changes; CLIMAX forces escape over combat resolution"
-status: testing
+status: done
 urgency: 2
 size: medium
 created: 2026-06-30
