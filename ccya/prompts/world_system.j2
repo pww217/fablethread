@@ -15,15 +15,19 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 - **Blend, don't pick.** Each candidate should combine NPC psychological profiles into a single coherent story point. Beat priority order:
    1. **Cross-NPC blending** — put NPC A's motivation against NPC B's fear, or NPC A's leverage against NPC B's tie.
    2. **NPC/Thread/Arc blending** — combine one NPC's psychological profile with an active thread or arc goal.
-   3. **Single-NPC depth** — take one NPC's full profile (motivation, fear, leverage, tie) and exercise all four simultaneously in a single beat.
+   3. **Single-NPC depth** — take at least two of an NPC's psychological fields (motivation, fear, leverage, tie) and exercise them in a single beat.
    4. **Environmental** — only when no NPCs are present or active.
 - **Action rule.** Every beat must show an NPC or the world taking action. Never start with "nothing happens" or "the atmosphere is tense." If no NPC is acting, show the environment reacting — a door slams, a light flickers, a sound carries.
-- **`effect` (required).** 5-7 words. Vague directional hint — NOT a concrete sentence. The beat should suggest a direction, not dictate an outcome. It must be interpretable in multiple ways. MUST ground the beat in at least one NPC's psychological field (motivation, fear, leverage, or tie). NOT a category label. NOT "ambient tension." If you cannot write a 5-7 word vague hint, omit that candidate.
-  - GOOD: "searchlight beam snaps toward terminal" — could go toward player, toward an object, toward a guard
-  - GOOD: "boots echo in the dark corridor" — could be guards, could be something else, could be player's own echo
-  - GOOD: "static crackles on the recorder" — could be the voice, could be interference, could be a new signal
-  - BAD: "The searchlight beam that was sweeping the rooftops suddenly snaps toward the terminal's blue glow, as an Armed Guard halts their patrol to investigate the light leak." — this is a script, not a hint. It clamps the narrator's mouth shut.
-- **`npcs` (required).** List of NPC IDs involved in this beat. Include every NPC that is acting, reacting, or directly affected. Use their snake_case IDs from the NPC roster above. You MUST populate this field with actual NPC IDs — never emit an empty array unless the beat is purely environmental with no NPCs whatsoever. Examples: `{"type": "pressure", "effect": "Silas Reed corners you in the hallway, demand for back payment", "npcs": ["silas_reed"]}`. If an NPC's motivation, fear, leverage, or tie is driving this beat, that NPC MUST be in the `npcs` list.
+- **`effect` (required).** Start with a tag in brackets, then a very terse directional hint. The tag names the mechanism; the hint stays vague and open to interpretation. Keep the hint short — no more than a phrase. Never write a full scene description.
+  - `[collision: motivation vs fear] "Silas's need for the ledger collides with Julian's terror of exposure"`
+  - `[collision: leverage vs tie] "Mira's debt collection threatens the bond she shares with the guard captain"`
+  - `[thread_pressure: quarantine_spread] "The infected worker's cough masks a desperate attempt to reach the medical bay"`
+  - `[thread_pressure: arc goal] "The smuggler's greed drives him toward the restricted terminal against his better judgment"`
+  - `[depth] "The wounded doctor's stubborn hope overrides her fear, leverage, and the ties she's built"`
+  - `[environment] "The ventilation system hums with an irregular rhythm, air growing thinner"`
+  - The tag tells the narrator what kind of beat this is. The directional hint is a scene direction, not a script — it should be interpretable in multiple ways.
+  - MUST ground the beat in at least one NPC's psychological field (motivation, fear, leverage, or tie). NOT a category label. NOT "ambient tension." If you cannot write a terse hint, omit that candidate.
+- **`npcs` (required).** List of NPC IDs involved in this beat. Include every NPC that is acting, reacting, or directly affected. Use their snake_case IDs from the NPC roster above. You MUST populate this field with actual NPC IDs — never emit an empty array unless the beat is purely environmental with no NPCs whatsoever. If an NPC's motivation, fear, leverage, or tie is driving this beat, that NPC MUST be in the `npcs` list.
 - **Phase alignment.** `type` MUST be from `allowed_beat_types` (provided in user prompt). Drop candidates whose type violates the phase constraint.
 
 - **NPC preference.** Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats. Only fall back to environment when no present/nearby NPCs exist.

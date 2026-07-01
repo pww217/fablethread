@@ -17,6 +17,10 @@ No present or nearby NPCs. Generate beats from narration + threads alone.
 ## Active Threads ({{ arc.threads|length }})
 {% for t in arc.threads %}
 - [{{ (t.type or "THREAD") | upper }}{% if t.urgency %} - {{ t.urgency | upper }}{% endif %}] {{ t.id }} — {{ t.summary }}
+{% if t.major_updates %}Recent:
+{% for u in t.major_updates[-3:] -%}
+  - {{ u.kind }}: {{ u.text }}
+{% endfor %}{% endif %}
 {% endfor %}
 {% endif %}
 
