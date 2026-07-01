@@ -41,7 +41,7 @@ flowchart LR
 
 ## Always runs
 
-Record is the post-narration backward-looking scribe. It always executes every turn (never skipped) and feeds the next turn's rules call via `thread_update/goal_update/arc_resolve/thread_resolve/thread_add` (record-managed thread lifecycle). World state candidates are collected in `state["world_state_candidates"]` from ThreadResolution.world_state_candidate; sanitizer evaluation is handled by the seed worldbuilding plan.
+Record is the post-narration backward-looking scribe. It always executes every turn (never skipped) and feeds the next turn's rules call via `thread_update/goal_update/arc_resolve/thread_resolve/thread_add` (record-managed thread lifecycle). World state candidates are collected in `state.world_state_candidates` from ThreadResolution.world_state_candidate; sanitizer evaluation is handled by the seed worldbuilding plan.
 
 Record's prompt was previously the unified "Storytell" prompt. The split removed forward-looking inputs (pacing_context, candidate_npcs, npc_roster, intent, recent_beats) and forward-looking outputs (gm_beat). Beat generation now lives in Step 2d (World) and beat selection in Step 0 (Ruling).
 
@@ -136,7 +136,7 @@ flowchart TD
   - **Urgency decay (Python-side floor):** Threads that have been at their current urgency level for >= `thread_urgency_max_age` turns (default 8) are demoted stepwise: urgent → normal, then normal → background. Only applies to active threads with `urgency_set_turn` set. Does not send signals to the LLM — it is a structural floor preventing indefinite stagnation at any urgency level.
 - **goal_update:** A dict applied via `goal_update["long_term_objective"]` to update the arc's long-term objective. Does NOT route through `_merge_arc_update` (which replaces `threads[]` unconditionally — passing a bare LongTermObjective would wipe the thread list). Applied before arc_resolve; if both fire on the same turn, arc_resolve wins (ending the arc supersedes a mid-arc update).
 - **Same-turn conflict detection:** When the same thread id appears in both `thread_update` and `thread_resolve` in a single output, a WARNING is logged. The processing order (update before resolve) means resolution takes precedence — correct behavior, but this is always an LLM error worth monitoring.
-- **Arc resolution:** When `arc_resolve` is emitted, the current arc is stored in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking. All threads carry forward automatically (no filtering). A new successor arc is created with the new `long_term_objective`.
+- **Arc resolution:** When `arc_resolve` is emitted, the current arc is stored in `state.resolved_arcs` with `resolved_turn` for TTL tracking. All threads carry forward automatically (no filtering). A new successor arc is created with the new `long_term_objective`.
 - **TTL-based cleanup:** Completed threads and resolved arcs are pruned from prompt context after `completed_thread_ttl` / `resolved_arc_ttl` turns (default 3). The `arc_ttl` is wired from `config.arc_memory_ttl` (not hardcoded).
 
 ### Arc Context in Narration
@@ -186,7 +186,7 @@ flowchart TD
 
 Seven call sites in `_apply_state_updates()` in `turn_state.py` (called from `run_turn()` in `turn.py`) process arc/thread operations in order:
 1. **`_apply_thread_updates()`** — apply storyteller's explicit state changes; progress is append-only (`list[ProgressEntry]`); sets `last_updated_turn`; auto-dormant after 8 turns without activity (urgent threads excluded); urgency decay (stepwise urgent→normal→background after N turns at same level). Progress dedup via SequenceMatcher (≥70% overlap)
-2. **`goal_update`** — dict assignment to `state["long_term_objective"]["long_term_objective"]`
+2. **`goal_update`** — typed update to `state.arc.long_term_objective` (via `model_copy` on arc)
 3. **Same-turn conflict detection** — warn if same thread id in both update and resolve
 4. **`_apply_arc_resolve()`** — resolve arc, store in resolved_arcs, create successor
 5. **`_apply_thread_resolutions()`** — resolve/fail/abandon → completed
@@ -222,10 +222,10 @@ Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resol
 
 1. If `arc_resolve` is None → return None
 2. Validate arc from state; if missing/invalid → log WARNING, return None
-3. Store current arc in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking
+3. Store current arc in `state.resolved_arcs` with `resolved_turn` for TTL tracking
 4. Carry forward all threads (no filtering — all threads survive arc resolution)
 5. Create successor arc with new `long_term_objective` and all surviving threads
-6. Replace `state["long_term_objective"]` with successor
+6. Replace `state.arc` with successor
 
 #### Thread Creation (gated in `_apply_state_updates()` in turn_state.py with cap eviction)
 
@@ -244,7 +244,7 @@ Processes `storyteller_result.thread_resolve` (list of `ThreadResolution` with `
 1. Find matching thread by ID in `arc.threads[]`
 2. If not found → log warning, skip
 3. If found → move to `arc.completed_threads[]`, set `resolution_state`, `outcome`, and `resolved_turn`
-4. Collect `world_state_candidate` into `state["world_state_candidates"]` if present
+4. Collect `world_state_candidate` into `state.world_state_candidates` if present
 5. Deduplicate completed_threads entries: existing ID gets updated, not duplicated
 
 #### Pacing Context Gate

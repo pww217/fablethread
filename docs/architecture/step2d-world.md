@@ -50,20 +50,20 @@ if config.sanitize_every > 0:
 yield ("phase", {"phase": "sanitize_done"})
 yield ("phase", {"phase": "world_start"})
 beat_candidates = await _run_world_step(env, state, narrative, scene_result, _pc, config, trace_id, turn_no)
-state.setdefault("meta", {})["beat_candidates"] = beat_candidates or []
+state = state.set_beat_candidates(beat_candidates or [])
 save_state(save_dir, state)          # single end-of-turn persist (Sanitize + candidates)
 yield ("phase", {"phase": "world_done"})
 # return → finally releases _inflight
 ```
 
-**Stale-input invariant.** World receives the same live `state` Python reference that Sanitize just mutated — no reload, no snapshot, no intermediate `save_state`. Sanitize mutates `state["arc"]["threads"]` in place; World's `_run_world_step` reads that exact dict, so it sees sanitized threads by construction.
+**Stale-input invariant.** World receives the same `WorldState` that Sanitize just returned — no reload, no snapshot, no intermediate `save_state`. Sanitize returns a new `WorldState` with updated `state.arc.threads`; World's `_run_world_step` reads that exact state, so it sees sanitized threads by construction.
 
 ## Inputs
 
 | Input | Source |
 |-------|--------|
 | `npc_roster` | `build_npc_roster()` from compendium (filtered to present/nearby) |
-| `arc.threads[]` | `state["arc"]["threads"]` |
+| `arc.threads[]` | `state.arc.threads` |
 | `narration` | passed in from `run_turn` |
 | `pacing_context` | passed in from `run_turn` |
 | `recent_beats` | `state.meta.recent_beats` |

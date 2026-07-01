@@ -126,7 +126,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 - `outcome: str` — one past-tense sentence written at resolution time; persisted on completed ArcThread by `_apply_thread_resolutions()` alongside `resolution_state`
 
 ### StateDelta actions
-- `actions: list[str]`, max_length=10 — merged from StorytellerResult.actions, persisted to `state["pc"]["actions"]` as rolling window by `apply_delta()`
+- `actions: list[str]`, max_length=10 — merged from StorytellerResult.actions, persisted to `state.pc.actions` as rolling window by `apply_delta()`
 
 ### Condition TTL system
 - `turns_remaining: int | Literal["permanent"]` on `Condition` and `ConditionAdd`
