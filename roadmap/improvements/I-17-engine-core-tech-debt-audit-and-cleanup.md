@@ -71,11 +71,11 @@ Comprehensive audit of engine core (`ccya/engine/`, `ccya/state/`, `ccya/models/
     - Impact: No type safety, no validation, easy to introduce bugs with typos.
     - Fix: Create structured `WorldState` Pydantic model for engine-internal use.
 
-4. **Circular import workaround — VALIDATED**
-    - `state/delta.py` is 38 lines of lazy re-exports from `state/delta_builder.py`.
-    - `turn_state.py` and `context.py` already import directly from `delta_builder.py`.
-    - Impact: Adds indirection layer with no benefit. Confusing for new contributors.
-    - Fix: Remove `delta.py`, import directly from `delta_builder.py`.
+4. **Circular import workaround — RESOLVED**
+    - `state/delta.py` was 38 lines of lazy re-exports from `state/delta_builder.py`.
+    - Removed `state/delta.py`, updated `state/__init__.py` to import directly from `delta_builder.py`.
+    - Impact: Eliminated unnecessary indirection layer.
+    - Fix: Done — `state/delta.py` deleted, `state/__init__.py` updated.
 
 5. **Boundary model gaps — VALIDATED (symptom of #3)**
     - Every boundary model in `context.py` is out of sync with what templates actually consume. See I-18 for full list.
