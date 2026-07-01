@@ -882,7 +882,7 @@ def _build_curtain_call_results(events: list[dict[str, Any]]) -> list[dict[str, 
             continue
 
         climax_turn_count = pc.get("climax_turn_count", 0)
-        thread_resolve = ev.get("extraction", {}).get("storytell", {}).get("output", {}).get("thread_resolve", {})
+        thread_resolve = ev.get("extraction", {}).get("record", {}).get("output", {}).get("thread_resolve", {})
         has_thread_resolve = bool(thread_resolve)
         curtain_call_status = ""
         if climax_turn_count == 1:
