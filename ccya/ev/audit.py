@@ -213,7 +213,6 @@ def cmd_state_history(events: list[dict[str, Any]]) -> None:
 
 def cmd_active_conditions(events: list[dict[str, Any]]) -> None:
     """Show max concurrent conditions and per-turn active list."""
-    active_conditions: list[str] = []
     turn_conds: dict[int, list[str]] = {}
 
     for ev in events:
@@ -221,20 +220,13 @@ def cmd_active_conditions(events: list[dict[str, Any]]) -> None:
         if t is None or not isinstance(t, int):
             continue
 
-        applied = ev.get("applied") or {}
-
-        if applied.get("pc_condition_add"):
-            for c in applied["pc_condition_add"]:
-                if isinstance(c, dict):
-                    active_conditions.append(c["id"])
-
-        if applied.get("pc_condition_remove"):
-            for c in applied["pc_condition_remove"]:
-                if isinstance(c, dict):
-                    active_conditions = [x for x in active_conditions if x != c["id"]]
-
-        if active_conditions:
-            turn_conds[t] = sorted(active_conditions)
+        # Read conditions from last_turn_state (accounts for TTL expiration)
+        last_state = ev.get("last_turn_state") or {}
+        pc = last_state.get("pc") or {}
+        conditions = pc.get("conditions") or []
+        
+        if conditions:
+            turn_conds[t] = sorted([c["id"] for c in conditions if isinstance(c, dict)])
 
     if not turn_conds:
         print("No condition data found.")
