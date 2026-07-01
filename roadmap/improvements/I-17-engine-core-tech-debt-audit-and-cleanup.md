@@ -1,6 +1,6 @@
 ---
 title: "Engine core tech debt audit and cleanup"
-status: scoping
+status: up-next
 urgency: 2
 size: xlarge
 created: 2026-06-29
@@ -9,6 +9,7 @@ labels:
   - engine
   - refactoring
   - type-safety
+plan: plans/i17-3-worldstate-plan.md
 ---
 
 ## Summary
