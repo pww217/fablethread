@@ -39,6 +39,14 @@
 {% if state and state.scene and state.scene.scene_phase %}
 ## Scene phase: {{ state.scene.scene_phase }}
 {% endif %}
+{% if curtain_call and curtain_call != "" %}
+## Curtain Call: {{ curtain_call | upper }}
+{% if curtain_call == "active" %}
+The main pressure thread should reach its conclusion this turn. Bring the climax home.
+{% elif curtain_call == "forced" %}
+FORCED: You must resolve the main pressure thread this turn. End the climax now.
+{% endif %}
+{% endif %}
 
 ## Prior History
 {% if prior_history and prior_history | length > 0 -%}
@@ -77,7 +85,7 @@ Narrate the attempt and its natural failure. Do NOT write a version where the ac
 {% if pending_beat and pending_beat.type -%}
 
 **Beat:** {{ pending_beat.type | replace('_', ' ') | upper }} — {{ pending_beat.effect }}. Use this as creative guidance for the scene. Do not recite beat metadata directly in narration.
-{%- endif %}{% if pacing_context and pacing_context.outcome_hint -%}
+{% endif %}{% if pacing_context and pacing_context.outcome_hint -%}
 
 **Outcome:** {{ pacing_context.outcome_hint }}
 {% if pacing_context.outcome_hint == "advance" %}Narrate through to the resolution. Do not linger on preparation or setup. Something significant happens this turn.{% elif pacing_context.outcome_hint == "transition" %}Show the character's active departure from the current scene (chase, retreat, discovery pulling them elsewhere) and begin the new scene upon arrival.{% elif pacing_context.outcome_hint == "hold" %}Continue the current scene at its natural pace.{% else %}Continue the scene.{% endif %}
