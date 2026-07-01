@@ -34,7 +34,7 @@ Rules:
 
 ## Current World State
 {% if current_world_state %}
-{% for f in current_world_state %}{% if f is mapping %}- [{% if f.tier == "global" %}global{% else %}local{% endif %}] {{ f.text }}
+{% for f in current_world_state %}{% if f is mapping %}- `{{ f.id }}` [{% if f.tier == "global" %}global{% else %}local{% endif %}{% if f.valence %}|{{ f.valence }}{% endif %}] {{ f.text }}
 {% elif f is string %}- {{ f }}
 {% endif -%}
 {% endfor %}
