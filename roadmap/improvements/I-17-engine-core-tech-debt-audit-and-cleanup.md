@@ -217,5 +217,54 @@ I-17 #8 (pacing consolidation, 318 lines) is not a separate ticket. It's one fil
 
 ### Remaining
 
-- **No PR yet** — branch `i17-3-worldstate` ready for PR to `main`.
+- **PR #9 created** — branch `i17-3-worldstate` merged to `main`. 13 commits, 50+ files, +1500/-850.
 - **Other I-17 findings (#1, #2, #6–#13) remain open** — see Findings section above. Finding #3 was the root cause for I-2 (boundary model gaps) per cross-ticket links.
+
+### Post-merge runtime fixes (2026-07-01)
+
+After merging, several runtime issues surfaced that need fixing on `main`:
+
+1. **`routes.py:165-170` — dict-style access on WorldState**
+   - `state.get("meta", {})`, `state.get("pc", {})`, `state.get("location", {})` called on `WorldState` model → `'Meta object' has no attribute 'get'`
+   - Fixed: `state.meta.setting_pack`, `state.pc.name`, `state.location.name`
+
+2. **`routes.py:217` — dict-style access on `state.seed_meta`**
+   - `(state.seed_meta or {}).get("outcome_summary", "")` — `seed_meta` is `Meta` model, not dict
+   - Fixed: use `_get_opening_outcome_summary()` helper instead
+
+3. **Jinja templates calling `.get()` on Pydantic models**
+   - `index.html:6,32` — `state.meta.get('session_name')`, `state.pc.get('name')`, `state.location.get('name')`
+   - `_state_left.html` — NPC access via `npc.get('name')`, `npc.get('bio')`, etc. across 30+ locations
+   - `_state_left.html` — arc access via `_arc.get('threads')`, `_arc.get('resolution')`, `thread.get('urgency')`
+   - `_state_left.html` — compendium access via `entry.get('name')`, `entry.get('presence')`, etc.
+   - `_state_right.html` — `state.pc.get('tagline')`, `state.pc.get('name')`, `item.get('amount')`
+   - Fixed: all converted to attribute access (e.g., `state.meta.session_name`, `npc.name`, `state.pc.name`)
+
+4. **`index.html:502` — WorldState passed to `|tojson` filter**
+   - `{{ (state if state else {}) | tojson | safe }}` — Pydantic model not JSON serializable
+   - Fixed: `{{ (state.to_dict() if state else {}) | tojson | safe }}`
+
+5. **Missing `app.css`**
+   - `app.css` is generated from `app.src.css` via Tailwind (`make css`). Worktree had no compiled CSS.
+   - Fixed: ran `make css` to generate from source.
+
+6. **`routes.py:323` — WorldState passed to `json.dumps` in turn_complete**
+   - `"state": result.state_snapshot` — `TurnResult.state_snapshot` is typed `WorldState`, not dict
+   - Fixed: `"state": result.state_snapshot.to_dict()`
+
+### Current issue (2026-07-01)
+
+**Turn completes but narration is cut with: `Object of type WorldState is not JSON serializable`**
+
+Investigation in progress. `json.dumps` calls found in:
+- `ccya/server/routes.py` — SSE event streaming (turn_complete, panel_update, phase events)
+- `ccya/state/chronicle.py` — event log writing (uses `default=str`)
+- `ccya/server/app.py` — server error persistence (uses `default=str`)
+
+The `default=str` fallback in `chronicle.py` and `app.py` converts Pydantic models to `str(state)` which gives `<WorldState object at 0x...>` — not useful. Need to find which `json.dumps` call is receiving a bare `WorldState` without `default=str`.
+
+Candidates:
+- `routes.py:270,274` — `panel_update` payloads from `pipeline.py` (already using `.model_dump()` in pipeline, but need to verify)
+- `routes.py:267` — narrative token chunks (should be strings)
+- `routes.py:284,301,312` — error/complete payloads (state_snapshot fixed, but need to verify `changes`, `diff`, `rejected`, `metrics`, `ruling` are all dict-serializable)
+- `routes.py:722` — turn viewer stream events
