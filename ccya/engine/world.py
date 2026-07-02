@@ -93,6 +93,7 @@ async def _run_world_step(
                 config.model,
                 messages,
                 fallback_host=config.fallback_host,
+                fallback_model=config.fallback_model,
                 fallback_cooldown_s=config.fallback_cooldown_s,
                 temperature=config.world_temperature,
                 top_p=config.extract_top_p,

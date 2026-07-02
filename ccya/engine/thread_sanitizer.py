@@ -68,6 +68,7 @@ async def _sanitize_threads_impl(
             config.model,
             messages,
             fallback_host=config.fallback_host,
+            fallback_model=config.fallback_model,
             fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=config.sanitize_temperature,
             timeout=float(config.request_timeout_s),

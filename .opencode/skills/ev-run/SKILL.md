@@ -19,7 +19,7 @@ Purpose: Execute an iterative, phase-gated evaluation with graduated scope. Each
 - `.venv/bin/python scripts/debug/ev.py` — never `python3` or `source .venv/bin/activate`
 - Set bash timeout to at least 25 × 60000 = 1,500,000ms for full phase 3
 - Read `evals/ev-tooling/templates/report.md.j2` — understand the structure before you start
-- Read architectural docs: `docs/architecture/OVERVIEW.md`, `docs/architecture/pacing-systems.md`, `docs/architecture/step0-ruling.md`, `docs/architecture/step2a-scene.md`, `docs/architecture/step2b-state.md`, `docs/architecture/step2c-storytell.md`, `docs/architecture/delta-validate.md`, `docs/architecture/state-models.md`, `docs/architecture/cross-module-contracts.md`
+- Read architectural docs: `docs/architecture/OVERVIEW.md`, `docs/architecture/pacing-systems.md`, `docs/architecture/step0-ruling.md`, `docs/architecture/step2a-scene.md`, `docs/architecture/step2b-state.md`, `docs/architecture/step2c-record.md`, `docs/architecture/delta-validate.md`, `docs/architecture/state-models.md`, `docs/architecture/cross-module-contracts.md`
 - Find the prior eval group: locate the newest full eval group in `evals/runs/` before the current one
 
 ## Persona Pairings
