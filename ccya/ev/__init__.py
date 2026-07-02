@@ -295,17 +295,13 @@ def main() -> None:
             cmd_warnings(events)
         case "personas":
             from ccya.config import PERSONA_REGISTRY_FILE, load_persona_registry
-            from ccya.ev.personality import PERSONALITY_PROMPTS
             registry = load_persona_registry()
-            print("Built-in personalities:")
-            for name, prompt in PERSONALITY_PROMPTS.items():
-                print(f"  {name}: {prompt[:80]}...")
             if registry:
-                print("\nUser personas:")
+                print("User personas:")
                 for name, pc in registry.items():
                     print(f"  {name}: {pc.description or pc.personality[:80]}...")
             else:
-                print(f"\nNo user personas in {PERSONA_REGISTRY_FILE}")
+                print(f"No user personas in {PERSONA_REGISTRY_FILE}")
         case "prompt-sizes":
             from ccya.ev.prompt_sizes import cmd_prompt_sizes
             cmd_prompt_sizes(events, include_compaction="include-compaction" in flags)

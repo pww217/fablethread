@@ -12,7 +12,7 @@ from typing import Any, AsyncIterator
 
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
-from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, is_cancel_requested, register_turn, signal_turn_done
+from ccya.engine.config import EngineConfig, _build_jinja_env
 from ccya.engine.extraction import (
     _avg_event_ms,
     _context_meta,
@@ -21,7 +21,7 @@ from ccya.engine.extraction import (
 from ccya.engine._pacing import (
     derive_allowed_beat_types,
 )
-from ccya.engine.turn_context import TurnContext
+from ccya.engine.turn_context import TurnContext, _is_cancel_requested
 from ccya.engine.thread_sanitizer import sanitize_threads
 from ccya.engine.turn_state import (
     _apply_state_updates,
@@ -44,6 +44,8 @@ from ccya.models import (
 )
 
 from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
+
+from ccya.server.app import _start_turn, _signal_turn_done
 
 from ccya.state import (
     append_chronicle,
@@ -85,8 +87,8 @@ async def run_turn(
     actions: list[str] = []
 
     try:
-        register_turn(str(save_dir))
-        await _inflight.acquire(str(save_dir))
+        _turn_lock, _cancel_event, _turn_done_event = _start_turn()
+        await _turn_lock.acquire()
 
         # --- Memory: load last narration turn + prior_history bullets ---
         recent_turns = load_last_narration(save_dir, 1)
@@ -100,13 +102,13 @@ async def run_turn(
                 "narrator_rules": pack_narrator_rules, "world_rules": pack_world_rules,
                 "factions": pack_factions,
                 "inventory": state.inventory,
-            }, _env=env,
+            }, _env=env, _cancel_event=_cancel_event,
         )
 
         # === Call 0: Rules / intent classification (extracted phase) ===
         _intent, _outcome, ruling_metrics, deescalate, ruling_phase_events = await _ruling_phase(ctx)
         state = ctx.state
-        if is_cancel_requested(str(save_dir)):
+        if _is_cancel_requested(ctx):
             return
         for evt in ruling_phase_events:
             yield evt
@@ -216,7 +218,7 @@ async def run_turn(
         # === Turn increment (single source of truth: here) ===
         state = state.set_turn(state.meta.turn + 1)
 
-        if is_cancel_requested(str(save_dir)):
+        if _is_cancel_requested(ctx):
             return
         yield ("phase", {"phase": "persist"})
 
@@ -280,8 +282,7 @@ async def run_turn(
             ),
         )
     finally:
-        await _inflight.release(str(save_dir))
-        signal_turn_done(str(save_dir))
+        _signal_turn_done()
 
 
 async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> AsyncIterator[tuple[str, Any]]:
@@ -296,7 +297,7 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
     turn_no = ctx.state.meta.turn + 1
 
     exp_narrate_ms = _avg_event_ms(save_dir, "narrate.total_ms")
-    if is_cancel_requested(str(save_dir)):
+    if _is_cancel_requested(ctx):
         return
     yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
@@ -335,7 +336,7 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
             first_ms = (asyncio.get_event_loop().time() - t0) * 1000
             first_visible = False
             yield ("phase", {"phase": "narrate_first_token", "first_token_ms": round(first_ms, 1)})
-        if is_cancel_requested(str(save_dir)):
+        if _is_cancel_requested(ctx):
             return
         yield ("token", chunk)
 
@@ -349,7 +350,7 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
         "output": narrative,
     }
 
-    if is_cancel_requested(str(save_dir)):
+    if _is_cancel_requested(ctx):
         return
     yield ("phase", {"phase": "narrate_done"})
     _log.info(
@@ -358,7 +359,7 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
         extra={"trace_id": trace_id, "turn": turn_no},
     )
     exp_ms = _avg_event_ms(save_dir, "extract.total_ms")
-    if is_cancel_requested(str(save_dir)):
+    if _is_cancel_requested(ctx):
         return
     yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
 
@@ -398,7 +399,6 @@ async def _extract_phase(
     Yields: pipeline events and phase events.
     Mutates extract_result with (delta, actions, outcome_summary, extraction_event, record_result, scene_result, extraction_ctx, ext_metrics).
     """
-    save_dir = ctx.save_dir
     t2 = asyncio.get_event_loop().time()
 
     delta: StateDelta | None = None
@@ -433,7 +433,7 @@ async def _extract_phase(
         ):
             if isinstance(_evt, tuple) and len(_evt) == 2:
                 _log.debug("turn.extraction_evt trace_id=%s evt_type=%s", trace_id, type(_evt[0]).__name__, extra={"event_preview": str(_evt)[:500]})
-                if is_cancel_requested(str(save_dir)):
+                if _is_cancel_requested(ctx):
                     return
                 yield _evt
             else:
@@ -447,7 +447,7 @@ async def _extract_phase(
     if _extract_result is not None:
         delta, actions, outcome_summary, extraction_event, record_result, scene_result, _extraction_ctx = _extract_result
 
-    if is_cancel_requested(str(save_dir)):
+    if _is_cancel_requested(ctx):
         return
     yield ("phase", {"phase": "extract_done"})
 
@@ -586,12 +586,10 @@ async def _persist_and_async_cleanup(
     Yields: phase events and complete event.
     Mutates persist_result with (result_obj, final_metrics, final_state).
     """
-    save_dir_str = str(save_dir)
-
     # Turn increment (single source of truth: here)
     state = state.set_turn(state.meta.turn + 1)
 
-    if is_cancel_requested(save_dir_str):
+    if _is_cancel_requested(ctx):
         return
 
     # === Write: events.jsonl → atomic state.yaml → chronicle.md ===

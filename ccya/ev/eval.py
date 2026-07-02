@@ -385,7 +385,6 @@ def cmd_eval_run(
 
         report_ctx = {
             "pack": scenario.pack,
-            "personality": scenario.personality,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "git_sha": git_sha,
             "git_branch": git_branch,

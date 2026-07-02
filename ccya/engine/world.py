@@ -15,7 +15,6 @@ from ccya.engine._pacing import derive_allowed_beat_types
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.llm_client import chat as llm_chat
 from ccya.models import GMBeat, WorldState
-from ccya.personality import ARCHETYPES
 
 _log = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ async def _run_world_step(
     scene_phase = state.scene.scene_phase or "SETUP"
 
     comp = state.compendium.npcs or {}
-    npc_roster = build_npc_roster(comp, turn_no=turn_no, personality_registry=ARCHETYPES)
+    npc_roster = build_npc_roster(comp, turn_no=turn_no)
     # Only include present NPCs in beat generation to avoid re-injecting nearby NPCs
     # that should be decaying. Nearby NPCs are excluded from beats to prevent the
     # feedback loop: beats -> narration -> extractor re-promotion -> beats for present.

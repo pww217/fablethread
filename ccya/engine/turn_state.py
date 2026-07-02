@@ -113,7 +113,7 @@ def _apply_thread_updates(
     # Threads updated this turn already have last_updated_turn set to turn_no,
     # so they won't trigger the dormant threshold. Only untouched threads age.
     if config and remaining_threads:
-        dormant_threshold = 8  # turns without activity before auto-dormant
+        dormant_threshold = config.thread_dormant_threshold
         for i, t in enumerate(remaining_threads):
             if (
                 t.last_updated_turn is not None

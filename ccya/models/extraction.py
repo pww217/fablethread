@@ -26,7 +26,6 @@ class CompendiumNpcUpdate(BaseModel):
     presence: str | None = None  # "present" | "nearby" | "known" | "departed" — scene extractor sets this
     position: str | None = None   # spatial position in current scene
     first_seen_turn: int | None = None  # set by engine on initial entry creation
-    personality: str | None = None  # archetype id; immutable once set
     tie: str | None = None          # durable personal history — human-readable description
     departed_reason: str | None = None     # combined: "short label — prose" describing the departure
     departed_turn: int | None = None       # set by engine on first presence:"departed"

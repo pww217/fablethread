@@ -14,7 +14,6 @@ from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine._pacing import _compute_ages, derive_allowed_beat_types
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
 from ccya.models import ArcThread, Band, IntentEnvelope, RulesCheck, RulesOutcome, WorldState
-from ccya.personality import ARCHETYPES
 from ccya.rules import resolve_check, build_directive
 
 if TYPE_CHECKING:
@@ -169,7 +168,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     ruling_messages = _ruling_messages(
         ctx._env, state, ctx.user_input,
         turn_no=turn_no,
-        npc_roster=build_npc_roster(_comp, turn_no=turn_no, personality_registry=ARCHETYPES),
+        npc_roster=build_npc_roster(_comp, turn_no=turn_no),
         inventory=[item.model_dump() for item in state.inventory] or None,
         recent_turns=ctx.recent_turns[-1:],
         scene_phase=scene_phase,
