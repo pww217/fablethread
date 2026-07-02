@@ -1,7 +1,7 @@
 llm:
   host: http://10.75.100.51:11434/api/chat
   fallback_host: http://127.0.0.1:8080
-  fallback_model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit-thinking
+  fallback_model: VladimirGav/gemma4-26b-16GB-VRAM:latest
   model: VladimirGav/gemma4-26b-16GB-VRAM:latest
   num_ctx: 16384
   context_window: 16384

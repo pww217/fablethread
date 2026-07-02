@@ -103,6 +103,7 @@ async def generate_pack_from_brief(
                     {"role": "user", "content": user_prompt},
                 ],
                 fallback_host=config.fallback_host,
+                fallback_model=config.fallback_model,
                 fallback_cooldown_s=config.fallback_cooldown_s,
                 temperature=config.pack_generation_temperature,
                 top_p=config.pack_generation_top_p,
