@@ -216,6 +216,7 @@ async def index(request: Request):
     ctx["opening_actions"] = opening_actions
     ctx["opening_outcome_summary"] = _get_opening_outcome_summary() if opening else ""
     ctx["has_narrative"] = bool(opening or history)
+    ctx["last_history_turn"] = history[-1].get("turn") if history else None
     ctx["pack_name"] = _app_mod._active_pack.manifest.name
     ctx["character_creation_enabled"] = _app_mod.config.get("game", {}).get(
         "character_creation_enabled", True

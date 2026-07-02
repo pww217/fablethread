@@ -448,13 +448,18 @@ function _restoreDebugMetadata() {
         const stateScript = document.getElementById('initial-state');
         if (!stateScript) return;
         const initState = JSON.parse(stateScript.textContent);
+        const metaScript = document.getElementById('initial-state-meta');
+        let lastHistoryTurn = null;
+        if (metaScript) {
+            try { lastHistoryTurn = JSON.parse(metaScript.textContent).last_history_turn; } catch {}
+        }
         const sessionName = (initState.meta || {}).session_name || 'default';
         const raw = localStorage.getItem('ccya_debug_' + sessionName);
         if (!raw) return;
         const data = JSON.parse(raw);
         if (!data || !data.turn) return;
-        // Only restore if the saved turn matches the current turn.
-        if (data.turn !== initState.meta?.turn) return;
+        // Only restore if the saved turn matches the last history turn.
+        if (data.turn !== lastHistoryTurn) return;
         // Find the last narrative block and append the debug row.
         const blocks = document.querySelectorAll('.narrative-block');
         if (!blocks.length) return;

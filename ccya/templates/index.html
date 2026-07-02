@@ -500,6 +500,7 @@
 
 <!-- Initial game state for client-side entity highlighting -->
 <script id="initial-state" type="application/json">{{ (state.to_dict() if state else {}) | tojson | safe }}</script>
+<script id="initial-state-meta" type="application/json">{{ {"last_history_turn": last_history_turn} | tojson | safe }}</script>
 
 </body>
 </html>
