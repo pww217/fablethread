@@ -191,7 +191,7 @@ async def run_turn(
         )
 
         # === Validate & apply delta ===
-        state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings = _apply_phase(
+        state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative = _apply_phase(
             state, delta, record_result, config, trace_id, turn_no, str(save_dir), errors, narrative,
         )
 
@@ -471,10 +471,10 @@ def _apply_phase(
     state: WorldState, delta: StateDelta | None, record_result: Any | None,
     config: EngineConfig, trace_id: str, turn_no: int, save_dir_str: str,
     errors: list[dict[str, Any]], narrative: str,
-) -> tuple[WorldState, WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str]]:
+) -> tuple[WorldState, WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str]:
     """Apply delta + rejection handling.
 
-    Returns: (state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings)
+    Returns: (state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative)
     """
     state_pre_apply = state.model_copy()
     applied: dict[str, Any] = {}
@@ -501,7 +501,7 @@ def _apply_phase(
 
     narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 
-    return state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings
+    return state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative
 
 
 @dataclass
