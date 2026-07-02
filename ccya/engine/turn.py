@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import copy
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -19,7 +18,6 @@ from ccya.engine.extraction import (
     _run_extraction_pipeline,
 )
 from ccya.engine._pacing import (
-    _recent_turn_count,
     derive_allowed_beat_types,
 )
 from ccya.engine.turn_context import TurnContext
@@ -87,25 +85,23 @@ async def run_turn(
         await _inflight.acquire(str(save_dir))
 
         # --- Memory: load last narration turn + prior_history bullets ---
-        recent_turns = load_last_narration(
-            save_dir,
-            _recent_turn_count(state),
-        )
+        recent_turns = load_last_narration(save_dir, 1)
 
         # Build shared context for all phases
         ctx = TurnContext(
             state=state, user_input=user_input, turn_no=0, trace_id=trace_id,
             config=config, recent_turns=recent_turns,
-            save_dir=save_dir, packing={
+            save_dir=save_dir,             packing={
                 "name_locales": pack_name_locales,
                 "narrator_rules": pack_narrator_rules, "world_rules": pack_world_rules,
                 "factions": pack_factions,
-                "inventory": state.get("inventory") or [],
+                "inventory": state.inventory,
             }, _env=env,
         )
 
         # === Call 0: Rules / intent classification (extracted phase) ===
         _intent, _outcome, ruling_metrics, deescalate, ruling_phase_events = await _ruling_phase(ctx)
+        state = ctx.state
         if is_cancel_requested(str(save_dir)):
             return
         for evt in ruling_phase_events:
@@ -118,10 +114,10 @@ async def run_turn(
         ruling_trimmed = ctx._ruling_trimmed
         ruling_trimmed_chars = ctx._ruling_trimmed_chars
 
-        turn_no = state.get("meta", {}).get("turn", 0) + 1
-        # NOTE: turn_no is pre-increment (before state["meta"]["turn"] is updated at line ~355).
+        turn_no = state.meta.turn + 1
+        # NOTE: turn_no is pre-increment (before state.meta.turn is updated via set_turn).
         # It's used for LLM calls (ruling/narrate/extraction) which need the "current" turn number.
-        # The canonical state update happens at line ~355: state["meta"]["turn"] = state.get("meta", {}).get("turn", 0) + 1
+        # The canonical state update happens via state.set_turn(state.meta.turn + 1).
         _log.info(
             "turn.ruling_complete trace_id=%s turn=%d intent=%s outcome=%s",
             trace_id, turn_no, _intent.intent, _outcome.reason,
@@ -129,7 +125,7 @@ async def run_turn(
         )
 
         # TTL expiry: remove world state facts whose expires_turn has passed (before any LLM call)
-        ws = state.get("scene", {}).get("world_state", [])
+        ws = list(state.scene.world_state)
         expired_ids: list[str] = []
         for fact in ws:
             if isinstance(fact, dict) and fact.get("expires_turn") is not None and fact["expires_turn"] <= turn_no:
@@ -137,9 +133,7 @@ async def run_turn(
                 if fact_id:
                     expired_ids.append(fact_id)
         if expired_ids:
-            state.setdefault("scene", {})["world_state"] = [
-                f for f in ws if not (isinstance(f, dict) and f.get("id") in expired_ids)
-            ]
+            state = state.expire_world_state_facts(expired_ids)
             _log.info(
                 "world_state.ttl_expiry trace_id=%s turn=%d expired=%s",
                 trace_id, turn_no, expired_ids, extra={"trace_id": trace_id, "turn": turn_no},
@@ -147,10 +141,7 @@ async def run_turn(
 
         # Append roll to recent_rolls rolling window
         if ctx.outcome and ctx.outcome.rolled:
-            recent_rolls = state.setdefault("meta", {}).setdefault("recent_rolls", [])
-            recent_rolls.insert(0, {"turn": turn_no, "band": ctx.outcome.band})
-            if len(recent_rolls) > 5:
-                recent_rolls.pop()
+            state = state.add_recent_roll({"turn": turn_no, "band": ctx.outcome.band})
 
         # === Call 1: Narration setup (extracted) + streaming ===
         exp_narrate_ms = _avg_event_ms(save_dir, "narrate.total_ms")
@@ -177,6 +168,9 @@ async def run_turn(
             config.host,
             config.model,
             narr_messages,
+            fallback_host=config.fallback_host,
+            fallback_model=config.fallback_model,
+            fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=config.narrate_temperature,
             top_p=config.narrate_top_p,
             frequency_penalty=config.narrate_frequency_penalty,
@@ -315,7 +309,7 @@ async def run_turn(
         )
 
         # === Validate & apply delta ===
-        state_pre_apply = copy.deepcopy(state)
+        state_pre_apply = state.model_copy()
         applied: dict[str, Any] = {}
         rejected: list[dict[str, Any]] = []
         thread_dedup_rejections: list[dict[str, Any]] = []
@@ -346,7 +340,7 @@ async def run_turn(
         changes = summarize_changes(state_pre_apply, state, rejected)
 
         # === Turn increment (single source of truth: here) ===
-        state.setdefault("meta", {})["turn"] = state.get("meta", {}).get("turn", 0) + 1
+        state = state.set_turn(state.meta.turn + 1)
 
         if is_cancel_requested(str(save_dir)):
             return
@@ -382,7 +376,7 @@ async def run_turn(
         event = {
             "ts": _ts,
             "trace_id": trace_id,
-            "turn": state["meta"]["turn"],
+            "turn": state.meta.turn,
             "input": user_input,
             "applied": applied,
             "rejected": rejected,
@@ -393,20 +387,20 @@ async def run_turn(
                 "directive": _pc.directive if _pc else "",
                 "outcome_hint": _pc.outcome_hint if _pc else None,
                 "summary": _pc.summary if _pc else "",
-                "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
-                "climax_turn_count": state.get("scene", {}).get("climax_turn_count", 0),
-                "breather_turn_count": state.get("scene", {}).get("breather_turn_count", 0),
+                "scene_phase": state.scene.scene_phase,
+                "climax_turn_count": state.scene.climax_turn_count,
+                "breather_turn_count": state.scene.breather_turn_count,
                 "convergence_score": _pc.convergence_score if _pc else 0,
                 "convergence_components": _pc.convergence_components if _pc else {},
                 "convergence_threads": _pc.convergence_threads if _pc else [],
             },
-            "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
+            "post_turn_pending_beat": state.meta.pending_gm_beat,
             "allowed_beat_types": derive_allowed_beat_types(
-                state.get("scene", {}).get("scene_phase", "SETUP"),
+                state.scene.scene_phase,
                 directive=_pc.directive if _pc else "",
             ),
-            "post_turn_location_id": state.get("location", {}).get("id"),
-            "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
+            "post_turn_location_id": state.location.id,
+            "scene_phase": state.scene.scene_phase,
             "narrate": narr_metrics | {"prose": narrative},
             "extract": ext_metrics,
             "extraction": extraction_event,
@@ -428,7 +422,7 @@ async def run_turn(
             {
                 "ts": _ts,
                 "trace_id": trace_id,
-                "turn": state["meta"]["turn"],
+                "turn": state.meta.turn,
                 "stream": "ruling",
                 "rendered_system": rendered_ruling_system,
                 "rendered_user": rendered_ruling_user,
@@ -437,7 +431,7 @@ async def run_turn(
             {
                 "ts": _ts,
                 "trace_id": trace_id,
-                "turn": state["meta"]["turn"],
+                "turn": state.meta.turn,
                 "stream": "narrate",
                 "rendered_system": rendered_narr_system,
                 "rendered_user": rendered_narr_user,
@@ -452,7 +446,7 @@ async def run_turn(
                 prompts_list.append({
                     "ts": _ts,
                     "trace_id": trace_id,
-                    "turn": state["meta"]["turn"],
+                    "turn": state.meta.turn,
                     "stream": stream_name,
                     "rendered_system": ctx_meta.get("system_text", ""),
                     "rendered_user": ctx_meta.get("user_text", ""),
@@ -462,25 +456,20 @@ async def run_turn(
 
         append_chronicle(
             save_dir,
-            f"\n\n## Turn {state['meta']['turn']} — {user_input}\n\n{narrative.strip()}",
+            f"\n\n## Turn {state.meta.turn} — {user_input}\n\n{narrative.strip()}",
         )
 
         # Deferred: prior_history + final save_state (sanitizer and World
         # now run as end-of-turn async phases after yield("complete"))
         if outcome_summary and outcome_summary.strip():
-            turn_no = state["meta"]["turn"]
-            bullet = f"- [T{turn_no}] {outcome_summary}"
-            meta = state.setdefault("meta", {})
-            prior = meta.setdefault("prior_history", [])
-            prior.append(bullet)
-            if len(prior) > 10:
-                meta["prior_history"] = prior[-10:]
+            turn_no = state.meta.turn
+            state = state.add_prior_history_bullet(f"- [T{turn_no}] {outcome_summary}")
 
         # Single atomic write block (deferred past async window to include world data)
         # event["last_turn_state"] and append_event/save_state moved to after async window
 
         result_obj = TurnResult(
-            turn=state["meta"]["turn"],
+            turn=state.meta.turn,
             trace_id=trace_id,
             narrative=narrative,
             state_delta=applied,
@@ -494,7 +483,7 @@ async def run_turn(
             ruling=ruling_event or {},
             outcome_summary=outcome_summary,
             outcome_hint=_pc.outcome_hint if _pc else None,
-            scene_phase=state.get("scene", {}).get("scene_phase", "SETUP"),
+            scene_phase=state.scene.scene_phase,
             summary=_pc.summary if _pc else "",
             ts=_ts,
             state_snapshot=state,
@@ -504,12 +493,12 @@ async def run_turn(
         # --- End-of-turn async window (lock held until generator completes) ---
         _log.debug(
             "turn.pre_complete trace_id=%s turn=%d state_turn=%d",
-            trace_id, turn_no, state["meta"]["turn"],
-            extra={"trace_id": trace_id, "turn": state["meta"]["turn"]},
+            trace_id, turn_no, state.meta.turn,
+            extra={"trace_id": trace_id, "turn": state.meta.turn},
         )
 
         # 1. Sanitize (moved from synchronous critical path)
-        _log.debug("turn.async_window_start trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
+        _log.debug("turn.async_window_start trace_id=%s turn=%d", trace_id, state.meta.turn)
         yield ("phase", {"phase": "sanitize_start"})
         t_sanitize = asyncio.get_event_loop().time()
         sanitize_ms: float = 0.0
@@ -519,13 +508,13 @@ async def run_turn(
                     save_dir, state, config, trace_id=trace_id,
                 )
                 sanitize_ms = (asyncio.get_event_loop().time() - t_sanitize) * 1000
-                _log.debug("turn.sanitize_complete trace_id=%s turn=%d sanitize_ran=%s sanitize_ms=%.1f", trace_id, state["meta"]["turn"], sanitize_ran, sanitize_ms)
+                _log.debug("turn.sanitize_complete trace_id=%s turn=%d sanitize_ran=%s sanitize_ms=%.1f", trace_id, state.meta.turn, sanitize_ran, sanitize_ms)
             else:
-                _log.debug("turn.sanitize_skipped trace_id=%s turn=%d sanitize_every=0", trace_id, state["meta"]["turn"])
+                _log.debug("turn.sanitize_skipped trace_id=%s turn=%d sanitize_every=0", trace_id, state.meta.turn)
         except Exception as exc:
             sanitize_ms = (asyncio.get_event_loop().time() - t_sanitize) * 1000
             _log.warning("sanitize step failed: %s", exc, extra={"trace_id": trace_id})
-            _log.debug("turn.sanitize_failed trace_id=%s turn=%d error=%s", trace_id, state["meta"]["turn"], exc)
+            _log.debug("turn.sanitize_failed trace_id=%s turn=%d error=%s", trace_id, state.meta.turn, exc)
         yield ("phase", {"phase": "sanitize_done"})
 
         # Persist sanitize metrics to extraction_event for event log
@@ -539,7 +528,7 @@ async def run_turn(
         # NOTE: World step runs after yield("complete") so it's truly async from frontend.
         # It generates beat candidates for the NEXT turn. If it fails, current turn is still saved.
         yield ("phase", {"phase": "world_start"})
-        _log.debug("turn.world_start trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
+        _log.debug("turn.world_start trace_id=%s turn=%d", trace_id, state.meta.turn)
         world_system_text = ""
         world_user_text = ""
         world_raw_response = ""
@@ -552,10 +541,10 @@ async def run_turn(
             )
         except Exception as exc:
             _log.warning("world step failed: %s", exc, extra={"trace_id": trace_id})
-            _log.debug("turn.world_failed trace_id=%s turn=%d error=%s", trace_id, state["meta"]["turn"], exc)
+            _log.debug("turn.world_failed trace_id=%s turn=%d error=%s", trace_id, state.meta.turn, exc)
         world_ms = (asyncio.get_event_loop().time() - t_world) * 1000
-        _log.debug("turn.world_complete trace_id=%s turn=%d beats=%d world_ms=%d", trace_id, state["meta"]["turn"], len(beat_candidates or []), round(world_ms, 1))
-        state.setdefault("meta", {})["beat_candidates"] = beat_candidates or []
+        _log.debug("turn.world_complete trace_id=%s turn=%d beats=%d world_ms=%d", trace_id, state.meta.turn, len(beat_candidates or []), round(world_ms, 1))
+        state = state.set_beat_candidates(beat_candidates or [])
 
         # Build world extraction event and write prompts (deferred past async window)
         extraction_event["world"] = {
@@ -569,7 +558,7 @@ async def run_turn(
         prompts_list.append({
             "ts": _ts_WORLD,
             "trace_id": trace_id,
-            "turn": state["meta"]["turn"],
+            "turn": state.meta.turn,
             "stream": "world",
             "rendered_system": world_system_text,
             "rendered_user": world_user_text,
@@ -577,14 +566,14 @@ async def run_turn(
         append_prompts(save_dir, prompts_list)
 
         # Save event/state AFTER async window (with world data included)
-        event["last_turn_state"] = state
+        event["last_turn_state"] = state.to_dict()
         append_event(save_dir, event)
         save_state(save_dir, state)
-        _log.debug("turn.async_save_complete trace_id=%s turn=%d", trace_id, state["meta"]["turn"])
+        _log.debug("turn.async_save_complete trace_id=%s turn=%d", trace_id, state.meta.turn)
         _log.info(
             "turn.complete trace_id=%s turn=%d",
-            trace_id, state["meta"]["turn"],
-            extra={"trace_id": trace_id, "turn": state["meta"]["turn"]},
+            trace_id, state.meta.turn,
+            extra={"trace_id": trace_id, "turn": state.meta.turn},
         )
 
         # Build final metrics including async steps for frontend display
@@ -602,7 +591,7 @@ async def run_turn(
                 "ms": round(sanitize_ms, 1),
             }
 
-        yield ("phase", {"phase": "world_done", "metrics": final_metrics, "state": state})
+        yield ("phase", {"phase": "world_done", "metrics": final_metrics, "state": state.to_dict()})
 
     except LlmcTimeout as exc:
         _log.error(
@@ -629,7 +618,7 @@ async def run_turn(
         yield (
             "complete",
             TurnResult(
-                turn=state.get("meta", {}).get("turn", 0),
+                turn=state.meta.turn,
                 trace_id=trace_id,
                 narrative=fallback,
                 state_delta={},
@@ -667,6 +656,9 @@ async def warmup(config: EngineConfig) -> None:
             config.host,
             config.model,
             [{"role": "user", "content": "ok"}],
+            fallback_host=config.fallback_host,
+            fallback_model=config.fallback_model,
+            fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=0.0,
             timeout=30.0,
             num_ctx=config.num_ctx,

@@ -16,6 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
 from ccya.errors import ErrorKind
+from ccya.models import NPCEntry, WorldState
 from ccya.engine import (
     await_turn_done,
     clear_cancel,
@@ -86,15 +87,14 @@ def _apply_seed_to_save_dir(
     seed_dict.setdefault("meta", {})["model"] = _app_mod.engine_config.model
     if pack_source is not None:
         seed_dict.setdefault("meta", {})["_pack_source"] = pack_source
+    if opening_narrative is not None:
+        seed_dict.setdefault("pc", {}).setdefault("situation", {})["opening"] = opening_narrative
     if opening_narrative is not None or actions is not None:
-        seed_dict["__seed_meta__"] = {
-            "opening_narrative": opening_narrative or "",
+        seed_dict["seed_meta"] = {
             "actions": actions or [],
             "outcome_summary": outcome_summary,
         }
-    if pool_selection:
-        seed_dict["__seed_pools__"] = pool_selection
-    init_save_dir(save_dir, seed_dict)
+    init_save_dir(save_dir, WorldState.from_dict(seed_dict))
     if opening_narrative is not None:
         _app_mod._dynamic_opening = opening_narrative
     else:
@@ -162,12 +162,9 @@ def _list_saves() -> list[dict[str, Any]]:
         except Exception:
             continue
 
-        meta = state.get("meta", {}) or {}
-        pack_name = meta.get("setting_pack") or meta.get("pack")
-        pc = state.get("pc", {}) or {}
-        pc_name = pc.get("name")
-        loc = state.get("location", {}) or {}
-        location_name = loc.get("name")
+        pack_name = state.meta.setting_pack
+        pc_name = state.pc.name
+        location_name = state.location.name
 
         resolved = entry.resolve()
         kind = "eval" if str(resolved).startswith(str(Path("evals/runs").resolve())) else "user"
@@ -208,18 +205,18 @@ async def index(request: Request):
     history = _load_recent_history(_app_mod.SAVE_DIR)
     last_actions = _load_last_actions(_app_mod.SAVE_DIR) if history else []
     state = _load_current_state()
-    _resolve_npc_personalities(state)
+    state = _resolve_npc_personalities(state)
     opening = _load_opening_from_chronicle(_app_mod.SAVE_DIR) or _get_opening()
     opening_actions = _load_opening_actions(_app_mod.SAVE_DIR) if not history and not last_actions else []
     ctx = _debug_context()
     ctx["state"] = state
-    state["last_history_turn"] = history[-1].get("turn") if history else None
     ctx["history"] = history
     ctx["last_actions"] = last_actions
     ctx["opening"] = opening
     ctx["opening_actions"] = opening_actions
-    ctx["opening_outcome_summary"] = (state.get("__seed_meta__") or {}).get("outcome_summary", "") or (_get_opening_outcome_summary() if opening else "")
+    ctx["opening_outcome_summary"] = _get_opening_outcome_summary() if opening else ""
     ctx["has_narrative"] = bool(opening or history)
+    ctx["last_history_turn"] = history[-1].get("turn") if history else None
     ctx["pack_name"] = _app_mod._active_pack.manifest.name
     ctx["character_creation_enabled"] = _app_mod.config.get("game", {}).get(
         "character_creation_enabled", True
@@ -324,7 +321,7 @@ async def get_turn(input: str = ""):
                                 "diff": result.diff,
                                 "changes": ch,
                                 "change_lines": format_change_lines(ch),
-                                "state": result.state_snapshot,
+                                "state": result.state_snapshot.to_dict(),
                                 "metrics": result.metrics,
                                 "ruling": result.ruling,
                                 "outcome_summary": result.outcome_summary,
@@ -499,7 +496,7 @@ async def new_game(request: Request):
 
     _log.info("new_game pack=%s", _app_mod._pack_id)
     ctx = _debug_context()
-    _resolve_npc_personalities(ctx["state"])
+    ctx["state"] = _resolve_npc_personalities(ctx["state"])
     return _app_mod._render("_state.html", ctx)
 
 
@@ -551,15 +548,15 @@ def panel_state(request: Request):
         return err
     _log.debug("panel_state called")
     ctx = _debug_context()
-    _resolve_npc_personalities(ctx["state"])
+    ctx["state"] = _resolve_npc_personalities(ctx["state"])
     return _app_mod._render("_state.html", ctx)
 
 
-def _resolve_npc_personalities(state: dict[str, Any]) -> None:
+def _resolve_npc_personalities(state: WorldState) -> WorldState:
     """Resolve archetype ids to human-readable label/traits for the UI."""
     from ccya.personality import ARCHETYPES
 
-    npcs = (state.get("compendium") or {}).get("npcs") or {}
+    npcs = state.compendium.npcs
     # Build tie lookup: id → description from the active pack's scenario
     tie_lookup: dict[str, str] = {}
     try:
@@ -569,25 +566,28 @@ def _resolve_npc_personalities(state: dict[str, Any]) -> None:
     except Exception:
         pass
 
+    updated: dict[str, NPCEntry] = {}
     for key, entry in npcs.items():
-        if not isinstance(entry, dict):
-            continue
+        updates: dict[str, Any] = {}
         # Ensure a display_name exists for sorting/templates when name is missing
-        if "display_name" not in entry:
-            entry["display_name"] = (
-                entry.get("name")
-                or entry.get("title")
-                or key
-            )
-        arch_id = entry.get("personality")
+        if not entry.name:
+            updates["name"] = entry.title or key
+        arch_id = entry.personality
         if arch_id and arch_id in ARCHETYPES:
             arch = ARCHETYPES[arch_id]
-            entry["personality_label"] = arch.label
-            entry["personality_traits"] = ", ".join(arch.traits)
+            updates["personality_label"] = arch.label
+            updates["personality_traits"] = ", ".join(arch.traits)
         # Resolve tie ID to human-readable description
-        raw_tie = entry.get("tie")
+        raw_tie = entry.tie
         if raw_tie and raw_tie in tie_lookup:
-            entry["tie_label"] = tie_lookup[raw_tie]
+            updates["tie_label"] = tie_lookup[raw_tie]
+        if updates:
+            updated[key] = entry.model_copy(update=updates)
+
+    if not updated:
+        return state
+    merged = {**npcs, **updated}
+    return state.model_copy(update={"compendium": state.compendium.model_copy(update={"npcs": merged})})
 
 
 @_app_mod.app.get("/panels/state-left")
@@ -595,7 +595,7 @@ def panel_state_left(request: Request):
     if err := _require_save():
         return err
     state = _load_current_state()
-    _resolve_npc_personalities(state)
+    state = _resolve_npc_personalities(state)
     return _app_mod._render("_state_left.html", {"state": state})
 
 

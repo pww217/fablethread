@@ -14,7 +14,7 @@ from ccya.engine.config import EngineConfig, _render
 from ccya.engine._pacing import derive_allowed_beat_types
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.llm_client import chat as llm_chat
-from ccya.models import GMBeat
+from ccya.models import GMBeat, WorldState
 from ccya.personality import ARCHETYPES
 
 _log = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ _log = logging.getLogger(__name__)
 
 async def _run_world_step(
     env: Environment,
-    state: dict[str, Any],
+    state: WorldState,
     narration: str,
     pacing_context: Any | None,
     config: EngineConfig,
@@ -38,31 +38,31 @@ async def _run_world_step(
     usage is a dict with tokens_in and tokens_out.
     On any failure, returns ([], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}).
     """
-    arc = state.get("arc") or {}
-    recent_beats = list((state.get("meta") or {}).get("recent_beats", []) or [])
-    scene_phase = (state.get("scene") or {}).get("scene_phase", "SETUP")
+    recent_beats = list(state.meta.recent_beats or [])
+    scene_phase = state.scene.scene_phase or "SETUP"
 
-    comp = state.get("compendium", {}).get("npcs", {})
+    comp = state.compendium.npcs or {}
     npc_roster = build_npc_roster(comp, turn_no=turn_no, personality_registry=ARCHETYPES)
     # Only include present NPCs in beat generation to avoid re-injecting nearby NPCs
     # that should be decaying. Nearby NPCs are excluded from beats to prevent the
     # feedback loop: beats -> narration -> extractor re-promotion -> beats for present.
     npc_roster = [n for n in npc_roster if n.get("presence") == "present"]
 
-    pc = state.get("pc") or {}
-    pc_directive = pc.get("directive", "") if isinstance(pc, dict) else ""
+    pc_directive = state.pc.situation.get("directive", "") if isinstance(state.pc.situation, dict) else ""
     allowed_beat_types = derive_allowed_beat_types(
         scene_phase,
         directive=pc_directive,
     )
 
     rules_outcome_dict: dict[str, Any] = {}
-    rules_outcome = (state.get("meta") or {}).get("last_rules_outcome") or {}
+    rules_outcome = state.meta.last_rules_outcome or {}
     if isinstance(rules_outcome, dict):
         rules_outcome_dict = {
             "band": rules_outcome.get("band", ""),
             "rolled": bool(rules_outcome.get("rolled", False)),
         }
+
+    arc = state.arc.model_dump()
 
     system_text = _render(env, "world_system.j2", {})
     user_text = _render(
@@ -92,6 +92,8 @@ async def _run_world_step(
                 config.host,
                 config.model,
                 messages,
+                fallback_host=config.fallback_host,
+                fallback_cooldown_s=config.fallback_cooldown_s,
                 temperature=config.world_temperature,
                 top_p=config.extract_top_p,
                 timeout=60.0,  # asyncio.timeout() handles wall-clock timeout
@@ -193,16 +195,11 @@ async def _run_world_step(
 
     # Append all generated beats to recent_beats for diversity tracking
     # (not just selected beats — unselected beats should still be tracked to avoid repetition)
-    meta = state.setdefault("meta", {})
     for vb in valid_beats:
-        meta.setdefault("recent_beats", []).append({
-            "turn": turn_no,
-            "type": vb.get("type"),
-            "effect": vb.get("effect", ""),
-        })
-    max_beats = config.recent_beats_max
-    if len(meta["recent_beats"]) > max_beats:
-        meta["recent_beats"] = meta["recent_beats"][-max_beats:]
+        state = state.add_recent_beat(
+            {"turn": turn_no, "type": vb.get("type"), "effect": vb.get("effect", "")},
+            max_size=config.recent_beats_max,
+        )
 
     _log.debug("world.step_complete trace_id=%s turn=%d valid_beats=%d", trace_id, turn_no, len(valid_beats))
     return valid_beats, system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}

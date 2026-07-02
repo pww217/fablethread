@@ -11,7 +11,7 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json
 from ccya.llm_client import chat as llm_chat
-from ccya.models import ArcThread, LongTermObjective, ProgressEntry, SanitizedWorldStateFact, ThreadResolution, ThreadUpdate
+from ccya.models import ArcThread, LongTermObjective, ProgressEntry, SanitizedWorldStateFact, ThreadResolution, ThreadUpdate, WorldState
 from ccya.state.chronicle import append_event, load_last_narration
 
 _log = logging.getLogger(__name__)
@@ -19,15 +19,15 @@ _log = logging.getLogger(__name__)
 
 async def sanitize_threads(
     save_dir: Path,
-    state: dict[str, Any],
+    state: WorldState,
     config: EngineConfig,
     trace_id: str = "",
-) -> tuple[dict[str, Any], bool]:
+) -> tuple[WorldState, bool]:
     """Run thread sanitization if current turn triggers it.
 
     Returns:
         (state, sanitize_ran) — sanitize_ran is True when any thread
-        changes were applied. state is mutated in place.
+        changes were applied.
     """
     try:
         return await _sanitize_threads_impl(save_dir, state, config, trace_id)
@@ -38,16 +38,15 @@ async def sanitize_threads(
 
 async def _sanitize_threads_impl(
     save_dir: Path,
-    state: dict[str, Any],
+    state: WorldState,
     config: EngineConfig,
     trace_id: str = "",
-) -> tuple[dict[str, Any], bool]:
+) -> tuple[WorldState, bool]:
     """Core sanitization logic (wrapped by sanitize_threads for exception safety)."""
     if config.sanitize_every <= 0:
         return state, False
 
-    meta = state.get("meta") or {}
-    current_turn = int(meta.get("turn", 0))
+    current_turn = state.meta.turn
     if current_turn == 0:
         _log.debug("thread_sanitizer: skipping turn %d", current_turn)
         return state, False
@@ -56,8 +55,8 @@ async def _sanitize_threads_impl(
         return state, False
 
     recent_turns = load_last_narration(save_dir, 5)
-    prior_history = list(meta.get("prior_history") or [])
-    turn_no = int(meta.get("turn", 0))
+    prior_history = list(state.meta.prior_history or [])
+    turn_no = state.meta.turn
 
     env = _build_jinja_env(str(Path(__file__).parent.parent / "prompts"))
     messages = _build_messages(env, state, recent_turns, prior_history, turn_no, current_turn, sanitize_every=config.sanitize_every)
@@ -68,6 +67,8 @@ async def _sanitize_threads_impl(
             config.host,
             config.model,
             messages,
+            fallback_host=config.fallback_host,
+            fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=config.sanitize_temperature,
             timeout=float(config.request_timeout_s),
             num_ctx=config.num_ctx,
@@ -85,7 +86,7 @@ async def _sanitize_threads_impl(
         )
         return state, False
 
-    changes_made, changes_detail = _apply_sanitization(state, parsed, current_turn)
+    state, changes_made, changes_detail = _apply_sanitization(state, parsed, current_turn)
 
     if not changes_made:
         _log.warning(
@@ -130,7 +131,7 @@ async def _sanitize_threads_impl(
 
 def _build_messages(
     env: Any,
-    state: dict[str, Any],
+    state: WorldState,
     recent_turns: list[dict[str, Any]],
     prior_history: list[str],
     turn_no: int,
@@ -138,20 +139,20 @@ def _build_messages(
     sanitize_every: int = 1,
 ) -> list[dict[str, str]]:
     """Build system + user messages for the sanitizer LLM call."""
-    arc = state.get("arc") or {}
+    arc = state.arc
 
     system_prompt = env.get_template("sanitize_thread.j2").render()
 
-    long_term_objective = arc.get("long_term_objective", "")
-    resolution = arc.get("resolution")
-    threads = [{**t, "last_updated_turn": t.get("last_updated_turn"), "progress": t.get("major_updates") or []} for t in (arc.get("threads") or [])]
-    completed_threads = [{**ct, "last_updated_turn": ct.get("last_updated_turn"), "progress": ct.get("major_updates") or [], "resolved_turn": ct.get("resolved_turn")} for ct in (arc.get("completed_threads") or [])]
+    long_term_objective = arc.long_term_objective or ""
+    resolution = arc.resolution
+    threads = [{**t.model_dump(), "last_updated_turn": t.last_updated_turn, "progress": [p.text for p in (t.major_updates or [])]} for t in (arc.threads or [])]
+    completed_threads = [{**ct.model_dump(), "last_updated_turn": ct.last_updated_turn, "progress": [p.text for p in (ct.major_updates or [])], "resolved_turn": ct.resolved_turn} for ct in (arc.completed_threads or [])]
     # TTL pass: drop candidates older than sanitize_every * 2 turns
     # Prevents accumulation when sanitizer is disabled or skipped
-    raw_candidates = state.get("world_state_candidates", [])
+    raw_candidates = list(state.world_state_candidates or [])
     ttl_cutoff = current_turn - (sanitize_every * 2)
     world_state_candidates = [c for c in raw_candidates if c.get("resolved_turn", 0) >= ttl_cutoff]
-    current_world_state = state.get("scene", {}).get("world_state", [])
+    current_world_state = list(state.scene.world_state)
 
     user_prompt = env.get_template("sanitize_thread.j2").render(
         long_term_objective=long_term_objective,
@@ -324,26 +325,18 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _apply_sanitization(
-    state: dict[str, Any],
+    state: WorldState,
     parsed: dict[str, Any],
     current_turn: int,
-    ) -> tuple[bool, dict[str, Any]]:
+    ) -> tuple[WorldState, bool, dict[str, Any]]:
     """Apply sanitization changes to arc state.
 
     1. goal_update: replace long_term_objective if non-null
     2. thread_updates: find by ID in threads[], apply non-null fields
     3. resolved_threads: move from threads[] to completed_threads[]
-    Returns (has_changes, changes_detail).
+    Returns (state, has_changes, changes_detail).
     """
-    arc_raw = state.get("arc", {})
-    if not arc_raw:
-        return False, {}
-
-    try:
-        arc = LongTermObjective.model_validate(state.get("arc", {}))
-    except Exception as exc:
-        _log.warning("thread_sanitizer: failed to validate arc, skipping: %s", exc)
-        return False, {}
+    arc = state.arc
 
     changes_detail: dict[str, Any] = {
         "updated": {},
@@ -370,7 +363,7 @@ def _apply_sanitization(
         if new_goal != arc.long_term_objective:
             changes_detail["goal_before"] = changes_detail["goal"]["before"] = arc.long_term_objective or None
             changes_detail["goal_after"] = changes_detail["goal"]["after"] = new_goal
-            arc.long_term_objective = new_goal
+            arc = arc.model_copy(update={"long_term_objective": new_goal})
 
     # Build lookup maps for thread resolution by ID
     threads_by_id: dict[str, int] = {}
@@ -426,7 +419,10 @@ def _apply_sanitization(
                 updates_dict["urgency"] = "background"
 
         if updates_dict:
-            arc.threads[found_idx] = arc.threads[found_idx].model_copy(update=updates_dict)
+            arc = arc.model_copy(update={"threads": [
+                t.model_copy(update=updates_dict) if i == found_idx else t
+                for i, t in enumerate(arc.threads)
+            ]})
             updated_ids.append(tid)
             changes_detail["updated"][tid] = delta
 
@@ -457,7 +453,7 @@ def _apply_sanitization(
         )
 
         # Remove from threads[], add to completed_threads[] (dedup by id)
-        arc.threads = [t for t in arc.threads if t.id != tid]
+        new_threads = [t for t in arc.threads if t.id != tid]
         existing_completed_idx: int | None = None
         for i, ct in enumerate(arc.completed_threads):
             if ct.id == tid:
@@ -465,9 +461,12 @@ def _apply_sanitization(
                 break
 
         if existing_completed_idx is not None:
-            arc.completed_threads[existing_completed_idx] = completed_entry
+            new_completed = list(arc.completed_threads)
+            new_completed[existing_completed_idx] = completed_entry
         else:
-            arc.completed_threads.append(completed_entry)
+            new_completed = list(arc.completed_threads) + [completed_entry]
+
+        arc = arc.model_copy(update={"threads": new_threads, "completed_threads": new_completed})
 
         resolved_ids.append(tid)
         entry = {"id": tid, "resolution_state": resolution_state, "outcome": outcome}
@@ -482,22 +481,23 @@ def _apply_sanitization(
 
     # Set last_thread_created_turn if any threads were added
     if added_ids and arc.threads:
-        arc.last_thread_created_turn = current_turn
+        arc = arc.model_copy(update={"last_thread_created_turn": current_turn})
 
     # 6. world_state — atomic swap: replace entire world_state array
     new_world_state = parsed.get("world_state")
     if new_world_state is not None:
-        state.setdefault("scene", {})["world_state"] = new_world_state
-        # Clear processed candidates
-        state.pop("world_state_candidates", None)
+        state = state.set_world_state(
+            [SanitizedWorldStateFact(**ws).model_dump(exclude_none=True) for ws in new_world_state]
+        )
+        state = state.model_copy(update={"world_state_candidates": []})
 
     # Write back mutated arc (only if something changed)
     has_changes = bool(updated_ids or resolved_ids or added_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])
 
     if has_changes:
-        state.setdefault("arc", {}).update({**_dump_arc(arc), "threads": [t.model_dump() for t in arc.threads], "completed_threads": [t.model_dump() for t in arc.completed_threads]})
+        state = state.model_copy(update={"arc": arc})
 
-    return has_changes, changes_detail
+    return state, has_changes, changes_detail
 
 
 def _dump_arc(arc: LongTermObjective) -> dict[str, Any]:

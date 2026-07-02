@@ -1,6 +1,6 @@
 ---
 title: "Engine core tech debt audit and cleanup"
-status: scoping
+status: up-next
 urgency: 2
 size: xlarge
 created: 2026-06-29
@@ -9,6 +9,7 @@ labels:
   - engine
   - refactoring
   - type-safety
+plan: plans/completed/state/i17-3-worldstate-plan.md
 ---
 
 ## Summary
@@ -65,17 +66,18 @@ Comprehensive audit of engine core (`ccya/engine/`, `ccya/state/`, `ccya/models/
     - Impact: Hard to test (global state), stale entries accumulate if `signal_turn_done` not called on crash. No actual concurrency issues in production.
     - Fix: Move to instance-scoped `TurnCoordinator` or pass via `TurnContext`.
 
-3. **`dict[str, Any]` state everywhere — VALIDATED**
+3. **`dict[str, Any]` state everywhere — DONE (2026-07-01)**
     - State accessed via `state.get("arc") or {}`, `state.get("meta", {}).get("turn", 0)` in 100+ locations.
     - Pydantic models in `models/state.py` and `models/extraction.py` parsed but immediately cast to dicts.
     - Impact: No type safety, no validation, easy to introduce bugs with typos.
     - Fix: Create structured `WorldState` Pydantic model for engine-internal use.
+    - **Result:** See [Result: I-17 #3 WorldState Migration](#result-i-17-3-worldstate-migration) below. 7 commits, 5 phases, plan in `plans/completed/state/i17-3-worldstate-plan.md`.
 
-4. **Circular import workaround — VALIDATED**
-    - `state/delta.py` is 38 lines of lazy re-exports from `state/delta_builder.py`.
-    - `turn_state.py` and `context.py` already import directly from `delta_builder.py`.
-    - Impact: Adds indirection layer with no benefit. Confusing for new contributors.
-    - Fix: Remove `delta.py`, import directly from `delta_builder.py`.
+4. **Circular import workaround — RESOLVED**
+    - `state/delta.py` was 38 lines of lazy re-exports from `state/delta_builder.py`.
+    - Removed `state/delta.py`, updated `state/__init__.py` to import directly from `delta_builder.py`.
+    - Impact: Eliminated unnecessary indirection layer.
+    - Fix: Done — `state/delta.py` deleted, `state/__init__.py` updated.
 
 5. **Boundary model gaps — VALIDATED (symptom of #3)**
     - Every boundary model in `context.py` is out of sync with what templates actually consume. See I-18 for full list.
@@ -162,3 +164,102 @@ I-17 #10 (thread sanitizer, 505 lines) is a separate ticket I-21 because it's a 
 I-17 #8 (pacing consolidation, 318 lines) is not a separate ticket. It's one file doing one job. After I-17 #3, `_compute_scene_phase` becomes a pure function on typed models and the 318 lines are fine.
 
 **Execution order:** I-18 first (prompt-only, low risk). I-17 #3 (root cause for boundary models). I-19 (phased subroutines) after #3. I-17 #5 (Jinja caching) is independent and can run in parallel. I-21 (thread sanitizer) can run after #3. I-17 #7 (pipeline DRY) and #8 (pacing) are mechanical refactors after #3.
+
+---
+
+## Result: I-17 #3 WorldState Migration
+
+**Completed:** 2026-07-01. **Branch:** `i17-3-worldstate`. **Plan:** `plans/completed/state/i17-3-worldstate-plan.md`.
+
+### What was built
+
+- **`WorldState` Pydantic model** in `ccya/models/state.py` — typed root model with section models (`Meta`, `PC`, `Scene`, `NPCEntry`, `Compendium`, `LongTermObjective`, `World`). `from_dict()` / `to_dict()` for YAML round-trip. `seed_meta` field added (renamed from `__seed_meta__`).
+- **21 typed mutators** on `WorldState` — immutable pattern, each returns new `WorldState`. Covers turns, beats, rolls, history, compendium, conditions, world_state, NPC lifecycle.
+- **I/O** — `load_state()` / `save_state()` / `init_save_dir()` / `default_world_state()` in `ccya/state/io.py`.
+- **Engine migration** — 51+ functions across `engine/turn.py`, `engine/turn_state.py`, `engine/narrate.py`, `engine/ruling.py`, `engine/world.py`, `engine/thread_sanitizer.py`, `engine/extraction/`, `state/delta_builder.py`, `state/npcs.py` now take `WorldState` (not `dict[str, Any]`).
+
+### Pre-existing bugs found and fixed
+
+- **`world_state_candidates` nested in `meta`** — was written to `state.meta.world_state_candidates` in `turn_state.py` and `thread_sanitizer.py`; it's a top-level `WorldState` field. Data was lost every turn. Fixed.
+- **`isinstance(entry, dict)` guards always False** — NPC decay/archive and location-change logic guarded on dict but received typed `NPCEntry` models. The logic never ran. Fixed.
+- **`presence: "archived"` not in `NpcPresence` enum** — used as raw string, would have failed validation. Added `ARCHIVED` value.
+- **Stale `comp` reference in `turn_state.py:480`** — captured before loop, not refreshed after `add_npc()`/`update_npc()`. Duplicate NPC IDs would re-add instead of update. Fixed during Phase 04 review.
+- **`__seed_meta__` → `seed_meta`** — renamed; old name was dunder-style and bypassed type checking. Updated both seed builders and all readers (`panels.py`, `routes.py`, `tv.py`).
+
+### Runtime gaps found via eval (post-cleanup)
+
+- **`WorldState.from_dict` set `{}` for list fields** — `resolved_arcs` and `world_state_candidates` got empty dicts instead of empty lists when `SeedState.model_dump()` was passed through. Caused `ValidationError`. Fixed.
+- **Jinja templates received Pydantic models** — `_inventory.j2` uses `.get()` which fails on Pydantic models. Dumped to dicts at template boundary in `narrate.py`.
+- **`event["last_turn_state"]` stored Pydantic model** — `json.dumps` with `default=str` fell back to `str(state)`. Downstream consumers expected dict. Fixed in `turn.py`.
+
+### Commits
+
+| Commit | Phase |
+|--------|-------|
+| `2c46be3` | Phase 01: `WorldState` model + section models |
+| `8edbef9` | Phase 03: migrate read access to `WorldState` |
+| `d1cf461` | Phase 04: 21 typed mutators |
+| `5ae396c` | Plan housekeeping |
+| `6abf413` | Phase 04 review: fix stale `comp` reference |
+| `082f2dd` | Phase 05: cleanup (rename `_default_state` → `default_world_state`) |
+| `a881f14` | Phase 05 review: fix 3 runtime gaps found via eval |
+
+### Verified
+
+- `make check` passes (ruff + mypy + pack YAML + vulture, 100 files).
+- 2 successful 3-turn LLM evals (noir:driven, space-western:speedrunner). No runtime errors.
+
+### Docs updated
+
+- `docs/architecture/state-models.md` — `WorldState` model entry, typed mutator table, I/O section. Fixed `__seed_meta__` → `seed_meta`, corrected `NpcPresence` description.
+- `docs/repomap.md` — `ccya/state/io.py` entry includes `default_world_state()`.
+- `AGENTS.md` — State model signpost (immutable, typed mutators).
+
+### Remaining
+
+- **PR #9 created** — branch `i17-3-worldstate` merged to `main`. 17 commits, 52+ files, +1420/-820.
+- **Other I-17 findings (#1, #2, #6–#13) remain open** — see Findings section above. Finding #3 was the root cause for I-2 (boundary model gaps) per cross-ticket links.
+
+### Post-merge runtime fixes (2026-07-01)
+
+After merging, several runtime issues surfaced that need fixing on `main`:
+
+1. **`routes.py:165-170` — dict-style access on WorldState**
+   - `state.get("meta", {})`, `state.get("pc", {})`, `state.get("location", {})` called on `WorldState` model → `'Meta object' has no attribute 'get'`
+   - Fixed: `state.meta.setting_pack`, `state.pc.name`, `state.location.name`
+
+2. **`routes.py:217` — dict-style access on `state.seed_meta`**
+   - `(state.seed_meta or {}).get("outcome_summary", "")` — `seed_meta` is `Meta` model, not dict
+   - Fixed: use `_get_opening_outcome_summary()` helper instead
+
+3. **Jinja templates calling `.get()` on Pydantic models**
+   - `index.html:6,32` — `state.meta.get('session_name')`, `state.pc.get('name')`, `state.location.get('name')`
+   - `_state_left.html` — NPC access via `npc.get('name')`, `npc.get('bio')`, etc. across 30+ locations
+   - `_state_left.html` — arc access via `_arc.get('threads')`, `_arc.get('resolution')`, `thread.get('urgency')`
+   - `_state_left.html` — compendium access via `entry.get('name')`, `entry.get('presence')`, etc.
+   - `_state_right.html` — `state.pc.get('tagline')`, `state.pc.get('name')`, `item.get('amount')`
+   - Fixed: all converted to attribute access (e.g., `state.meta.session_name`, `npc.name`, `state.pc.name`)
+
+4. **`index.html:502` — WorldState passed to `|tojson` filter**
+   - `{{ (state if state else {}) | tojson | safe }}` — Pydantic model not JSON serializable
+   - Fixed: `{{ (state.to_dict() if state else {}) | tojson | safe }}`
+
+5. **Missing `app.css`**
+   - `app.css` is generated from `app.src.css` via Tailwind (`make css`). Worktree had no compiled CSS.
+   - Fixed: ran `make css` to generate from source.
+
+6. **`routes.py:323` — WorldState passed to `json.dumps` in turn_complete**
+   - `"state": result.state_snapshot` — `TurnResult.state_snapshot` is typed `WorldState`, not dict
+   - Fixed: `"state": result.state_snapshot.to_dict()`
+
+7. **Ruling state mutations not propagated to downstream phases**
+   - `_ruling_phase` mutated state via `model_copy()` but never wrote back to `ctx.state` — downstream phases (narrate, extraction, world) never saw `pending_gm_beat` or cleared `beat_candidates`
+   - Fixed: added `ctx.state = state` at end of `_ruling_phase` and `state = ctx.state` after ruling call in `turn.py`
+
+8. **Debug metadata not persisting on page refresh**
+   - `routes.py` used to inject `state["last_history_turn"]` into dict before passing to template — WorldState model can't have arbitrary keys
+   - Fixed: pass as separate context var, render in new `<script id="initial-state-meta">` tag, update JS to read from both tags
+
+### Resolved
+
+All post-merge runtime issues are resolved. Finding #3 is fully closed.

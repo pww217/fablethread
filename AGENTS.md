@@ -34,6 +34,14 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module index, entry poin
 
 Two template systems exist — see `docs/architecture/cross-module-contracts.md` for locations and routing.
 
+### State model
+
+- `ccya/models/state.py` defines `WorldState` (root Pydantic model) and all section models (`Meta`, `PC`, `Scene`, `NPCEntry`, `Compendium`, `LongTermObjective`, etc.).
+- All engine/state functions that read or mutate state take `WorldState` — never `dict[str, Any]`.
+- State is **immutable**. Mutation goes through typed mutator methods (`state.set_turn(n)`, `state.add_npc(id, entry)`, etc.) that return a new `WorldState`. Never use `state["key"] = value` or `state.setdefault("key", value)` in engine code.
+- I/O: `ccya/state/io.py` — `load_state()`, `save_state()`, `init_save_dir()`, `default_world_state()`.
+- Typed mutator list and field routing: see [docs/architecture/state-models.md](docs/architecture/state-models.md).
+
 ---
 
 ## Code & docs
