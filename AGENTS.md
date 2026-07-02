@@ -189,6 +189,7 @@ Read `docs/architecture/` for how things work (pipeline, state models, contracts
 Cross-cutting tasks:
 
 - Modify turn pipeline → read `docs/architecture/OVERVIEW.md` (pipeline overview) + subdocs (`step0-ruling.md`, `step1-narrate.md`, etc.) for design details; `docs/repomap.md` (5-call pipeline section) for code-level mapping
+- Turn pipeline structure: `run_turn()` orchestrator in `turn.py` (~210 lines, down from 667) calls extracted subroutines: `_narrate_phase()` (narration streaming), `_extract_phase()` (extraction pipeline + metrics), `_apply_phase()` (delta application + rejection), `_persist_and_async_cleanup()` (event building, prompt logging, async sanitize/world, save); pipeline order: rules→narrate→extract→apply→persist; end-of-turn async phases (Sanitize + World) after yield("complete")
 - Add new config option → read `docs/architecture/OVERVIEW.md` (config section)
 - Debug extraction → read `docs/architecture/OVERVIEW.md` (quick reference table) + relevant step subdoc (`step2a-scene.md`, etc.); `docs/repomap.md` (extraction field routing section) for code-level mapping
 - Debug/inspect events → read `docs/ev/COMMANDS.md` for ev.py commands; `docs/ev/EVAL-RUNS.md` for eval run storage; `docs/ev/CHECKERS.md` for checker docs
