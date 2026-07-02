@@ -1,15 +1,16 @@
 ---
 title: "Engine core tech debt audit and cleanup"
-status: up-next
+status: done
 urgency: 2
 size: xlarge
 created: 2026-06-29
+completed: 2026-07-02
 ticket_id: I-17
 labels:
   - engine
   - refactoring
   - type-safety
-plan: plans/i17-3-worldstate-plan.md
+plan: plans/completed/state/i17-3-worldstate-plan.md
 ---
 
 ## Summary
