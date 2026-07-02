@@ -36,7 +36,7 @@ flowchart TD
 
 ### Definition
 
-The phase engine tracks `state["scene"]["scene_phase"]` through five states: SETUP, RISING, CLIMAX, RESOLUTION, BREATHER. Transitions are driven by convergence score (6 components, urgent_thread 0-2, EMA smoothed) and scene age.
+The phase engine tracks `state.scene.scene_phase` through five states: SETUP, RISING, CLIMAX, RESOLUTION, BREATHER. Transitions are driven by convergence score (6 components, urgent_thread 0-2, EMA smoothed) and scene age.
 
 ### Phase transitions
 

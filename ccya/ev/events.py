@@ -7,6 +7,7 @@ from typing import Any, cast
 
 import yaml
 
+from ccya.models import WorldState
 from ccya.state.io import load_state as _engine_load_state
 
 STREAMS = ("ruling", "narrate", "scene", "state", "record", "world")
@@ -80,7 +81,7 @@ def extract_extraction_context(event: dict[str, Any]) -> dict[str, Any]:
     return cast(dict[str, Any], event.get("extraction_context", {}))
 
 
-def load_current_state(save_dir: Path) -> dict[str, Any]:
+def load_current_state(save_dir: Path) -> WorldState:
     return _engine_load_state(save_dir)
 
 

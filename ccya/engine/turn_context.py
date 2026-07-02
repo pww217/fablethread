@@ -7,13 +7,13 @@ from pathlib import Path
 from typing import Any
 
 from ccya.engine.config import EngineConfig
-from ccya.models import IntentEnvelope, RulesOutcome
+from ccya.models import IntentEnvelope, RulesOutcome, WorldState
 
 
 @dataclass
 class TurnContext:
     """Shared context across run_turn phases."""
-    state: dict[str, Any]
+    state: WorldState
     user_input: str
     turn_no: int
     trace_id: str

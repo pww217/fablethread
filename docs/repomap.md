@@ -27,7 +27,7 @@
 | `ccya/engine/npc_roster.py` | NPC roster builder: presence filter, recency+richness scoring, top-12 selection |
 | `ccya/engine/generate_pack.py` | SSE-driven ephemeral pack generation from world brief |
 | `ccya/state/__init__.py` | Re-exports all state symbols |
-| `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir |
+| `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir, default_world_state() |
 | `ccya/state/delta_builder.py` | apply_delta(), reconcile_delta(), _merge_arc_update() — condition/inventory dedup; assigns default TTL when LLM omits turns_remaining
 | `ccya/state/inventory.py` | Inventory ID normalization + fuzzy matching |
 | `ccya/state/npcs.py` | `_is_named()` proper-name heuristic, compendium LRU, scene management (`apply_npc_scene_management`, `touch_compendium_order`) |

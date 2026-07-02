@@ -10,6 +10,8 @@ from typing import Any, Literal
 
 import yaml
 
+from ccya.models.state import WorldState
+
 _log = logging.getLogger(__name__)
 
 SkillName = Literal["strength", "dexterity", "wits", "charisma"]
@@ -44,7 +46,7 @@ class TurnResult:
     scene_phase: str = field(default="")
     summary: str = field(default="")
     ts: str = field(default="")
-    state_snapshot: dict[str, Any] = field(default_factory=dict)
+    state_snapshot: WorldState = field(default_factory=WorldState)
 
 
 def load_config(path: str | os.PathLike[str] = "config.yaml") -> dict[str, Any]:

@@ -12,9 +12,9 @@ from ccya.engine.config import EngineConfig, build_engine_config
 from ccya.engine.seed import prepare_seed, narrate_seed
 from ccya.engine.turn import run_turn
 from ccya.errors import LlmcError, LlmcTimeout
-from ccya.models import TurnResult, load_config
+from ccya.models import TurnResult, WorldState, load_config
 from ccya.pack import load_pack, list_packs
-from ccya.state.io import _default_state, init_save_dir, load_state
+from ccya.state.io import default_world_state, init_save_dir, load_state
 
 from ccya.ev.personality import resolve_personality
 from ccya.ev.session_config import load_session_config, resolve_auto_report, resolve_player_config
@@ -35,7 +35,7 @@ def _get_play_loop() -> asyncio.AbstractEventLoop:
 
 def play_turn(
     input_text: str,
-    state: dict[str, Any],
+    state: WorldState,
     config: EngineConfig,
     save_dir: Path,
     *,
@@ -57,7 +57,7 @@ def play_turn(
 
 async def _run_turn_async(
     input_text: str,
-    state: dict[str, Any],
+    state: WorldState,
     config: EngineConfig,
     save_dir: Path,
     *,
@@ -114,9 +114,9 @@ async def _run_turn_async(
     ruling = turn_result.ruling or {}
 
     scene = {
-        "tags": state_after.get("scene", {}).get("tags", []),
-        "session_name": state_after.get("meta", {}).get("session_name", ""),
-        "id": state_after.get("location", {}).get("id", ""),
+        "tags": list(state_after.scene.tags),
+        "session_name": state_after.meta.session_name,
+        "id": state_after.location.id,
     }
 
     metrics = turn_result.metrics or {}
@@ -141,19 +141,19 @@ async def _run_turn_async(
     }
 
 
-def _build_error_output(state: dict[str, Any], errors: list[dict[str, Any]], t0: float, narrative_chunks: list[str]) -> dict[str, Any]:
+def _build_error_output(state: WorldState, errors: list[dict[str, Any]], t0: float, narrative_chunks: list[str]) -> dict[str, Any]:
     elapsed_ms = (time.monotonic() - t0) * 1000
     narrative = "".join(narrative_chunks) if narrative_chunks else "*An error occurred...*"
     return {
-        "turn": state.get("meta", {}).get("turn", 0),
+        "turn": state.meta.turn,
         "trace_id": "",
         "ruling": {},
         "narrative": narrative,
         "actions": [],
         "scene": {
-            "tags": state.get("scene", {}).get("tags", []),
-            "session_name": state.get("meta", {}).get("session_name", ""),
-            "id": state.get("location", {}).get("id", ""),
+            "tags": list(state.scene.tags),
+            "session_name": state.meta.session_name,
+            "id": state.location.id,
         },
         "applied": {},
         "errors": errors,
@@ -251,7 +251,7 @@ def _ensure_seed_generated(
     config: EngineConfig,
     *,
     packs_dir: Path | None = None,
-) -> dict[str, Any]:
+) -> WorldState:
     if pack_id is None:
         return load_state(save_dir)
 
@@ -285,14 +285,13 @@ def _ensure_seed_generated(
         seed_dict.setdefault("meta", {})["setting_pack"] = pack_id
         seed_dict.setdefault("meta", {})["_pack_source"] = pack_id
         if final_envelope.opening_narrative:
-            seed_dict["__seed_meta__"] = {
-                "opening_narrative": final_envelope.opening_narrative,
+            seed_dict.setdefault("pc", {}).setdefault("situation", {})["opening"] = final_envelope.opening_narrative
+        if final_envelope.actions or final_envelope.outcome_summary:
+            seed_dict["seed_meta"] = {
                 "actions": final_envelope.actions or [],
                 "outcome_summary": final_envelope.outcome_summary or "",
             }
-        if pool_selection:
-            seed_dict["__seed_pools__"] = pool_selection
-        init_save_dir(save_dir, seed_dict)
+        init_save_dir(save_dir, WorldState.from_dict(seed_dict))
 
     return load_state(save_dir)
 
@@ -370,9 +369,9 @@ def _create_play_session(
     session_dir.mkdir(parents=True, exist_ok=True)
 
     if pack:
-        init_save_dir(session_dir, _default_state())
+        init_save_dir(session_dir, default_world_state())
     else:
-        init_save_dir(session_dir, _default_state())
+        init_save_dir(session_dir, default_world_state())
 
     _write_run_meta(session_dir, pack, personality, max_turns)
 
@@ -509,7 +508,7 @@ def _llm_session(
     turns_played = 0
     trace_ids: list[str] = []
 
-    arc_goal = (state.get("arc") or {}).get("long_term_objective", "")
+    arc_goal = state.arc.long_term_objective
     system_prompt = resolve_personality(personality or "custom", custom_persona, arc_goal=arc_goal)
 
     # Store recent turns for context (turn input + narrative)
@@ -519,19 +518,13 @@ def _llm_session(
         context_parts = []
 
         # Inventory (mechanical state for decision-making)
-        inv = state.get("inventory") or []
+        inv = state.inventory
         if inv:
-            items = []
-            for item in inv:
-                if isinstance(item, dict):
-                    items.append(str(item.get("name") or item.get("id") or ""))
-                else:
-                    items.append(str(item))
+            items = [str(item.name or item.id) for item in inv]
             context_parts.append(f"Inventory: {', '.join(items)}")
 
         # Arc goal + threads (narrative direction)
-        arc = state.get("arc") or {}
-        goal = arc.get("long_term_objective", "")
+        goal = state.arc.long_term_objective
         if goal:
             context_parts.append(f"Goal: {goal}")
 
@@ -757,9 +750,9 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
             state = load_state(save_dir)
             session_config = load_session_config(save_dir)
             player_cfg = resolve_player_config(flags, session_config)
-            max_turns = state.get("meta", {}).get("turn", 0) + 20
+            max_turns = state.meta.turn + 20
             if "turns" in flags:
-                max_turns = state.get("meta", {}).get("turn", 0) + int(flags["turns"])
+                max_turns = state.meta.turn + int(flags["turns"])
         else:
             session_config = None
             player_cfg = resolve_player_config(flags, session_config)

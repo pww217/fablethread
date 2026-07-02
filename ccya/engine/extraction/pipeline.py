@@ -27,6 +27,7 @@ from ccya.models import (
     StateDelta,
     StateExtractResult,
     StorytellerResult,
+    WorldState,
 )
 
 _log = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ _log = logging.getLogger(__name__)
 
 async def _run_extraction_pipeline(
     env: "Environment",
-    state: dict[str, Any],
+    state: WorldState,
     narration: str,
     *,
     intent: "IntentEnvelope | None" = None,
@@ -117,8 +118,8 @@ async def _run_extraction_pipeline(
     yield ("panel_update", {
         "panel": "scene",
         "data": {
-            "npcs": _scene_preview.get("compendium", {}).get("npcs", {}),
-            "location": _scene_preview.get("location"),
+            "npcs": {nid: entry.model_dump() for nid, entry in _scene_preview.compendium.npcs.items()},
+            "location": _scene_preview.location.model_dump(),
         },
     })
 
@@ -184,9 +185,9 @@ async def _run_extraction_pipeline(
     yield ("panel_update", {
         "panel": "state",
         "data": {
-            "pc": _state_preview.get("pc"),
-            "inventory": _state_preview.get("inventory"),
-            "location": _state_preview.get("location"),
+            "pc": _state_preview.pc.model_dump(),
+            "inventory": [it.model_dump() for it in _state_preview.inventory],
+            "location": _state_preview.location.model_dump(),
         },
     })
 
@@ -219,9 +220,9 @@ async def _run_extraction_pipeline(
         # Generate fallback actions when LLM omits them (prompt requires exactly 4)
         if not record_result.actions:
             narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
-            present_npc_names = [entry.get("name", "") for entry in extraction_ctx.comp_this_turn.values() if isinstance(entry, dict) and entry.get("presence") == "present"]
-            inventory_items = [item.get("name", item.get("id", "")) if isinstance(item, dict) else str(item) for item in (state.get("inventory") or [])]
-            arc_goal = (state.get("arc") or {}).get("long_term_objective", "")
+            present_npc_names = [getattr(entry, "name", "") for entry in extraction_ctx.comp_this_turn.values() if getattr(entry, "presence", None) == "present"]
+            inventory_items = [getattr(item, "name", getattr(item, "id", "")) for item in state.inventory]
+            arc_goal = state.arc.long_term_objective
 
             actions = []
             # Action from narration summary
@@ -277,15 +278,15 @@ async def _run_extraction_pipeline(
     yield ("panel_update", {
         "panel": "arc",
         "data": {
-            "arc": state.get("arc"),
-            "scene": state.get("scene"),
-            "meta": state.get("meta"),
+            "arc": state.arc.model_dump(),
+            "scene": state.scene.model_dump(),
+            "meta": state.meta.model_dump(),
         },
     })
 
     _log.debug("extraction.dedup.start trace_id=%s compendium_updates=%d state_inv_add=%d", trace_id, len(scene_result.compendium_npc_update or []), len(state_result.inventory_add or []))
     # --- Dedup compendium updates before merging into StateDelta ---
-    _comp = (state.get("compendium") or {}).get("npcs") or {}
+    _comp = {nid: entry.model_dump() for nid, entry in state.compendium.npcs.items()}
     existing_npcs: list[dict[str, Any]] = []
     for nid, npc in _comp.items():
         if not isinstance(npc, dict):
