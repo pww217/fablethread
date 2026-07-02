@@ -1,6 +1,6 @@
 ---
 title: "Engine core tech debt consolidation (I-17 follow-up)"
-status: idea
+status: implemented
 urgency: 2
 size: large
 created: 2026-07-02
@@ -119,12 +119,12 @@ Evals will run continuously until all features are stable and prompt input/outpu
 
 ## TODO
 
-- [ ] Phase 1.1: Jinja env caching
-- [ ] Phase 1.2: LLM client param duplication
-- [ ] Phase 1.3: Hardcoded magic numbers
-- [ ] Phase 2: Global mutable state (plan: `plans/I-23-global-state-migration-plan.md`)
-- [ ] Phase 3: Extraction pipeline DRY (plan: `plans/I-23-extraction-pipeline-dry-plan.md`)
-- [ ] Phase 4: NPC personality field removal (plan: `plans/I-24-remove-npc-personality-field-plan.md`)
+- [x] Phase 1.1: Jinja env caching
+- [x] Phase 1.2: LLM client param duplication
+- [x] Phase 1.3: Hardcoded magic numbers
+- [x] Phase 2: Global mutable state (plan: `plans/I-23-global-state-migration-plan.md`)
+- [x] Phase 3: Extraction pipeline DRY (plan: `plans/I-23-extraction-pipeline-dry-plan.md`)
+- [x] Phase 4: NPC personality field removal (plan: `plans/I-24-remove-npc-personality-field-plan.md`)
 - [ ] Review each change before evals (use ev-review skill)
 - [ ] Run `/ev-run` cycle (1-5 turns critical)
 - [ ] Verify main UI loads (CSS + JS)
