@@ -1,12 +1,13 @@
 ---
 title: "Extract phased subroutines from monolithic run_turn"
-status: open
+status: done
 type: improvement
 urgency: 2
 size: large
 created: 2026-06-29
 ticket_id: I-19
 labels: [engine, refactoring]
+plan: plans/completed/I-19-extract-phased-subroutines.md
 ---
 
 # I-19: Extract phased subroutines from run_turn
