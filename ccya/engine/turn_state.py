@@ -62,6 +62,7 @@ def _apply_thread_updates(
             updates["dormant"] = update.dormant
         if update.urgency is not None:
             updates["urgency"] = update.urgency
+            updates["urgency_set_turn"] = turn_no
         if update.type is not None:
             updates["type"] = update.type
         if update.progress is not None:
