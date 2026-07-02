@@ -49,15 +49,19 @@ Excluded (design changes, not tech debt): I-4 (difficulty frequency), I-22 (worl
 
 `config.py:32-34` holds `_inflight`, `_cancel_requested`, `_turn_done` as module-level dicts/events keyed by save_dir. Server only manages one save at a time (`SAVE_DIR` global in `server/app.py:28`), so there are no actual concurrency issues in production. Stale entries accumulate if `signal_turn_done` not called on crash.
 
-**Fix options:**
-- **A.** Move to instance-scoped `TurnCoordinator` class — cleanest but touches many call sites
-- **B.** Pass cancel/done state via `TurnContext` — lower risk, keeps module-level as fallback
+**Fix:** Move state from `config.py` to `server/app.py` (server owns state). Pass cancel signal via `TurnContext._cancel_event` to engine. See plan: `plans/I-23-global-state-migration-plan.md`. Eliminates 97 lines from config.py, removes 15+ engine state access call sites.
 
 ### 7. Extraction pipeline DRY (blocked on WorldState, medium risk)
 
 `pipeline.py` 352 lines, 3 near-identical stream blocks (scene, state, record). Each: build messages → trim → `_call_stream()` → yield phase_done + panel_update → build `_preview` via `copy.deepcopy` + `apply_delta`. Only differences: message builder function, result type, delta fields.
 
-**Fix:** Extract generic `_run_extraction_stream` function. Blocked on I-17 #3 (WorldState model) — which is done.
+**Fix:** Extract generic `_run_extraction_stream` function + `_ExtractionVariant` dataclass. See plan: `plans/I-23-extraction-pipeline-dry-plan.md`. Reduces pipeline.py from 352 to ~110 lines.
+
+### 8. NPC personality field (low risk, medium scope)
+
+`personality` field on `NPCEntry` (plus `personality_label`, `personality_traits`) is a label that duplicates what motivation/fear/leverage/ties already express. Costs ~100-200 tokens/turn in roster context plus extraction overhead. The `personality.py` module (203 lines) assigns archetypes based on motivation+fear keyword matching — the behavioral drivers *are* the personality.
+
+**Fix:** Remove personality from state model, delete `personality.py` module, update all prompts/templates/ev scripts. See plan: `plans/I-24-remove-npc-personality-field-plan.md`. Eliminates 203 lines + ~500 tokens/turn.
 
 ## Execution order
 
@@ -95,14 +99,36 @@ Excluded (design changes, not tech debt): I-4 (difficulty frequency), I-22 (worl
 - UI verification: turn viewer (`/turn_viewer`) loads correctly including CSS and JS
 - API verification: all server routes return valid responses (no 500s)
 
+## Evals & Review Process
+
+Evals will run continuously until all features are stable and prompt input/output flow is confirmed correct — especially user prompts rendering correctly. Use the EV tool (`ev.py`) for this.
+
+**Rules:**
+- No major design overhauls during evals
+- Core mechanical changes: yes
+- Feature work: yes
+- Bug fixes: yes
+- Fine-tuning/balancing: yes
+- Focus on pipeline and core engine above all, especially narrative mechanics
+- Fix every kind of issue seen on the rubric
+- Don't trust checkers blindly — they can be false positives
+- Use `/ev-review` on existing saves for deep dives into problem areas — comprehensive, every nook and cranny
+- Take your time
+
+**Review before evals:** Each change (I-23 phases, I-24) must be reviewed before running evals. Use `ev-review` skill for focused deep-dives.
+
 ## TODO
 
 - [ ] Phase 1.1: Jinja env caching
 - [ ] Phase 1.2: LLM client param duplication
 - [ ] Phase 1.3: Hardcoded magic numbers
-- [ ] Phase 2: Global mutable state
-- [ ] Phase 3: Extraction pipeline DRY
+- [ ] Phase 2: Global mutable state (plan: `plans/I-23-global-state-migration-plan.md`)
+- [ ] Phase 3: Extraction pipeline DRY (plan: `plans/I-23-extraction-pipeline-dry-plan.md`)
+- [ ] Phase 4: NPC personality field removal (plan: `plans/I-24-remove-npc-personality-field-plan.md`)
+- [ ] Review each change before evals (use ev-review skill)
 - [ ] Run `/ev-run` cycle (1-5 turns critical)
 - [ ] Verify main UI loads (CSS + JS)
 - [ ] Verify turn viewer loads (CSS + JS)
 - [ ] Verify all API endpoints work
+- [ ] Continuous evals until features stable (focus: pipeline, core engine, narrative mechanics)
+- [ ] Fix all rubric issues (don't trust checkers blindly, use ev-review for deep dives)
