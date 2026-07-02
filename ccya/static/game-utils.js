@@ -453,8 +453,8 @@ function _restoreDebugMetadata() {
         if (!raw) return;
         const data = JSON.parse(raw);
         if (!data || !data.turn) return;
-        // Only restore if the saved turn matches the last history turn.
-        if (data.turn !== initState.last_history_turn) return;
+        // Only restore if the saved turn matches the current turn.
+        if (data.turn !== initState.meta?.turn) return;
         // Find the last narrative block and append the debug row.
         const blocks = document.querySelectorAll('.narrative-block');
         if (!blocks.length) return;

@@ -101,6 +101,7 @@ async def run_turn(
 
         # === Call 0: Rules / intent classification (extracted phase) ===
         _intent, _outcome, ruling_metrics, deescalate, ruling_phase_events = await _ruling_phase(ctx)
+        state = ctx.state
         if is_cancel_requested(str(save_dir)):
             return
         for evt in ruling_phase_events:
@@ -590,7 +591,7 @@ async def run_turn(
                 "ms": round(sanitize_ms, 1),
             }
 
-        yield ("phase", {"phase": "world_done", "metrics": final_metrics, "state": state})
+        yield ("phase", {"phase": "world_done", "metrics": final_metrics, "state": state.to_dict()})
 
     except LlmcTimeout as exc:
         _log.error(

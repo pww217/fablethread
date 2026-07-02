@@ -291,6 +291,11 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
         _scene_age += 2
     ctx._ages["effective_scene_age"] = _scene_age
 
+    # Propagate the mutated state back to the context so downstream phases
+    # (narrate, extraction, world) see pending_gm_beat, cleared beat_candidates,
+    # and any other mutations applied during ruling.
+    ctx.state = state
+
     ruling_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
     ruling_metrics = {
         "total_ms": round(ruling_ms, 1),
