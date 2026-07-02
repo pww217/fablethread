@@ -7,7 +7,6 @@ from jinja2 import Environment
 from ccya.engine.config import _render
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.models import WorldState
-from ccya.personality import ARCHETYPES
 
 
 def _extract_scene_messages(
@@ -19,7 +18,7 @@ def _extract_scene_messages(
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 1 (NPC presence)."""
     comp = {nid: entry.model_dump() for nid, entry in state.compendium.npcs.items()}
-    npc_roster = build_npc_roster(comp, turn_no=turn_no, personality_registry=ARCHETYPES)
+    npc_roster = build_npc_roster(comp, turn_no=turn_no)
 
     system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(

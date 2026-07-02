@@ -1,8 +1,7 @@
-"""Engine configuration and per-save turn in-flight guard."""
+"""Engine configuration."""
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import re
@@ -12,80 +11,6 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader
 
 _log = logging.getLogger(__name__)
-
-
-class _EventLock:
-    def __init__(self) -> None:
-        self._locks: dict[str, asyncio.Lock] = {}
-
-    async def acquire(self, key: str) -> None:
-        if key not in self._locks:
-            self._locks[key] = asyncio.Lock()
-        await self._locks[key].acquire()
-
-    async def release(self, key: str) -> None:
-        lock = self._locks.get(key)
-        if lock and lock.locked():
-            lock.release()
-
-
-_inflight: _EventLock = _EventLock()
-
-_cancel_requested: dict[str, asyncio.Event] = {}
-_turn_done: dict[str, asyncio.Event] = {}
-
-def is_turn_in_progress(save_dir: str) -> bool:
-    lock = _inflight._locks.get(save_dir)
-    return lock is not None and lock.locked()
-
-
-def request_cancel(save_dir: str) -> None:
-    event = _cancel_requested.get(save_dir)
-    if event is not None:
-        event.set()
-
-
-def is_cancel_requested(save_dir: str) -> bool:
-    event = _cancel_requested.get(save_dir)
-    return event is not None and event.is_set()
-
-
-
-def clear_cancel(save_dir: str) -> None:
-    _cancel_requested.pop(save_dir, None)
-
-
-def register_turn(save_dir: str) -> None:
-    _turn_done[save_dir] = asyncio.Event()
-
-
-def signal_turn_done(save_dir: str) -> None:
-    event = _turn_done.pop(save_dir, None)
-    if event is not None:
-        event.set()
-    clear_cancel(save_dir)
-
-
-def clear_all_turn_locks(save_dir: str) -> None:
-    """Clear all turn-related locks/state for a save directory.
-
-    Called before switching to a save to ensure no stale locks
-    from a previous turn in that directory block execution.
-    """
-    _inflight._locks.pop(save_dir, None)
-    _cancel_requested.pop(save_dir, None)
-    _turn_done.pop(save_dir, None)
-
-
-async def await_turn_done(save_dir: str, timeout: float = 30.0) -> bool:
-    event = _turn_done.get(save_dir)
-    if event is None:
-        return False
-    try:
-        await asyncio.wait_for(event.wait(), timeout=timeout)
-        return True
-    except asyncio.TimeoutError:
-        return False
 
 
 @dataclass
@@ -180,6 +105,8 @@ class EngineConfig:
     arc_memory_ttl: int = 3
     # Max active threads before eviction of oldest
     thread_max_active: int = 5
+    # Turns without activity before auto-dormant
+    thread_dormant_threshold: int = 8
 
     # Urgency decay: demote urgent→normal→background after N turns at same urgency level
     thread_urgency_max_age: int = 8
@@ -342,12 +269,16 @@ def _build_checkers_config(cfg: dict[str, Any]) -> CheckerConfig:
 
 
 
+_jinja_env_cache: dict[str, Environment] = {}
+
+
 def _build_jinja_env(template_dir: str) -> Environment:
-    env = Environment(
-        loader=FileSystemLoader(template_dir),
-        keep_trailing_newline=True,
-    )
-    return env
+    if template_dir not in _jinja_env_cache:
+        _jinja_env_cache[template_dir] = Environment(
+            loader=FileSystemLoader(template_dir),
+            keep_trailing_newline=True,
+        )
+    return _jinja_env_cache[template_dir]
 
 
 def _render(env: Environment, template_name: str, ctx: dict[str, Any]) -> str:

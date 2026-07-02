@@ -45,9 +45,6 @@ def cmd_status(flags: dict[str, str]) -> None:
             print(f"Model:   {session_config['model']}")
         if session_config.get("temp"):
             print(f"Temp:    {session_config['temp']}")
-        player = session_config.get("player", {})
-        if player.get("personality"):
-            print(f"Personality: {player['personality']}")
     else:
         print("Config: none (using defaults)")
 

@@ -83,9 +83,6 @@ class NPCEntry(BaseModel):
     leverage: str | None = None
     presence: NpcPresence = NpcPresence.KNOWN
     position: str | None = None
-    personality: str | None = None
-    personality_label: str = ""
-    personality_traits: str = ""
     tie: str | None = None
     tie_label: str = ""
     party: bool = False

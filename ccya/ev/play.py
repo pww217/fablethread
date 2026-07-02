@@ -16,8 +16,7 @@ from ccya.models import TurnResult, WorldState, load_config
 from ccya.pack import load_pack, list_packs
 from ccya.state.io import default_world_state, init_save_dir, load_state
 
-from ccya.ev.personality import resolve_personality
-from ccya.ev.session_config import load_session_config, resolve_auto_report, resolve_player_config
+from ccya.ev.session_config import load_session_config, resolve_auto_report
 
 _log = logging.getLogger(__name__)
 
@@ -323,7 +322,7 @@ def _get_git_info() -> dict[str, str | bool]:
     return info
 
 
-def _write_run_meta(session_dir: Path, pack: str | None, persona: str | None, max_turns: int) -> None:
+def _write_run_meta(session_dir: Path, pack: str | None, max_turns: int) -> None:
     """Write run-meta.yaml into the session directory."""
     import yaml
     git = _get_git_info()
@@ -334,7 +333,6 @@ def _write_run_meta(session_dir: Path, pack: str | None, persona: str | None, ma
         "git_tag": git["git_tag"],
         "git_dirty": git["git_dirty"],
         "pack": pack or "unknown",
-        "personality": persona or "unknown",
         "max_turns": max_turns,
         "actual_turns": None,
         "duration_ms": None,
@@ -348,7 +346,6 @@ def _write_run_meta(session_dir: Path, pack: str | None, persona: str | None, ma
 def _create_play_session(
     pack: str | None = None,
     packs_dir: Path | None = None,
-    personality: str | None = None,
     max_turns: int = 20,
 ) -> Path:
     now = datetime.now()
@@ -359,10 +356,9 @@ def _create_play_session(
     sha = str(git["git_sha"])
     group_name = now.strftime("%Y-%m-%d") + f"_{tag}_{sha}"
 
-    # Build run dir: HHMM_{pack}_{persona}_{max_turns}t
+    # Build run dir: HHMM_{pack}_{max_turns}t
     pack_label = pack or "unknown"
-    persona_label = personality or "unknown"
-    run_name = now.strftime("%H%M") + f"_{pack_label}_{persona_label}_{max_turns}t"
+    run_name = now.strftime("%H%M") + f"_{pack_label}_{max_turns}t"
 
     group_dir = EV_SAVES_DIR / group_name
     session_dir = group_dir / run_name
@@ -373,7 +369,7 @@ def _create_play_session(
     else:
         init_save_dir(session_dir, default_world_state())
 
-    _write_run_meta(session_dir, pack, personality, max_turns)
+    _write_run_meta(session_dir, pack, max_turns)
 
     latest_link = EV_SAVES_DIR / "latest"
     if latest_link.is_symlink() or latest_link.exists():
@@ -488,8 +484,6 @@ def _llm_session(
     config: EngineConfig,
     max_turns: int = 20,
     pack: str | None = None,
-    personality: str | None = None,
-    custom_persona: str | None = None,
     eval_: bool = False,
     until_error: bool = False,
     save_dir: Path | None = None,
@@ -501,7 +495,7 @@ def _llm_session(
     if save_dir is not None:
         state = load_state(save_dir)
     else:
-        session_dir = _create_play_session(pack=pack, personality=personality, max_turns=max_turns)
+        session_dir = _create_play_session(pack=pack, max_turns=max_turns)
         state = _ensure_seed_generated(session_dir, pack, config)
         save_dir = session_dir
 
@@ -509,7 +503,10 @@ def _llm_session(
     trace_ids: list[str] = []
 
     arc_goal = state.arc.long_term_objective
-    system_prompt = resolve_personality(personality or "custom", custom_persona, arc_goal=arc_goal)
+    system_prompt = "You are roleplaying as a character in a text adventure game.\n\n"
+    if arc_goal:
+        system_prompt += "Goal: " + arc_goal + "\n\n"
+    system_prompt += "Decide what to do next. Respond with a short, natural language action.\nDo not narrate. Do not use meta-language. Just say what your character does."
 
     # Store recent turns for context (turn input + narrative)
     recent_turns: list[dict[str, str]] = []
@@ -658,7 +655,6 @@ def _llm_session(
                 pass
             report_ctx = {
                 "pack": pack or "unknown",
-                "personality": personality or "unknown",
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "git_sha": git_sha,
                 "git_branch": git_branch,
@@ -690,7 +686,7 @@ def _print_missing_pack_error(flags: dict[str, str]) -> None:
 def cmd_play(flags: dict[str, str], args: list[str]) -> None:
     if "help" in flags:
         print("Usage: ev.py play <input> [--save-dir DIR] [--no-sanitize] [--model MODEL] [--temp TEMP] [--pack PACK]")
-        print("       ev.py play --llm [--turns N] [--pack PACK] [--personality NAME] [--custom-persona TEXT]")
+        print("       ev.py play --llm [--turns N] [--pack PACK]")
         print("       ev.py play --interactive [--pack PACK]")
         print("       ev.py play --resume [--save-dir DIR]")
         print()
@@ -700,8 +696,6 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
         print("  --model NAME            Override LLM model")
         print("  --temp N                Override temperature")
         print("  --pack NAME             Start with a pack (required for new sessions)")
-        print("  --personality NAME      Preset: aggressive, cautious, absurd, explorer, driven, custom")
-        print("  --custom-persona TEXT   Custom persona text (use with --personality custom)")
         print("  --resume                Resume latest or --save-dir session")
         print("  --until-error           Stop LLM mode on first error")
         print("  --turns N               Max turns for --llm mode (default 20)")
@@ -752,13 +746,11 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
                 sys.exit(1)
             state = load_state(save_dir)
             session_config = load_session_config(save_dir)
-            player_cfg = resolve_player_config(flags, session_config)
             max_turns = state.meta.turn + 20
             if "turns" in flags:
                 max_turns = state.meta.turn + int(flags["turns"])
         else:
             session_config = None
-            player_cfg = resolve_player_config(flags, session_config)
 
         auto_report = resolve_auto_report(flags, session_config)
 
@@ -766,8 +758,6 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
             config,
             max_turns=max_turns,
             pack=pack_id,
-            personality=player_cfg["personality"],
-            custom_persona=player_cfg["custom_persona"],
             eval_="eval" in flags,
             until_error="until-error" in flags,
             save_dir=save_dir if "resume" in flags else None,

@@ -37,7 +37,7 @@ The output must be a JSON object with this structure:
     "location": {"id": "district_checkpoints", "name": "Outer District Checkpoint", "description": "Faction-controlled barrier with armed guards and scanning equipment."},
     "inventory": [{"id": "steel_water_bottle", "name": "Steel Water Bottle", "notes": "dented, in pack", "amount": 1}],
     "scene": {"tags": ["checkpoint", "tension"], "world_state": [{"id": "border_closures", "text": "Travel between districts requires a valid faction pass.", "tier": "global", "permanent": true, "valence": "threat", "expires_turn": null}]},
-    "compendium": {"npcs": {"guard_captain": {"name": "Hale Voss", "title": "Checkpoint Captain", "bio": "Veteran of the border wars, now manning this post.", "presence": "present", "tie": "controls PC's passage", "motivation": "Keep the checkpoint running without incident", "fear": "Being held responsible for a breach", "leverage": "Can grant or deny passage", "personality": "resigned_functionary"}}},
+    "compendium": {"npcs": {"guard_captain": {"name": "Hale Voss", "title": "Checkpoint Captain", "bio": "Veteran of the border wars, now manning this post.", "presence": "present", "tie": "controls PC's passage", "motivation": "Keep the checkpoint running without incident", "fear": "Being held responsible for a breach", "leverage": "Can grant or deny passage"}}},
     "arc": {"long_term_objective": "Reach the inner districts and find the person who can help with the crisis.", "threads": [{"id": "border_closures", "summary": "Faction-controlled checkpoints block all inter-district travel without passes.", "type": "threat", "dormant": false, "urgency": "normal"}], "completed_threads": null, "started_turn": 0},
     "arc_origin": "The border walls were erected after the refugee crisis.",
     "world": {"locations": [{"id": "district_checkpoints", "name": "Outer District Checkpoints", "description": "Faction-controlled barriers between districts.", "status": "active", "tags": ["checkpoint", "controlled"]}, {"id": "inner_district", "name": "Inner District", "description": "The fortified core where faction leadership resides.", "status": "restricted", "tags": ["forbidden", "target"]}]}
@@ -85,12 +85,12 @@ Build in this order, using everything already established before generating what
 
 - **At least 1 NPC must have `presence: "present"`.** This is mandatory — the opening scene must include at least one NPC that is physically present. If you cannot generate an NPC with presence="present", you must generate one. This is not optional.
 - `presence` is required for all NPCs: set to `"present"` for NPCs in the opening scene, `"nearby"` for those nearby but not in the scene, `"known"` for those the PC knows but aren't nearby. All seed NPCs that appear in the opening narrative must have `presence: "present"`.
-- NPCs have 5 personality-related fields: `personality`, `motivation`, `fear`, `leverage`, `tie`.
+- NPCs have 4 behavioral fields: `motivation`, `fear`, `leverage`, `tie`.
 How many depends on the NPC's role:
 
 - **Unnamed NPCs (name does not look like a proper name — fewer than 2 words, or first/last not both capitalized):**
-  `bio` + `motivation`. Do NOT add personality, fear, leverage, or tie. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace." The engine rejects personality fields on unnamed NPCs — treat this as a hard constraint.
-- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `bio`, `personality` (from the table below), `motivation`, and 2 of {fear, leverage, tie} — 5 fields minimum. Motivation is mandatory for every character.
+  `bio` + `motivation`. Do NOT add fear, leverage, or tie. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace."
+- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `motivation`, and 2 of {fear, leverage, tie} — 4 fields minimum. Motivation is mandatory for every character.
 - **Important NPCs (seed characters, arc goal characters, faction leaders):** All 5 fields.
   These are the characters the story revolves around — give them depth.
 
@@ -98,54 +98,28 @@ How many depends on the NPC's role:
 - Titles, roles, descriptors go in `title` field.
 - **Keep scenes to 6-8 NPCs total. Confrontational scenes should have at most 3.**
 
-## Personality archetypes (choose from this fixed list)
-
-| ID | Label | Traits |
-|---|---|---|
-| `cold_pragmatist` | Cold Pragmatist | calculating, direct, emotionally distant |
-| `desperate_idealist` | Desperate Idealist | principled, anxious, self-sacrificing |
-| `wary_opportunist` | Wary Opportunist | adaptive, self-interested, quick to read angles |
-| `resigned_functionary` | Resigned Functionary | bureaucratic, weary, procedurally polite |
-| `volatile_loyalist` | Volatile Loyalist | fiercely loyal, short-fused, protective |
-| `charming_manipulator` | Charming Manipulator | persuasive, socially fluid, rarely direct |
-| `blunt_survivor` | Blunt Survivor | unsentimental, pragmatic, darkly humorous |
-| `true_believer` | True Believer | zealous, certain, morally inflexible |
-| `detached_observer` | Detached Observer | analytical, quiet, observant |
-| `conflict_avoidant` | Conflict-Avoidant | yielding, nervous, self-effacing |
-| `ambitious_climber` | Ambitious Climber | patient, strategic, calculating |
-| `broken_defeated` | Broken/Defeated | worn, habit-driven, darkly resigned |
-
-Choose the archetype that best fits the NPC's motivation, fear, and narrative role. Be specific — `wary_opportunist` is the default only when no other archetype clearly fits. Do not invent archetypes outside this list.
-
 Do NOT add `relation` or `notes` to compendium entries — engine-managed at runtime.
-
-**NPC generation from pc_situation (mandatory):** For every person named in `pc_situation` values, create a compendium entry with the full name from `pc_situation`. Give them a `bio`, presence (known/nearby/present), and all 5 personality fields. Scene NPCs come from the opening scene — pc_situation NPCs are in addition to scene NPCs.
-
+**NPC generation from pc_situation (mandatory):** For every person named in `pc_situation` values, create a compendium entry with the full name from `pc_situation`. Give them a `bio`, presence (known/nearby/present), and all 4 behavioral fields. Scene NPCs come from the opening scene — pc_situation NPCs are in addition to scene NPCs.
 ## PC field rules
 - `pc.name`: given name + family name (e.g. "Mira Sovak"). No single-word names.
 - `pc.tagline`: 5–10 words — role + defining trait (e.g. "Structural engineer, nine months sober").
 - `pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now.
 - `pc.stats`: four integers, range per hard constraints, total per hard constraints.
-
 ## Arc origin
 - `arc_origin`: 2–3 sentences in past tense describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference the PC's personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to the PC will be established through arc threads later. Seed-time field only, never regenerated.
-
 ## Session name
 - `meta.session_name`: A short, evocative title for this game session (3-6 words). Should capture the campaign's tone and setting without describing a specific scene or character. This name defines the entire playthrough.
-
 ## World state rules
 - Each fact states a constraint that directly affects gameplay choices: border closures, martial law, banned technologies, faction blockades, economic collapse.
 - One sentence each. Maximum 4 entries (including any engine-prepended baseline facts).
 - BAD: "The old empire fell three centuries ago." / "A peace treaty was signed in 2147." (historical flavor, no present impact)
 - GOOD: "Travel between districts requires a valid faction pass." / "All firearms are banned under penalty of immediate detention."
 - Valence requirement: The combined global + local world state must include at least one fact with `valence: "neutral"` or `valence: "boon"`. Without this instruction the LLM defaults to threats and complications.
-
 ## Key locations
 - 4–5 named places that exist in the world at game start.
 - Ordered from most accessible to least known.
 - Include 1–2 breadcrumb locations (places the PC has heard of but not visited).
 - Each has: `id` (snake_case), `name`, `description`, `status` (e.g. "active", "abandoned", "restricted"), `tags` (list of descriptive tags).
-
 ## PC situation
 - Structured situational facts about the PC's current circumstances.
 {% if scenario and scenario.pc_situation_schema %}{% for s in scenario.pc_situation_schema %}
@@ -155,7 +129,6 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - Values may include names of people or places. Names in `pc_situation` are the source of truth for NPC generation.
 - **When mentioning family members, always include a full name** (given + PC's family name). BAD: "Wife Clara in Morganstead." GOOD: "Wife Clara Vance in Morganstead."
 - If a key has no relevant fact, omit it from the output.
-
 ## Inventory rules
 - 3–6 items appropriate to the opening scene and PC concept.
 - Every item has a specific, proper name — not "standard issue rifle" or "random book." Names should hint at why the item matters.
@@ -163,20 +136,15 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - EVERY consumable has `amount` in individual units (`pistol_rounds: 30`, `bandage: 2`). No clips/magazines/boxes for ammo. Melee/thrown exempt.
 - No exotic or legendary weapons at start. No items for skills the PC hasn't invested in.
 - Inventory item names start with a capital letter.
-
 ## Thread rules
-
 **Thread IDs are 2–4 word broad conceptual buckets.** No proper nouns. `council_conspiracy` ✓ — `the_missing_ledger` ✗ (one object), `moss_confrontation` ✗ (one NPC).
-
 **Summaries: one sentence (8–15 words), describing a SITUATION, not an objective.** "A rival crew is closing in on the same salvage coordinates" ✓ — "Find the salvage before the rival crew" ✗.
-
 **Thread type (required):** Assign each thread a `type` from: `"threat"`, `"opportunity"`, `"complication"`, `"revelation"`.
 - `"threat"`: An active danger or hostile force pressing on the PC.
 - `"opportunity"`: A chance the PC can exploit — advantage, resource, ally.
 - `"complication"`: An entanglement that complicates existing goals without being purely positive or negative.
 - `"revelation"`: Information or discovery that changes the PC's understanding of the world.
 - At least one thread must have `type == "threat"`. At least one thread must have `type != "threat"`.
-
 **Thread count (hard limits at game start):**
 - Exactly 1–2 threads with `"dormant": false` — prefer 1 if unsure. Never more than 2.
 - All other threads with `"dormant": true`.
@@ -184,12 +152,9 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - Total: 4–5 threads (minimum 3, maximum 6).
 - Non-dormant threads: urgency `"normal"` or `"urgent"` (prefer `"normal"`).
 - Dormant threads: urgency `"background"`. Never `"urgent"`.
-
 **Thread quality:** Each thread must be a medium-term tension capable of sustaining 5–10 turns — a situation with inherent escalation, not a single event, person, or goal. If your thread would resolve after one interaction, it belongs in the opening scene, not the arc. Thread summaries are seeds for the narrator, not scripted plot — describe a situation; do not specify events. Do not generate threads from incidental narration details.
-
 Good summary: "A rival crew is closing in on the same salvage coordinates."
 Bad summary: "Go to Saint Mercy Hospital and find the ledger."
-
 **Thread JSON example (valid):**
 ```json
 {
@@ -200,5 +165,4 @@ Bad summary: "Go to Saint Mercy Hospital and find the ledger."
   "urgency": "normal"
 }
 ```
-
 **Dormant threads:** Dormant threads represent tensions that have faded from immediate relevance but can be reactivated — hidden secrets, foreshadowing, latent opportunities. They should have `"urgency": "background"` and `"dormant": true`.

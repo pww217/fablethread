@@ -18,13 +18,9 @@ from sse_starlette.sse import EventSourceResponse
 from ccya.errors import ErrorKind
 from ccya.models import NPCEntry, WorldState
 from ccya.engine import (
-    await_turn_done,
-    clear_cancel,
     format_change_lines,
-    is_turn_in_progress,
     narrate_seed,
     prepare_seed,
-    request_cancel,
     run_turn,
 )
 
@@ -205,7 +201,7 @@ async def index(request: Request):
     history = _load_recent_history(_app_mod.SAVE_DIR)
     last_actions = _load_last_actions(_app_mod.SAVE_DIR) if history else []
     state = _load_current_state()
-    state = _resolve_npc_personalities(state)
+    state = _resolve_npc_ties(state)
     opening = _load_opening_from_chronicle(_app_mod.SAVE_DIR) or _get_opening()
     opening_actions = _load_opening_actions(_app_mod.SAVE_DIR) if not history and not last_actions else []
     ctx = _debug_context()
@@ -239,7 +235,7 @@ async def get_turn(input: str = ""):
 
         return EventSourceResponse(_empty())
 
-    if is_turn_in_progress(str(_app_mod.SAVE_DIR)):
+    if _app_mod._is_turn_in_progress():
 
         async def _busy():
             yield {
@@ -345,14 +341,14 @@ async def get_turn(input: str = ""):
 async def cancel_turn():
     if err := _require_save():
         return err
-    if not is_turn_in_progress(str(_app_mod.SAVE_DIR)):
+    if not _app_mod._is_turn_in_progress():
         return JSONResponse({"ok": True})
 
-    request_cancel(str(_app_mod.SAVE_DIR))
-    released = await await_turn_done(str(_app_mod.SAVE_DIR), timeout=30.0)
+    if _app_mod._cancel_event:
+        _app_mod._cancel_event.set()
+    released = await _app_mod._await_turn_done(timeout=30.0)
     if not released:
         _log.warning("cancel_turn timeout waiting for turn to finish")
-    clear_cancel(str(_app_mod.SAVE_DIR))
 
     return JSONResponse({"ok": True, "cancelled": True})
 
@@ -361,7 +357,7 @@ async def cancel_turn():
 async def delete_last_turn():
     if err := _require_save():
         return err
-    if is_turn_in_progress(str(_app_mod.SAVE_DIR)):
+    if _app_mod._is_turn_in_progress():
         return JSONResponse(
             {"error": "Turn already in progress"}, status_code=409
         )
@@ -496,7 +492,7 @@ async def new_game(request: Request):
 
     _log.info("new_game pack=%s", _app_mod._pack_id)
     ctx = _debug_context()
-    ctx["state"] = _resolve_npc_personalities(ctx["state"])
+    ctx["state"] = _resolve_npc_ties(ctx["state"])
     return _app_mod._render("_state.html", ctx)
 
 
@@ -548,14 +544,12 @@ def panel_state(request: Request):
         return err
     _log.debug("panel_state called")
     ctx = _debug_context()
-    ctx["state"] = _resolve_npc_personalities(ctx["state"])
+    ctx["state"] = _resolve_npc_ties(ctx["state"])
     return _app_mod._render("_state.html", ctx)
 
 
-def _resolve_npc_personalities(state: WorldState) -> WorldState:
-    """Resolve archetype ids to human-readable label/traits for the UI."""
-    from ccya.personality import ARCHETYPES
-
+def _resolve_npc_ties(state: WorldState) -> WorldState:
+    """Resolve tie IDs to human-readable descriptions for the UI."""
     npcs = state.compendium.npcs
     # Build tie lookup: id → description from the active pack's scenario
     tie_lookup: dict[str, str] = {}
@@ -572,11 +566,6 @@ def _resolve_npc_personalities(state: WorldState) -> WorldState:
         # Ensure a display_name exists for sorting/templates when name is missing
         if not entry.name:
             updates["name"] = entry.title or key
-        arch_id = entry.personality
-        if arch_id and arch_id in ARCHETYPES:
-            arch = ARCHETYPES[arch_id]
-            updates["personality_label"] = arch.label
-            updates["personality_traits"] = ", ".join(arch.traits)
         # Resolve tie ID to human-readable description
         raw_tie = entry.tie
         if raw_tie and raw_tie in tie_lookup:
@@ -595,7 +584,7 @@ def panel_state_left(request: Request):
     if err := _require_save():
         return err
     state = _load_current_state()
-    state = _resolve_npc_personalities(state)
+    state = _resolve_npc_ties(state)
     return _app_mod._render("_state_left.html", {"state": state})
 
 
@@ -983,8 +972,7 @@ async def switch_save(request: Request):
         return JSONResponse({"error": f"Save directory not found: {save_name}"}, status_code=404)
 
     # Verify no turn is in progress on current save
-    from ccya.engine.config import is_turn_in_progress
-    if is_turn_in_progress(str(_app_mod.SAVE_DIR)):
+    if _app_mod._is_turn_in_progress():
         return JSONResponse({"error": "Turn in progress, try again later"}, status_code=409)
 
     # Load state to verify it's valid
@@ -994,9 +982,8 @@ async def switch_save(request: Request):
         _log.error("Failed to load state from %s: %s", save_name, exc)
         return JSONResponse({"error": f"Failed to load save: {exc}"}, status_code=500)
 
-    # Clear turn locks before switching
-    from ccya.engine import clear_all_turn_locks
-    clear_all_turn_locks(str(_app_mod.SAVE_DIR))
+    # Clear turn state before switching
+    _app_mod._turn_lock = _app_mod._cancel_event = _app_mod._turn_done_event = None
 
     # Switch
     _app_mod.SAVE_DIR = target
@@ -1033,8 +1020,7 @@ async def delete_save(request: Request):
         return JSONResponse({"error": f"Save directory not found: {save_name}"}, status_code=404)
 
     # Verify no turn is in progress on current save
-    from ccya.engine.config import is_turn_in_progress
-    if is_turn_in_progress(str(_app_mod.SAVE_DIR)):
+    if _app_mod._is_turn_in_progress():
         return JSONResponse({"error": "Turn in progress, try again later"}, status_code=409)
 
     try:

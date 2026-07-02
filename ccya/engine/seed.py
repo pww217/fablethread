@@ -313,33 +313,6 @@ async def prepare_seed(
             state_envelope.seed_state = _sanitize_seed_state(state_envelope.seed_state)
             _validate_seed_state(state_envelope.seed_state)
 
-            from ccya.personality import assign_personality, validate_and_resolve
-
-            for npc_id, npc_entry in state_envelope.seed_state.compendium.npcs.items():
-                _name = (getattr(npc_entry, "name", "") or "").strip()
-                if _name and not _is_named(_name):
-                    continue
-                if not hasattr(npc_entry, "personality") or not getattr(npc_entry, "personality"):
-                    arch = assign_personality(
-                        motivation=getattr(npc_entry, "motivation", None),
-                        fear=getattr(npc_entry, "fear", None),
-                        npc_id=npc_id,
-                    )
-                    object.__setattr__(npc_entry, "personality", arch.id)
-                else:
-                    resolved = validate_and_resolve(getattr(npc_entry, "personality"))
-                    if resolved is None:
-                        _log.warning(
-                            "seed npc=%s has unknown personality '%s'; falling back to assign_personality",
-                            npc_id, getattr(npc_entry, "personality"),
-                        )
-                        arch = assign_personality(
-                            motivation=getattr(npc_entry, "motivation", None),
-                            fear=getattr(npc_entry, "fear", None),
-                            npc_id=npc_id,
-                        )
-                        object.__setattr__(npc_entry, "personality", arch.id)
-
         except Exception as exc:
             parse_error = str(exc)
             _log.warning(

@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from ccya.engine.config import _render, is_cancel_requested
+from ccya.engine.config import _render
+from ccya.engine.turn_context import _is_cancel_requested
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine._pacing import (
@@ -46,9 +47,7 @@ def _narrate_messages(
     curtain_call: str = "",
 ) -> list[dict[str, str]]:
     if npc_roster is None:
-        from ccya.personality import ARCHETYPES
-
-        npc_roster = build_npc_roster(state.compendium.npcs, turn_no=turn_no, personality_registry=ARCHETYPES)
+        npc_roster = build_npc_roster(state.compendium.npcs, turn_no=turn_no)
     _log.debug(
         "narrate entry turn=%d npc_roster_len=%d",
         turn_no, len(npc_roster),
@@ -143,7 +142,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     state = ctx.state
     config = ctx.config
 
-    if is_cancel_requested(str(ctx.save_dir)):
+    if _is_cancel_requested(ctx):
         return None, None
 
     turn_no = state.meta.turn + 1
@@ -239,7 +238,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
         pending_beat=_pending_gm_beat,
         pacing_context=_pc, ages=ctx._ages, pc_allegiance=_pc_allegiance, turn_no=turn_no,
         world_factions=_world_factions,
-        npc_roster=[n for n in build_npc_roster(state.compendium.npcs, turn_no=turn_no, personality_registry=None) if n.get("presence") == "present"],
+        npc_roster=[n for n in build_npc_roster(state.compendium.npcs, turn_no=turn_no) if n.get("presence") == "present"],
         arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
         curtain_call=_curtain_call,
     )

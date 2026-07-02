@@ -16,9 +16,7 @@
             {% set npc_bio = npc.bio %}
             {% set _mot = npc.motivation %}
             {% set npc_tie = npc.tie %}
-            {% set npc_pl = npc.personality %}
-            {% set npc_pt = npc.personality_traits %}
-            {% set _has_tt = npc_bio or npc_pl or _mot or npc_tie %}
+            {% set _has_tt = npc_bio or _mot or npc_tie %}
             <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_position %}
@@ -27,7 +25,6 @@
                 {% if _has_tt %}
                 <div class="tooltip-body" data-md-compendium>
                     {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
-                    {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}{% if npc_pt %} — {{ npc_pt }}{% endif %}</p>{% endif %}
                     {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% endif %}
                     {% if npc_tie %}<p><strong>Tie:</strong> {{ npc_tie }}</p>{% endif %}
                 </div>
@@ -50,9 +47,7 @@
             {% set npc_bio = npc.bio %}
             {% set _mot = npc.motivation %}
             {% set npc_tie = npc.tie %}
-            {% set npc_pl = npc.personality %}
-            {% set npc_pt = npc.personality_traits %}
-            {% set _has_tt = npc_bio or npc_pl or _mot or npc_tie %}
+            {% set _has_tt = npc_bio or _mot or npc_tie %}
             <div class="npc-item nearby-item{% if _has_tt %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_position %}
@@ -61,7 +56,6 @@
                 {% if _has_tt %}
                 <div class="tooltip-body" data-md-compendium>
                     {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
-                    {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}{% if npc_pt %} — {{ npc_pt }}{% endif %}</p>{% endif %}
                     {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% endif %}
                     {% if npc_tie %}<p><strong>Tie:</strong> {{ npc_tie }}</p>{% endif %}
                 </div>
@@ -181,12 +175,10 @@
             {% set is_departed = entry.presence.value == 'departed' if entry.presence else False %}
             {% set npc_tie = entry.tie %}
             {% set _mot = entry.motivation %}
-            {% set npc_pl = entry.personality %}
             <div class="compendium-item has-tooltip">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
                 <div class="tooltip-body" data-md-compendium>
                     {% if bio %}<p>{{ bio }}</p>{% else %}—{% endif %}{% set _has = false %}
-                    {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}</p>{% set _has = true %}{% endif %}
                     {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% set _has = true %}{% endif %}
                     {% if npc_tie %}<p><strong>Tie:</strong> {{ npc_tie }}</p>{% set _has = true %}{% endif %}
                     {% if is_departed and entry.departed_reason %}

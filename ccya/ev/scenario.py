@@ -32,7 +32,6 @@ class Scenario:
     description: str
     turns: list[ScenarioTurn]
     seed_overrides: dict[str, Any] = field(default_factory=dict)
-    personality: str = "custom"
 
 
 @dataclass

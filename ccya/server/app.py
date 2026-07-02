@@ -26,6 +26,46 @@ TEMPLATES_DIR = BASE_DIR.parent / "templates"
 PROMPTS_DIR = BASE_DIR.parent / "prompts"
 PACKS_DIR = REPO_ROOT / "packs"
 SAVE_DIR: Path | None = None
+_turn_lock: asyncio.Lock | None = None
+_cancel_event: asyncio.Event | None = None
+_turn_done_event: asyncio.Event | None = None
+
+
+def _start_turn() -> tuple[asyncio.Lock, asyncio.Event, asyncio.Event]:
+    global _turn_lock, _cancel_event, _turn_done_event
+    _turn_lock = asyncio.Lock()
+    _cancel_event = asyncio.Event()
+    _turn_done_event = asyncio.Event()
+    return _turn_lock, _cancel_event, _turn_done_event
+
+
+def _signal_turn_done() -> None:
+    global _turn_lock, _cancel_event, _turn_done_event
+    if _turn_done_event:
+        _turn_done_event.set()
+    if _cancel_event:
+        _cancel_event.set()
+    if _turn_lock:
+        _turn_lock.release()
+    _turn_lock = _cancel_event = _turn_done_event = None
+
+
+def _is_cancel_requested() -> bool:
+    return _cancel_event is not None and _cancel_event.is_set()
+
+
+def _is_turn_in_progress() -> bool:
+    return _turn_lock is not None and _turn_lock.locked()
+
+
+async def _await_turn_done(timeout: float = 30.0) -> bool:
+    if _turn_done_event is None:
+        return False
+    try:
+        await asyncio.wait_for(_turn_done_event.wait(), timeout=timeout)
+        return True
+    except asyncio.TimeoutError:
+        return False
 
 
 def _find_all_save_dirs() -> list[Path]:

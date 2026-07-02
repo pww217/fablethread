@@ -85,7 +85,6 @@ def apply_npc_scene_management(
                     "fear": None,
                     "leverage": None,
                     "tie": None,
-                    "personality": None,
                     "party": None,
                 })
             if comp_upd.motivation is not None:
@@ -96,24 +95,6 @@ def apply_npc_scene_management(
                 updates["leverage"] = comp_upd.leverage
             if comp_upd.tie is not None:
                 updates["tie"] = comp_upd.tie
-            if comp_upd.personality is not None and not entry.personality:
-                updates["personality"] = comp_upd.personality
-                _log.info(
-                    "npc_scene_management.applied npc=%s personality=%s",
-                    resolved_id, comp_upd.personality,
-                    extra={"trace_id": trace_id, "turn": current_turn_no},
-                )
-            # Engine fallback: assign personality for named NPCs that still lack one.
-            # Unnamed NPCs are intentionally skipped.
-            if not entry.personality and entry.name:
-                if _is_named(entry.name):
-                    from ccya.personality import assign_personality
-                    arch = assign_personality(
-                        motivation=entry.motivation,
-                        fear=entry.fear,
-                        npc_id=resolved_id,
-                    )
-                    updates["personality"] = arch.id
             if comp_upd.party is not None:
                 updates["party"] = comp_upd.party
             if comp_upd.presence is not None:

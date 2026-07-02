@@ -50,9 +50,6 @@ def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
             "fear": ndata.get("fears", ""),
             "leverage": ndata.get("leverage", ""),
             "tie": ndata.get("tie", ""),
-            "personality_label": "",
-            "personality_traits": "",
-            "personality_speech_hint": "",
             "last_presence_turn": ndata.get("last_presence_turn"),
             "last_seen_location": ndata.get("last_seen_location", ""),
         }
@@ -93,7 +90,6 @@ def build_prompt_context(
 
     Known limitations:
     - conditions/inventory reflect post-storytell state (close to pre-storytell)
-    - NPC roster lacks personality archetype enrichment
     - resolved_arcs not populated (needs arc_memory_ttl config)
     """
     turn_ev = find_turn(events, turn_no)

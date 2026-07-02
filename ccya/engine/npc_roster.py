@@ -57,7 +57,6 @@ def build_npc_roster(
     max_entries: int = 12,
     sort_by_lru: bool = False,
     lru_order: list[str] | None = None,
-    personality_registry: dict[str, Any] | None = None,
     slim: bool = False,
 ) -> list[dict[str, Any]]:
     """Build sorted NPC roster from compendium, filtering by presence.
@@ -103,14 +102,6 @@ def build_npc_roster(
                 "last_seen_location": entry.get("last_seen_location") or None,
                 "departed_reason": entry.get("departed_reason") or None,
             }
-
-            if personality_registry:
-                arch_id = entry.get("personality")
-                if arch_id and arch_id in personality_registry:
-                    arch = personality_registry[arch_id]
-                    seen[nid]["personality_label"] = getattr(arch, "label", arch_id)
-                    seen[nid]["personality_traits"] = ", ".join(arch.traits)
-                    seen[nid]["personality_speech_hint"] = getattr(arch, "speech_hint", "")
 
     order = {
         NpcPresence.PRESENT.value: 0,

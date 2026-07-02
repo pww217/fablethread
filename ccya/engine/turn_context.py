@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from ccya.engine.config import EngineConfig
 from ccya.models import IntentEnvelope, RulesOutcome, WorldState
+
+
+def _is_cancel_requested(ctx: TurnContext) -> bool:
+    return ctx._cancel_event is not None and ctx._cancel_event.is_set()
 
 
 @dataclass
@@ -31,6 +36,7 @@ class TurnContext:
     _ruling_trimmed: bool = False
     _ruling_trimmed_chars: int = 0
     _ages: dict[str, int] = field(default_factory=dict)  # set by ruling phase before narrate setup reads it
+    _cancel_event: asyncio.Event | None = None
 
     intent: IntentEnvelope | None = None
     outcome: RulesOutcome | None = None

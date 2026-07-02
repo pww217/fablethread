@@ -123,16 +123,11 @@ async def _try_host_stream(
     }
     if timeout is not None:
         kwargs["timeout"] = timeout
-    if temperature is not None:
-        kwargs["temperature"] = temperature
-    if top_p is not None:
-        kwargs["top_p"] = float(top_p)
-    if frequency_penalty is not None:
-        kwargs["frequency_penalty"] = float(frequency_penalty)
-    if seed is not None:
-        kwargs["seed"] = int(seed)
-    if num_ctx is not None:
-        kwargs["extra_body"] = {"num_ctx": num_ctx}
+    kwargs.update(_build_chat_kwargs(
+        temperature=temperature, top_p=top_p,
+        frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+        openai_style=True,
+    ))
     stream = await client.chat.completions.create(**kwargs)
     try:
         async for chunk in stream:
@@ -146,6 +141,36 @@ async def _try_host_stream(
                 yield content
     finally:
         await stream.response.aclose()
+
+
+def _build_chat_kwargs(
+    temperature: float | None = None,
+    top_p: float | None = None,
+    frequency_penalty: float | None = None,
+    seed: int | None = None,
+    num_ctx: int | None = None,
+    *,
+    openai_style: bool = False,
+) -> dict[str, Any]:
+    """Build LLM chat kwargs/payload from common parameters.
+
+    Handles type coercion (float/int) and OpenAI-style extra_body for num_ctx.
+    """
+    kwargs: dict[str, Any] = {}
+    if temperature is not None:
+        kwargs["temperature"] = float(temperature)
+    if top_p is not None:
+        kwargs["top_p"] = float(top_p)
+    if frequency_penalty is not None:
+        kwargs["frequency_penalty"] = float(frequency_penalty)
+    if seed is not None:
+        kwargs["seed"] = int(seed)
+    if num_ctx is not None:
+        if openai_style:
+            kwargs["extra_body"] = {"num_ctx": num_ctx}
+        else:
+            kwargs["num_ctx"] = int(num_ctx)
+    return kwargs
 
 
 def _is_retryable(exc: BaseException) -> bool:
@@ -601,18 +626,13 @@ async def _chat_openai_compat(
     }
     if timeout is not None:
         kwargs["timeout"] = timeout
-    if temperature is not None:
-        kwargs["temperature"] = temperature
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
-    if top_p is not None:
-        kwargs["top_p"] = float(top_p)
-    if frequency_penalty is not None:
-        kwargs["frequency_penalty"] = float(frequency_penalty)
-    if seed is not None:
-        kwargs["seed"] = int(seed)
-    if num_ctx is not None:
-        kwargs["extra_body"] = {"num_ctx": num_ctx}
+    kwargs.update(_build_chat_kwargs(
+        temperature=temperature, top_p=top_p,
+        frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+        openai_style=True,
+    ))
     _log.debug("chat: request sent, waiting for response...")
     resp = await client.chat.completions.create(**kwargs)
     _log.debug("chat: response received, extracting content...")
@@ -653,16 +673,11 @@ async def _chat_ollama_native(
         "stream": False,
         "think": False,
     }
-    if temperature is not None:
-        payload["temperature"] = float(temperature)
-    if top_p is not None:
-        payload["top_p"] = float(top_p)
-    if frequency_penalty is not None:
-        payload["frequency_penalty"] = float(frequency_penalty)
-    if seed is not None:
-        payload["seed"] = int(seed)
-    if num_ctx is not None:
-        payload["num_ctx"] = int(num_ctx)
+    payload.update(_build_chat_kwargs(
+        temperature=temperature, top_p=top_p,
+        frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+        openai_style=False,
+    ))
 
     try:
         resp = await http_client.post(f"{host}", json=payload)
@@ -706,16 +721,11 @@ async def _chat_stream_ollama_native(
         "stream": True,
         "think": False,
     }
-    if temperature is not None:
-        payload["temperature"] = float(temperature)
-    if top_p is not None:
-        payload["top_p"] = float(top_p)
-    if frequency_penalty is not None:
-        payload["frequency_penalty"] = float(frequency_penalty)
-    if seed is not None:
-        payload["seed"] = int(seed)
-    if num_ctx is not None:
-        payload["num_ctx"] = int(num_ctx)
+    payload.update(_build_chat_kwargs(
+        temperature=temperature, top_p=top_p,
+        frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+        openai_style=False,
+    ))
 
     try:
         async with http_client.stream("POST", f"{host}", json=payload) as resp:
