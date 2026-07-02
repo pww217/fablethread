@@ -217,7 +217,7 @@ I-17 #8 (pacing consolidation, 318 lines) is not a separate ticket. It's one fil
 
 ### Remaining
 
-- **PR #9 created** — branch `i17-3-worldstate` merged to `main`. 13 commits, 50+ files, +1500/-850.
+- **PR #9 created** — branch `i17-3-worldstate` merged to `main`. 17 commits, 52+ files, +1420/-820.
 - **Other I-17 findings (#1, #2, #6–#13) remain open** — see Findings section above. Finding #3 was the root cause for I-2 (boundary model gaps) per cross-ticket links.
 
 ### Post-merge runtime fixes (2026-07-01)
@@ -252,19 +252,14 @@ After merging, several runtime issues surfaced that need fixing on `main`:
    - `"state": result.state_snapshot` — `TurnResult.state_snapshot` is typed `WorldState`, not dict
    - Fixed: `"state": result.state_snapshot.to_dict()`
 
-### Current issue (2026-07-01)
+7. **Ruling state mutations not propagated to downstream phases**
+   - `_ruling_phase` mutated state via `model_copy()` but never wrote back to `ctx.state` — downstream phases (narrate, extraction, world) never saw `pending_gm_beat` or cleared `beat_candidates`
+   - Fixed: added `ctx.state = state` at end of `_ruling_phase` and `state = ctx.state` after ruling call in `turn.py`
 
-**Turn completes but narration is cut with: `Object of type WorldState is not JSON serializable`**
+8. **Debug metadata not persisting on page refresh**
+   - `routes.py` used to inject `state["last_history_turn"]` into dict before passing to template — WorldState model can't have arbitrary keys
+   - Fixed: pass as separate context var, render in new `<script id="initial-state-meta">` tag, update JS to read from both tags
 
-Investigation in progress. `json.dumps` calls found in:
-- `ccya/server/routes.py` — SSE event streaming (turn_complete, panel_update, phase events)
-- `ccya/state/chronicle.py` — event log writing (uses `default=str`)
-- `ccya/server/app.py` — server error persistence (uses `default=str`)
+### Resolved
 
-The `default=str` fallback in `chronicle.py` and `app.py` converts Pydantic models to `str(state)` which gives `<WorldState object at 0x...>` — not useful. Need to find which `json.dumps` call is receiving a bare `WorldState` without `default=str`.
-
-Candidates:
-- `routes.py:270,274` — `panel_update` payloads from `pipeline.py` (already using `.model_dump()` in pipeline, but need to verify)
-- `routes.py:267` — narrative token chunks (should be strings)
-- `routes.py:284,301,312` — error/complete payloads (state_snapshot fixed, but need to verify `changes`, `diff`, `rejected`, `metrics`, `ruling` are all dict-serializable)
-- `routes.py:722` — turn viewer stream events
+All post-merge runtime issues are resolved. Finding #3 is fully closed.
