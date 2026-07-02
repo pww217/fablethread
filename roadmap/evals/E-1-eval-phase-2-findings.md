@@ -48,13 +48,17 @@ The state extractor is returning condition changes without the required `conditi
 
 **Verification:** noir-1930s:driven 8-turn run — `extraction_retry_rates: PASS`, 0/12 retries. Deltas show `condition_change_reason: The void exerts inward pressure on the player.` on turn 4.
 
-### 3. convergence_recompute mismatch (FAIL on all 3 runs)
+### 3. convergence_recompute mismatch (FAIL on all 3 runs) — FIXED
 
 Stored convergence scores don't match recomputed values on various turns.
 
 **Checker:** `convergence_recompute`
 
-**Assessment:** Likely pre-existing — formula may have changed since stored scores were computed. Not a regression. Not fixed in this cycle.
+**Root cause:** Off-by-one in checker — used `turn_no` (post-increment, from `ev.get("turn")`) to compute `roll_starvation`, but engine computes it at ruling time using `current_turn` (pre-increment). The engine was correct; the checker was wrong.
+
+**Fix:** Changed `turns_since_last_roll = turn_no - last_roll_turn` to `turns_since_last_roll = current_turn - last_roll_turn` in `pacing_convergence.py:288`.
+
+**Verification:** noir-1930s:driven 8-turn run — `convergence_recompute: PASS`.
 
 ## What was done
 
@@ -63,9 +67,9 @@ Stored convergence scores don't match recomputed values on various turns.
 - Phase 2: 3 games × 15 turns — engine stable, 3 consistent failures
 - Fixed `thread_urgency_decay`: `_apply_thread_updates()` now sets `urgency_set_turn` when urgency changes
 - Fixed `extraction_retry_rates`: added `condition_change_reason` to state extractor schema example
-- Verified both fixes: noir-1930s:driven 8-turn run — both checkers PASS, 0 retries
+- Fixed `convergence_recompute`: used pre-increment `current_turn` instead of post-increment `turn_no` for roll_starvation
+- Verified all 3 fixes: noir-1930s:driven 8-turn run — all checkers PASS
 
 ## What's next
 
-- Investigate convergence_recompute (likely pre-existing, may not need fix)
 - Resume Phase 3 of evals
