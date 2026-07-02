@@ -39,8 +39,8 @@
         {% if state.pc.conditions %}
         <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
             {% for cond in state.pc.conditions %}
-            {% set cond_label = cond.get('label') if cond is mapping else cond %}
-            {% set cond_desc = cond.get('description') if cond is mapping else '' %}
+            {% set cond_label = cond.label %}
+            {% set cond_desc = cond.description %}
             <span class="condition-pill{% if cond_desc %} has-tooltip{% endif %}">{{ cond_label }}{% if cond_desc %}<div class="tooltip-body">{{ cond_desc }}</div>{% endif %}</span>
             {% endfor %}
         </div>

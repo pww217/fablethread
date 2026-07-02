@@ -17,6 +17,7 @@
             {% set _mot = npc.motivation %}
             {% set npc_tie = npc.tie %}
             {% set npc_pl = npc.personality %}
+            {% set npc_pt = npc.personality_traits %}
             {% set _has_tt = npc_bio or npc_pl or _mot or npc_tie %}
             <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
@@ -50,6 +51,7 @@
             {% set _mot = npc.motivation %}
             {% set npc_tie = npc.tie %}
             {% set npc_pl = npc.personality %}
+            {% set npc_pt = npc.personality_traits %}
             {% set _has_tt = npc_bio or npc_pl or _mot or npc_tie %}
             <div class="npc-item nearby-item{% if _has_tt %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
@@ -112,7 +114,7 @@
         <div class="arc-thread{% if _urg == 'immediate' %} arc-thread-urgent{% elif _urg == 'building' %} arc-thread-building{% endif %}{% if _progress %} has-tooltip{% endif %}">
             <span class="arc-thread-summary" data-md>{{ thread.summary | striptags }}</span>
             {% if _progress %}
-            <div class="tooltip-body">{% for p in _progress %}<p style="margin:0 0 4px 0;">{% if p is mapping %}[{{ (p.get('kind', 'advancement') | upper) }}] {{ p.text or p.get('text', '') }}{% else %}{{ p }}{% endif %}</p>{% endfor %}</div>
+            <div class="tooltip-body">{% for p in _progress %}<p style="margin:0 0 4px 0;">[{{ (p.kind | default('advancement') | upper) }}] {{ p.text }}</p>{% endfor %}</div>
             {% endif %}
         </div>
         {% endfor %}
@@ -150,7 +152,7 @@
             </summary>
             <div class="arc-truths">
                 {% for ct in _completed %}
-                {% set _outcome = ct.get('outcome') or ct.get('resolution_state', '') %}
+                {% set _outcome = ct.outcome or ct.resolution_state or '' %}
                 <div class="arc-thread{% if _outcome %} has-tooltip{% endif %}">
                     <span data-md>{{ ct.summary[:100] }}{% if ct.resolved_turn %} [resolved T{{ ct.resolved_turn }}]{% endif %}</span>
                     {% if _outcome %}<div class="tooltip-body" data-md>{{ _outcome }}</div>{% endif %}

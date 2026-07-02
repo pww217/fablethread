@@ -84,7 +84,10 @@ class NPCEntry(BaseModel):
     presence: NpcPresence = NpcPresence.KNOWN
     position: str | None = None
     personality: str | None = None
+    personality_label: str = ""
+    personality_traits: str = ""
     tie: str | None = None
+    tie_label: str = ""
     party: bool = False
     last_presence_turn: int | None = None
     last_seen_location: str | None = None
@@ -107,6 +110,7 @@ class LongTermObjective(BaseModel):
     threads: list[ArcThread] = Field(default_factory=list)
     completed_threads: list[ArcThread] = Field(default_factory=list)
     resolution: str | None = None
+    resolved_turn: int | None = None
     last_thread_created_turn: int = 0
     started_turn: int | None = None
 
