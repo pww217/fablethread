@@ -70,6 +70,35 @@ Stored convergence scores don't match recomputed values on various turns.
 - Fixed `convergence_recompute`: used pre-increment `current_turn` instead of post-increment `turn_no` for roll_starvation
 - Verified all 3 fixes: noir-1930s:driven 8-turn run — all checkers PASS
 
+## Phase 3: 5 games × 25 turns
+
+- **Path:** `evals/runs/2026-07-02_0.30.0-106-gb593d8c1_b593d8c/`
+- **Runs:** noir-1930s:driven (25t), space-western:speedrunner (25t), golden-piracy:completionist (25t), allied-ww2:aggressive (25t), zombie-survival:cautious (5t — primary LLM unreachable, only 4 completed runs)
+- **Pass rate:** noir-1930s 94.9%, space-western 94.9%, golden-piracy 89.7%, allied-ww2 94.9%
+- **Phase report:** `evals/runs/2026-07-02_0.30.0-106-gb593d8c1_b593d8c/PHASE-3.md`
+
+### New findings
+
+1. **sanitizer_lifecycle: CHECKER BUG** (space-western, golden-piracy)
+   - `threads_resolved` references non-existent thread ID
+   - space-western: `disarmed_in_darkness`
+   - golden-piracy: `marsh_smuggler_approach`
+   - **Root cause:** Checker checks `threads_resolved` against `last_turn_state` (state at START of turn), but sanitizer runs at END of turn after deltas are applied. Threads added during the turn won't be in `last_turn_state`.
+   - **Fix needed:** Checker should use state after deltas are applied
+
+2. **thread_lifecycle: ENGINE BUG** (golden-piracy only)
+   - T38: thread added but never appeared in state: `navy_boarding_action`
+   - Real bug — extraction added a thread but it never made it into state
+   - Needs investigation
+
+### Status of Phase 2 fixes
+
+- **thread_urgency_decay:** Still FAIL on Phase 3 runs — fix committed (b593d8c) but stored scores are from before the fix. Re-run needed to verify.
+- **convergence_recompute:** Still FAIL on Phase 3 runs — fix committed (b593d8c) but stored scores are from before the fix. Re-run needed to verify.
+- **extraction_retry_rates:** PASS on all Phase 3 runs (0 retries) — E-1 fix confirmed working.
+
 ## What's next
 
-- Resume Phase 3 of evals
+- Fix sanitizer_lifecycle checker (use post-delta state instead of `last_turn_state`)
+- Investigate thread_lifecycle failure (navy_boarding_action never appeared in state)
+- Re-run convergence_recompute and thread_urgency_decay with fresh data to verify E-1 fixes
