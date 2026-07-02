@@ -813,29 +813,22 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
     no_events = False
     try:
         st = load_state(save_dir)
-        meta = st.get("meta", {}) or {}
-        if meta.get("_pack_source"):
+        meta = st.meta
+        if meta._pack_source:
             seed_state = {
-                "pc": st.get("pc"),
-                "location": st.get("location"),
-                "inventory": st.get("inventory"),
-                "scene": st.get("scene"),
-                "compendium": st.get("compendium"),
-                "arc": st.get("arc"),
+                "pc": st.pc.model_dump(),
+                "location": st.location.model_dump(),
+                "inventory": [it.model_dump() for it in st.inventory],
+                "scene": st.scene.model_dump(),
+                "compendium": st.compendium.model_dump(),
+                "arc": st.arc.model_dump(),
             }
             seed_row = {
                 "row_kind": "seed",
                 "turn": 0,
-                "pack_source": meta.get("_pack_source", ""),
+                "pack_source": meta._pack_source,
                 "seed_json": _json.dumps(seed_state, indent=2, default=str),
             }
-            __seed_pools = st.get("__seed_pools__") or {}
-            if __seed_pools:
-                seed_row["seed_pools_json"] = _json.dumps(
-                    __seed_pools,
-                    indent=2,
-                    default=str,
-                )
             rows.append(seed_row)
     except Exception as exc:
         _log.warning("Failed to load state for turn_viewer seed display", extra={"error": str(exc)})

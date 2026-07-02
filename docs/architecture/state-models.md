@@ -17,7 +17,7 @@ meta:
   consecutive_low_convergence: int  # global counter across BREATHER→RISING cycles; incremented when convergence_score < threshold, reset on reaching threshold or cancel/retry; drives stall_floor computation
 
 # Root-level keys only present when a game has been seeded
-__seed_meta__:                 # {opening_narrative: str, actions: [str]}; set by _apply_seed_to_save_dir()
+seed_meta:                     # {opening_narrative: str, actions: [str]}; set by init_save_dir()
 
 pc:
   name: str
@@ -71,7 +71,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 - **LongTermObjective**: `long_term_objective`, `threads: list[ArcThread]`, `completed_threads: list[ArcThread]`, `resolution`, `last_thread_created_turn`, `started_turn`
 - **Condition**: `id`, `label`, `description`, `added_turn`, `turns_remaining: int | Literal["permanent"]` (0 = sentinel, replaced by engine default TTL in apply_delta)
 - **InventoryItem**: `id`, `name`, `notes`, `amount`, `aliases: [str]`
-- **NpcPresence**: `name`, `title`, `bio`, `presence`, `position`, `motivation`, `fear`, `leverage`, `personality`, `first_seen_turn`, `last_presence_turn`, `last_seen_location`, `departed_reason`, `departed_turn` — note: `party` is NOT a field on this enum (it's a compendium entry field, not a presence value)
+- **NpcPresence**: enum — `present`, `nearby`, `known`, `departed`, `archived`
 - **ProgressEntry**: `kind: Literal["advancement", "setback"]`, `text`
 - **ThreadResolution**: `id`, `resolution_state: Literal["resolved", "failed", "abandoned"]`, `outcome: str`, `world_state_candidate: str | None`
 - **ThreadUpdate**: `id`, `dormant`, `urgency`, `type`, `major_updates`, `major_update_signal`
@@ -79,6 +79,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 - **WorldStateFact**: `id: str`, `text: str`, `tier: Literal["global", "local"] = "global"`, `permanent: bool = False`, `valence: Literal["threat", "complication", "neutral", "boon"] | None = None`, `expires_turn: int | None = None`
 - **KeyLocation**: `id: str`, `name: str`, `description: str = ""`, `status: str = "active"`, `tags: list[str] = []`
 - **SanitizedWorldStateFact**: `id: str`, `text: str`, `tier: Literal["global", "local"] = "global"`, `permanent: bool = False`, `valence: Literal["threat", "complication", "neutral", "boon"] | None = None`, `expires_turn: int | None = None`
+- **WorldState** (root model): typed Pydantic model wrapping the full `state.yaml` shape. Fields: `meta: Meta`, `pc: PC`, `scene: Scene`, `location: KeyLocation`, `inventory: list[InventoryItem]`, `arc: LongTermObjective`, `compendium: Compendium`, `resolved_arcs: list[dict]`, `world_state_candidates: list[dict]`, `world: World`, `seed_meta: dict | None`. All functions that read or mutate state take `WorldState` (not `dict[str, Any]`). Immutable — mutation goes through typed mutator methods that return a new `WorldState`.
 
 ### Extraction models (ccya/models/extraction.py)
 
@@ -125,7 +126,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 - `outcome: str` — one past-tense sentence written at resolution time; persisted on completed ArcThread by `_apply_thread_resolutions()` alongside `resolution_state`
 
 ### StateDelta actions
-- `actions: list[str]`, max_length=10 — merged from StorytellerResult.actions, persisted to `state["pc"]["actions"]` as rolling window by `apply_delta()`
+- `actions: list[str]`, max_length=10 — merged from StorytellerResult.actions, persisted to `state.pc.actions` as rolling window by `apply_delta()`
 
 ### Condition TTL system
 - `turns_remaining: int | Literal["permanent"]` on `Condition` and `ConditionAdd`
@@ -144,3 +145,35 @@ world.factions: [str], world.locations: list[KeyLocation]
 - **bond→tie rename:** Runtime code (`CompendiumNpcUpdate.tie` in `extraction.py`) uses `tie`; seed-time model (`CompendiumEntry.bond` in `pack.py`) still uses `bond`. The scenario model field is `npc_bonds`. Most templates and prompts use `tie`.
 - Seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings
 - Seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only)
+
+## Typed mutators on WorldState
+
+All state mutation goes through immutable typed methods on `WorldState`. Each returns a new `WorldState` instance (Pydantic `model_copy` under the hood). Never use `state["key"] = value` or `state.setdefault("key", value)` in engine code.
+
+| Mutator | Purpose |
+|---|---|
+| `set_turn(n)` | Increment turn counter (engine/turn.py) |
+| `add_recent_beat(beat, max_size=5)` | Append to recent_beats with FIFO cap |
+| `add_recent_roll(roll, max_size=5)` | Append to recent_rolls with FIFO cap |
+| `add_prior_history_bullet(text)` | Append history bullet (capped at 20) |
+| `set_pending_beat(beat)` | Set/consume GM beat for current turn |
+| `set_beat_candidates(candidates)` | Update beat candidate pool |
+| `set_last_inventory_change_reason(reason)` | Debug aid for last inventory change |
+| `set_last_condition_change_reason(reason)` | Debug aid for last condition change |
+| `set_last_rules_outcome(outcome)` | Debug aid for last rules outcome |
+| `set_last_thread_creation_turn(n)` | Track thread creation cooldown |
+| `set_last_arc_resolve_turn(n)` | Track arc resolution |
+| `set_smoothed_convergence(value)` | EMA-smoothed convergence score |
+| `set_compendium_touch_order(order)` | LRU order for NPC selection |
+| `set_world_state(facts)` | Atomic world_state swap (replaces entire array) |
+| `expire_world_state_facts(current_turn)` | Remove facts whose `expires_turn` has passed |
+| `set_scene_phase(phase)` | Current pacing phase |
+| `add_npc(nid, entry)` | Insert new NPC into compendium |
+| `update_npc(nid, **kwargs)` | Partial update of existing NPC |
+| `add_condition(cond)` | Add condition to PC (id-dedup) |
+| `remove_condition(cond_id)` | Remove condition from PC |
+| `expire_conditions(turn_no)` | TTL-based condition expiration |
+
+## I/O
+
+- `ccya/state/io.py` — `load_state(save_dir) -> WorldState`, `save_state(save_dir, state)`, `init_save_dir(save_dir, seed)`, `default_world_state() -> WorldState` (replaces legacy `_default_state()` dict factory). YAML serialization coerces enums to string values via `_coerce_enums()`.

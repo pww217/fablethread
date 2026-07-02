@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Any
+from ccya.models import WorldState
 from ccya.state import load_last_narration, load_state
 
 from .metrics import _recent_turn_metrics
@@ -16,9 +17,9 @@ _log = logging.getLogger(__name__)
 _app = sys.modules["ccya.server.app"]
 
 
-def _load_current_state() -> dict[str, Any]:
+def _load_current_state() -> "WorldState":
     state = load_state(_app.SAVE_DIR)
-    _log.debug("_load_current_state keys=%s", list(state.keys()))
+    _log.debug("_load_current_state meta.turn=%s", state.meta.turn)
     return state
 
 
@@ -167,9 +168,9 @@ def _load_last_actions(save_dir: Path) -> list[str]:
 
 
 def _load_opening_actions(save_dir: Path) -> list[str]:
-    """Return seed-time actions from state.yaml __seed_meta__."""
+    """Return seed-time actions from state.yaml seed_meta."""
     state = load_state(save_dir)
-    actions = (state.get("__seed_meta__") or {}).get("actions") or []
+    actions = (state.seed_meta or {}).get("actions") or []
     _log.debug("_load_opening_actions count=%d", len(actions))
     return actions
 
@@ -210,7 +211,7 @@ def _debug_context() -> dict[str, Any]:
             "log_file": "logs/game.log",
         }
     state = _load_current_state()
-    _log.debug("_debug_context state_keys=%s mock=%s", list(state.keys()), mock_mode)
+    _log.debug("_debug_context state_keys=%s mock=%s", list(state.model_dump().keys()), mock_mode)
     return {
         "errors": [],
         "turns": _recent_turn_metrics(_app.SAVE_DIR, 10),

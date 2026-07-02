@@ -12,7 +12,7 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig
 from ccya.engine.turn_context import PacingContext
-from ccya.models import ArcThread
+from ccya.models import ArcThread, Scene, WorldState
 
 
 BEAT_BUCKETS: dict[str, list[str]] = {
@@ -197,13 +197,11 @@ def _compute_pacing_context(
     )
 
 
-def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
+def _compute_ages(state: WorldState) -> dict[str, int]:
     """Compute age/staleness counters for narration directives."""
-    meta = state.get("meta") or {}
-    scene = state.get("scene") or {}
-    current_turn = meta.get("turn", 0)
+    current_turn = state.meta.turn
 
-    scene_entered = scene.get("turn_entered", 0)
+    scene_entered = state.scene.turn_entered
     scene_age = current_turn - scene_entered
 
     return {
@@ -212,12 +210,12 @@ def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
 
 
 def _compute_scene_phase(
-    state: dict[str, Any],
+    state: WorldState,
     ages: dict[str, int],
     config: EngineConfig,
     total_convergence_score: int = 0,
     turn_no: int = 0,
-) -> dict[str, Any]:
+) -> Scene:
     """Compute the scene phase using the 5-state machine.
 
     Transitions: SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION,
@@ -226,21 +224,27 @@ def _compute_scene_phase(
     CLIMAX→RESOLUTION: signal-gated exit (early exit on thread resolution + low convergence,
     extension on sustained pressure, hard cap at climax_turn_limit + extension_max).
 
-    Returns the updated scene dict.
+    Returns the updated scene model.
     """
-    scene = state.get("scene") or {}
+    scene = state.scene
 
-    phase = scene.get("scene_phase", "SETUP")
-    climax_turn_count = scene.get("climax_turn_count", 0)
-    breather_turn_count = scene.get("breather_turn_count", 0)
-    turns_in_phase = scene.get("turns_in_phase", 0) + 1
+    phase = scene.scene_phase
+    climax_turn_count = scene.climax_turn_count
+    breather_turn_count = scene.breather_turn_count
+    turns_in_phase = scene.turns_in_phase + 1
 
     # Count urgent threads
-    _raw_threads = (state.get("arc") or {}).get("threads") or []
     thread_urgency_count = 0
-    for t in _raw_threads:
-        if isinstance(t, dict) and getattr(ArcThread.model_validate(t) if not isinstance(t, ArcThread) else t, "urgency", "normal") == "urgent":
+    for t in state.arc.threads:
+        if isinstance(t, ArcThread) and t.urgency == "urgent":
             thread_urgency_count += 1
+        else:
+            try:
+                t_obj = ArcThread.model_validate(t)
+                if t_obj.urgency == "urgent":
+                    thread_urgency_count += 1
+            except Exception:
+                pass
 
     # Phase transition logic
     if phase == "SETUP":
@@ -259,8 +263,8 @@ def _compute_scene_phase(
         # Early exit — evaluated EVERY CLIMAX turn (not just at the limit).
         # Signal sourced from state (end-of-prior-turn), not in-flight storyteller_result.
         thread_resolved_prev_turn = any(
-            ct for ct in (state.get("arc") or {}).get("completed_threads", [])
-            if ct.get("resolved_turn") == turn_no - 1
+            ct for ct in state.arc.completed_threads
+            if ct.resolved_turn == turn_no - 1
         )
         if thread_resolved_prev_turn and total_convergence_score < config.convergence_exit_threshold and turns_in_phase >= config.CLIMAX_min:
             phase = "RESOLUTION"
@@ -270,8 +274,8 @@ def _compute_scene_phase(
         elif climax_turn_count >= config.climax_turn_limit:
             # has_urgent_active_thread: explicit dormant filter (do NOT copy existing thread_urgency_count pattern)
             has_urgent_active_thread = any(
-                t for t in (state.get("arc") or {}).get("threads") or []
-                if isinstance(t, dict) and t.get("urgency") == "urgent" and not t.get("dormant", False)
+                t for t in state.arc.threads
+                if isinstance(t, ArcThread) and t.urgency == "urgent" and not t.dormant
             )
             if total_convergence_score >= 3 and has_urgent_active_thread:
                 if climax_turn_count >= config.climax_turn_limit + config.extension_max:
@@ -305,7 +309,17 @@ def _compute_scene_phase(
         elif climax_turn_count == 1:
             _curtain_call = "active"
 
-    return {**scene, "scene_phase": phase, "climax_turn_count": climax_turn_count, "breather_turn_count": breather_turn_count, "turns_in_phase": turns_in_phase, "curtain_call": _curtain_call}
+    return Scene(
+        scene_phase=phase,
+        climax_turn_count=climax_turn_count,
+        breather_turn_count=breather_turn_count,
+        turns_in_phase=turns_in_phase,
+        curtain_call=_curtain_call,
+        tags=list(scene.tags),
+        world_state=list(scene.world_state),
+        turn_entered=scene.turn_entered,
+        location_entered_turn=scene.location_entered_turn,
+    )
 
 
 def _recent_turn_count(state: dict[str, Any]) -> int:

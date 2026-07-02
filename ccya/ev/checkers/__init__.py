@@ -84,7 +84,8 @@ def run_checker(checker_id: str, events: list[dict[str, Any]], save_dir: Path | 
                 detail=f"required field '{field_dotpath}' not found in any event",
             )
 
-    _state: dict[str, Any] | None = None
+    from ccya.models import WorldState
+    _state: WorldState | None = None
     if meta.get("needs_state", False):
         if save_dir is None:
             return CheckerResult(
