@@ -181,8 +181,9 @@ def _list_saves() -> list[dict[str, Any]]:
 @_app_mod.app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     if _app_mod.SAVE_DIR is None:
+        from ccya.state.io import default_world_state
         ctx = _debug_context()
-        ctx["state"] = {}
+        ctx["state"] = default_world_state()
         ctx["history"] = []
         ctx["last_actions"] = []
         ctx["opening"] = ""
@@ -195,6 +196,7 @@ async def index(request: Request):
         )
         ctx["active_save_name"] = ""
         ctx["no_save"] = True
+        ctx["last_history_turn"] = None
         css_path = _app_mod.BASE_DIR / "static" / "app.css"
         ctx["css_v"] = int(css_path.stat().st_mtime) if css_path.exists() else 0
         return _app_mod._render("index.html", ctx)
@@ -988,7 +990,7 @@ async def switch_save(request: Request):
     # Switch
     _app_mod.SAVE_DIR = target
     _log.info("Switched save to %s", save_name)
-    return JSONResponse({"ok": True, "save_dir": str(target), "state": state})
+    return JSONResponse({"ok": True, "save_dir": str(target), "state": state.model_dump()})
 
 
 @_app_mod.app.post("/api/delete-save")
