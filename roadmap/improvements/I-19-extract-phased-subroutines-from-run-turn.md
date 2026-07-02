@@ -8,6 +8,9 @@ created: 2026-06-29
 ticket_id: I-19
 labels: [engine, refactoring]
 plan: plans/completed/I-19-extract-phased-subroutines.md
+pr:
+  url: https://github.com/pww217/ccya/pull/10
+  branch: i19-extract-phased-subroutines
 ---
 
 # I-19: Extract phased subroutines from run_turn

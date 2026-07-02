@@ -148,12 +148,20 @@ async def run_turn(
             state = state.add_recent_roll({"turn": turn_no, "band": ctx.outcome.band})
 
         # === Call 1: Narration streaming ===
-        _narrate_gen = _narrate_phase(ctx)
+        _narrate_result = NarrateResult()
+        _narrate_gen = _narrate_phase(ctx, _narrate_result)
         try:
             async for _item in _narrate_gen:
                 yield _item
-        except StopAsyncIteration as _e:
-            _pc, narrative, narr_metrics, rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars = _e.value  # type: ignore[attr-defined]
+        except StopAsyncIteration:
+            pass  # Results are in _narrate_result
+        _pc = _narrate_result.pc
+        narrative = _narrate_result.narrative
+        narr_metrics = _narrate_result.narr_metrics or {}
+        rendered_narr_system = _narrate_result.rendered_narr_system
+        rendered_narr_user = _narrate_result.rendered_narr_user
+        narr_trimmed = _narrate_result.narr_trimmed
+        narr_trimmed_chars = _narrate_result.narr_trimmed_chars
 
         delta = None
         actions = []
@@ -161,7 +169,6 @@ async def run_turn(
         extraction_event: dict[str, Any] = {}
         _extraction_ctx = None
         record_result = None
-        scene_result: Any = None
 
         # Save narrate extraction to events for verification
         extraction_event["narrate"] = {
@@ -172,12 +179,20 @@ async def run_turn(
         }
 
         # === Call 2: Extraction pipeline + metrics ===
-        _extract_gen = _extract_phase(env, state, narrative, ctx, _intent, _outcome, config, trace_id, turn_no, recent_turns, narr_metrics, errors)
+        _extract_result_container = ExtractResult()
+        _extract_gen = _extract_phase(env, state, narrative, ctx, _intent, _outcome, config, trace_id, turn_no, recent_turns, narr_metrics, errors, _extract_result_container)
         try:
             async for _item in _extract_gen:
                 yield _item
-        except StopAsyncIteration as _e:
-            delta, actions, outcome_summary, extraction_event, record_result, scene_result, _extraction_ctx, ext_metrics = _e.value  # type: ignore[attr-defined]
+        except StopAsyncIteration:
+            pass  # Results are in _extract_result_container
+        delta = _extract_result_container.delta
+        actions = _extract_result_container.actions or []
+        outcome_summary = _extract_result_container.outcome_summary
+        extraction_event = _extract_result_container.extraction_event or {}
+        record_result = _extract_result_container.record_result
+        _extraction_ctx = _extract_result_container.extraction_ctx
+        ext_metrics = _extract_result_container.ext_metrics or {}
 
         metrics = {
             "ruling": ruling_metrics,
@@ -269,10 +284,11 @@ async def run_turn(
         signal_turn_done(str(save_dir))
 
 
-async def _narrate_phase(ctx: TurnContext) -> AsyncIterator[tuple[str, Any]]:
+async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> AsyncIterator[tuple[str, Any]]:
     """Run narration: setup + streaming + metrics.
 
-    Yields: phase events and tokens. Returns (pc, narrative, narr_metrics, rendered_system, rendered_user, narr_trimmed, narr_trimmed_chars).
+    Yields: phase events and tokens.
+    Mutates narrate_result with (pc, narrative, narr_metrics, rendered_system, rendered_user, narr_trimmed, narr_trimmed_chars).
     """
     save_dir = ctx.save_dir
     config = ctx.config
@@ -346,7 +362,13 @@ async def _narrate_phase(ctx: TurnContext) -> AsyncIterator[tuple[str, Any]]:
         return
     yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
 
-    return _pc, narrative, narr_metrics, rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars  # type: ignore[misc]
+    narrate_result.pc = _pc
+    narrate_result.narrative = narrative
+    narrate_result.narr_metrics = narr_metrics
+    narrate_result.rendered_narr_system = rendered_narr_system
+    narrate_result.rendered_narr_user = rendered_narr_user
+    narrate_result.narr_trimmed = narr_trimmed
+    narrate_result.narr_trimmed_chars = narr_trimmed_chars
 
 
 _FALLBACK_SENTINEL = "*That action didn't resolve as expected"
@@ -369,10 +391,12 @@ async def _extract_phase(
     intent: IntentEnvelope, outcome: RulesOutcome, config: EngineConfig,
     trace_id: str, turn_no: int, recent_turns: list[dict[str, Any]],
     narr_metrics: dict[str, Any], errors: list[dict[str, Any]],
+    extract_result: ExtractResult,
 ) -> AsyncIterator[tuple[str, Any]]:
     """Run extraction pipeline + build metrics.
 
-    Yields: pipeline events and phase events. Returns (delta, actions, outcome_summary, extraction_event, record_result, scene_result, extraction_ctx).
+    Yields: pipeline events and phase events.
+    Mutates extract_result with (delta, actions, outcome_summary, extraction_event, record_result, scene_result, extraction_ctx, ext_metrics).
     """
     save_dir = ctx.save_dir
     t2 = asyncio.get_event_loop().time()
@@ -464,7 +488,14 @@ async def _extract_phase(
         "streams": _streams,
     }
 
-    return delta, actions, outcome_summary, extraction_event, record_result, scene_result, _extraction_ctx, ext_metrics  # type: ignore[misc]
+    extract_result.delta = delta
+    extract_result.actions = actions
+    extract_result.outcome_summary = outcome_summary
+    extract_result.extraction_event = extraction_event
+    extract_result.record_result = record_result
+    extract_result.scene_result = scene_result
+    extract_result.extraction_ctx = _extraction_ctx
+    extract_result.ext_metrics = ext_metrics
 
 
 def _apply_phase(
@@ -502,6 +533,29 @@ def _apply_phase(
     narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 
     return state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative
+
+
+@dataclass
+class NarrateResult:
+    pc: Any = None
+    narrative: str = ""
+    narr_metrics: dict[str, Any] | None = None
+    rendered_narr_system: str = ""
+    rendered_narr_user: str = ""
+    narr_trimmed: bool = False
+    narr_trimmed_chars: int = 0
+
+
+@dataclass
+class ExtractResult:
+    delta: StateDelta | None = None
+    actions: list[str] | None = None
+    outcome_summary: str = ""
+    extraction_event: dict[str, Any] | None = None
+    record_result: Any = None
+    scene_result: Any = None
+    extraction_ctx: Any = None
+    ext_metrics: dict[str, Any] | None = None
 
 
 @dataclass
