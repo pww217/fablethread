@@ -1,6 +1,7 @@
 ---
 title: "Engine core tech debt consolidation (I-17 follow-up)"
-status: implemented
+status: done
+completed: 2026-07-02
 urgency: 2
 size: large
 created: 2026-07-02
