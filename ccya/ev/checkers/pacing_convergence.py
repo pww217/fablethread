@@ -285,7 +285,7 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
         if recent_rolls:
             last_roll_turn = recent_rolls[0].get("turn") if isinstance(recent_rolls[0], dict) else None
             if last_roll_turn is not None:
-                turns_since_last_roll = turn_no - last_roll_turn
+                turns_since_last_roll = current_turn - last_roll_turn
         components["roll_starvation"] = 1 if (turns_since_last_roll is not None and turns_since_last_roll >= cfg.roll_starvation_threshold) else 0
 
         # Component 6: threat_density (+1 if active threat count >= threshold)
