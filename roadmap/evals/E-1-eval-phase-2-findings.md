@@ -1,6 +1,6 @@
 ---
 title: "Phase 2 eval: thread_urgency_decay, extraction_retry_rates, convergence_recompute"
-status: up-next
+status: done
 urgency: 2
 size: medium
 created: 2026-07-02
@@ -20,7 +20,7 @@ labels:
 
 ## Findings
 
-### 1. thread_urgency_decay not working (FAIL on all 3 runs)
+### 1. thread_urgency_decay not working (FAIL on all 3 runs) — FIXED
 
 Threads stay at `urgent` for 8+ turns without being demoted to `normal`/`background`.
 
@@ -28,9 +28,13 @@ Threads stay at `urgent` for 8+ turns without being demoted to `normal`/`backgro
 
 **Checker:** `thread_urgency_decay`
 
-**Assessment:** Real bug. The sanitizer's urgency decay mechanism isn't working. Likely pre-existing (sanitizer logic unchanged in current changes).
+**Root cause:** `_apply_thread_updates()` in `turn_state.py:63-64` set `updates["urgency"]` when extraction changed urgency, but never set `urgency_set_turn`. The decay code at `turn_state.py:140` checks `_set_turn = getattr(t, "urgency_set_turn", None)` and skips threads with `None`. Seed threads had `urgency_set_turn=0` from seeding, but when extraction changed urgency, it stayed stale at `0`, making `_age = turn_no - 0` always large but the thread was often dormant (skipped). When extraction woke a dormant thread and set it urgent, `urgency_set_turn` stayed at `0`, so decay never started tracking.
 
-### 2. extraction_retry_rates — state extractor missing condition_change_reason (FAIL on space-western, golden-piracy)
+**Fix:** Added `updates["urgency_set_turn"] = turn_no` alongside `updates["urgency"]` in `_apply_thread_updates()`.
+
+**Verification:** noir-1930s:driven 8-turn run — `thread_urgency_decay: PASS`. Thread `existential_void_presence` correctly got `urgency_set_turn: 3` when extraction set urgency to `normal`.
+
+### 2. extraction_retry_rates — state extractor missing condition_change_reason (FAIL on space-western, golden-piracy) — FIXED
 
 State extractor retry error: `EXTRACTION_COERCION_FAILED: condition_change_reason is required when condition changes are present`.
 
@@ -38,7 +42,11 @@ The state extractor is returning condition changes without the required `conditi
 
 **Checker:** `extraction_retry_rates`
 
-**Assessment:** Pre-existing prompt issue — state extractor prompt doesn't instruct LLM to include `condition_change_reason`.
+**Root cause:** The prompt at `extract_state_system.j2:62-73` had a JSON schema example that included `inventory_change_reason` but NOT `condition_change_reason`. The LLM follows the schema and omits the field when emitting `pc_condition_add`/`pc_condition_remove`.
+
+**Fix:** Added `"condition_change_reason": "Player received medical attention"` to the schema example in `extract_state_system.j2`.
+
+**Verification:** noir-1930s:driven 8-turn run — `extraction_retry_rates: PASS`, 0/12 retries. Deltas show `condition_change_reason: The void exerts inward pressure on the player.` on turn 4.
 
 ### 3. convergence_recompute mismatch (FAIL on all 3 runs)
 
@@ -46,17 +54,18 @@ Stored convergence scores don't match recomputed values on various turns.
 
 **Checker:** `convergence_recompute`
 
-**Assessment:** Likely pre-existing — formula may have changed since stored scores were computed. Not a regression.
+**Assessment:** Likely pre-existing — formula may have changed since stored scores were computed. Not a regression. Not fixed in this cycle.
 
 ## What was done
 
 - Fixed StopAsyncIteration bug in extraction pipeline (I-23 Phase 3 regression)
 - Phase 1: noir-1930s:driven 5 turns — all pass, no errors
 - Phase 2: 3 games × 15 turns — engine stable, 3 consistent failures
+- Fixed `thread_urgency_decay`: `_apply_thread_updates()` now sets `urgency_set_turn` when urgency changes
+- Fixed `extraction_retry_rates`: added `condition_change_reason` to state extractor schema example
+- Verified both fixes: noir-1930s:driven 8-turn run — both checkers PASS, 0 retries
 
 ## What's next
 
-- Fix thread_urgency_decay (sanitizer urgency decay)
-- Fix extraction_retry_rates (state extractor prompt)
 - Investigate convergence_recompute (likely pre-existing, may not need fix)
-- Resume Phase 3 if engine stable
+- Resume Phase 3 of evals
