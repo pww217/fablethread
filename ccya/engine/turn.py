@@ -45,8 +45,6 @@ from ccya.models import (
 
 from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
 
-from ccya.server.app import _start_turn, _signal_turn_done
-
 from ccya.state import (
     append_chronicle,
     append_event,
@@ -87,6 +85,7 @@ async def run_turn(
     actions: list[str] = []
 
     try:
+        from ccya.server.app import _start_turn, _signal_turn_done
         _turn_lock, _cancel_event, _turn_done_event = _start_turn()
         await _turn_lock.acquire()
 
