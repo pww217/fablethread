@@ -9,7 +9,7 @@ from ccya.state.chronicle import (
     remove_last_chronicle_turn,
     remove_last_event,
 )
-from ccya.state.delta import (
+from ccya.state.delta_builder import (
     apply_delta,
     reconcile_delta,
 )

@@ -102,6 +102,8 @@ async def generate_pack_from_brief(
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
+                fallback_host=config.fallback_host,
+                fallback_cooldown_s=config.fallback_cooldown_s,
                 temperature=config.pack_generation_temperature,
                 top_p=config.pack_generation_top_p,
                 timeout=300.0,

@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from ccya.models import SceneExtractResult, StateDelta, StateExtractResult
+from ccya.models import NPCEntry, SceneExtractResult, StateDelta, StateExtractResult, WorldState
 
 _log = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class _ExtractionContext:
     All fields are derived from extract results, NOT from ``state``.  They
     represent what happened *this turn* as determined by the prior two streams.
     """
-    comp_this_turn: dict[str, Any] = field(default_factory=dict)
+    comp_this_turn: dict[str, NPCEntry] = field(default_factory=dict)
     """Reference to post-delta compendium.npcs dict (not a copy)."""
     location_this_turn: dict[str, Any] = field(default_factory=dict)
     """Location dict after applying location_change from scene result (or state's if no change)."""
@@ -31,7 +31,7 @@ class _ExtractionContext:
 
 
 def _build_extraction_context(
-    state: dict[str, Any],
+    state: WorldState,
     scene_result: "SceneExtractResult",
     state_result: "StateExtractResult",
 ) -> _ExtractionContext:
@@ -57,16 +57,16 @@ def _build_extraction_context(
     state_copy = copy.deepcopy(state)
     post_state = apply_delta(state_copy, combined_delta)
 
-    post_pc = post_state.get("pc") or {}
+    post_pc = post_state.pc
 
-    location_this_turn = dict(post_state.get("location") or {})
+    location_this_turn = post_state.location.model_dump()
     if state_result.location_description:
         location_this_turn["description"] = state_result.location_description
 
     return _ExtractionContext(
-        comp_this_turn=post_state.setdefault("compendium", {}).setdefault("npcs", {}),
+        comp_this_turn=post_state.compendium.npcs,
         location_this_turn=location_this_turn,
-        inventory_this_turn=list(post_state.get("inventory") or []),
-        conditions_this_turn=list(post_pc.get("conditions") or []),
+        inventory_this_turn=[item.model_dump() for item in post_state.inventory],
+        conditions_this_turn=[c.model_dump() for c in post_pc.conditions],
     )
 

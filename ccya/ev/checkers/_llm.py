@@ -1,6 +1,6 @@
 """Shared utilities for LLM-based checkers.
 
-Handles model loading/unloading, prompt rendering, and structured output parsing.
+Handles prompt rendering and structured output parsing.
 """
 
 from __future__ import annotations
@@ -8,47 +8,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import sys
 from typing import Any
 
 from ccya.engine.config import EngineConfig
 from ccya.ev.checkers import CheckerResult
 
 
-
 _log = logging.getLogger(__name__)
-
-_checker_model: tuple[Any, Any] | None = None  # (model, tokenizer)
-
-
-def _load_checker_model(config: EngineConfig) -> tuple[Any, Any]:
-    """Load the checker model. Uses config.model if --checker-model not set,
-    otherwise loads the specified model. Caches the loaded model.
-    Logs a message to stderr: "Loading checker model: {model_name}..."
-    """
-    global _checker_model
-    if _checker_model is not None:
-        return _checker_model
-
-    model_name = config.model
-    print(f"Loading checker model: {model_name}...", file=sys.stderr)
-    _log.info("Loading checker model: %s", model_name)
-
-    try:
-        from mlx_lm import load as mlx_load  # type: ignore[import-not-found]
-        model, tokenizer, _ = mlx_load(model_name)
-        _checker_model = (model, tokenizer)
-        return _checker_model
-    except Exception as exc:
-        _log.error("Failed to load checker model: %s", exc)
-        raise
-
-
-def _unload_checker_model() -> None:
-    """Unload the checker model to free memory."""
-    global _checker_model
-    _checker_model = None
-    _log.info("Checker model unloaded")
 
 
 def _call_llm_checker(
@@ -56,14 +22,13 @@ def _call_llm_checker(
     user_prompt: str,
     config: EngineConfig,
 ) -> dict[str, Any]:
-    """Call the checker LLM and parse its structured output.
+    """Call the checker LLM via remote client and parse its structured output.
 
-    1. Ensure checker model is loaded (_load_checker_model)
-    2. Call llm_chat with system + user prompt
-    3. Try to parse response as JSON
-    4. If parsing fails, retry once with "Return ONLY JSON" instruction
-    5. If parsing still fails, return {"error": "parse_failed", "raw": response}
-    6. Return parsed dict
+    1. Call llm_chat with system + user prompt via remote Ollama client
+    2. Try to parse response as JSON
+    3. If parsing fails, retry once with "Return ONLY JSON" instruction
+    4. If parsing still fails, return {"error": "parse_failed", "raw": response}
+    5. Return parsed dict
 
     The LLM is instructed to return a JSON object with keys:
     {"passed": bool, "score": float, "reasoning": str, "findings": list[dict]}

@@ -141,6 +141,9 @@ class EngineConfig:
 
     max_llm_retries: int = 1
     context_window: int = 32768
+    fallback_host: str = ""
+    fallback_model: str = ""
+    fallback_cooldown_s: int = 300
 
     # Max entries in recent_beats history list
     recent_beats_max: int = 5
@@ -279,6 +282,9 @@ def build_engine_config(
         pack_generation_temperature=pack_temp,
         pack_generation_top_p=pack_top_p,
         max_llm_retries=int(llm.get("max_llm_retries", 1)),
+        fallback_host=str(llm.get("fallback_host", "")),
+        fallback_model=str(llm.get("fallback_model", "")),
+        fallback_cooldown_s=int(llm.get("fallback_cooldown_s", 300)),
 
         thread_deescalate_on_success=bool(
             game.get("thread_deescalate_on_success", True)

@@ -11,6 +11,7 @@ from ccya.engine.config import EngineConfig, _render
 from ccya.engine.extraction.context import _ExtractionContext
 from ccya.engine.extraction.utils import _filter_evicted_threads
 from ccya.engine.narrate import _get_resolved_arcs
+from ccya.models import ArcThread, LongTermObjective, WorldState
 from ccya.prompts.context import _fmt_progress, _filter_completed_threads
 
 _log = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ _log = logging.getLogger(__name__)
 def _record_messages(
     env: Environment,
     narration: str,
-    state: dict[str, Any],
+    state: WorldState,
     *,
     extraction_ctx: _ExtractionContext,
     recent_turns: list[dict[str, Any]] | None = None,
@@ -29,30 +30,48 @@ def _record_messages(
     config: EngineConfig | None = None,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 3 (threads + actions + outcome_summary)."""
-    scene = state.get("scene") or {}
+    scene = state.scene
 
-    arc = state.get("arc") or {}
-    _raw_threads = arc.get("threads") or []
+    arc = state.arc
+    _raw_threads = list(arc.threads)
     all_threads: list[dict[str, Any]] = []
     for t in _raw_threads:
-        if isinstance(t, dict):
-            entry: dict[str, Any] = dict(t)
-            entry["progress"] = _fmt_progress(entry.get("major_updates"))
-            entry.setdefault("last_updated_turn", t.get("last_updated_turn"))
-            all_threads.append(entry)
+        if isinstance(t, ArcThread):
+            all_threads.append({
+                "id": t.id,
+                "summary": t.summary,
+                "progress": _fmt_progress(list(t.major_updates)),
+                "last_updated_turn": t.last_updated_turn,
+            })
         else:
-            all_threads.append({"id": "", "summary": ""})
-    world_state = list(scene.get("world_state") or [])
+            try:
+                t_obj = ArcThread.model_validate(t)
+                all_threads.append({
+                    "id": t_obj.id,
+                    "summary": t_obj.summary,
+                    "progress": _fmt_progress(list(t_obj.major_updates)),
+                    "last_updated_turn": t_obj.last_updated_turn,
+                })
+            except Exception:
+                all_threads.append({"id": "", "summary": ""})
+    world_state = list(scene.world_state)
 
     # Filter prior_history to remove references to evicted threads
-    completed_threads = arc.get("completed_threads") or []
-    evicted_ids: set[str] = {ct["id"] for ct in completed_threads if isinstance(ct, dict) and ct.get("id")}
-    prior_history = list((state.get("meta") or {}).get("prior_history", [])[:-1])
+    completed_threads = list(arc.completed_threads)
+    evicted_ids: set[str] = {ct.id for ct in completed_threads if ct.id}
+    prior_history = list(state.meta.prior_history)[:-1]
     prior_history = _filter_evicted_threads(prior_history, evicted_ids)
 
     # TTL-filter completed_threads (only include recent ones)
     ttl_filtered_completed = _filter_completed_threads(arc, turn_no, ttl=arc_ttl)
-    arc = {**arc, "completed_threads": ttl_filtered_completed}
+    arc = LongTermObjective(
+        long_term_objective=arc.long_term_objective,
+        threads=list(arc.threads),
+        completed_threads=ttl_filtered_completed,
+        resolution=arc.resolution,
+        last_thread_created_turn=arc.last_thread_created_turn,
+        started_turn=arc.started_turn,
+    )
 
     system_text = _render(env, "record_system.j2", {})
     user_text = _render(
@@ -69,9 +88,9 @@ def _record_messages(
             "prior_history": prior_history,
             "turn_no": turn_no,
             "band": band,
-            "pc_name": (state.get("pc") or {}).get("name", "Unnamed"),
-            "scene_phase": scene.get("scene_phase", ""),
-            "curtain_call": scene.get("curtain_call", ""),
+            "pc_name": state.pc.name or "Unnamed",
+            "scene_phase": scene.scene_phase,
+            "curtain_call": scene.curtain_call,
         },
     )
     msgs = [
