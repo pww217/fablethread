@@ -117,7 +117,7 @@ class WorldState(BaseModel):
     pc: PC = Field(default_factory=PC)
     location: LocationRef = Field(default_factory=lambda: LocationRef())
     inventory: list[InventoryItem] = Field(default_factory=list)
-    arc: LongTermObjective = Field(default_factory=LongTermObjective)
+    long_term_objective: LongTermObjective = Field(default_factory=LongTermObjective)
     scene: Scene = Field(default_factory=Scene)
     compendium: Compendium = Field(default_factory=Compendium)
     resolved_arcs: list[dict[str, Any]] = Field(default_factory=list)
@@ -131,14 +131,14 @@ class WorldState(BaseModel):
         """Validate and coerce raw YAML dict into WorldState.
 
         Handles backward-compat aliases:
-        - ``long_term_objective`` key → ``arc`` field
+        - ``arc`` key → ``long_term_objective`` field
         - ``active`` → ``dormant`` on ArcThread (handled by ArcThread validator)
         - Missing fields use model defaults; None values replaced with type-appropriate empties
         """
         merged = dict(raw)
-        # Backward-compat: ``long_term_objective`` key was used in old YAML
-        if "long_term_objective" in merged and "arc" not in merged:
-            merged["arc"] = merged.pop("long_term_objective")
+        # Backward-compat: ``arc`` key was used in old YAML
+        if "arc" in merged and "long_term_objective" not in merged:
+            merged["long_term_objective"] = merged.pop("arc")
         # Replace None values with type-appropriate empty values (model_validate
         # already handles missing fields with model defaults)
         _LIST_FIELDS = frozenset({"inventory", "resolved_arcs", "world_state_candidates"})

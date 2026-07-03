@@ -318,7 +318,7 @@ async def _record_stream(
         strip_keys=("_reasoning",),
         preview_builder=lambda s, r: s,
         panel_builder=lambda s: {
-            "arc": s.arc.model_dump(),
+            "arc": s.long_term_objective.model_dump(),
             "scene": s.scene.model_dump(),
             "meta": s.meta.model_dump(),
         },
@@ -330,7 +330,7 @@ async def _record_stream(
         narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
         present_npc_names = [getattr(entry, "name", "") for entry in _extraction_ctx_holder.comp_this_turn.values() if getattr(entry, "presence", None) == "present"]
         inventory_items = [getattr(item, "name", getattr(item, "id", "")) for item in state.inventory]
-        arc_goal = state.arc.long_term_objective
+        arc_goal = state.long_term_objective.long_term_objective
         actions = []
         if narr_sentences:
             actions.append(f"Continue {narr_sentences[0].lower().strip()[:80]}")

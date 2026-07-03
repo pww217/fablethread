@@ -64,7 +64,7 @@ def _narrate_messages(
     )
 
     # Build arc context for narrator (needed by both system and user prompts)
-    arc = state.arc
+    arc = state.long_term_objective
     arc_pressure_score = 0
     arc_hint_text = None
     if arc:
@@ -185,9 +185,9 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     scene_phase = state.scene.scene_phase
 
     # Count urgent threads for phase engine
-    _raw_thread_dicts = [t.model_dump() for t in state.arc.threads if isinstance(t, ArcThread)]
+    _raw_thread_dicts = [t.model_dump() for t in state.long_term_objective.threads if isinstance(t, ArcThread)]
     thread_urgency_count = 0
-    for t in state.arc.threads:
+    for t in state.long_term_objective.threads:
         if isinstance(t, ArcThread):
             if t.urgency == "urgent":
                 thread_urgency_count += 1

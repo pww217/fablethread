@@ -277,7 +277,7 @@ def _ensure_seed_generated(
             opening_narrative=narrate_fields["opening_narrative"],
             actions=narrate_fields["actions"],
             outcome_summary=narrate_fields["outcome_summary"],
-            arc=partial.seed_state.arc,
+            arc=partial.seed_state.long_term_objective,
             arc_origin=partial.seed_state.arc_origin,
         )
         seed_dict = final_envelope.seed_state.model_dump(mode="json")
@@ -507,7 +507,7 @@ def _llm_session(
     turns_played = 0
     trace_ids: list[str] = []
 
-    arc_goal = state.arc.long_term_objective
+    arc_goal = state.long_term_objective.long_term_objective
     system_prompt = "You are roleplaying as a character in a text adventure game.\n\n"
     if arc_goal:
         system_prompt += "Goal: " + arc_goal + "\n\n"
@@ -526,7 +526,7 @@ def _llm_session(
             context_parts.append(f"Inventory: {', '.join(items)}")
 
         # Arc goal + threads (narrative direction)
-        goal = state.arc.long_term_objective
+        goal = state.long_term_objective.long_term_objective
         if goal:
             context_parts.append(f"Goal: {goal}")
 

@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import sys
+import yaml
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -161,6 +162,16 @@ def _list_saves() -> list[dict[str, Any]]:
         pack_name = state.meta.setting_pack
         pc_name = state.pc.name
         location_name = state.location.name
+        arc_goal = state.long_term_objective.long_term_objective if state.long_term_objective else None
+
+        # arc_origin is stored in state.yaml but not part of WorldState model
+        arc_origin = None
+        try:
+            with open(entry / "state.yaml") as f:
+                raw = yaml.safe_load(f)
+                arc_origin = raw.get("arc_origin")
+        except Exception:
+            pass
 
         resolved = entry.resolve()
         kind = "eval" if str(resolved).startswith(str(Path("evals/runs").resolve())) else "user"
@@ -172,6 +183,8 @@ def _list_saves() -> list[dict[str, Any]]:
             "last_modified": last_modified,
             "pc_name": pc_name,
             "location_name": location_name,
+            "long_term_objective": arc_goal,
+            "arc_origin": arc_origin,
             "kind": kind,
         })
 
@@ -480,7 +493,7 @@ async def new_game(request: Request):
             opening_narrative=narrate_fields["opening_narrative"],
             actions=narrate_fields["actions"],
             outcome_summary=narrate_fields["outcome_summary"],
-            arc=partial.seed_state.arc,
+            arc=partial.seed_state.long_term_objective,
             arc_origin=partial.seed_state.arc_origin,
         )
         seed = final_envelope.seed_state.model_dump(mode="json")
@@ -525,7 +538,7 @@ async def new_game_reroll(request: Request):
             opening_narrative=narrate_fields["opening_narrative"],
             actions=narrate_fields["actions"],
             outcome_summary=narrate_fields["outcome_summary"],
-            arc=partial.seed_state.arc,
+            arc=partial.seed_state.long_term_objective,
             arc_origin=partial.seed_state.arc_origin,
         )
         seed = final_envelope.seed_state.model_dump(mode="json")

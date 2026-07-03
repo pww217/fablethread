@@ -66,7 +66,7 @@ When inspecting a game, check one area at a time rather than running all checker
 - **Fields:** `extraction.record`, `last_turn_state`
 - **What it checks:** thread_add entries appear in state after the turn, thread_update IDs reference existing threads
 - **CLI:** `ev.py check TURN thread_lifecycle`
-- **Caveats:** Checks the next turn's last_turn_state to verify thread_add was applied. thread_update IDs are validated against the current turn's state.arc.threads.
+- **Caveats:** Checks the next turn's last_turn_state to verify thread_add was applied. thread_update IDs are validated against the current turn's state.long_term_objective.threads.
 
 ### arc_goal_updates
 
@@ -178,7 +178,7 @@ When inspecting a game, check one area at a time rather than running all checker
 - **Fields:** `threads_updated`, `threads_removed`, `threads_resolved`, `threads_added`, `goal_changed`, `changes_detail`
 - **What it checks:** Sanitizer thread operations reference valid state threads, no goal_changed noops, orphan thread detection
 - **CLI:** `ev.py check TURN sanitizer_lifecycle`
-- **Caveats:** Requires non-turn events (`kind: "sanitizer"`) and state access (`--save-dir`). Returns inconclusive if no sanitizer events found. Checks that threads_updated/removed/resolved IDs exist in state.arc.threads, and threads_added IDs don't conflict. Orphan detection finds threads in state never referenced by any sanitizer event.
+- **Caveats:** Requires non-turn events (`kind: "sanitizer"`) and state access (`--save-dir`). Returns inconclusive if no sanitizer events found. Checks that threads_updated/removed/resolved IDs exist in state.long_term_objective.threads, and threads_added IDs don't conflict. Orphan detection finds threads in state never referenced by any sanitizer event.
 
 ### directive_tone_match
 
@@ -231,7 +231,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### convergence_components
 
 - **Type:** deterministic
-- **Fields:** `pacing_context.convergence_components`, `pacing_context.convergence_score`, `last_turn_state.arc.threads`, `last_turn_state.meta.recent_beats`, `last_turn_state.scene.scene_phase`, `ruling.band`, `ruling.rolled`
+- **Fields:** `pacing_context.convergence_components`, `pacing_context.convergence_score`, `last_turn_state.long_term_objective.threads`, `last_turn_state.meta.recent_beats`, `last_turn_state.scene.scene_phase`, `ruling.band`, `ruling.rolled`
 - **What it checks:** 5-component convergence score matches formula, phase transitions respect threshold
 - **CLI:** `ev.py check TURN convergence_components --save-dir saves/my-game`
 - **Caveats:** Remaps old component names (`thread_weight`, `urgency_depth`) to new names. Validates each component (urgent_thread, threat_thread, scene_age, beat_streak, dice_weight) is correctly computed. Checks `convergence_score` matches sum of components. Checks RISING→CLIMAX only happens when score >= threshold. Requires `--save-dir` for state access.

@@ -73,11 +73,11 @@ def _sanitize_seed_state(seed_state: SeedState) -> SeedState:
         first_npc.presence = "present"
 
     # Safety net: coerce null lists to empty lists (LLM sometimes emits null)
-    if seed_state.arc is not None:
-        if seed_state.arc.completed_threads is None:
-            seed_state.arc.completed_threads = []
-        if seed_state.arc.threads is None:
-            seed_state.arc.threads = []
+    if seed_state.long_term_objective is not None:
+        if seed_state.long_term_objective.completed_threads is None:
+            seed_state.long_term_objective.completed_threads = []
+        if seed_state.long_term_objective.threads is None:
+            seed_state.long_term_objective.threads = []
 
     return seed_state
 
@@ -330,8 +330,8 @@ async def prepare_seed(
                 messages.append({"role": "user", "content": fb})
             continue
 
-        # Enforce hard limits on non-dormant threads and urgency (reads from seed_state.arc directly)
-        arc = state_envelope.seed_state.arc
+        # Enforce hard limits on non-dormant threads and urgency (reads from seed_state.long_term_objective directly)
+        arc = state_envelope.seed_state.long_term_objective
         if arc:
             # Set started_turn to the current turn (usually 1 at seed time)
             if getattr(arc, "started_turn") is None:
@@ -496,9 +496,9 @@ def _build_narrate_seed_messages(
     
     # Extract arc (objective only — threads surface later)
     arc_data = None
-    if seed_state.arc:
+    if seed_state.long_term_objective:
         arc_data = {
-            "objective": seed_state.arc.long_term_objective,
+            "objective": seed_state.long_term_objective.long_term_objective,
         }
     
     ctx = {

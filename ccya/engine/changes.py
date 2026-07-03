@@ -206,8 +206,8 @@ def summarize_changes(
             facts.append({"kind": "updated", "old": pre_text, "new": post_text})
 
     threads: list[dict[str, Any]] = []
-    pre_arc = pre.arc
-    post_arc = post.arc
+    pre_arc = pre.long_term_objective
+    post_arc = post.long_term_objective
     if pre_arc or post_arc:
         pre_t = {t.id: t for t in pre_arc.threads}
         post_t = {t.id: t for t in post_arc.threads}
