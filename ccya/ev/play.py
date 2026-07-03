@@ -290,6 +290,11 @@ def _ensure_seed_generated(
                 "actions": final_envelope.actions or [],
                 "outcome_summary": final_envelope.outcome_summary or "",
             }
+        if p.scenario and p.scenario.pc_situation_schema:
+            seed_dict["pc_situation_schema"] = [
+                {"key": s.key, "description": s.description, "required": s.required, "persist": s.persist}
+                for s in p.scenario.pc_situation_schema
+            ]
         init_save_dir(save_dir, WorldState.from_dict(seed_dict))
 
     return load_state(save_dir)

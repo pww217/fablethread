@@ -18,6 +18,16 @@ from ccya.models import ArcThread, RulesOutcome, WorldState
 from ccya.engine.hints import compute_arc_pressure_score
 from ccya.prompts.context import _fmt_progress, _filter_completed_threads
 
+
+def _filter_pc_situation(pc_situation: dict, schema: list[dict]) -> dict:
+    """Filter pc.situation to only include keys marked persist=true in the schema."""
+    if not schema:
+        return pc_situation
+    persist_keys = {entry["key"] for entry in schema if entry.get("persist", False)}
+    if not persist_keys:
+        return {}
+    return {k: v for k, v in pc_situation.items() if k in persist_keys}
+
 if TYPE_CHECKING:
     from ccya.engine.turn_context import PacingContext, TurnContext
 
@@ -85,6 +95,7 @@ def _narrate_messages(
     user_ctx = {
         "state": state,
         "pc": state.pc,
+        "pc_situation": _filter_pc_situation(state.pc.situation, state.pc_situation_schema),
         "prior_history": list(state.meta.prior_history)[:-1],
         "recent_turns": recent_turns,
         "rules_outcome": rules_outcome,

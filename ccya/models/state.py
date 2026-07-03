@@ -124,6 +124,7 @@ class WorldState(BaseModel):
     world_state_candidates: list[dict[str, Any]] = Field(default_factory=list)
     world: World = Field(default_factory=World)
     seed_meta: dict[str, Any] | None = None
+    pc_situation_schema: list[dict[str, Any]] = Field(default_factory=list)
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "WorldState":
