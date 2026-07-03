@@ -1,5 +1,11 @@
 {% include "sections/_pc_header.j2" %}{% include "sections/_conditions.j2" %}
 
+{% if pc_situation %}
+## PC Situation
+{% for key, value in pc_situation.items() %}- **{{ key }}:** {{ value }}
+{% endfor %}
+{% endif %}
+
 {% include "sections/_inventory.j2" %}
 
 {% include "sections/_location.j2" %}

@@ -487,6 +487,11 @@ async def new_game(request: Request):
         seed["meta"]["setting_pack"] = _app_mod._pack_id
         if pc_stats_dict:
             seed.setdefault("pc", {})["stats"] = pc_stats_dict
+        if _app_mod._active_pack.scenario and _app_mod._active_pack.scenario.pc_situation_schema:
+            seed["pc_situation_schema"] = [
+                {"key": s.key, "description": s.description, "required": s.required, "persist": s.persist}
+                for s in _app_mod._active_pack.scenario.pc_situation_schema
+            ]
         _apply_seed_to_save_dir(seed, final_envelope.opening_narrative, final_envelope.actions, outcome_summary=final_envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("new_game failed")
@@ -525,6 +530,11 @@ async def new_game_reroll(request: Request):
         )
         seed = final_envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
+        if _app_mod._active_pack.scenario and _app_mod._active_pack.scenario.pc_situation_schema:
+            seed["pc_situation_schema"] = [
+                {"key": s.key, "description": s.description, "required": s.required, "persist": s.persist}
+                for s in _app_mod._active_pack.scenario.pc_situation_schema
+            ]
         _apply_seed_to_save_dir(seed, final_envelope.opening_narrative, final_envelope.actions, outcome_summary=final_envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("seed generation reroll failed")

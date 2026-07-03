@@ -16,6 +16,16 @@ from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
 from ccya.models import ArcThread, Band, IntentEnvelope, RulesCheck, RulesOutcome, WorldState
 from ccya.rules import resolve_check, build_directive
 
+
+def _filter_pc_situation(pc_situation: dict[str, Any], schema: list[dict[str, Any]]) -> dict[str, Any]:
+    """Filter pc.situation to only include keys marked persist=true in the schema."""
+    if not schema:
+        return pc_situation
+    persist_keys = {entry["key"] for entry in schema if entry.get("persist", False)}
+    if not persist_keys:
+        return {}
+    return {k: v for k, v in pc_situation.items() if k in persist_keys}
+
 if TYPE_CHECKING:
     from ccya.engine.turn_context import TurnContext
 
@@ -65,7 +75,7 @@ def _ruling_messages(
             "urgent_threads": urgent_threads,
             "conditions": list(pc.conditions),
             "state": state,
-            "pc_situation": pc.situation,
+            "pc_situation": _filter_pc_situation(pc.situation, state.pc_situation_schema),
             "beat_candidates": beat_candidates or [],
         },
     )
