@@ -178,9 +178,11 @@ pc_situation_schema:
   - key: home_settlement
     description: What settlement, if any, does the PC call home?
     required: false
+    persist: true
   - key: transport
     description: What is the PC's mode of transport, if any? ("nothing" is valid)
     required: false
+    persist: true
   - key: nearby_area
     description: What's beyond the PC's home settlement? Neighboring settlements, hordes, or other threats.
     required: false
