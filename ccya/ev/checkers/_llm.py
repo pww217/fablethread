@@ -34,7 +34,7 @@ def _call_llm_checker(
     {"passed": bool, "score": float, "reasoning": str, "findings": list[dict]}
     """
     try:
-        from ccya.llm_client import chat as llm_chat
+        from ccya.llm_client import chat_with_config as llm_chat
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -44,12 +44,8 @@ def _call_llm_checker(
         try:
             response = loop.run_until_complete(
                 llm_chat(
-                    config.host,
-                    config.model,
+                    config,
                     messages,
-                    fallback_host=config.fallback_host,
-                    fallback_model=config.fallback_model,
-                    fallback_cooldown_s=config.fallback_cooldown_s,
                     temperature=0.3,
                     timeout=float(config.request_timeout_s),
                     num_ctx=config.num_ctx,
@@ -67,12 +63,8 @@ def _call_llm_checker(
             try:
                 retry_response = loop.run_until_complete(
                     llm_chat(
-                        config.host,
-                        config.model,
+                        config,
                         retry_messages,
-                        fallback_host=config.fallback_host,
-                        fallback_model=config.fallback_model,
-                        fallback_cooldown_s=config.fallback_cooldown_s,
                         temperature=0.1,
                         timeout=float(config.request_timeout_s),
                         num_ctx=config.num_ctx,

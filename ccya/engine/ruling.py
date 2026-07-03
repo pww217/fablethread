@@ -12,7 +12,7 @@ from ccya.engine.config import EngineConfig, _find_json, _render
 from ccya.engine.extraction import _avg_event_ms
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine._pacing import _compute_ages, derive_allowed_beat_types
-from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
+from ccya.llm_client import chat_with_config as llm_chat, strip_thinking, trim_messages
 from ccya.models import ArcThread, Band, IntentEnvelope, RulesCheck, RulesOutcome, WorldState
 from ccya.rules import resolve_check, build_directive
 
@@ -108,12 +108,8 @@ async def _call_ruling(
     for attempt in range(1 + config.max_llm_retries):
         try:
             result = await llm_chat(
-                config.host,
-                config.model,
+                config,
                 messages,
-                fallback_host=config.fallback_host,
-                fallback_model=config.fallback_model,
-                fallback_cooldown_s=config.fallback_cooldown_s,
                 temperature=config.ruling_temperature,
                 top_p=config.ruling_top_p,
                 timeout=float(config.request_timeout_s),

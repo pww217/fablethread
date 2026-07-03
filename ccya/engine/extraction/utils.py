@@ -9,10 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ccya.engine.config import EngineConfig, _find_json
-from ccya.llm_client import (
-    chat as llm_chat,
-    strip_thinking,
-)
+from ccya.llm_client import chat_with_config as llm_chat, strip_thinking
 from ccya.models import CompendiumNpcUpdate
 
 _log = logging.getLogger(__name__)
@@ -172,12 +169,8 @@ async def _call_stream(
     retry_errors: list[str] = []
     for attempt in range(1 + config.max_llm_retries):
         result = await llm_chat(
-            config.host,
-            config.model,
+            config,
             messages,
-            fallback_host=config.fallback_host,
-            fallback_model=config.fallback_model,
-            fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=config.extract_temperature,
             top_p=config.extract_top_p,
             frequency_penalty=config.extract_frequency_penalty,

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json
-from ccya.llm_client import chat as llm_chat
+from ccya.llm_client import chat_with_config as llm_chat
 from ccya.models import ArcThread, LongTermObjective, ProgressEntry, SanitizedWorldStateFact, ThreadResolution, ThreadUpdate, WorldState
 from ccya.state.chronicle import append_event, load_last_narration
 
@@ -64,12 +64,8 @@ async def _sanitize_threads_impl(
     t_sanitize = asyncio.get_running_loop().time()
     try:
         resp = await llm_chat(
-            config.host,
-            config.model,
+            config,
             messages,
-            fallback_host=config.fallback_host,
-            fallback_model=config.fallback_model,
-            fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=config.sanitize_temperature,
             timeout=float(config.request_timeout_s),
             num_ctx=config.num_ctx,

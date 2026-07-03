@@ -36,8 +36,8 @@ class EngineConfig:
     #   runtime mutable:   Fields that can be changed mid-session via UI
     #                      config panels (future use). Currently none.
     #
-    host: str = "http://10.75.100.51:11434/api/chat"
-    model: str = "VladimirGav/gemma4-26b-16GB-VRAM:latest"
+    host: str = "http://10.75.100.51:1234/v1"
+    model: str = "google/gemma-4-26b-a4b-qat"
     num_ctx: int = 16384
     request_timeout_s: int = 1200
     ruling_temperature: float = 0.2
@@ -67,7 +67,6 @@ class EngineConfig:
     max_llm_retries: int = 1
     context_window: int = 32768
     fallback_host: str = ""
-    fallback_model: str = ""
     fallback_cooldown_s: int = 300
 
     # Max entries in recent_beats history list
@@ -146,8 +145,7 @@ def build_engine_config(
     Single source of truth for all field mappings. Both the server
     and the eval harness call this function.
 
-    Defaults: host=http://10.75.100.51:11434/api/chat, 
-    model=VladimirGav/gemma4-26b-16GB-VRAM:latest.
+    Defaults: host=http://10.75.100.51:1234/v1, model=google/gemma-4-26b-a4b-qat.
 
     Args:
         cfg: Raw config dict (output of ``load_config``).
@@ -190,8 +188,8 @@ def build_engine_config(
         _log.warning("build_engine_config: llm.model not configured, using default")
 
     return EngineConfig(
-        host=str(llm.get("host", "http://10.75.100.51:11434/api/chat")),
-        model=str(llm.get("model", "VladimirGav/gemma4-26b-16GB-VRAM:latest")),
+        host=str(llm.get("host", "http://10.75.100.51:1234/v1")),
+        model=str(llm.get("model", "google/gemma-4-26b-a4b-qat")),
         num_ctx=int(llm.get("num_ctx", 16384)),
         context_window=int(llm.get("context_window", 16384)),
         request_timeout_s=int(llm.get("request_timeout_s", 1200)),
@@ -210,7 +208,6 @@ def build_engine_config(
         pack_generation_top_p=pack_top_p,
         max_llm_retries=int(llm.get("max_llm_retries", 1)),
         fallback_host=str(llm.get("fallback_host", "")),
-        fallback_model=str(llm.get("fallback_model", "")),
         fallback_cooldown_s=int(llm.get("fallback_cooldown_s", 300)),
 
         thread_deescalate_on_success=bool(

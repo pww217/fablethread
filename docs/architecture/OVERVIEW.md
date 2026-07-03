@@ -118,14 +118,14 @@ See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for full details on
 
 ## LLM Backend
 
-The engine uses an OpenAI-compatible chat API (`/v1/chat/completions`) or Ollama native `/api/chat` (auto-detected by host URL). The client (`ccya/llm_client.py`) supports both backends via `LLMResult` wrapper (frozen dataclass with `content`, `usage` normalized dict, `elapsed_ms`). Ollama native path uses raw `httpx.AsyncClient` with Ollama-specific payload format; OpenAI-compatible path uses the `openai` Python SDK with `api_key="local"`. `num_ctx` is passed via `extra_body` for OpenAI compat or as direct payload key for Ollama native. Default `num_ctx=16384`. Client-side token trimming via `trim_messages()` preserves 2000 head + 500 tail tokens; system messages are never dropped.
+The engine uses an OpenAI-compatible chat API (`/v1/chat/completions`). The client (`ccya/llm_client.py`) supports both backends via `LLMResult` wrapper (frozen dataclass with `content`, `usage` normalized dict, `elapsed_ms`). Both backends use the `openai` Python SDK with `api_key="local"`. `num_ctx` is passed via `extra_body`. Default `num_ctx=16384`. Client-side token trimming via `trim_messages()` preserves 2000 head + 500 tail tokens; system messages are never dropped.
 
 | Backend | Host | Model | Hardware | Speed |
 |---|---|---|---|---|
-| **Primary (preferred)** | `10.75.100.51:11434` (Ollama native `/api/chat`) | `VladimirGav/gemma4-26b-16GB-VRAM:latest` | RTX 5070 Ti | Fast |
-| Fallback | `127.0.0.1:8080` (llama-swap, OpenAI compat) | `VladimirGav/gemma4-26b-16GB-VRAM:latest` | MacBook (MLX) | Slower |
+| **Primary (preferred)** | `10.75.100.51:1234` (LMStudio, OpenAI compat) | `google/gemma-4-26b-a4b-qat` | RTX 5070 Ti | Fast |
+| Fallback | `127.0.0.1:8080` (llama-swap, OpenAI compat) | Gemma 4-26B | MacBook (MLX) | Slower |
 
-Configured in `config.yaml` under `llm.host`, `llm.model`, `llm.num_ctx`, and `llm.context_window`. The client (`ccya/llm_client.py`) auto-detects Ollama native (`/api/chat` in host URL) vs OpenAI-compatible path. `num_ctx` is passed to control the server-side input context window. `context_window` controls client-side trimming via `trim_messages()` — must be ≤ `num_ctx` to avoid sending more tokens than the server can handle.
+Configured in `config.yaml` under `llm.host`, `llm.model`, `llm.num_ctx`, and `llm.context_window`. The client (`ccya/llm_client.py`) uses a single OpenAI-compatible path for both backends. `num_ctx` is passed to control the server-side input context window. `context_window` controls client-side trimming via `trim_messages()` — must be ≤ `num_ctx` to avoid sending more tokens than the server can handle.
 
 ## Key Models Glossary
 

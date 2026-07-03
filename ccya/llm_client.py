@@ -1,8 +1,8 @@
-"""Thin async client for OpenAI-compatible chat completions (Ollama).
+"""Thin async client for OpenAI-compatible chat completions.
 
-Wire protocol: /v1/chat/completions (OpenAI) or /api/chat (Ollama native).
+Wire protocol: /v1/chat/completions (OpenAI-compatible).
 
-Primary backend: Ollama on 10.75.100.51 (VladimirGav/gemma4-26b-16GB-VRAM:latest, RTX 5070 Ti — fast).
+Primary backend: LMStudio on 10.75.100.51:1234 (google/gemma-4-26b-a4b-qat).
 Fallback: localhost:8080 via llama-swap (Gemma 4-26B, MacBook — slower).
 
 num_ctx controls the server-side input context window (passed via extra_body).
@@ -12,7 +12,6 @@ No keep_alive, no format/grammar constraints.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import re
@@ -50,21 +49,12 @@ class LLMResult:
     elapsed_ms: float = 0.0
 
 
-def _is_ollama_native(host: str) -> bool:
-    return "/api/chat" in host
-
-
-def _ns_to_seconds(ns: int) -> float:
-    return ns / 1e9
-
-
 async def _try_host(
     host: str,
     model: str,
     messages: list[dict[str, str]],
     t0: float,
     *,
-    fallback_model: str = "",
     temperature: float | None = None,
     max_tokens: int | None = None,
     timeout: float = 180.0,
@@ -74,22 +64,10 @@ async def _try_host(
     num_ctx: int | None = None,
 ) -> LLMResult:
     """Make a single LLM call to the given host. Re-raises on failure."""
-    resolved_model = _resolve_model(host, model, fallback_model)
-    if _is_ollama_native(host):
-        return await _chat_ollama_native(
-            host, resolved_model, messages, t0, temperature, top_p, frequency_penalty, seed, num_ctx,
-        )
-    else:
-        return await _chat_openai_compat(
-            host, resolved_model, messages, t0, temperature, max_tokens, top_p, frequency_penalty, seed, num_ctx, timeout,
-        )
-
-
-def _resolve_model(host: str, model: str, fallback_model: str) -> str:
-    """Resolve the model name for the given host. Uses fallback_model if host is the fallback."""
-    if fallback_model and not _is_ollama_native(host):
-        return fallback_model
-    return model
+    return await _chat_openai_compat(
+        host, model, messages, t0, temperature, max_tokens, top_p,
+        frequency_penalty, seed, num_ctx, timeout,
+    )
 
 
 async def _try_host_stream(
@@ -97,7 +75,6 @@ async def _try_host_stream(
     model: str,
     messages: list[dict[str, str]],
     *,
-    fallback_model: str = "",
     temperature: float | None = None,
     timeout: float = 180.0,
     stream_stats: MutableMapping[str, Any] | None = None,
@@ -107,16 +84,9 @@ async def _try_host_stream(
     num_ctx: int | None = None,
 ) -> AsyncIterator[str]:
     """Stream from the given host. Re-raises on failure."""
-    resolved_model = _resolve_model(host, model, fallback_model)
-    if _is_ollama_native(host):
-        async for chunk in _chat_stream_ollama_native(
-            host, resolved_model, messages, temperature, top_p, frequency_penalty, seed, num_ctx, stream_stats,
-        ):
-            yield chunk
-        return
     client = _get_client(host)
     kwargs: dict[str, Any] = {
-        "model": resolved_model,
+        "model": model,
         "messages": messages,
         "stream": True,
         "stream_options": {"include_usage": True},
@@ -126,7 +96,6 @@ async def _try_host_stream(
     kwargs.update(_build_chat_kwargs(
         temperature=temperature, top_p=top_p,
         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
-        openai_style=True,
     ))
     stream = await client.chat.completions.create(**kwargs)
     try:
@@ -149,13 +118,8 @@ def _build_chat_kwargs(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
-    *,
-    openai_style: bool = False,
 ) -> dict[str, Any]:
-    """Build LLM chat kwargs/payload from common parameters.
-
-    Handles type coercion (float/int) and OpenAI-style extra_body for num_ctx.
-    """
+    """Build LLM chat kwargs/payload from common parameters."""
     kwargs: dict[str, Any] = {}
     if temperature is not None:
         kwargs["temperature"] = float(temperature)
@@ -166,18 +130,13 @@ def _build_chat_kwargs(
     if seed is not None:
         kwargs["seed"] = int(seed)
     if num_ctx is not None:
-        if openai_style:
-            kwargs["extra_body"] = {"num_ctx": num_ctx}
-        else:
-            kwargs["num_ctx"] = int(num_ctx)
+        kwargs["extra_body"] = {"num_ctx": num_ctx}
     return kwargs
 
 
 def _is_retryable(exc: BaseException) -> bool:
     """Return True if the exception represents a transient failure worth retrying."""
     if isinstance(exc, TimeoutError):
-        return True
-    if isinstance(exc, httpx.RequestError):
         return True
     return False
 
@@ -204,7 +163,6 @@ async def _chat_with_fallback(
     messages: list[dict[str, str]],
     *,
     fallback_host: str,
-    fallback_model: str,
     fallback_cooldown_s: int,
     temperature: float | None = None,
     max_tokens: int | None = None,
@@ -232,7 +190,6 @@ async def _chat_with_fallback(
         try:
             return await _try_host(
                 host, model, messages, t0,
-                fallback_model=fallback_model,
                 temperature=temperature, max_tokens=max_tokens,
                 timeout=timeout, top_p=top_p,
                 frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -260,7 +217,6 @@ async def _chat_with_fallback(
         try:
             return await _try_host(
                 fallback_host, model, messages, t0,
-                fallback_model=fallback_model,
                 temperature=temperature, max_tokens=max_tokens,
                 timeout=timeout, top_p=top_p,
                 frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -276,7 +232,6 @@ async def _chat_with_fallback(
     try:
         return await _try_host(
             host, model, messages, t0,
-            fallback_model=fallback_model,
             temperature=temperature, max_tokens=max_tokens,
             timeout=timeout, top_p=top_p,
             frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -291,7 +246,6 @@ async def _chat_with_fallback(
             try:
                 return await _try_host(
                     fallback_host, model, messages, t0,
-                    fallback_model=fallback_model,
                     temperature=temperature, max_tokens=max_tokens,
                     timeout=timeout, top_p=top_p,
                     frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -311,7 +265,6 @@ async def _chat_stream_with_fallback(
     messages: list[dict[str, str]],
     *,
     fallback_host: str,
-    fallback_model: str,
     fallback_cooldown_s: int,
     temperature: float | None = None,
     timeout: float = 180.0,
@@ -333,7 +286,6 @@ async def _chat_stream_with_fallback(
         try:
             async for chunk in _try_host_stream(
                 host, model, messages,
-                fallback_model=fallback_model,
                 temperature=temperature, timeout=timeout,
                 stream_stats=stream_stats, top_p=top_p,
                 frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -361,7 +313,6 @@ async def _chat_stream_with_fallback(
         try:
             async for chunk in _try_host_stream(
                 fallback_host, model, messages,
-                fallback_model=fallback_model,
                 temperature=temperature, timeout=timeout,
                 stream_stats=stream_stats, top_p=top_p,
                 frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -379,7 +330,6 @@ async def _chat_stream_with_fallback(
     try:
         async for chunk in _try_host_stream(
             host, model, messages,
-            fallback_model=fallback_model,
             temperature=temperature, timeout=timeout,
             stream_stats=stream_stats, top_p=top_p,
             frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -395,7 +345,6 @@ async def _chat_stream_with_fallback(
             try:
                 async for chunk in _try_host_stream(
                     fallback_host, model, messages,
-                    fallback_model=fallback_model,
                     temperature=temperature, timeout=timeout,
                     stream_stats=stream_stats, top_p=top_p,
                     frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -417,8 +366,7 @@ def _get_client(base_url: str) -> AsyncOpenAI:
         _client = {}
     if base_url not in _client:
         # OpenAI SDK appends /chat/completions to base_url, so we need /v1 prefix
-        # for OpenAI-compatible endpoints (llama-swap, etc.)
-        # Ollama-native hosts use /api/chat directly via httpx, not this path
+        # for OpenAI-compatible endpoints (LMStudio, llama-swap, etc.)
         if not base_url.endswith("/"):
             base_url = base_url.rstrip("/")
         if not base_url.endswith("/v1"):
@@ -442,7 +390,6 @@ def _make_httpx(read_timeout: float | None) -> httpx.AsyncClient:
 
 
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
-
 
 
 def strip_thinking(text: str) -> str:
@@ -512,7 +459,6 @@ async def chat_stream(
     messages: list[dict[str, str]],
     *,
     fallback_host: str = "",
-    fallback_model: str = "",
     fallback_cooldown_s: int = 300,
     temperature: float | None = None,
     timeout: float = 180.0,
@@ -532,7 +478,7 @@ async def chat_stream(
 
     async for chunk in _chat_stream_with_fallback(
         host, model, messages,
-        fallback_host=fallback_host, fallback_model=fallback_model, fallback_cooldown_s=fallback_cooldown_s,
+        fallback_host=fallback_host, fallback_cooldown_s=fallback_cooldown_s,
         temperature=temperature, timeout=timeout,
         stream_stats=stream_stats, top_p=top_p,
         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -546,7 +492,6 @@ async def chat(
     messages: list[dict[str, str]],
     *,
     fallback_host: str = "",
-    fallback_model: str = "",
     fallback_cooldown_s: int = 300,
     temperature: float | None = None,
     max_tokens: int | None = None,
@@ -558,10 +503,7 @@ async def chat(
 ) -> LLMResult:
     """Call LLM and return standardized LLMResult with normalized metrics.
 
-    Supports both OpenAI-compatible (/v1/chat/completions) and Ollama native
-    (/api/chat) backends. Metrics are normalized to the same format regardless
-    of backend.
-
+    Uses OpenAI-compatible /v1/chat/completions endpoint.
     Falls back to fallback_host if the primary host is down (with retry logic).
     """
     if _MOCK_MODE:
@@ -579,7 +521,7 @@ async def chat(
     try:
         result = await _chat_with_fallback(
             host, model, messages,
-            fallback_host=fallback_host, fallback_model=fallback_model, fallback_cooldown_s=fallback_cooldown_s,
+            fallback_host=fallback_host, fallback_cooldown_s=fallback_cooldown_s,
             temperature=temperature, max_tokens=max_tokens,
             timeout=timeout, top_p=top_p,
             frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -631,7 +573,6 @@ async def _chat_openai_compat(
     kwargs.update(_build_chat_kwargs(
         temperature=temperature, top_p=top_p,
         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
-        openai_style=True,
     ))
     _log.debug("chat: request sent, waiting for response...")
     resp = await client.chat.completions.create(**kwargs)
@@ -656,98 +597,64 @@ async def _chat_openai_compat(
     )
 
 
-async def _chat_ollama_native(
-    host: str, model: str, messages: list[dict[str, str]],
-    t0: float, temperature: float | None, top_p: float | None,
-    frequency_penalty: float | None, seed: int | None, num_ctx: int | None,
+# ---------------------------------------------------------------------------
+# Config-based wrappers — extract fallback params from EngineConfig
+# ---------------------------------------------------------------------------
+
+async def chat_with_config(
+    config: Any,
+    messages: list[dict[str, str]],
+    *,
+    temperature: float | None = None,
+    max_tokens: int | None = None,
+    timeout: float = 180.0,
+    top_p: float | None = None,
+    frequency_penalty: float | None = None,
+    seed: int | None = None,
+    num_ctx: int | None = None,
 ) -> LLMResult:
-    """Call via Ollama native /api/chat endpoint.
-
-    Returns token metrics from the native response and normalizes them to
-    the same format as the OpenAI-compatible endpoint.
-    """
-    http_client = _make_httpx(read_timeout=300.0)
-    payload: dict[str, Any] = {
-        "model": model,
-        "messages": messages,
-        "stream": False,
-        "think": False,
-    }
-    payload.update(_build_chat_kwargs(
-        temperature=temperature, top_p=top_p,
-        frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
-        openai_style=False,
-    ))
-
-    try:
-        resp = await http_client.post(f"{host}", json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-    finally:
-        await http_client.aclose()
-
-    elapsed = time.monotonic() - t0
-
-    content = (data.get("message") or {}).get("content", "")
-    prompt_eval_count = data.get("prompt_eval_count", 0)
-    eval_count = data.get("eval_count", 0)
-
-    _log.info(
-        "chat: done in %.1fs prompt_tokens=%d completion_tokens=%d",
-        elapsed, prompt_eval_count, eval_count,
-    )
-    return LLMResult(
-        content=content,
-        usage={
-            "prompt_tokens": prompt_eval_count,
-            "completion_tokens": eval_count,
-            "total_tokens": prompt_eval_count + eval_count,
-        },
-        elapsed_ms=elapsed * 1000,
+    """Call LLM with fallback logic, extracting host/model/fallback from EngineConfig."""
+    return await chat(
+        host=config.host,
+        model=config.model,
+        messages=messages,
+        fallback_host=config.fallback_host,
+        fallback_cooldown_s=config.fallback_cooldown_s,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout=timeout,
+        top_p=top_p,
+        frequency_penalty=frequency_penalty,
+        seed=seed,
+        num_ctx=num_ctx,
     )
 
 
-async def _chat_stream_ollama_native(
-    host: str, model: str, messages: list[dict[str, str]],
-    temperature: float | None, top_p: float | None,
-    frequency_penalty: float | None, seed: int | None, num_ctx: int | None,
-    stream_stats: MutableMapping[str, Any] | None,
+async def chat_stream_with_config(
+    config: Any,
+    messages: list[dict[str, str]],
+    *,
+    temperature: float | None = None,
+    timeout: float = 180.0,
+    stream_stats: MutableMapping[str, Any] | None = None,
+    top_p: float | None = None,
+    frequency_penalty: float | None = None,
+    seed: int | None = None,
+    num_ctx: int | None = None,
 ) -> AsyncIterator[str]:
-    """Stream via Ollama native /api/chat endpoint with token metrics extraction."""
-    http_client = _make_httpx(read_timeout=None)
-    payload: dict[str, Any] = {
-        "model": model,
-        "messages": messages,
-        "stream": True,
-        "think": False,
-    }
-    payload.update(_build_chat_kwargs(
-        temperature=temperature, top_p=top_p,
-        frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
-        openai_style=False,
-    ))
-
-    try:
-        async with http_client.stream("POST", f"{host}", json=payload) as resp:
-            resp.raise_for_status()
-            prompt_eval_count = 0
-            eval_count = 0
-            async for line in resp.aiter_lines():
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except Exception:
-                    continue
-                if data.get("done"):
-                    prompt_eval_count = data.get("prompt_eval_count", prompt_eval_count)
-                    eval_count = data.get("eval_count", eval_count)
-                elif data.get("message", {}).get("content"):
-                    yield data["message"]["content"]
-    finally:
-        await http_client.aclose()
-
-    if stream_stats is not None:
-        stream_stats["prompt_eval_count"] = prompt_eval_count
-        stream_stats["eval_count"] = eval_count
+    """Stream LLM response with fallback logic, extracting host/model/fallback from EngineConfig."""
+    async for chunk in chat_stream(
+        host=config.host,
+        model=config.model,
+        messages=messages,
+        fallback_host=config.fallback_host,
+        fallback_cooldown_s=config.fallback_cooldown_s,
+        temperature=temperature,
+        timeout=timeout,
+        stream_stats=stream_stats,
+        top_p=top_p,
+        frequency_penalty=frequency_penalty,
+        seed=seed,
+        num_ctx=num_ctx,
+    ):
+        yield chunk

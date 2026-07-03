@@ -539,21 +539,17 @@ def _llm_session(
         else:
             user_prompt = "What do you do?"
 
-        from ccya.llm_client import chat as llm_chat
+        from ccya.llm_client import chat_with_config as llm_chat
 
         try:
             loop = _get_play_loop()
             response = loop.run_until_complete(
                 llm_chat(
-                    config.host,
-                    config.model,
+                    config,
                     [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    fallback_host=config.fallback_host,
-                    fallback_model=config.fallback_model,
-                    fallback_cooldown_s=config.fallback_cooldown_s,
                     temperature=config.narrate_temperature,
                     timeout=float(config.request_timeout_s),
                     num_ctx=config.num_ctx,

@@ -175,16 +175,12 @@ def cmd_prompt_eval_seed(
     env = _build_jinja_env(PROMPTS_DIR)
     messages, _ = _build_prepare_seed_messages(env, pack)
 
-    from ccya.llm_client import chat as llm_chat
+    from ccya.llm_client import chat_with_config as llm_chat
 
     try:
         llm_result = asyncio.run(llm_chat(
-            host=config.host,
-            model=model,
+            config,
             messages=messages,
-            fallback_host=config.fallback_host,
-            fallback_model=config.fallback_model,
-            fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=temp,
             timeout=180.0,
             num_ctx=config.num_ctx,
@@ -252,22 +248,17 @@ def cmd_prompt_eval_call(
 
     # Call LLM
     config = EngineConfig()
-    model = scenario.model or config.model
     temp = scenario.temp if scenario.temp is not None else 0.7
 
-    from ccya.llm_client import chat as llm_chat
+    from ccya.llm_client import chat_with_config as llm_chat
 
     try:
         llm_result = asyncio.run(llm_chat(
-            host=config.host,
-            model=model,
+            config,
             messages=[
                 {"role": "system", "content": rendered_system},
                 {"role": "user", "content": rendered_user},
             ],
-            fallback_host=config.fallback_host,
-            fallback_model=config.fallback_model,
-            fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=temp,
             timeout=180.0,
             num_ctx=config.num_ctx,

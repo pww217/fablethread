@@ -10,7 +10,7 @@ from typing import Any, AsyncIterator
 import yaml
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _render
-from ccya.llm_client import chat as llm_chat
+from ccya.llm_client import chat_with_config as llm_chat
 from ccya.pack import PackManifest, ScenarioBrief
 
 _log = logging.getLogger(__name__)
@@ -96,15 +96,11 @@ async def generate_pack_from_brief(
             )
 
             response_text = await llm_chat(
-                host=config.host,
-                model=config.model,
+                config,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                fallback_host=config.fallback_host,
-                fallback_model=config.fallback_model,
-                fallback_cooldown_s=config.fallback_cooldown_s,
                 temperature=config.pack_generation_temperature,
                 top_p=config.pack_generation_top_p,
                 timeout=300.0,

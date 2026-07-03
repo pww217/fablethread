@@ -1,8 +1,7 @@
 llm:
-  host: http://10.75.100.51:11434/api/chat
+  host: http://10.75.100.51:1234/v1
   fallback_host: http://127.0.0.1:8080
-  fallback_model: VladimirGav/gemma4-26b-16GB-VRAM:latest
-  model: VladimirGav/gemma4-26b-16GB-VRAM:latest
+  model: google/gemma-4-26b-a4b-qat
   num_ctx: 16384
   context_window: 16384
   request_timeout_s: 180
