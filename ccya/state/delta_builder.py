@@ -209,6 +209,10 @@ def apply_delta(
 
     inv.sort(key=lambda x: 0 if x.get("id") == "credits" else 1)
 
+    state = state.model_copy(update={
+        "inventory": [InventoryItem(**i) for i in inv],
+    })
+
     if delta.location_change and (delta.location_change.id or delta.location_change.name):
         for nid, entry in list(state.compendium.npcs.items()):
             if entry.presence == NpcPresence.PRESENT:
@@ -222,7 +226,6 @@ def apply_delta(
             "location_entered_turn": _stamp_turn,
         })
         state = state.model_copy(update={
-            "inventory": [InventoryItem(**i) for i in inv],
             "location": delta.location_change,
             "scene": scene,
         })
