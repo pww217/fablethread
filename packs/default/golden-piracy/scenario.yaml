@@ -188,15 +188,18 @@ pc_situation_schema:
   - key: vessel
     description: The PC's ship or vessel. Name, type, condition, and armament.
     required: false
+    persist: true
   - key: home_port
     description: Where is the PC based? Who controls it, and are they welcome there?
     required: false
+    persist: true
   - key: reputation
     description: How is the PC known or unknown? Feared, respected, or unknown?
     required: false
   - key: alliance_status
     description: Who does the PC sail under or with? (pirate fleet, navy, independent, merchant guild)
     required: false
+    persist: true
 
 scene_detail_bundles:
   - id: quarterdeck

@@ -160,15 +160,18 @@ pc_situation_schema:
   - key: unit
     description: What unit or platoon is the PC assigned to, and what is its reputation?
     required: false
+    persist: true
   - key: theater
     description: Where has the PC been deployed? (North Africa, Normandy, Pacific island, etc.)
     required: false
+    persist: true
   - key: family_back_home
     description: Who is the PC's family back home, and where are they located? Include names and town.
     required: false
   - key: chain_of_command
     description: Who is the PC's commanding officer, and does the PC respect or distrust them?
     required: false
+    persist: true
 
 npc_bonds:
   - id: foxhole_brother

@@ -286,11 +286,7 @@ Example: "home settlement" persists (the PC still has a home). "Crew member X" d
 need surfacing — if that crew member matters, they exist as an NPC in the compendium.
 But "vessel condition: damaged" might persist if the vessel itself is a persistent entity.
 
-**`persist` flag — TBD.** The mechanism for marking keys as persistent is not yet defined.
-Pack authors will mark certain keys using a `persist: true` flag (or equivalent) on each
-`pc_situation_schema` entry. The exact flag name and schema shape are deferred to the
-implementation pass. `pc_situation_schema` does not exist in the codebase and will be
-built from scratch — there is no existing structure to extend.
+**`persist` flag — IMPLEMENTED.** Each `pc_situation_schema` entry has a `persist: bool` field (default `false`). The engine filters `pc.situation` to only include keys where `persist: true` when building ruling and narrate prompts. Seed prompt always receives the full situation. Pack authors mark durable situation keys (vessel, home, unit, etc.) with `persist: true`. Backstory-only keys (family, reputation) leave it as `false`.
 
 ### Relationship to External Inventory
 

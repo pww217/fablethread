@@ -157,15 +157,18 @@ pc_situation_schema:
   - key: vessel
     description: What vessel does the PC have? Name, type, condition, and features.
     required: false
+    persist: true
   - key: home_port
     description: What port or station does the PC dock or claim as home?
     required: false
+    persist: true
   - key: reputation
     description: How is the PC known or unknown? Feared, respected, or just another face?
     required: false
   - key: filiation
     description: What faction or guild is the PC aligned with or registered under?
     required: false
+    persist: true
 
 npc_bonds:
   - id: old_crewmate
