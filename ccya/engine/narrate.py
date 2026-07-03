@@ -19,7 +19,7 @@ from ccya.engine.hints import compute_arc_pressure_score
 from ccya.prompts.context import _fmt_progress, _filter_completed_threads
 
 
-def _filter_pc_situation(pc_situation: dict, schema: list[dict]) -> dict:
+def _filter_pc_situation(pc_situation: dict[str, Any], schema: list[dict[str, Any]]) -> dict[str, Any]:
     """Filter pc.situation to only include keys marked persist=true in the schema."""
     if not schema:
         return pc_situation
