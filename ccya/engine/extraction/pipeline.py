@@ -59,6 +59,7 @@ async def _run_extraction_stream(
     trace_id: str,
     turn_no: int,
 ) -> AsyncIterator[tuple[str, Any]]:
+    global _scene_result_holder, _state_result_holder, _record_result_holder
     yield ("phase", {"phase": "extract_stream_start", "stream": variant.name})
     t_stream = asyncio.get_event_loop().time()
     msgs = variant.build_messages(state, **variant.build_messages_kwargs)
@@ -115,7 +116,13 @@ async def _run_extraction_stream(
         "data": variant.panel_builder(_preview),
     })
 
-    raise StopAsyncIteration((result, extraction_event))
+    if variant.name == "scene":
+        _scene_result_holder = (result, extraction_event)
+    elif variant.name == "state":
+        _state_result_holder = (result, extraction_event)
+    elif variant.name == "record":
+        _record_result_holder = (result, extraction_event)
+    return
 
 
 async def _run_extraction_pipeline(
@@ -259,11 +266,8 @@ async def _scene_stream(
         fatal=True,
         call_name="extract_scene",
     )
-    try:
-        async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no):
-            yield event
-    except StopAsyncIteration as e:
-        _scene_result_holder = e.value  # type: ignore[attr-defined]
+    async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no):
+        yield event
 
 
 async def _state_stream(
@@ -294,15 +298,8 @@ async def _state_stream(
             "location": s.location.model_dump(),
         },
     )
-    try:
-        async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no):
-            yield event
-    except StopAsyncIteration as e:
-        state_result, extraction_event = e.value  # type: ignore[attr-defined]
-        state_attempts = extraction_event.get("attempts", 0)
-        if state_attempts > 1 and not state_result.inventory_add and not state_result.inventory_remove and not state_result.inventory_update and not state_result.pc_condition_add and not state_result.pc_condition_remove:
-            _log.warning("extraction.state.empty trace_id=%s turn_no=%d state has no inventory or condition changes after retries", trace_id, turn_no)
-        _state_result_holder = (state_result, extraction_event)
+    async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no):
+        yield event
 
 
 async def _record_stream(
@@ -326,34 +323,31 @@ async def _record_stream(
             "meta": s.meta.model_dump(),
         },
     )
-    try:
-        async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no):
-            yield event
-    except StopAsyncIteration as e:
-        record_result, extraction_event = e.value  # type: ignore[attr-defined]
-        if not record_result.actions:
-            narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
-            present_npc_names = [getattr(entry, "name", "") for entry in _extraction_ctx_holder.comp_this_turn.values() if getattr(entry, "presence", None) == "present"]
-            inventory_items = [getattr(item, "name", getattr(item, "id", "")) for item in state.inventory]
-            arc_goal = state.arc.long_term_objective
-            actions = []
-            if narr_sentences:
-                actions.append(f"Continue {narr_sentences[0].lower().strip()[:80]}")
-            else:
-                actions.append("Take a careful look around the area.")
-            if present_npc_names:
-                npc = present_npc_names[0]
-                actions.append(f"Speak with {npc} about what just happened.")
-            else:
-                actions.append("Survey your surroundings for useful information.")
-            if inventory_items:
-                item = inventory_items[0]
-                actions.append(f"Check your {item} for anything useful.")
-            else:
-                actions.append("Pat down your gear for anything you might have missed.")
-            if arc_goal:
-                actions.append(f"Focus on {arc_goal[:60]} to advance your goal.")
-            else:
-                actions.append("Decide what matters most and pursue it.")
-            record_result = record_result.model_copy(update={"actions": actions})
-        _record_result_holder = (record_result, extraction_event)
+    async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no):
+        yield event
+    record_result, extraction_event = _record_result_holder  # type: ignore[misc]
+    if record_result and not record_result.actions:
+        narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
+        present_npc_names = [getattr(entry, "name", "") for entry in _extraction_ctx_holder.comp_this_turn.values() if getattr(entry, "presence", None) == "present"]
+        inventory_items = [getattr(item, "name", getattr(item, "id", "")) for item in state.inventory]
+        arc_goal = state.arc.long_term_objective
+        actions = []
+        if narr_sentences:
+            actions.append(f"Continue {narr_sentences[0].lower().strip()[:80]}")
+        else:
+            actions.append("Take a careful look around the area.")
+        if present_npc_names:
+            npc = present_npc_names[0]
+            actions.append(f"Speak with {npc} about what just happened.")
+        else:
+            actions.append("Survey your surroundings for useful information.")
+        if inventory_items:
+            item = inventory_items[0]
+            actions.append(f"Check your {item} for anything useful.")
+        else:
+            actions.append("Pat down your gear for anything you might have missed.")
+        if arc_goal:
+            actions.append(f"Focus on {arc_goal[:60]} to advance your goal.")
+        else:
+            actions.append("Decide what matters most and pursue it.")
+        _record_result_holder = (record_result.model_copy(update={"actions": actions}), extraction_event)
