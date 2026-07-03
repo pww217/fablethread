@@ -13,7 +13,7 @@ import re
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _render
 from ccya.engine.names import generate_name_pool, generate_npc_names
-from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
+from ccya.llm_client import chat_with_config as llm_chat, strip_thinking, trim_messages
 from ccya.models import InventoryItem, WorldStateFact
 from ccya.pack import Pack, PlayerOverrides, SeedStateEnvelope, SeedState
 
@@ -241,12 +241,8 @@ async def prepare_seed(
 
         try:
             result = await llm_chat(
-                config.host,
-                config.model,
+                config,
                 messages,
-                fallback_host=config.fallback_host,
-                fallback_model=config.fallback_model,
-                fallback_cooldown_s=config.fallback_cooldown_s,
                 temperature=config.prepare_seed_temperature,
                 top_p=config.prepare_seed_top_p,
                 timeout=float(config.request_timeout_s),
@@ -559,12 +555,8 @@ async def narrate_seed(
     for attempt in range(1 + config.max_llm_retries):
         try:
             result = await llm_chat(
-                config.host,
-                config.model,
+                config,
                 messages,
-                fallback_host=config.fallback_host,
-                fallback_model=config.fallback_model,
-                fallback_cooldown_s=config.fallback_cooldown_s,
                 temperature=config.narrate_temperature,
                 top_p=config.narrate_top_p,
                 timeout=float(config.request_timeout_s),

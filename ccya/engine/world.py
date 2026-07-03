@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from ccya.engine.config import EngineConfig, _render
 from ccya.engine._pacing import derive_allowed_beat_types
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.llm_client import chat as llm_chat
+from ccya.llm_client import chat_with_config as llm_chat
 from ccya.models import GMBeat, WorldState
 
 _log = logging.getLogger(__name__)
@@ -88,12 +88,8 @@ async def _run_world_step(
         _log.debug("world.step_before_llm trace_id=%s turn=%d host=%s model=%s timeout=%.1f", trace_id, turn_no, config.host, config.model, 60.0)
         async with asyncio.timeout(60.0):
             result = await llm_chat(
-                config.host,
-                config.model,
+                config,
                 messages,
-                fallback_host=config.fallback_host,
-                fallback_model=config.fallback_model,
-                fallback_cooldown_s=config.fallback_cooldown_s,
                 temperature=config.world_temperature,
                 top_p=config.extract_top_p,
                 timeout=60.0,  # asyncio.timeout() handles wall-clock timeout

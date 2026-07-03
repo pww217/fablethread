@@ -30,8 +30,8 @@ from ccya.engine.ruling import _ruling_phase
 from ccya.engine.narrate import _narrate_setup
 from ccya.engine.world import _run_world_step
 from ccya.llm_client import (
-    chat as llm_chat,
-    chat_stream as llm_chat_stream,
+    chat_with_config as llm_chat_with_config,
+    chat_stream_with_config as llm_chat_stream_with_config,
     strip_thinking,
     trim_messages,
 )
@@ -316,13 +316,9 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
     t0 = asyncio.get_event_loop().time()
     narr_stream_stats: dict[str, Any] = {}
     first_visible = True
-    async for chunk in llm_chat_stream(
-        config.host,
-        config.model,
+    async for chunk in llm_chat_stream_with_config(
+        config,
         narr_messages,
-        fallback_host=config.fallback_host,
-        fallback_model=config.fallback_model,
-        fallback_cooldown_s=config.fallback_cooldown_s,
         temperature=config.narrate_temperature,
         top_p=config.narrate_top_p,
         frequency_penalty=config.narrate_frequency_penalty,
@@ -839,13 +835,9 @@ async def _persist_and_async_cleanup(
 
 async def warmup(config: EngineConfig) -> None:
     try:
-        await llm_chat(
-            config.host,
-            config.model,
+        await llm_chat_with_config(
+            config,
             [{"role": "user", "content": "ok"}],
-            fallback_host=config.fallback_host,
-            fallback_model=config.fallback_model,
-            fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=0.0,
             timeout=30.0,
             num_ctx=config.num_ctx,
