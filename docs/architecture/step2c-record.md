@@ -122,7 +122,7 @@ flowchart TD
 
     PR --> UPDATES --> GOAL --> CONFLICT --> RESOLVE --> RESOLUTIONS --> GATE
 
-    GATE -- "CampaignArc" --> ARC[arc state in<br>state.yaml]:::arcNode
+    GATE -- "LongTermObjective" --> ARC[arc state in<br>state.yaml]:::arcNode
 ```
 
 **Pipeline order:** thread updates → goal_update (dict assignment) → conflict detection → arc resolution → thread resolutions → thread_add gate.
@@ -191,7 +191,7 @@ Seven call sites in `_apply_state_updates()` in `turn_state.py` (called from `ru
 4. **`_apply_arc_resolve()`** — resolve arc, store in resolved_arcs, create successor
 5. **`_apply_thread_resolutions()`** — resolve/fail/abandon → completed
 6. **Thread add gate** — cooldown check + ID collision checks + thread cap eviction
-7. **`_merge_arc_update()`** — apply the final CampaignArc delta to state
+7. **`_merge_arc_update()`** — apply the final LongTermObjective delta to state
 
 All seven run inside `_apply_state_updates()` which is called from `run_turn()` in `turn.py`.
 

@@ -84,7 +84,7 @@ world.factions: [str], world.locations: list[KeyLocation]
 ### Extraction models (ccya/models/extraction.py)
 
 - **CompendiumNpcUpdate**: NPC identity changes (presence, notes, bio upserts, personality on creation, position, party companion flag)
-- **StateDelta**: Merges scene, state, and storyteller extraction results; contains `location_change`, `location_description`, `compendium_npc_update`, `arc_update` (CampaignArc), `inventory_add/remove/update`, `pc_condition_add/remove`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`. Thread operations (`thread_update`, `thread_resolve`, `thread_add`, `arc_resolve`) are in `StorytellerResult`, not StateDelta.
+- **StateDelta**: Merges scene, state, and storyteller extraction results; contains `location_change`, `location_description`, `compendium_npc_update`, `arc_update` (LongTermObjective), `inventory_add/remove/update`, `pc_condition_add/remove`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`. Thread operations (`thread_update`, `thread_resolve`, `thread_add`, `arc_resolve`) are in `StorytellerResult`, not StateDelta.
 - **SceneExtractResult**: See above
 - **StateExtractResult**: See above
 - **GMBeat**: See above
