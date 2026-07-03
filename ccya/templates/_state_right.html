@@ -8,7 +8,7 @@
             <span class="stat-label">Name</span>
             <span class="stat-value">{{ state.pc.name or '—' }}</span>
             {% if state.pc.bio or state.pc_situation_schema %}
-            <div class="tooltip-body" data-md>
+            <div class="tooltip-body">
                 {% if state.pc.bio %}<p>{{ state.pc.bio }}</p>{% endif %}
                 {% for _s in (state.pc_situation_schema | default([])) %}
                 {% if _s.persist %}

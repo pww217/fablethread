@@ -301,7 +301,8 @@ async def prepare_seed(
 
             # Pre-sanitize: coerce null lists to empty lists before Pydantic validation
             ss = j.get("seed_state", j)
-            arc = ss.get("arc")
+            # Backward compat: old prompts used "arc" key; new ones use "long_term_objective"
+            arc = ss.get("arc") or ss.get("long_term_objective")
             if arc is not None:
                 if isinstance(arc, dict):
                     if arc.get("completed_threads") is None:
