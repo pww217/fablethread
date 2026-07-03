@@ -1069,8 +1069,6 @@ function game() {
 
                 _prependTurnLogTurn(result.turn, result.change_lines || [], result.ruling);
 
-                htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
-                htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
                 this.submitting = false;
 
                 if (result.game_over) {
