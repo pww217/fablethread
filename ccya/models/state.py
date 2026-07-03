@@ -145,6 +145,8 @@ class WorldState(BaseModel):
         for field_name in _LIST_FIELDS:
             if merged.get(field_name) is None:
                 merged[field_name] = []
+        if merged.get("long_term_objective") is None:
+            merged["long_term_objective"] = LongTermObjective()
         return cls.model_validate(merged)
 
     def to_dict(self) -> dict[str, Any]:

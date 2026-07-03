@@ -221,7 +221,7 @@ def _apply_arc_resolve(
     state = state.set_last_arc_resolve_turn(turn_no)
 
     return state.model_copy(update={
-        "arc": new_arc,
+        "long_term_objective": new_arc,
         "resolved_arcs": new_resolved_arcs,
     })
 
@@ -304,7 +304,7 @@ def _apply_thread_resolutions(
         completed_map[u.id] = u
 
     return state.model_copy(update={
-        "arc": arc.model_copy(update={
+        "long_term_objective": arc.model_copy(update={
             "threads": remaining_threads,
             "completed_threads": list(completed_map.values()),
         }),

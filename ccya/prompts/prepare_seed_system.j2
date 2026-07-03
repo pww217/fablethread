@@ -38,7 +38,7 @@ The output must be a JSON object with this structure:
     "inventory": [{"id": "steel_water_bottle", "name": "Steel Water Bottle", "notes": "dented, in pack", "amount": 1}],
     "scene": {"tags": ["checkpoint", "tension"], "world_state": [{"id": "border_closures", "text": "Travel between districts requires a valid faction pass.", "tier": "global", "permanent": true, "valence": "threat", "expires_turn": null}]},
     "compendium": {"npcs": {"guard_captain": {"name": "Hale Voss", "title": "Checkpoint Captain", "bio": "Veteran of the border wars, now manning this post.", "presence": "present", "tie": "controls PC's passage", "motivation": "Keep the checkpoint running without incident", "fear": "Being held responsible for a breach", "leverage": "Can grant or deny passage"}}},
-    "arc": {"long_term_objective": "Reach the inner districts and find the person who can help with the crisis.", "threads": [{"id": "border_closures", "summary": "Faction-controlled checkpoints block all inter-district travel without passes.", "type": "threat", "dormant": false, "urgency": "normal"}], "completed_threads": null, "started_turn": 0},
+    "long_term_objective": {"long_term_objective": "Reach the inner districts and find the person who can help with the crisis.", "threads": [{"id": "border_closures", "summary": "Faction-controlled checkpoints block all inter-district travel without passes.", "type": "threat", "dormant": false, "urgency": "normal"}], "completed_threads": [], "started_turn": 0},
     "arc_origin": "The border walls were erected after the refugee crisis.",
     "world": {"locations": [{"id": "district_checkpoints", "name": "Outer District Checkpoints", "description": "Faction-controlled barriers between districts.", "status": "active", "tags": ["checkpoint", "controlled"]}, {"id": "inner_district", "name": "Inner District", "description": "The fortified core where faction leadership resides.", "status": "restricted", "tags": ["forbidden", "target"]}]}
   }
@@ -128,7 +128,8 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 {% endif %}- Values are short strings describing the PC's current situation for each key.
 - Values may include names of people or places. Names in `pc_situation` are the source of truth for NPC generation.
 - **When mentioning family members, always include a full name** (given + PC's family name). BAD: "Wife Clara in Morganstead." GOOD: "Wife Clara Vance in Morganstead."
-- If a key has no relevant fact, omit it from the output.
+- **All keys marked `persist: true` MUST always have a value.** Never omit them. If there is no relevant fact, use a placeholder like "None" or "The PC has no [key]."
+- All other keys (not persist) may be omitted if there is no relevant fact.
 ## Inventory rules
 - 3–6 items appropriate to the opening scene and PC concept.
 - Every item has a specific, proper name — not "standard issue rifle" or "random book." Names should hint at why the item matters.
