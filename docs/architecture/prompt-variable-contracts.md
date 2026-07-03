@@ -21,19 +21,19 @@ Cross-reference mapping every user template to its section includes and context 
 
 ### `_ruling_messages()` → `ruling_user.j2`
 
-**Context vars passed:** `pc`, `location`, `user_input`, `meta`, `npc_roster`, `inventory`, `recent_turns`, `scene_phase`, `urgent_threads`, `conditions`, `state`
+**Context vars passed:** `pc`, `location`, `user_input`, `meta`, `npc_roster`, `inventory`, `recent_turns`, `scene_phase`, `urgent_threads`, `conditions`, `state`, `pc_situation` (filtered: persist=true only from `state.pc_situation_schema`)
 
 **Section includes:** `_pc_header.j2`, `_conditions.j2`, `_inventory.j2`, `_recent_turns.j2`
 
-**Inline (not section):** NPC roster loop, urgent threads loop, scene header
+**Inline (not section):** NPC roster loop, urgent threads loop, scene header, `pc_situation` section (conditional)
 
 ### `_narrate_messages()` → `narrate_user.j2`
 
-**Context vars passed:** `state`, `pc`, `prior_history`, `recent_turns`, `rules_outcome`, `npc_name_pool`, `user_input`, `pending_beat`, `pacing_context`, `turn_no`, `meta`, `scene`, `ages`, `pc_allegiance`, `world_factions`, `npc_roster`, `current_arc`, `curtain_call`, `resolved_arcs`, `inventory`, `location`, `conditions`
+**Context vars passed:** `state`, `pc`, `pc_situation` (filtered: persist=true only from `state.pc_situation_schema`), `prior_history`, `recent_turns`, `rules_outcome`, `npc_name_pool`, `user_input`, `pending_beat`, `pacing_context`, `turn_no`, `meta`, `scene`, `ages`, `pc_allegiance`, `world_factions`, `npc_roster`, `current_objective`, `arc_pressure_score`, `arc_hint_text`, `curtain_call`, `resolved_arcs`, `inventory`, `location`, `conditions`
 
 **Section includes:** `_pc_header.j2`, `_conditions.j2`, `_inventory.j2`, `_location.j2`, `_npc_roster.j2`, `_thread_list.j2`, `_recent_turns.j2`, `_arc.j2`, `_world_state.j2`
 
-**Inline (not section):** Scene context, immutable reference block, prior history, past resolutions, rules outcome, beat/outcome hints
+**Inline (not section):** Scene context, immutable reference block, prior history, past resolutions, rules outcome, beat/outcome hints, `pc_situation` section (conditional)
 
 ### `_extract_scene_messages()` → `extract_scene_user.j2`
 

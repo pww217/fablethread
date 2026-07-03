@@ -54,6 +54,15 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - **StorytellerResult** (Record output — same model class, gm_beat field removed): thread_update (list[ThreadUpdate] with id/dormant/urgency/type/progress/major_update_signal), goal_update (dict | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/long_term_objective), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome + world_state_candidate for two-step world state promotion), thread_add (ArcThread | None, `added_turn` and `urgency_set_turn` set at creation time in turn.py); thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions (Record output), persisted to `state.pc.actions` as rolling window by `apply_delta()`
 
+## pc.situation tiered surfacing
+
+- `pc_situation_schema` on `WorldState` — typed list of `PcSituationSchemaEntry` (key, description, required, persist) loaded from pack's scenario.yaml at seed time, persisted to state.yaml
+- `_filter_pc_situation(pc_situation, schema)` in ruling.py and narrate.py — filters to only keys where `persist: true`; if no persist keys, returns empty dict
+- Seed prompt (`narrate_seed`) always receives full `pc.situation` (no filtering)
+- Ruling prompt (`ruling_user.j2`) receives filtered situation as `pc_situation` context var
+- Narrate prompt (`narrate_user.j2`) receives filtered situation as `pc_situation` context var (new in persist flag implementation)
+- Pack authors mark durable keys (vessel, home, unit, etc.) with `persist: true`; backstory-only keys (family, reputation) leave as `false`
+
 ## Cross-stream data flow (minimal by design)
 
 - Scene → State: compendium_npc_update (upserts into state.compendium.npcs with presence field)
