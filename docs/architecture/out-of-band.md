@@ -52,7 +52,7 @@ flowchart LR
 
     subgraph OUT["Outputs — SeedEnvelope"]
         O1["seed_state: GameState<br>  pc (name, tagline, bio, stats)<br>  location (id, name, description)<br>  scene (world_state: list[WorldStateFact])<br>  compendium.npcs: dict[id] CompendiumEntry<br>    (presence='present' for in-scene NPCs,<br>     presence='known' otherwise)<br>  meta (model, setting_pack, turn=0,<br>       recent_beats: list[dict])"]:::outNode
-        O2["arc: CampaignArc<br>  long_term_objective,<br>  threads[] (unified, with dormant flag),<br>  completed_threads[]"]:::outNode
+        O2["arc: LongTermObjective<br>  long_term_objective,<br>  threads[] (unified, with dormant flag),<br>  completed_threads[]"]:::outNode
         O3["opening_narrative: str<br>(prose intro shown before turn 1)"]:::outNode
         O4["actions: list[str]<br>(4 distinct, character-shaped,<br>scene-grounded choices)"]:::outNode
     end

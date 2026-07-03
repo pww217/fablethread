@@ -136,7 +136,7 @@ Configured in `config.yaml` under `llm.host`, `llm.model`, `llm.num_ctx`, and `l
 - **SceneExtractResult**: `compendium_npc_update`, `candidate_npcs: list[dict]` (per-NPC beat candidates: [{id, type, effect}])
 - **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`, `location_change`, `location_description`, `inventory_change_reason`, `condition_change_reason`
 - **StorytellerResult** (Record output, formerly Storyteller): `thread_update` (list[ThreadUpdate]), `goal_update` (dict | None, applied via `goal_update["long_term_objective"]`), `arc_resolve` (ArcResolution | None), `thread_resolve` (list[ThreadResolution] with outcome, resolved_turn, world_state_candidate), `thread_add`, `actions`, `outcome_summary`. **The `gm_beat` field has been removed** — beat generation moved to Step 2d (World), beat selection to Step 0 (Ruling). The Pydantic class name is preserved (`StorytellerResult`); only the field is gone.
-- **SeedEnvelope**: `seed_state: SeedState`, `opening_narrative`, `actions`, `arc: CampaignArc | None` (includes `goal_context` — UI-only, not rendered in prompts; unified `threads[]` with `progress: list[ProgressEntry]`, `completed_threads[]`)
+- **SeedEnvelope**: `seed_state: SeedState`, `opening_narrative`, `actions`, `arc: LongTermObjective | None` (includes `goal_context` — UI-only, not rendered in prompts; unified `threads[]` with `progress: list[ProgressEntry]`, `completed_threads[]`)
 
   The seed owns first-turn emotional framing, not just world and arc scaffolding. It generates `goal_context` (character-specific stake), NPC `relation` fields (narrative job relative to PC), and action text written from the PC's voice and scene pressure — ensuring the opening feels personal and motivated from the start.
 
@@ -152,8 +152,8 @@ Computed by `_compute_pacing_context()` in `_pacing.py` after the phase engine r
 
 `GMBeat` is used as the validation schema for World candidates only. Ruling selects by index, not by object matching. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str). **The `npc_id`, `driver`, and `beat_expires_turn` fields are removed** — beats are single-turn commitments; Ruling's per-turn "always replace or pop" rule keeps state hygienic.
 
-### CampaignArc (see [step2c-record](./step2c-record.md#campaign-arc-system))
+### LongTermObjective (see [step2c-record](./step2c-record.md#campaign-arc-system))
 
 ### StateDelta (see [delta-validate](./delta-validate.md))
 
-Merges all three extraction results. Contains `location_change`, `location_description`, `compendium_npc_update` (NPC changes), `arc_update` (CampaignArc), `inventory_add/remove/update`, `pc_condition_add/remove`, `actions`. **No beat fields anywhere in StateDelta** — beats flow through `state.meta.pending_gm_beat` (set by Ruling) and `state.meta.beat_candidates` (set by World). Thread operations (`thread_update`, `thread_resolve`, `thread_add`, `arc_resolve`) are in `StorytellerResult`, not StateDelta.
+Merges all three extraction results. Contains `location_change`, `location_description`, `compendium_npc_update` (NPC changes), `arc_update` (LongTermObjective), `inventory_add/remove/update`, `pc_condition_add/remove`, `actions`. **No beat fields anywhere in StateDelta** — beats flow through `state.meta.pending_gm_beat` (set by Ruling) and `state.meta.beat_candidates` (set by World). Thread operations (`thread_update`, `thread_resolve`, `thread_add`, `arc_resolve`) are in `StorytellerResult`, not StateDelta.

@@ -427,7 +427,7 @@ T6:  normal climax rhythm continues
 | `breather_enforcement` | `ccya/ev/checkers/breather_enforcement.py` | breather auto-transitions to RISING after breather_max_turns |
 | `roll_band_consistency` | `ccya/ev/checkers/roll_band_consistency.py` | band matches dice roll using rules engine, skill/difficulty valid |
 
-> **EV checkers `gm_beat_lifecycle` and `beat_phase_validity` are deferred cleanup** — they read `extraction.storytell.gm_beat` which no longer exists. Tracked in `roadmap/bugs/ev-side-cleanup-storytell-gm-beat-rename.md`. Until that's done, these checkers produce vacuous output but do not crash.
+> **EV checker `gm_beat_lifecycle` is deferred cleanup** — it reads `extraction.storytell.gm_beat` which no longer exists (beat generation moved to World). Tracked in `roadmap/bugs/ev-side-cleanup-storytell-gm-beat-rename.md`. Until that's done, this checker produces vacuous output but does not crash. `beat_phase_validity` has been fixed and reads from `state.meta.beat_candidates` correctly.
 
 ### Prompt rendering
 
@@ -438,4 +438,4 @@ T6:  normal climax rhythm continues
 | `record_user.j2` | (no PacingContext — Record is backward-looking) `threads`, `narration` |
 | `world_user.j2` | `directive`, `outcome_hint`, `scene_phase`, `allowed_beat_types`, `recent_beats`, `candidate_npcs` |
 | `ruling_user.j2` | `beat_candidates` (for ruling's beat selection) |
-| `storytell_system.j2` | Thread operations, beat schema, directive-beat alignment, phase constraints |
+| `record_system.j2` | Thread operations, directive-beat alignment, phase constraints |
