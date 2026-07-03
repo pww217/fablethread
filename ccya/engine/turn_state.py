@@ -24,7 +24,7 @@ def _apply_thread_updates(
     if not storyteller_result.thread_update:
         return None
 
-    arc_raw = state.arc
+    arc_raw = state.long_term_objective
     turn_no = state.meta.turn + 1
 
     if not arc_raw:
@@ -181,7 +181,7 @@ def _apply_arc_resolve(
         return state
 
     turn_no = state.meta.turn + 1
-    old_arc = state.arc
+    old_arc = state.long_term_objective
 
     if not old_arc:
         _log.warning(
@@ -243,7 +243,7 @@ def _apply_thread_resolutions(
         return state
 
     turn_no = state.meta.turn + 1
-    arc = state.arc
+    arc = state.long_term_objective
 
     if not arc:
         _log.debug(
@@ -493,10 +493,10 @@ def _apply_state_updates(
             )
 
         # Arc director: process thread updates and arc resolution
-        if storyteller_result and (state.arc or storyteller_result.thread_add):
+        if storyteller_result and (state.long_term_objective or storyteller_result.thread_add):
             thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
             if thread_delta is not None:
-                state = state.model_copy(update={"arc": _merge_arc_update(state.arc, thread_delta)})
+                state = state.model_copy(update={"long_term_objective": _merge_arc_update(state.long_term_objective, thread_delta)})
                 if delta is not None:
                     delta = delta.model_copy(
                         update={"arc_update": thread_delta}
@@ -504,7 +504,7 @@ def _apply_state_updates(
 
             # Apply goal_update (mid-arc long_term_objective change, separate from arc_resolve)
             if storyteller_result.goal_update:
-                state = state.model_copy(update={"arc": state.arc.model_copy(update={"long_term_objective": storyteller_result.goal_update["long_term_objective"]})})
+                state = state.model_copy(update={"long_term_objective": state.long_term_objective.model_copy(update={"long_term_objective": storyteller_result.goal_update["long_term_objective"]})})
                 _log.info(
                     "goal_update trace_id=%s long_term_objective='%s'",
                     trace_id, storyteller_result.goal_update["long_term_objective"],
@@ -539,7 +539,7 @@ def _apply_state_updates(
                 else:
                     _new_thread = storyteller_result.thread_add
                     turn_no_for_add = state.meta.turn + 1
-                    arc = state.arc
+                    arc = state.long_term_objective
                     if delta is not None:
                         try:
                             existing_ids = {t.id for t in arc.threads} | {t.id for t in arc.completed_threads}
@@ -565,7 +565,7 @@ def _apply_state_updates(
                                             trace_id, evict.id, len(non_dormant), config.thread_max_active,
                                             extra={"trace_id": trace_id, "turn": turn_no},
                                         )
-                                state = state.model_copy(update={"arc": arc_with_new_thread})
+                                state = state.model_copy(update={"long_term_objective": arc_with_new_thread})
                                 state = state.set_last_thread_creation_turn(turn_no_for_add)
                                 delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
                             else:
@@ -587,9 +587,9 @@ def _apply_state_updates(
                             )
 
             # Engine culling: when >= 3 dormant threads, move oldest to completed
-            if state.arc:
+            if state.long_term_objective:
                 try:
-                    arc = state.arc
+                    arc = state.long_term_objective
                     dormant_threads = [t for t in arc.threads if t.dormant]
                     if len(dormant_threads) >= 3:
                         to_cull = min(dormant_threads, key=lambda t: t.last_updated_turn or 0)
@@ -603,7 +603,7 @@ def _apply_state_updates(
                             "threads": remaining,
                             "completed_threads": list(arc.completed_threads) + [culled],
                         })
-                        state = state.model_copy(update={"arc": arc})
+                        state = state.model_copy(update={"long_term_objective": arc})
                         if delta is not None:
                             delta = delta.model_copy(update={"arc_update": arc})
                         _log.info(

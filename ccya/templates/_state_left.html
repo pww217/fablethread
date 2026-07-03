@@ -81,20 +81,16 @@
     </div>
 </details>
 
-{% set _arc = state.arc %}
+{% set _arc = state.long_term_objective %}
 {% if _arc %}
 <details class="sidebar-card" id="card-arc" data-card="arc" open>
     <summary><span>Objective</span></summary>
     <div class="sidebar-card-body arc-card-body">
         {% set _goal = _arc.long_term_objective %}
-        {% set _arc_origin = '' %}
 
         {% if _goal %}
-        <div class="arc-goal has-tooltip">
+        <div class="arc-goal">
             {{ _goal }}
-            {% if _arc_origin %}
-            <span class="tooltip-body" data-md>{{ _arc_origin }}</span>
-            {% endif %}
         </div>
         {% endif %}
 

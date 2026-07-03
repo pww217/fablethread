@@ -140,7 +140,7 @@ def _build_messages(
     sanitize_every: int = 1,
 ) -> list[dict[str, str]]:
     """Build system + user messages for the sanitizer LLM call."""
-    arc = state.arc
+    arc = state.long_term_objective
 
     system_prompt = env.get_template("sanitize_thread.j2").render()
 
@@ -337,7 +337,7 @@ def _apply_sanitization(
     3. resolved_threads: move from threads[] to completed_threads[]
     Returns (state, has_changes, changes_detail).
     """
-    arc = state.arc
+    arc = state.long_term_objective
 
     changes_detail: dict[str, Any] = {
         "updated": {},
@@ -496,7 +496,7 @@ def _apply_sanitization(
     has_changes = bool(updated_ids or resolved_ids or added_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])
 
     if has_changes:
-        state = state.model_copy(update={"arc": arc})
+        state = state.model_copy(update={"long_term_objective": arc})
 
     return state, has_changes, changes_detail
 

@@ -821,7 +821,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "inventory": [it.model_dump() for it in st.inventory],
                 "scene": st.scene.model_dump(),
                 "compendium": st.compendium.model_dump(),
-                "arc": st.arc.model_dump(),
+                "arc": st.long_term_objective.model_dump(),
             }
             seed_row = {
                 "row_kind": "seed",

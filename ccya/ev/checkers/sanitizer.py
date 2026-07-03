@@ -53,7 +53,7 @@ def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any]) -> 
             if isinstance(t, dict) and t.get("id"):
                 state_threads[t["id"]] = t
 
-        # threads_updated IDs exist in state.arc.threads at this turn
+        # threads_updated IDs exist in state.long_term_objective.threads at this turn
         for tid in (sev.get("threads_updated") or []):
             if tid not in state_threads:
                 findings.append({
@@ -63,7 +63,7 @@ def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any]) -> 
                 })
                 all_passed = False
 
-        # threads_resolved threads exist in state.arc.threads at this turn
+        # threads_resolved threads exist in state.long_term_objective.threads at this turn
         for tid in (sev.get("threads_resolved") or []):
             if tid not in state_threads:
                 findings.append({

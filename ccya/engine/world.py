@@ -61,7 +61,7 @@ async def _run_world_step(
             "rolled": bool(rules_outcome.get("rolled", False)),
         }
 
-    arc = state.arc.model_dump()
+    arc = state.long_term_objective.model_dump()
 
     system_text = _render(env, "world_system.j2", {})
     user_text = _render(

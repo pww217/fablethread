@@ -56,14 +56,14 @@ yield ("phase", {"phase": "world_done"})
 # return → finally releases _inflight
 ```
 
-**Stale-input invariant.** World receives the same `WorldState` that Sanitize just returned — no reload, no snapshot, no intermediate `save_state`. Sanitize returns a new `WorldState` with updated `state.arc.threads`; World's `_run_world_step` reads that exact state, so it sees sanitized threads by construction.
+**Stale-input invariant.** World receives the same `WorldState` that Sanitize just returned — no reload, no snapshot, no intermediate `save_state`. Sanitize returns a new `WorldState` with updated `state.long_term_objective.threads`; World's `_run_world_step` reads that exact state, so it sees sanitized threads by construction.
 
 ## Inputs
 
 | Input | Source |
 |-------|--------|
 | `npc_roster` | `build_npc_roster()` from compendium (filtered to present/nearby) |
-| `arc.threads[]` | `state.arc.threads` |
+| `long_term_objective.threads[]` | `state.long_term_objective.threads` |
 | `narration` | passed in from `run_turn` |
 | `pacing_context` | passed in from `run_turn` |
 | `recent_beats` | `state.meta.recent_beats` |

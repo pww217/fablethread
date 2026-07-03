@@ -493,7 +493,7 @@ def cmd_thread_audit(events: list[dict[str, Any]]) -> None:
                     if tid and tid in thread_lifecycle and thread_lifecycle[tid]["resolved_turn"] is None:
                         thread_lifecycle[tid]["resolved_turn"] = t
 
-        # From state.arc.threads
+        # From state.long_term_objective.threads
         last_state = ev.get("last_turn_state") or {}
         arc = last_state.get("arc") or {}
         for th in (arc.get("threads") or []):
@@ -502,7 +502,7 @@ def cmd_thread_audit(events: list[dict[str, Any]]) -> None:
                 if tid not in thread_lifecycle:
                     thread_lifecycle[tid] = {"created_turn": t, "resolved_turn": None, "updates": 0}
 
-        # From state.arc.completed_threads
+        # From state.long_term_objective.completed_threads
         for ct in (arc.get("completed_threads") or []):
             if isinstance(ct, dict) and ct.get("id"):
                 tid = ct["id"]

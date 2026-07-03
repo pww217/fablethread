@@ -235,7 +235,7 @@ def _compute_scene_phase(
 
     # Count urgent threads
     thread_urgency_count = 0
-    for t in state.arc.threads:
+    for t in state.long_term_objective.threads:
         if isinstance(t, ArcThread) and t.urgency == "urgent":
             thread_urgency_count += 1
         else:
@@ -263,7 +263,7 @@ def _compute_scene_phase(
         # Early exit — evaluated EVERY CLIMAX turn (not just at the limit).
         # Signal sourced from state (end-of-prior-turn), not in-flight storyteller_result.
         thread_resolved_prev_turn = any(
-            ct for ct in state.arc.completed_threads
+            ct for ct in state.long_term_objective.completed_threads
             if ct.resolved_turn == turn_no - 1
         )
         if thread_resolved_prev_turn and total_convergence_score < config.convergence_exit_threshold and turns_in_phase >= config.CLIMAX_min:
@@ -274,7 +274,7 @@ def _compute_scene_phase(
         elif climax_turn_count >= config.climax_turn_limit:
             # has_urgent_active_thread: explicit dormant filter (do NOT copy existing thread_urgency_count pattern)
             has_urgent_active_thread = any(
-                t for t in state.arc.threads
+                t for t in state.long_term_objective.threads
                 if isinstance(t, ArcThread) and t.urgency == "urgent" and not t.dormant
             )
             if total_convergence_score >= 3 and has_urgent_active_thread:

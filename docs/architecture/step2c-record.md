@@ -97,7 +97,7 @@ flowchart TD
     end
 
     subgraph GOAL["goal_update (direct dict assignment)"]
-        G1["If storyteller_result.goal_update is set:<br>state['arc']['visible_goal'] = value<br>Direct assignment, NOT through _merge_arc_update<br>(which would wipe threads[])"]
+        G1["If storyteller_result.goal_update is set:<br>state['long_term_objective']['visible_goal'] = value<br>Direct assignment, NOT through _merge_arc_update<br>(which would wipe threads[])"]
     end
 
     subgraph CONFLICT["Same-turn conflict detection"]
@@ -157,7 +157,7 @@ flowchart TD
     STATE["state.yaml<br>arc section"]:::storageNode
 
     subgraph NARRATE["Step 1 — Narrate"]
-        N1["_narrate_messages() reads state['arc']<br>→ current_arc_ctx in system prompt"]:::pyNode
+        N1["_narrate_messages() reads state['long_term_objective']<br>→ current_arc_ctx in system prompt"]:::pyNode
     end
 
     subgraph EXTRACT["Step 2c — Record Extract"]
@@ -225,7 +225,7 @@ Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resol
 3. Store current arc in `state.resolved_arcs` with `resolved_turn` for TTL tracking
 4. Carry forward all threads (no filtering — all threads survive arc resolution)
 5. Create successor arc with new `long_term_objective` and all surviving threads
-6. Replace `state.arc` with successor
+6. Replace `state.long_term_objective` with successor
 
 #### Thread Creation (gated in `_apply_state_updates()` in turn_state.py with cap eviction)
 

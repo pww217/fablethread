@@ -32,7 +32,7 @@ def _record_messages(
     """Build [system, user] messages for stream 3 (threads + actions + outcome_summary)."""
     scene = state.scene
 
-    arc = state.arc
+    arc = state.long_term_objective
     _raw_threads = list(arc.threads)
     all_threads: list[dict[str, Any]] = []
     for t in _raw_threads:

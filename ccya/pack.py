@@ -70,7 +70,7 @@ class SeedState(BaseModel):
     inventory: list[InventoryItem] = Field(default_factory=list)
     scene: SeedScene
     compendium: SeedCompendium = Field(default_factory=SeedCompendium)
-    arc: LongTermObjective | None = None
+    long_term_objective: LongTermObjective | None = None
     arc_origin: str = ""
     actions: list[str] = Field(default_factory=list)
     world: dict[str, Any] = Field(default_factory=dict)
@@ -87,7 +87,7 @@ class SeedStateEnvelope(BaseModel):
     opening_narrative: str = ""
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
-    arc: LongTermObjective | None = None
+    long_term_objective: LongTermObjective | None = None
     arc_origin: str = ""
     pool_selection: dict[str, Any] | None = None
 
@@ -105,7 +105,7 @@ class SeedEnvelope(BaseModel):
     seed_state: SeedState
     opening_narrative: str = Field(min_length=50)
     actions: list[str] = Field(min_length=4, max_length=4)
-    arc: LongTermObjective | None = None
+    long_term_objective: LongTermObjective | None = None
     arc_origin: str = ""
     outcome_summary: str = ""
 

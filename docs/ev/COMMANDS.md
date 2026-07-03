@@ -208,7 +208,7 @@ Events are one JSON line per turn in `events.jsonl`. Key fields:
 | Turn data | `.turn`, `.input`, `.ruling_prompt`, `.narrate_prompt`, `.extraction.*` | summary, timing, turn, prompt |
 | State deltas | `.applied`, `.rejected` | deltas, mechanics, diff, trace, search |
 | Active state | `state.yaml` in save dir | state |
-| Threads | `.extraction.record.output.*`, sanitizer events, `state.arc.threads` | threads, thread-audit |
+| Threads | `.extraction.record.output.*`, sanitizer events, `state.long_term_objective.threads` | threads, thread-audit |
 | Beat data | `state.meta.pending_gm_beat`, `state.meta.beat_candidates`, `.pacing_context` | beats, mechanics |
 | Pacing | `.pacing_context` | beats, mechanics --pacing, convergence |
 | Goals | sanitizer `changes_detail.goal`, `state.arc.long_term_objective` | goals, arc_goal_updates |

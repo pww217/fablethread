@@ -191,8 +191,8 @@ ev.py trace meta.pending_gm_beat --save-dir saves/my-game
 **What it validates:** Thread add/update correctness, goal alignment, resolution rates
 
 **What to look for:**
-- `thread_add` entries appear in next turn's `last_turn_state.arc.threads`
-- `thread_update` IDs reference existing threads in `state.arc.threads`
+- `thread_add` entries appear in next turn's `last_turn_state.long_term_objective.threads`
+- `thread_update` IDs reference existing threads in `state.long_term_objective.threads`
 - `goal_update` string from storyteller matches `arc.visible_goal` in state
 - Thread progression is meaningful (not tiny increments like 0.50, 0.53, 0.56)
 - No orphan threads in state that no sanitizer event ever touches
@@ -360,7 +360,7 @@ ev.py state --save-dir saves/my-game --format scene         # scene/world_state 
 **What it validates:** Thread sanitization correctness, no orphan threads, no goal noops
 
 **What to look for:**
-- `threads_updated`/`resolved` IDs exist in `state.arc.threads` at the sanitizer's turn (NOT END state — use state snapshots from turn events)
+- `threads_updated`/`resolved` IDs exist in `state.long_term_objective.threads` at the sanitizer's turn (NOT END state — use state snapshots from turn events)
 - `threads_added` IDs don't conflict with existing threads at the sanitizer's turn
 - No `goal_changed` noops (goal set to same value)
 - Orphan threads: threads in state never referenced by any sanitizer event

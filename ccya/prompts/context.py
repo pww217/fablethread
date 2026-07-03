@@ -302,7 +302,7 @@ class StorytellerBoundary(BaseModel):
     conditions: list[Condition]
     inventory: list[InventoryItem]
     current_objective: dict[str, Any]  # campaign arc metadata — passed to _arc.j2 include
-    all_threads: list[ArcThreadSummary]  # source is state.arc.threads (raw dicts) — Pydantic coerces since ArcThreadSummary field names match dict keys; schema tests must validate both raw-dict and object inputs
+    all_threads: list[ArcThreadSummary]  # source is state.long_term_objective.threads (raw dicts) — Pydantic coerces since ArcThreadSummary field names match dict keys; schema tests must validate both raw-dict and object inputs
     world_state: list[str | dict[str, Any]]  # template uses `world_state` variable name
     intent: IntentEnvelope | None = None
     pacing_context: PacingBlock | None = None
