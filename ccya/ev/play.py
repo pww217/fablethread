@@ -609,7 +609,7 @@ def _llm_session(
 
         if llm_checkers:
             llm_checker_ids = [m["id"] for m in list_checkers(checker_type="llm")]
-            llm_results = run_checkers(llm_checker_ids, events, save_dir=save_dir)
+            llm_results = run_checkers(llm_checker_ids, events, config=config, save_dir=save_dir)
             checker_results.update(llm_results)
 
         _store_checker_warnings(checker_results, events, save_dir)
@@ -628,7 +628,7 @@ def _llm_session(
 
         if llm_checkers:
             llm_checker_ids = [m["id"] for m in list_checkers(checker_type="llm")]
-            llm_results = run_checkers(llm_checker_ids, events, save_dir=save_dir)
+            llm_results = run_checkers(llm_checker_ids, events, config=config, save_dir=save_dir)
             checker_results.update(llm_results)
 
         _store_checker_warnings(checker_results, events, save_dir)

@@ -236,15 +236,9 @@ def _compute_scene_phase(
     # Count urgent threads
     thread_urgency_count = 0
     for t in state.long_term_objective.threads:
-        if isinstance(t, ArcThread) and t.urgency == "urgent":
+        arc = _to_arc_thread(t)
+        if arc and arc.urgency == "urgent":
             thread_urgency_count += 1
-        else:
-            try:
-                t_obj = ArcThread.model_validate(t)
-                if t_obj.urgency == "urgent":
-                    thread_urgency_count += 1
-            except Exception:
-                pass
 
     # Phase transition logic
     if phase == "SETUP":
@@ -322,6 +316,11 @@ def _compute_scene_phase(
     )
 
 
-def _recent_turn_count(state: dict[str, Any]) -> int:
-    """Return max turns needed — now each consumer only needs 1 ([-1:] slice)."""
-    return 1
+def _to_arc_thread(t: Any) -> "ArcThread | None":
+    """Convert t to ArcThread if possible, return None on failure."""
+    if isinstance(t, ArcThread):
+        return t
+    try:
+        return ArcThread.model_validate(t)
+    except Exception:
+        return None

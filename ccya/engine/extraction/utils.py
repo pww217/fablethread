@@ -15,6 +15,16 @@ from ccya.models import CompendiumNpcUpdate
 _log = logging.getLogger(__name__)
 
 
+def _filter_pc_situation(pc_situation: dict[str, Any], schema: list[dict[str, Any]]) -> dict[str, Any]:
+    """Filter pc.situation to only include keys marked persist=true in the schema."""
+    if not schema:
+        return pc_situation
+    persist_keys = {entry["key"] for entry in schema if entry.get("persist", False)}
+    if not persist_keys:
+        return {}
+    return {k: v for k, v in pc_situation.items() if k in persist_keys}
+
+
 def _text_references_thread(text: str, thread_id: str) -> bool:
     """Check if text contains a reference to a specific thread ID.
 

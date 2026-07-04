@@ -105,7 +105,6 @@ async def _sanitize_threads_impl(
         "tokens_out": int(usage.get("completion_tokens", 0)),
         "threads_updated": list(cd.get("updated_ids") or []),
         "threads_resolved": list(cd.get("resolved_ids") or []),
-        "threads_added": list(cd.get("added_ids") or []),
         "goal_changed": cd.get("goal_before") != cd.get("goal_after"),
         "changes_detail": {
             "updated": dict(cd.get("updates_dict") or {}),
@@ -343,7 +342,6 @@ def _apply_sanitization(
         "resolved_ids": [],
         "resolved_list": [],
         "added": [],
-        "added_ids": [],
         "added_list": [],
         "goal": {"before": None, "after": None},
         "goal_before": None,
@@ -351,7 +349,6 @@ def _apply_sanitization(
     }
     updated_ids: list[str] = []
     resolved_ids: list[str] = []
-    added_ids: list[str] = []
 
     # 1. goal_update
     gu = parsed.get("goal_update")
@@ -472,12 +469,8 @@ def _apply_sanitization(
     changes_detail["resolved_ids"] = resolved_ids
     changes_detail["resolved_list"] = changes_detail["resolved"]
 
-
-    changes_detail["added_ids"] = added_ids
-    changes_detail["added_list"] = changes_detail["added"]
-
     # Set last_thread_created_turn if any threads were added
-    if added_ids and arc.threads:
+    if changes_detail["added"] and arc.threads:
         arc = arc.model_copy(update={"last_thread_created_turn": current_turn})
 
     # 6. world_state — atomic swap: replace entire world_state array
@@ -489,7 +482,7 @@ def _apply_sanitization(
         state = state.model_copy(update={"world_state_candidates": []})
 
     # Write back mutated arc (only if something changed)
-    has_changes = bool(updated_ids or resolved_ids or added_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])
+    has_changes = bool(updated_ids or resolved_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])
 
     if has_changes:
         state = state.model_copy(update={"long_term_objective": arc})

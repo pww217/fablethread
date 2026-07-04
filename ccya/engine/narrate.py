@@ -17,16 +17,8 @@ from ccya.engine._pacing import (
 from ccya.models import ArcThread, RulesOutcome, WorldState
 from ccya.engine.hints import compute_arc_pressure_score
 from ccya.prompts.context import _fmt_progress, _filter_completed_threads
-
-
-def _filter_pc_situation(pc_situation: dict[str, Any], schema: list[dict[str, Any]]) -> dict[str, Any]:
-    """Filter pc.situation to only include keys marked persist=true in the schema."""
-    if not schema:
-        return pc_situation
-    persist_keys = {entry["key"] for entry in schema if entry.get("persist", False)}
-    if not persist_keys:
-        return {}
-    return {k: v for k, v in pc_situation.items() if k in persist_keys}
+from ccya.engine.extraction.utils import _filter_pc_situation
+from ccya.engine._pacing import _to_arc_thread
 
 if TYPE_CHECKING:
     from ccya.engine.turn_context import PacingContext, TurnContext
@@ -192,11 +184,10 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
             if t.urgency == "urgent":
                 thread_urgency_count += 1
         else:
-            try:
-                t_obj = ArcThread.model_validate(t)
-                if t_obj.urgency == "urgent":
-                    thread_urgency_count += 1
-            except Exception:
+            arc = _to_arc_thread(t)
+            if arc and arc.urgency == "urgent":
+                thread_urgency_count += 1
+            else:
                 _log.warning(
                     "Malformed ArcThread entry: %s", t,
                     extra={"turn": turn_no, "trace_id": ctx.trace_id},

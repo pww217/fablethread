@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 from ccya.ev.checkers import CheckerResult, list_checkers, run_checkers
-from ccya.ev.checkers.llm_checkers import set_checker_config
 from ccya.ev.events import find_turn
 
 _log = logging.getLogger(__name__)
@@ -72,7 +71,8 @@ def cmd_check(
             if pack.manifest.checkers:
                 raw_cfg.setdefault("checkers", {}).update(pack.manifest.checkers)
         config = build_engine_config(raw_cfg)
-        set_checker_config(config)
+    else:
+        config = None
 
     _log.info("check: %d checkers, turn=%s", len(checker_list), turn)
 
@@ -81,11 +81,11 @@ def cmd_check(
         if turn_ev is None:
             print(f"Turn {turn} not found", file=sys.stderr)
             sys.exit(1)
-        results = run_checkers(checker_list, events, save_dir=save_dir)
+        results = run_checkers(checker_list, events, config=config, save_dir=save_dir)
         _print_results({turn: results}, verbose=verbose)
     else:
         # Run checkers ONCE against full events list (not per-turn)
-        results = run_checkers(checker_list, events, save_dir=save_dir)
+        results = run_checkers(checker_list, events, config=config, save_dir=save_dir)
         _print_all_summary(results, verbose=verbose)
 
 

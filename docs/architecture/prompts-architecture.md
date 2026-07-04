@@ -74,7 +74,7 @@ Two entirely separate template systems exist — do not conflate them:
 
 ### NPC roster template (`ccya/prompts/sections/_npc_roster.j2`)
 
-- Shared include rendered by narrate_user.j2, record_user.j2, extract_scene_user.j2; renders personality block (`| personality: **Label** (traits). Speech: hint.`) when `build_npc_roster()` resolves archetype data via `personality_registry` parameter; NPCs without `personality` key render without the block
+- Shared include rendered by narrate_user.j2, record_user.j2, extract_scene_user.j2; does NOT render personality block (personality_registry removed from `build_npc_roster()` in I-24)
 
 ### Thread list include (`ccya/prompts/sections/_thread_list.j2`)
 
