@@ -4,7 +4,7 @@ status: testing
 urgency: 2
 size: small
 created: 2026-07-04
-ticket_id: I-25
+ticket_id: I-26
 labels:
   - engine
   - seed

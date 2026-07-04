@@ -2,7 +2,7 @@
 
 Wire protocol: /v1/chat/completions (OpenAI-compatible).
 
-Primary backend: LMStudio on 10.75.100.51:1234 (google/gemma-4-26b-a4b-qat).
+Primary backend: LMStudio on 10.75.100.51:1234 (google/gemma-4-26b-a4b-it).
 Fallback: localhost:8080 via llama-swap (Gemma 4-26B, MacBook — slower).
 
 num_ctx controls the server-side input context window (passed via extra_body).
