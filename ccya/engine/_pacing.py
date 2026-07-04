@@ -52,19 +52,18 @@ def derive_allowed_beat_types(
 def compute_convergence_score(
     scene_phase: str,
     active_threads: list[dict[str, Any]],
-    scene_age: int,
     recent_beats: list[dict[str, Any]],
     config: EngineConfig,
     turn_no: int,
     recent_rolls: list[dict[str, Any]],
 ) -> tuple[int, dict[str, int]]:
-    """Compute a 6-component convergence score for RISING→CLIMAX transition.
+    """Compute a 5-component convergence score for RISING→CLIMAX transition.
 
-    Components: urgent_thread (0-2), threat_thread (+1), scene_age (+1), beat_streak (+1),
-    roll_starvation (+1), threat_density (+1). Total: 7.
-    Threshold is config.convergence_threshold (default 3).
+    Components: urgent_thread (0-2), threat_thread (+1), beat_streak (+1),
+    roll_starvation (+1), threat_density (+1). Total: 6.
+    Threshold is config.convergence_threshold (default 2).
     Returns (score, components_dict) where components_dict has keys:
-    urgent_thread, threat_thread, scene_age, beat_streak, roll_starvation, threat_density.
+    urgent_thread, threat_thread, beat_streak, roll_starvation, threat_density.
     Dormant threads are excluded from all components.
     """
     score = 0
@@ -88,10 +87,7 @@ def compute_convergence_score(
         score += 1
     components["threat_thread"] = 1 if any_threat else 0
 
-    # Component 3: Scene age (+1)
-    if scene_age >= config.scene_pressure_threshold:
-        score += 1
-    components["scene_age"] = 1 if scene_age >= config.scene_pressure_threshold else 0
+    # (scene_age removed — used by narration directive, not convergence)
 
     # Component 4: Beat streak (+1) — repaired carry-over logic
     pressure_types = set(BEAT_BUCKETS["pressure"])
@@ -100,12 +96,7 @@ def compute_convergence_score(
     if recent_beats:
         n = len(recent_beats)
         window = recent_beats[: min(n, 5)]
-        for b in window:
-            bt = b.get("type")
-            if bt is not None:
-                last_non_null_type = bt
-            if last_non_null_type in pressure_types:
-                pressure_count += 1
+        pressure_count = sum(1 for b in window if b.get("type") in pressure_types)
         threshold = ceil(n * 0.6) if n < 5 else 3
         if pressure_count >= threshold:
             score += 1

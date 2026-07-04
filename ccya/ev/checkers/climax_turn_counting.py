@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["pacing_context"],
     description="climax_turn_count increments in CLIMAX, resets on phase exit",
 )
-def climax_turn_counting(events: list[dict[str, Any]]) -> CheckerResult:
+def climax_turn_counting(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

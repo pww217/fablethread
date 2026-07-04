@@ -29,7 +29,7 @@ def _existing_inv_ids(inv: list[dict[str, Any]]) -> set[str]:
     requires_fields=["post_turn_location_id"],
     description="Verify location changes are applied correctly",
 )
-def location_change(events: list[dict[str, Any]]) -> CheckerResult:
+def location_change(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 
@@ -71,7 +71,7 @@ def location_change(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["applied.inventory_add", "applied.inventory_remove"],
     description="No overdraw, no negative amounts, remove existence",
 )
-def inventory_integrity(events: list[dict[str, Any]]) -> CheckerResult:
+def inventory_integrity(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

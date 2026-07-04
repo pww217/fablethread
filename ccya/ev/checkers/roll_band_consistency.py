@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["ruling"],
     description="Verify band matches dice roll using rules engine",
 )
-def roll_band_consistency(events: list[dict[str, Any]]) -> CheckerResult:
+def roll_band_consistency(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

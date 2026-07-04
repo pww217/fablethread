@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["pacing_context"],
     description="breather auto-transitions to RISING after breather_max_turns (default 3)",
 )
-def breather_enforcement(events: list[dict[str, Any]]) -> CheckerResult:
+def breather_enforcement(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     breather_max_turns = 3  # default from EngineConfig

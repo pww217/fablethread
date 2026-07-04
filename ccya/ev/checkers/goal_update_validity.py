@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["extraction.record", "last_turn_state"],
     description="goal_update is non-empty string, differs from previous long_term_objective",
 )
-def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
+def goal_update_validity(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     prev_snap: dict[str, Any] | None = None

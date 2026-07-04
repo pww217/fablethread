@@ -16,7 +16,7 @@ VALID_PRESENCE = {"present", "nearby", "known", "departed", "archived", None}
     requires_fields=["applied.compendium_npc_update"],
     description="NPC presence validity, departed field compliance, scene cap",
 )
-def npc_presence(events: list[dict[str, Any]]) -> CheckerResult:
+def npc_presence(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

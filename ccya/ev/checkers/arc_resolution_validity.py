@@ -15,7 +15,7 @@ _log = logging.getLogger(__name__)
     description="arc_resolve has resolution + long_term_objective",
     needs_non_turn_events=True,
 )
-def arc_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
+def arc_resolution_validity(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

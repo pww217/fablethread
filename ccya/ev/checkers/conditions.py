@@ -11,7 +11,7 @@ from ccya.ev.events import extract_field
     requires_fields=["applied.pc_condition_add", "applied.pc_condition_remove"],
     description="Dedup check for PC conditions",
 )
-def conditions_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
+def conditions_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

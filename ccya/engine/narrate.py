@@ -197,7 +197,6 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any]:
     _convergence_score, _convergence_components = compute_convergence_score(
         scene_phase=scene_phase,
         active_threads=_raw_thread_dicts,
-        scene_age=ctx._ages.get("scene_age", 0),
         recent_beats=list(state.meta.recent_beats),
         config=config,
         turn_no=turn_no,

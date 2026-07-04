@@ -20,7 +20,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["last_turn_state.location.description"],
     description="Verify extracted location description is non-empty and substantive",
 )
-def location_description_consistency(events: list[dict[str, Any]]) -> CheckerResult:
+def location_description_consistency(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 
@@ -72,7 +72,7 @@ def location_description_consistency(events: list[dict[str, Any]]) -> CheckerRes
     requires_fields=["last_turn_state.scene.world_state"],
     description="Verify world_state facts are non-empty strings or dicts with text",
 )
-def world_state_facts(events: list[dict[str, Any]]) -> CheckerResult:
+def world_state_facts(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

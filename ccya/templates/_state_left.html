@@ -9,15 +9,15 @@
     <div class="sidebar-card-body">
         {% if present_npcs %}
         <div class="npc-list">
-            {% for npc in present_npcs %}
-            {% set npc_name = npc.name or npc.id %}
+            {% for _k, npc in comp.items() %}{% if npc in present_npcs %}
+            {% set npc_name = npc.name or _k %}
             {% set npc_title = npc.title %}
             {% set npc_position = npc.position %}
             {% set npc_bio = npc.bio %}
             {% set _mot = npc.motivation %}
             {% set npc_tie = npc.tie %}
             {% set _has_tt = npc_bio or _mot or npc_tie %}
-            {% set _color = npc.color | default(npc.id | npc_color) %}
+            {% set _color = npc.color | default(_k | npc_color) %}
             <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}" style="border-left-color:{{ _color }}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_position %}
@@ -31,7 +31,7 @@
                 </div>
                 {% endif %}
             </div>
-            {% endfor %}
+            {% endif %}{% endfor %}
         </div>
         {% endif %}
         {% if present_npcs %}
@@ -41,8 +41,8 @@
         {% if nearby_npcs %}
         <hr class="npc-divider">
         <div class="npc-list nearby-list">
-            {% for npc in nearby_npcs %}
-            {% set npc_name = npc.name or npc.id %}
+            {% for _k, npc in comp.items() %}{% if npc in nearby_npcs %}
+            {% set npc_name = npc.name or _k %}
             {% set npc_title = npc.title %}
             {% set npc_position = npc.position %}
             {% set npc_bio = npc.bio %}
@@ -62,7 +62,7 @@
                 </div>
                 {% endif %}
             </div>
-            {% endfor %}
+            {% endif %}{% endfor %}
         </div>
         {% endif %}
         {% endif %}

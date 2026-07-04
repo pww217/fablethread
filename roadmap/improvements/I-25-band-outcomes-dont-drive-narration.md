@@ -136,3 +136,41 @@ When band is success/crit_success, prefer relief-type beats (opportunity, breath
 - A crit_success on an escape attempt produces clear narrative relief and scene motion toward exit
 - The narrator explicitly fulfills the player's stated intent on success, with beat as texture not direction
 - No conflict between band and beat produces a worse outcome than the pre-roll state on a success roll
+
+## Evaluation Findings (2026-07-04)
+
+### space-western run (15 turns, gemma-4-26b-a4b-it)
+
+**Pacing stuck in SETUP:**
+- All 15 turns show `scene_phase: SETUP`
+- `convergence_score` ranges 1-4 (never reaches climax threshold)
+- `climax_turn_count: 0` throughout
+- No scene transitions occurred despite multiple success/crit_success rolls
+- This confirms the ticket's core problem: positive bands don't produce narrative relief or scene motion
+
+**Outcome hints vs band conflicts:**
+- Turn 3: SUCCESS band, outcome_hint `advance`, but scene stayed in SETUP
+- Turn 7: CRIT_SUCCESS band, outcome_hint `advance`, but scene stayed in SETUP
+- Outcome hints sometimes match band (T3 advance), sometimes conflict (T7 advance but no relief)
+- Narration consistently escalates tension despite positive rolls
+- Beat pool (pressure/complication/escalation) is identical for success and fail — no band awareness
+
+**Roll distribution (8 rolls examined):**
+- crit_fail: 37.5% (3/8)
+- fail: 12.5% (1/8)
+- setback: 12.5% (1/8)
+- partial: 12.5% (1/8)
+- success: 12.5% (1/8)
+- crit_success: 12.5% (1/8)
+- Heavy skew toward negative bands (50% crit_fail + fail)
+- Only 2 positive rolls out of 8, neither produced narrative relief
+
+**Conclusion:** The ticket's proposed fixes (A: strengthen band directives, B: authority hierarchy, C: remove beat from override rule) are validated. The narrator has no mechanism to reconcile success band + escalation beat + hold outcome_hint. Pacing never advances because negative bands dominate and positive bands don't produce relief.
+
+### Pacing Analysis (2026-07-04)
+
+**Scene stuck in SETUP — convergence score cannot accumulate (FIXED):**
+Three changes made (pacing.py + config.py):
+1. Removed scene_age from `compute_convergence_score` (used by narration directive, not convergence)
+2. Lowered `convergence_enter_threshold` from 3 to 2 (score would be 2 at minimum, triggering transitions)
+3. Fixed beat_streak counting (pacing.py:103-108) — was tracking `last_non_null_type` and only counting pressure beats that appear AFTER a pressure-type was seen. Now counts total pressure-type beats in window vs threshold (60% majority)

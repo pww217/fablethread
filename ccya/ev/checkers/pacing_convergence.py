@@ -17,7 +17,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["pacing_context", "last_turn_state"],
     description="Verify phase transition triggers match engine logic, not just state machine edges",
 )
-def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
+def phase_transition_signals(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     cfg = EngineConfig()
@@ -172,7 +172,7 @@ def phase_transition_signals(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["pacing_context.convergence_components", "pacing_context.convergence_score", "last_turn_state"],
     description="Independently recompute convergence score from raw state and compare to stored value",
 )
-def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
+def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     cfg = EngineConfig()
@@ -335,7 +335,7 @@ def convergence_recompute(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["pacing_context", "last_turn_state"],
     description="Verify curtain_call state matches CLIMAX phase rules",
 )
-def curtain_call(events: list[dict[str, Any]]) -> CheckerResult:
+def curtain_call(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     cfg = EngineConfig()
@@ -405,7 +405,7 @@ def curtain_call(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["ruling", "pacing_context", "last_turn_state"],
     description="Verify selected beat aligns with directive and phase constraints",
 )
-def directive_beat_alignment(events: list[dict[str, Any]]) -> CheckerResult:
+def directive_beat_alignment(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     filtered = filter_turn_events(events)

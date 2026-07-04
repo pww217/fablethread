@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["extraction"],
     description="Track retry rates across all extraction steps (scene, state, record)",
 )
-def extraction_retry_rates(events: list[dict[str, Any]]) -> CheckerResult:
+def extraction_retry_rates(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     total = 0

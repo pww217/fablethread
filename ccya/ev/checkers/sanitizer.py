@@ -16,7 +16,7 @@ _log = logging.getLogger(__name__)
     needs_state=True,
     description="Verify sanitizer thread operations are valid against state at each sanitizer turn",
 )
-def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any]) -> CheckerResult:
+def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

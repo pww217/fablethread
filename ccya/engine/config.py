@@ -86,7 +86,7 @@ class EngineConfig:
     # EMA smoothing for convergence score
     convergence_alpha: float = 0.4
     # Hysteresis thresholds for phase transitions
-    convergence_enter_threshold: int = 3
+    convergence_enter_threshold: int = 2
     convergence_exit_threshold: int = 1
     # Configurable phase minimums
     RISING_min: int = 3

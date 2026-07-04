@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["extraction.record", "last_turn_state"],
     description="thread_add entries have id/summary, no duplicates",
 )
-def new_thread_validity(events: list[dict[str, Any]]) -> CheckerResult:
+def new_thread_validity(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

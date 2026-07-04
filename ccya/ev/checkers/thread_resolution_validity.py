@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["extraction.record", "last_turn_state"],
     description="thread_resolve entries have valid id/resolution_state/outcome",
 )
-def thread_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
+def thread_resolution_validity(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     prev_snap: dict[str, Any] | None = None

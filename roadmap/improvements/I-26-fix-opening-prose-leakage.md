@@ -65,3 +65,20 @@ opening = seed.seed_meta.get("opening") if seed.seed_meta else None
 ```
 
 No backward compat or migrations needed.
+
+## Evaluation Findings (2026-07-04)
+
+### space-western run (15 turns)
+
+**`pc.situation` is clean — no `opening` leak:**
+- All 15 turns show exactly 4 keys: `home_settlement`, `transport`, `nearby_area`, `family_status`
+- No `opening` key found in any state
+- Confirmed via `ev.py state` inspection at turns 1, 5, 10, 15
+- The ticket's proposed fix (move `opening` to `seed_meta`, strip from `pc.situation`) is validated and working
+
+**`seed_meta` is `None` throughout:**
+- Opening narration exists at `seed_meta.opening` (set during `prepare_seed`)
+- This is the correct location per the ticket's proposal
+- No leakage into `pc.situation` observed
+
+**Conclusion:** The ticket's fix is validated. `pc.situation` contains exactly 4 keys. No `opening` leakage. The proposed changes (tighten `prepare_seed_system.j2`, move `opening` to `seed_meta`, strip in `_build_narrate_seed_messages`, update `io.py`) are correct and should be implemented.

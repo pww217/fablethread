@@ -22,7 +22,7 @@ VALID_TRANSITIONS = {
     requires_fields=["pacing_context"],
     description="Validate phase engine transitions follow the state machine",
 )
-def phase_transition(events: list[dict[str, Any]]) -> CheckerResult:
+def phase_transition(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

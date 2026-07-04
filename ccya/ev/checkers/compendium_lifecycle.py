@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["applied.compendium_npc_update", "last_turn_state"],
     description="NPCs added via compendium_npc_update appear in state.compendium.npcs",
 )
-def compendium_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
+def compendium_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 
