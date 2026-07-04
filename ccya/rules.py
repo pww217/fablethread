@@ -51,12 +51,12 @@ GM_MOVES: dict[str, list[str]] = {
         "The outcome is positive but carries a real price.",
     ],
     "success": [
-        "Clean success — you do what you intended.",
+        "You do what you intended. Fulfill the player's stated goal directly.",
         "Note any minor consequence if the fiction demands it.",
     ],
     "crit_success": [
-        "Best possible outcome — something unexpected goes in your favour.",
-        "You succeed outstandingly; gain a small additional benefit.",
+        "You do what you intended, fully and decisively. The outcome serves as a clear turning point.",
+        "Succeed outstandingly; gain a meaningful additional benefit that advances the scene.",
     ],
 }
 

@@ -65,11 +65,22 @@ These are not decorative — they are the engine of NPC agency. When an NPC's mo
 
 When player input is unclear or describes something impossible, infer their intent and narrate a reasonable attempt. The rules engine resolves success/failure — never refuse the action outright. This complements "player input is truth" by handling edge cases where the literal request can't be fulfilled as stated.
 
+## Narration Priority (BINDING)
+
+When scene signals conflict, resolve in this order:
+
+1. **Band result + rules_outcome directive** — highest authority. Dictates whether the player's intent is fulfilled, compromised, or denied.
+2. **Outcome hint (advance/hold/transition)** — dictates scene motion. On success/crit_success with player intent to exit, bias toward advance/transition.
+3. **Beat** — creative guidance only. Use as environmental texture. Discard or reframe if it contradicts the band.
+4. **Scene phase** — constraint on beat types, not a driver of scene direction.
+
+**Critical:** On success/crit_success, the player's intent MUST be fulfilled. If the beat contradicts this, treat the beat as flavor/texture only — do not let it override the band.
+
 ## Pacing
 
 Each beat must advance the plot meaningfully. No holding patterns, no extended descriptions of static scenes. Every sentence must advance.
 
-Override rule: The outcome hint, pending GM beat, and curtain call are authoritative scene signals. Do not override them because the prose feels like it should go a different direction.
+Override rule: The outcome hint and curtain call are authoritative scene signals. The GM beat is creative guidance — use it as texture, not direction.
 
 ## Curtain call
 
