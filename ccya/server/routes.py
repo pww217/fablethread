@@ -154,6 +154,7 @@ def _list_saves() -> list[dict[str, Any]]:
         try:
             state = load_state(entry)
         except Exception:
+            _log.warning("Save %s excluded: failed to load state.yaml", name)
             continue
 
         pack_name = state.meta.setting_pack
@@ -168,7 +169,7 @@ def _list_saves() -> list[dict[str, Any]]:
                 raw = yaml.safe_load(f)
                 arc_origin = raw.get("arc_origin")
         except Exception:
-            pass
+            _log.debug("Save %s: arc_origin read failed", name)
 
         resolved = entry.resolve()
         kind = "eval" if str(resolved).startswith(str(Path("evals/runs").resolve())) else "user"
@@ -580,7 +581,7 @@ def _resolve_npc_ties(state: WorldState) -> WorldState:
         if scenario and scenario.npc_bonds:
             tie_lookup = {b.id: b.description for b in scenario.npc_bonds if b.description}
     except Exception:
-        pass
+        _log.debug("NPC tie resolution failed, showing raw IDs")
 
     updated: dict[str, NPCEntry] = {}
     for key, entry in npcs.items():
@@ -704,6 +705,7 @@ async def new_game_generate_pack(request: Request):
         tags = json.loads(tone_tags_raw)
         rules = json.loads(world_rules_raw)
     except Exception:
+        _log.warning("tone_tags/world_rules JSON parse failed, defaulting to empty lists")
         tags = []
         rules = []
 
@@ -864,7 +866,8 @@ def healthz():
                 "available": model in models,
                 "llm_version": llm_version,
             }
-    except Exception:
+    except Exception as exc:
+        _log.warning("LLM health check failed: %s", exc)
         return {
             "llm": "fail",
             "model": _app_mod.engine_config.model,

@@ -205,7 +205,7 @@ def _try_parse_json(text: str) -> dict[str, Any] | None:
         if isinstance(result, dict):
             return result
     except (json.JSONDecodeError, ValueError):
-        pass
+        _log.debug("JSON parse failed for sanitization data")
     return None
 
 
@@ -262,8 +262,8 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
                 result_dict["progress"] = [str(p) for p in prog]
 
             validated_tus.append(result_dict)
-        except Exception:
-            _log.warning("thread_sanitizer: skipping invalid thread_update %s", _tu.get("id"))
+        except Exception as exc:
+            _log.warning("thread_sanitizer: skipping invalid thread_update %s: %s", _tu.get("id"), exc, exc_info=True)
 
     if validated_tus:
         result["thread_updates"] = validated_tus
@@ -282,8 +282,8 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
                 rt_copy["resolution_state"] = "resolved"
             validated_rt = ThreadResolution.model_validate(rt_copy)
             validated_rts.append(validated_rt.model_dump())
-        except Exception:
-            _log.warning("thread_sanitizer: skipping invalid resolved_thread %s", _rt.get("id"))
+        except Exception as exc:
+            _log.warning("thread_sanitizer: skipping invalid resolved_thread %s: %s", _rt.get("id"), exc, exc_info=True)
 
     if validated_rts:
         result["resolved_threads"] = validated_rts
@@ -311,8 +311,8 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
                 ws_copy["valence"] = "neutral"
             validated_ws_fact = SanitizedWorldStateFact.model_validate(ws_copy)
             validated_ws.append(validated_ws_fact.model_dump(exclude_none=True))
-        except Exception:
-            _log.warning("thread_sanitizer: skipping invalid world_state entry %s", _ws.get("id"))
+        except Exception as exc:
+            _log.warning("thread_sanitizer: skipping invalid world_state entry %s: %s", _ws.get("id"), exc, exc_info=True)
 
     if validated_ws:
         result["world_state"] = validated_ws

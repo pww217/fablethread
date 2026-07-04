@@ -823,5 +823,5 @@ async def warmup(config: EngineConfig) -> None:
             timeout=30.0,
             num_ctx=config.num_ctx,
         )
-    except Exception:
-        _log.warning("Warmup LLM call failed — continuing without warmup cache")
+    except Exception as exc:
+        _log.warning("Warmup LLM call failed — continuing without warmup cache: %s", exc, exc_info=True)
