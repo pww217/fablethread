@@ -52,7 +52,8 @@ def _record_messages(
                     "progress": _fmt_progress(list(t_obj.major_updates)),
                     "last_updated_turn": t_obj.last_updated_turn,
                 })
-            except Exception:
+            except Exception as exc:
+                _log.warning("Invalid thread object in scene, skipping: %s", exc)
                 all_threads.append({"id": "", "summary": ""})
     world_state = list(scene.world_state)
 

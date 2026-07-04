@@ -7,12 +7,15 @@ This module encapsulates the beat constraint table in Python so both
 
 from __future__ import annotations
 
+import logging
 from math import ceil
 from typing import Any
 
 from ccya.engine.config import EngineConfig
 from ccya.engine.turn_context import PacingContext
 from ccya.models import ArcThread, Scene, WorldState
+
+_log = logging.getLogger(__name__)
 
 
 BEAT_BUCKETS: dict[str, list[str]] = {
@@ -313,5 +316,6 @@ def _to_arc_thread(t: Any) -> "ArcThread | None":
         return t
     try:
         return ArcThread.model_validate(t)
-    except Exception:
+    except Exception as exc:
+        _log.warning("Invalid arc thread object, skipping: %s", exc)
         return None
