@@ -6,7 +6,7 @@
 |---|---|
 | `ccya/__main__.py` | CLI entry: argparse + uvicorn.run |
 | `ccya/cli.py` | CLI commands |
-| `ccya/models/` | Pydantic models: state, extraction, rules, config |
+| `ccya/models/` | Pydantic models: state, extraction, rules, config; `CompendiumNpcUpdate` (no `party` field — party is now player-managed via API) |
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
 | `ccya/engine/config.py` | EngineConfig dataclass (fields: convergence_alpha, convergence_enter_threshold, convergence_exit_threshold, RISING_min, CLIMAX_min, BREATHER_min, climax_turn_limit, extension_max, roll_starvation_threshold, threat_density_threshold, prepare_seed_temperature=0.4, prepare_seed_top_p=0.95, etc.); CheckerConfig threshold fields; turn lock management; Jinja env setup |
@@ -35,7 +35,7 @@
 | `ccya/state/chronicle.py` | Append events.jsonl, chronicle.md, load_last_narration(), remove_last_event() (removes all events for last turn number including sanitizer events) |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR |
 | `ccya/server/app.py` | FastAPI bootstrap, Jinja env, startup event, error persistence |
-| `ccya/server/routes.py` | All @app.get / @app.post route handlers; panel builders; save switching |
+| `ccya/server/routes.py` | All @app.get / @app.post route handlers; panel builders; save switching; `POST /api/npc/{id}/toggle-party` (toggle NPC party membership), `POST /api/inventory/drop` (remove inventory items) |
 | `ccya/server/panels.py` | Panel context builders: debug, state, opening |
 | `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl; pipeline stage rendering (ruling/narrate/scene/state/record/world) |
 | `ccya/server/tv_mirror.py` | StreamDescriptor registry — single source of truth for pipeline topology (6 stages: ruling→narrate→scene→state→record→world) |

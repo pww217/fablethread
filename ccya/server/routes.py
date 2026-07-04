@@ -1047,3 +1047,70 @@ async def delete_save(request: Request):
 
     _log.info("Deleted save %s", save_name)
     return JSONResponse({"ok": True})
+
+
+@_app_mod.app.post("/api/npc/{npc_id}/toggle-party")
+async def toggle_npc_party(npc_id: str):
+    """Toggle the party flag on an NPC entry."""
+    if err := _require_save():
+        return err
+    state = _load_current_state()
+    if npc_id not in state.compendium.npcs:
+        return JSONResponse({"error": f"NPC not found: {npc_id}"}, status_code=404)
+    current_party = state.compendium.npcs[npc_id].party
+    new_state = state.update_npc(npc_id, party=not current_party)
+    save_state(_app_mod.SAVE_DIR, new_state)
+    return JSONResponse({
+        "npc_id": npc_id,
+        "party": new_state.compendium.npcs[npc_id].party,
+    })
+
+
+@_app_mod.app.post("/api/inventory/drop")
+async def drop_inventory_item(request: Request):
+    """Remove item(s) from the player's inventory."""
+    if err := _require_save():
+        return err
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "Expected JSON object"}, status_code=400)
+    item_id = str(body.get("item_id", "")).strip()
+    if not item_id:
+        return JSONResponse({"error": "item_id is required"}, status_code=400)
+    amount = body.get("amount")
+    if amount is not None:
+        try:
+            amount = int(amount)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "Invalid amount"}, status_code=400)
+    state = _load_current_state()
+    inventory = list(state.inventory)
+    new_item = None
+    new_inventory = []
+    removed = False
+    for item in inventory:
+        if item.id == item_id and not removed:
+            if amount is None:
+                # Remove entire item
+                removed = True
+                continue
+            new_amount = max(0, item.amount - amount)
+            if new_amount > 0:
+                new_item = item.model_copy(update={"amount": new_amount})
+                removed = True
+            else:
+                removed = True
+        else:
+            new_inventory.append(item)
+    if new_item:
+        new_inventory.append(new_item)
+    if not removed:
+        return JSONResponse({"error": f"Item not found: {item_id}"}, status_code=404)
+    new_state = state.model_copy(update={"inventory": new_inventory})
+    save_state(_app_mod.SAVE_DIR, new_state)
+    return JSONResponse({
+        "inventory": [item.model_dump() for item in new_inventory],
+    })

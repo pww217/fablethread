@@ -64,16 +64,21 @@
     <summary><span class="has-tooltip">Inventory{% if state.meta.last_inventory_change_reason %}<div class="tooltip-body">{{ state.meta.last_inventory_change_reason }}</div>{% else %}<div class="tooltip-body">No inventory changes this turn</div>{% endif %}</span></summary>
     <div class="sidebar-card-body">
         {% if state.inventory %}
+        <div class="inventory-drop-container">
         {% for item in state.inventory %}
         {% set amt = item.amount or 1 %}
         {% set notes = item.notes or "" %}
-        <div class="inventory-item{% if item.id == 'credits' %} inventory-item-credits{% endif %}{% if notes %} has-tooltip has-tooltip-right{% endif %}">
+        <div class="inventory-item{% if item.id == 'credits' %} inventory-item-credits{% endif %}{% if notes %} has-tooltip has-tooltip-right{% endif %}" data-item-id="{{ item.id }}">
             <span class="inventory-item-name">{{ item.name or item.id or "?" }}{% if amt > 1 or item.id == "credits" %} <span class="inventory-item-amount">×{{ amt }}</span>{% endif %}</span>
+            <span class="inv-drop-btn" onclick="dropInventoryItem('{{ item.id }}', {{ amt }}, this)" title="Drop item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </span>
             {% if notes %}
             <div class="tooltip-body" data-md>{{ notes }}</div>
             {% endif %}
         </div>
         {% endfor %}
+        </div>
         {% else %}
         <span class="empty-state">You aren't carrying anything!</span>
         {% endif %}

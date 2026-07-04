@@ -85,7 +85,6 @@ def apply_npc_scene_management(
                     "fear": None,
                     "leverage": None,
                     "tie": None,
-                    "party": None,
                 })
             if comp_upd.motivation is not None:
                 updates["motivation"] = comp_upd.motivation
@@ -95,8 +94,6 @@ def apply_npc_scene_management(
                 updates["leverage"] = comp_upd.leverage
             if comp_upd.tie is not None:
                 updates["tie"] = comp_upd.tie
-            if comp_upd.party is not None:
-                updates["party"] = comp_upd.party
             if comp_upd.presence is not None:
                 updates["presence"] = comp_upd.presence
                 if comp_upd.presence == "present":

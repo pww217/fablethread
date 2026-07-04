@@ -21,7 +21,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs — SceneExtractResult"]
-        O1["compendium_npc_update<br>  durable identity changes (presence, bio upserts, personality on creation, position, party companion flag)"]:::outNode
+        O1["compendium_npc_update<br>  durable identity changes (presence, bio upserts, personality on creation, position)"]:::outNode
     end
 
     IN --> LLM2A
@@ -35,8 +35,6 @@ Four additions prevent common NPC compendium quality issues:
 1. **NPC field requirements by tier**: Named NPCs (proper name: at least two words with first and last capitalized) must have `bio` + `personality` + at least 2 of `motivation`/`fear`/`leverage`/`tie` (= 4 fields minimum). Unnamed NPCs (name doesn't look like a proper name) need only `bio` — no personality fields. The engine blocks motivation/fear/leverage/tie/personality assignment on unnamed NPCs via a guard in `apply_npc_scene_management()` (npcs.py) — if the LLM emits these fields for an unnamed NPC, they are nullified before storage. This ensures named NPCs get personality depth while reducing output bloat for transient characters.
 
 2. **Passive NPC extraction**: When a named character enters the scene as the recipient of a major action (rescue, capture, healing, transport, medical aid), the LLM must create a compendium entry for them even if they don't perform visible actions.
-
-3. **Party assignment**: The scene extractor assigns `party: true` to companion NPCs — characters who consistently accompany the PC. Criteria: "Is this character likely to follow the PC, or have they been following them?" Set `party: true` when narration shows the NPC is traveling with, accompanying, or staying near the PC by choice. Keep it until narration clearly shows parting ways (departure, betrayal, death, different destination). Do NOT set for oppositional, temporary scene characters, or neutral parties. Only emit when the value changes (omit unchanged). This runs in stream 1 (scene extractor) because it must be available before delta builder's auto-demotion loop runs after state extraction.
 
 ## Key forward dependency
 

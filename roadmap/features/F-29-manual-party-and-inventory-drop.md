@@ -1,10 +1,11 @@
 ---
 title: "Manual party management and inventory drop"
-status: idea
+status: done
 urgency: 2
 size: medium
 created: 2026-07-04
 ticket_id: F-29
+plan: plans/F-29-manual-party-and-inventory-drop.md
 labels:
   - ui
   - api
@@ -34,7 +35,7 @@ The player needs direct control over party membership and inventory management.
 
 - **Add** drop buttons on hover over the inventory panel.
 - **Add** a "Drop All" button visible on hover.
-- **Add** a "Drop N" option for items with `amount > 1` — slider or number input to select quantity, no second confirmation needed.
+- **Add** a "Drop N" popup for items with `amount > 1` — number input to select quantity, no second confirmation needed.
 - **Add** a confirmation dialog for single-quantity items (amount == 1).
 - Dropped items are removed from state entirely (not placed in scene).
 
