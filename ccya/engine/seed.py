@@ -475,7 +475,7 @@ def _build_narrate_seed_messages(
         "pc": {
             "name": pc.name,
             "tagline": pc.tagline,
-            "situation": pc.situation,
+            "situation": {k: v for k, v in pc.situation.items() if k != "opening"},
         },
         "location": {
             "id": location.id,
