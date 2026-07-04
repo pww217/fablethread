@@ -66,7 +66,7 @@ def init_save_dir(save_dir: Path, seed: WorldState) -> None:
     save_state(save_dir, seed)
     chronicle_path = save_dir / "chronicle.md"
     chronicle_path.write_text("")
-    opening = seed.pc.situation.get("opening")
+    opening = seed.seed_meta.get("opening") if seed.seed_meta else None
     if opening:
         chronicle_path.write_text(f"\n## Turn 0 — Seed\n\n{opening.strip()}")
     else:

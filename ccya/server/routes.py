@@ -84,13 +84,10 @@ def _apply_seed_to_save_dir(
     seed_dict.setdefault("meta", {})["model"] = _app_mod.engine_config.model
     if pack_source is not None:
         seed_dict.setdefault("meta", {})["_pack_source"] = pack_source
-    if opening_narrative is not None:
-        seed_dict.setdefault("pc", {}).setdefault("situation", {})["opening"] = opening_narrative
     if opening_narrative is not None or actions is not None:
-        seed_dict["seed_meta"] = {
-            "actions": actions or [],
-            "outcome_summary": outcome_summary,
-        }
+        seed_dict.setdefault("seed_meta", {})["opening"] = opening_narrative
+        seed_dict["seed_meta"]["actions"] = actions or []
+        seed_dict["seed_meta"]["outcome_summary"] = outcome_summary
     init_save_dir(save_dir, WorldState.from_dict(seed_dict))
     if opening_narrative is not None:
         _app_mod._dynamic_opening = opening_narrative
