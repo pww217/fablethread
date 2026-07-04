@@ -209,6 +209,21 @@ _jinja_env = Environment(
 )
 _jinja_env.filters["tojson"] = pass_context(lambda ctx, obj: __import__("json").dumps(obj))
 
+# NPC color generation for Jinja templates
+_NPC_PALETTE = [
+    "#e06c75", "#c67b40", "#e5c07b", "#98c379",
+    "#56b6c2", "#61afef", "#bb85f0", "#be5046",
+    "#d19a66", "#98c379", "#528bff", "#c678dd",
+]
+
+def _jinja_npc_color(npc_id: str) -> str:
+    import hashlib
+    h = hashlib.sha256(npc_id.encode()).hexdigest()
+    idx = int(h[:8], 16) % len(_NPC_PALETTE)
+    return _NPC_PALETTE[idx]
+
+_jinja_env.filters["npc_color"] = _jinja_npc_color
+
 
 def _render(template_name: str, context: dict[str, Any]) -> HTMLResponse:
     template = _jinja_env.get_template(template_name)

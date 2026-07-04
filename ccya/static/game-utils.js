@@ -1,5 +1,21 @@
 var CCYA_CARD_KEY = (name) => 'ccya_card_' + name;
 
+// Per-NPC color palette — 12 distinguishable muted colors for dark backgrounds
+const _NPC_PALETTE = [
+    '#e06c75', '#c67b40', '#e5c07b', '#98c379',
+    '#56b6c2', '#61afef', '#bb85f0', '#be5046',
+    '#d19a66', '#98c379', '#528bff', '#c678dd',
+];
+
+function _npcColor(id) {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) {
+        h = ((h << 5) - h) + id.charCodeAt(i);
+        h |= 0;
+    }
+    return _NPC_PALETTE[Math.abs(h) % _NPC_PALETTE.length];
+}
+
 function _configureMarked() {
     if (typeof marked === 'undefined' || !marked.use) return;
     marked.use({ gfm: true, breaks: false });
@@ -537,18 +553,19 @@ function _highlightEntities(container, state) {
     if (!state || !container) return;
     const names = [];
 
-    // Collect NPC names
+    // Collect NPC names with their colors
     const npcs = (state.compendium && state.compendium.npcs) || {};
     const numericWords = new Set(['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']);
     for (const id in npcs) {
         const entry = npcs[id];
         if (entry && entry.name) {
-            names.push({ name: entry.name, cls: 'entity-npc' });
+            const color = entry.color || _npcColor(id);
+            names.push({ name: entry.name, cls: 'entity-npc', color: color });
             const parts = entry.name.split(/\s+/);
             if (parts.length > 1) {
-                if (!numericWords.has(parts[0].toLowerCase())) names.push({ name: parts[0], cls: 'entity-npc' });
+                if (!numericWords.has(parts[0].toLowerCase())) names.push({ name: parts[0], cls: 'entity-npc', color: color });
                 const last = parts[parts.length - 1];
-                if (!numericWords.has(last.toLowerCase())) names.push({ name: last, cls: 'entity-npc' });
+                if (!numericWords.has(last.toLowerCase())) names.push({ name: last, cls: 'entity-npc', color: color });
             }
         }
     }
@@ -611,12 +628,12 @@ function _highlightEntities(container, state) {
 
         while (pos < text.length) {
             let best = null;
-            for (const { name, cls, regex } of escaped) {
+            for (const { name, cls, color, regex } of escaped) {
                 const m = text.slice(pos).match(regex);
                 if (!m) continue;
                 const absIdx = pos + m.index;
                 if (!best || absIdx < best.absIdx) {
-                    best = { absIdx, name, cls, match: m[0] };
+                    best = { absIdx, name, cls, color, match: m[0] };
                 }
             }
             if (!best) break;
@@ -625,6 +642,7 @@ function _highlightEntities(container, state) {
             }
             const span = document.createElement('span');
             span.className = best.cls;
+            span.style.color = best.color;
             span.textContent = best.match;
             frag.appendChild(span);
             pos = best.absIdx + best.match.length;
@@ -824,6 +842,8 @@ function _renderNpcListItem(npc) {
     const mot = npc.motivation || '';
     const tie = (npc.tie_label || npc.tie || '');
     const hasTooltip = bio || pl || mot || tie;
+    const color = npc.color || _npcColor(npc.id || name);
+    const borderColor = npc.presence === 'nearby' ? 'var(--border-subtle)' : color;
     const nameHtml = title ? `${_escapeHtml(name)}<span class="npc-title"> — ${_escapeHtml(title)}</span>` : _escapeHtml(name);
     const posHtml = position ? `<span class="npc-position-inline">${_escapeHtml(position)}</span>` : '';
     let tipHtml = '';
@@ -833,7 +853,7 @@ function _renderNpcListItem(npc) {
         if (mot) tipHtml += `<p><strong>Motivation:</strong> ${_escapeHtml(mot)}</p>`;
         if (tie) tipHtml += `<p><strong>Tie:</strong> ${_escapeHtml(tie)}</p>`;
     }
-    return `<div class="npc-item${hasTooltip ? ' has-tooltip' : ''}"><span class="npc-name">${nameHtml}</span>${posHtml}${hasTooltip ? `<div class="tooltip-body" data-md-compendium>${tipHtml}</div>` : ''}</div>`;
+    return `<div class="npc-item${hasTooltip ? ' has-tooltip' : ''}" style="border-left-color:${borderColor}"><span class="npc-name">${nameHtml}</span>${posHtml}${hasTooltip ? `<div class="tooltip-body" data-md-compendium>${tipHtml}</div>` : ''}</div>`;
 }
 
 function _renderInventoryItem(item) {

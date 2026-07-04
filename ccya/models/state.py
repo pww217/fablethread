@@ -90,6 +90,7 @@ class NPCEntry(BaseModel):
     last_seen_location: str | None = None
     first_seen_turn: int | None = None
     departed_reason: str | None = None
+    color: str | None = None
     departed_turn: int | None = None
 
 
