@@ -37,7 +37,7 @@ class EngineConfig:
     #                      config panels (future use). Currently none.
     #
     host: str = "http://10.75.100.51:1234/v1"
-    model: str = "google/gemma-4-26b-a4b-qat"
+    model: str = "google/gemma-4-26b-a4b-it"
     num_ctx: int = 16384
     request_timeout_s: int = 1200
     ruling_temperature: float = 0.2
@@ -145,7 +145,7 @@ def build_engine_config(
     Single source of truth for all field mappings. Both the server
     and the eval harness call this function.
 
-    Defaults: host=http://10.75.100.51:1234/v1, model=google/gemma-4-26b-a4b-qat.
+    Defaults: host=http://10.75.100.51:1234/v1,     model=google/gemma-4-26b-a4b-it.
 
     Args:
         cfg: Raw config dict (output of ``load_config``).
@@ -189,7 +189,7 @@ def build_engine_config(
 
     return EngineConfig(
         host=str(llm.get("host", "http://10.75.100.51:1234/v1")),
-        model=str(llm.get("model", "google/gemma-4-26b-a4b-qat")),
+        model=str(llm.get("model", "google/gemma-4-26b-a4b-it")),
         num_ctx=int(llm.get("num_ctx", 16384)),
         context_window=int(llm.get("context_window", 16384)),
         request_timeout_s=int(llm.get("request_timeout_s", 1200)),

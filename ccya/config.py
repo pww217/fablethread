@@ -23,7 +23,7 @@ class EvConfig:
     """EV/eval-specific settings.
     
     Model precedence: CLI flag > session config > user config (~/.config/ccya/config.yaml) 
-    > engine config (config.yaml) > engine default (google/gemma-4-26b-a4b-qat).
+    > engine config (config.yaml) > engine default (google/gemma-4-26b-a4b-it).
     """
     model: str | None = None
     turn_limit: int = 20

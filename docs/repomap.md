@@ -65,7 +65,7 @@
 | `ccya/personality.py` | NpcPersonality dataclass; 12 archetype registry; assign_personality() |
 | `ccya/pack.py` | SeedStateEnvelope (wraps SeedState without narrative min_length), SeedEnvelope, load_pack(), list_packs() — validates pack has seed or scenario; PackManifest.checkers for pack-level checker overrides |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band) |
-| `ccya/llm_client.py` | chat(), chat_stream(), chat_with_config(), chat_stream_with_config() — OpenAI-compatible (10.75.100.51:1234, google/gemma-4-26b-a4b-qat on RTX 5070 Ti); trim_messages() |
+| `ccya/llm_client.py` | chat(), chat_stream(), chat_with_config(), chat_stream_with_config() — OpenAI-compatible (10.75.100.51:1234, google/gemma-4-26b-a4b-it on RTX 5070 Ti); trim_messages() |
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler for `logs/game.log` + console handler; `setup_server_logging()` for `logs/server.log` |
 | `ccya/prompts/` | Jinja2 prompt templates (system + user) + shared includes (sections/) |
 | `ccya/templates/` | HTML UI templates (sidebar, modals, character sheets) |
