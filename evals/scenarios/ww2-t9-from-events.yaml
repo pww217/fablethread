@@ -3,7 +3,6 @@ description: "WW2 T9 storytell — original stored prompt with Gemma4 (no templa
 save: /Users/pwilson/Repos/ccya/evals/runs/2026-06-17--0.27.0-31-g07266252--0726625/0201--allied-ww2--custom--25t
 turn: 9
 stream: storytell
-model: mlx-community/gemma-4-26b-a4b-it-mxfp8
 temp: 0.7
 checks:
   - extraction_format:

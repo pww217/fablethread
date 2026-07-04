@@ -108,7 +108,7 @@ def build_prompt_context(
     next_snap = (next_ev.get("last_turn_state") or {}) if next_ev else {}
     next_scene = next_snap.get("scene") or {}
 
-    narration = (turn_ev.get("narrate") or {}).get("output", "")
+    narration = (turn_ev.get("narrate") or {}).get("prose", "")
     intent = (turn_ev.get("ruling") or {}).get("intent")
 
     if stream == "scene":
@@ -157,7 +157,7 @@ def build_prompt_context(
         recent_turns = []
         for ev in reversed(events):
             if isinstance(ev.get("turn"), int) and ev["turn"] < turn_no:
-                narr = (ev.get("narrate") or {}).get("output", "")
+                narr = (ev.get("narrate") or {}).get("prose", "")
                 if narr:
                     recent_turns.append({"turn": ev["turn"], "narrative": narr})
                 if len(recent_turns) >= 10:
