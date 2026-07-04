@@ -17,7 +17,8 @@
             {% set _mot = npc.motivation %}
             {% set npc_tie = npc.tie %}
             {% set _has_tt = npc_bio or _mot or npc_tie %}
-            <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}">
+            {% set _color = npc.color | default(npc.id | npc_color) %}
+            <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}" style="border-left-color:{{ _color }}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_position %}
                 <span class="npc-position-inline">{{ npc_position }}</span>
@@ -171,7 +172,8 @@
             {% set is_departed = entry.presence.value == 'departed' if entry.presence else False %}
             {% set npc_tie = entry.tie %}
             {% set _mot = entry.motivation %}
-            <div class="compendium-item has-tooltip">
+            {% set _color = entry.color | default(nid | npc_color) %}
+            <div class="compendium-item has-tooltip" style="border-left-color:{{ _color }}">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
                 <div class="tooltip-body" data-md-compendium>
                     {% if bio %}<p>{{ bio }}</p>{% else %}—{% endif %}{% set _has = false %}

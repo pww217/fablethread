@@ -282,7 +282,7 @@
                 <textarea id="player-input"
                           class="game-input"
                           x-model="input"
-                          placeholder="What do you do? (Enter to send, Shift+Enter for newline)"
+                          placeholder="What do you do next?"
                            rows="1"
                           :disabled="submitting || asyncRunning || !gameStarted"
                           @keydown.enter="onEnter($event)"></textarea>

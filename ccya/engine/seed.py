@@ -19,6 +19,12 @@ from ccya.pack import Pack, PlayerOverrides, SeedStateEnvelope, SeedState
 
 from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
 
+_NPC_PALETTE = [
+    "#e06c75", "#c67b40", "#e5c07b", "#98c379",
+    "#56b6c2", "#61afef", "#bb85f0", "#be5046",
+    "#d19a66", "#98c379", "#528bff", "#c678dd",
+]
+
 _NAME_RE = re.compile(r"[^\x00-\x7F]")
 
 
@@ -50,6 +56,10 @@ def _sanitize_seed_state(seed_state: SeedState) -> SeedState:
         npc_data.bio = _strip_non_ascii(npc_data.bio or "")
         if npc_data.presence is None or npc_data.presence == "":
             npc_data.presence = "present"
+        if not npc_data.color:
+            h = sha256(npc_id.encode()).hexdigest()
+            idx = int(h[:8], 16) % 12
+            npc_data.color = _NPC_PALETTE[idx]
 
     # Safety net: ensure at least 1 NPC has presence="present"
     has_present = any(

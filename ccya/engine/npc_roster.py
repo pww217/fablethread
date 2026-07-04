@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from typing import Any
@@ -9,6 +10,20 @@ from typing import Any
 from ccya.models import NpcPresence
 
 _log = logging.getLogger(__name__)
+
+# Palette of 12 muted, distinguishable colors for dark backgrounds
+_NPC_PALETTE = [
+    "#e06c75", "#c67b40", "#e5c07b", "#98c379",
+    "#56b6c2", "#61afef", "#bb85f0", "#be5046",
+    "#d19a66", "#98c379", "#528bff", "#c678dd",
+]
+
+
+def _generate_npc_color(npc_id: str) -> str:
+    """Generate a deterministic color for an NPC based on its ID."""
+    h = hashlib.sha256(npc_id.encode()).hexdigest()
+    idx = int(h[:8], 16) % len(_NPC_PALETTE)
+    return _NPC_PALETTE[idx]
 
 
 def _is_named(name: str) -> bool:
@@ -85,6 +100,7 @@ def build_npc_roster(
                 "name": name,
                 "title": _strip_non_ascii(entry.get("title") or ""),
                 "presence": presence,
+                "color": entry.get("color") or _generate_npc_color(nid),
             }
         else:
             seen[nid] = {
@@ -101,6 +117,7 @@ def build_npc_roster(
                 "last_presence_turn": entry.get("last_presence_turn"),
                 "last_seen_location": entry.get("last_seen_location") or None,
                 "departed_reason": entry.get("departed_reason") or None,
+                "color": entry.get("color") or _generate_npc_color(nid),
             }
 
     order = {
