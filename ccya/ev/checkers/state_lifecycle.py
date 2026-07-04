@@ -15,7 +15,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["last_turn_state", "applied.pc_condition_add"],
     description="Verify condition TTL: decremented turns_remaining, no 0-value, permanent stays permanent",
 )
-def condition_ttl(events: list[dict[str, Any]]) -> CheckerResult:
+def condition_ttl(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     filtered = filter_turn_events(events)
@@ -81,7 +81,7 @@ def condition_ttl(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["last_turn_state"],
     description="Verify world state TTL: expired facts removed, permanent facts persist",
 )
-def world_state_ttl(events: list[dict[str, Any]]) -> CheckerResult:
+def world_state_ttl(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     filtered = filter_turn_events(events)
@@ -133,7 +133,7 @@ def world_state_ttl(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["last_turn_state", "applied.compendium_npc_update"],
     description="Verify NPC presence decay: location-change auto-demotion for non-party NPCs",
 )
-def npc_presence_decay(events: list[dict[str, Any]]) -> CheckerResult:
+def npc_presence_decay(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     cfg = EngineConfig()
@@ -202,7 +202,7 @@ def npc_presence_decay(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["last_turn_state"],
     description="Verify beat candidates don't all match the most recent beat type",
 )
-def beat_diversity(events: list[dict[str, Any]]) -> CheckerResult:
+def beat_diversity(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     filtered = filter_turn_events(events)
@@ -252,7 +252,7 @@ def beat_diversity(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["last_turn_state"],
     description="Verify beat candidates are non-empty on turns where World should have run",
 )
-def beat_candidates_present(events: list[dict[str, Any]]) -> CheckerResult:
+def beat_candidates_present(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     filtered = filter_turn_events(events)

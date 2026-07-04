@@ -18,7 +18,7 @@ _TEMPLATE_DIR = "ccya/prompts"
     requires_fields=["last_turn_state", "ruling"],
     description="Verify pending_gm_beat is consumed and binding present on roll",
 )
-def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
+def gm_beat_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     env = _build_jinja_env(_TEMPLATE_DIR)

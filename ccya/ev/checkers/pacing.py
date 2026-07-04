@@ -19,7 +19,7 @@ _TEMPLATE_DIR = "ccya/prompts"
     requires_fields=["ruling", "pacing_context"],
     description="Directive rendering, known values",
 )
-def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
+def pacing_directives(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     env = _build_jinja_env(_TEMPLATE_DIR)

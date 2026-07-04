@@ -15,7 +15,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["ruling", "pacing_context"],
     description="selected beat type is allowed for the current phase",
 )
-def beat_phase_validity(events: list[dict[str, Any]]) -> CheckerResult:
+def beat_phase_validity(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

@@ -1,7 +1,7 @@
 llm:
   host: http://10.75.100.51:1234/v1
   fallback_host: http://127.0.0.1:8080
-  model: google/gemma-4-26b-a4b-it
+  model: gemma-4-26b-a4b-it
   num_ctx: 16384
   context_window: 16384
   request_timeout_s: 180

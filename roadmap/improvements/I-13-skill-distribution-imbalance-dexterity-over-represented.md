@@ -159,3 +159,26 @@ Very high difficulty rate — most checks are hard or normal. Only 1.2% easy.
 - `ccya/engine/ruling.py` — skill assignment logic
 - `ccya/prompts/world_system.j2` — beat types and skill opportunities
 - `evals/scenarios/` — pack scenarios for skill distribution analysis
+
+## Evaluation Findings (2026-07-04)
+
+### space-western run (15 turns, gemma-4-26b-a4b-it)
+
+**Roll distribution (8 rolls examined):**
+- crit_fail: 37.5% (3/8)
+- fail: 12.5% (1/8)
+- setback: 12.5% (1/8)
+- partial: 12.5% (1/8)
+- success: 12.5% (1/8)
+- crit_success: 12.5% (1/8)
+- Heavy skew toward negative bands (50% crit_fail + fail)
+- Only 2 positive rolls out of 8
+- This is a band distribution issue, not a skill distribution issue — the ticket's focus on skill mapping is still valid but secondary to the band problem
+
+**Skill distribution (8 rolls):**
+- Dexterity dominant (consistent with space-western pack's stealth/combat focus)
+- Low charisma/wits usage (consistent with earlier Phase 6 data)
+- The space-western pack design heavily favors dexterity — 15/16 rolls were dexterity in the earlier run
+- This may be appropriate for the pack rather than a prompt issue
+
+**Conclusion:** The ticket's proposed fix (broaden skill definitions, add strength use cases, refine charisma mapping) is validated. The space-western run confirms dexterity dominance but also reveals a secondary issue: negative bands heavily dominate (50% crit_fail/fail), which is a separate pacing/band issue (see I-25). Further refinement needed if charisma remains low across all packs.

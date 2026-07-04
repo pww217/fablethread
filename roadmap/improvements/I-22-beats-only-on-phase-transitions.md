@@ -131,9 +131,21 @@ else:
 - No regression in beat quality or pacing
 - Phases feel distinct rather than one long scene
 
+## Pacing Analysis (2026-07-04)
+
+### Does location change reset scene_phase to SETUP?
+**No.** `delta_builder.py:224-226` only updates `turn_entered` and `location_entered_turn` on location change. The `scene_phase` persists. The scene state (phase, climax_turn_count, breather_turn_count) is NOT reset.
+
+### Applied fix (2026-07-04)
+Three changes made to `ccya/engine/_pacing.py` and `ccya/engine/config.py`:
+1. **Removed scene_age from `compute_convergence_score`** (pacing.py:91-94) — scene_age is used by `_compute_narration_directive` (Scene Pressure at >= 3, Scene Imperative at >= 5), not needed in convergence
+2. **Lowered `convergence_enter_threshold` from 3 to 2** (config.py:89) — score would be 2 at minimum (urgent_thread 2), triggering transitions
+3. **Fixed beat_streak counting** (pacing.py:103-108) — was tracking `last_non_null_type` and only counting pressure beats that appear AFTER a pressure-type was seen. Now counts total pressure-type beats in window vs threshold (60% majority)
+
 ## Related
 
 - `I-12` — world step not blending NPC psychological hints
 - `I-3` — prompt choices tied to arcs/threads
 - `B-24` — extraction reliability (resolved)
 - `I-13` — skill distribution imbalance (improved)
+- `I-25` — band outcomes don't drive narration (convergence accumulation issue)

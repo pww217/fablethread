@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["extraction.record", "last_turn_state"],
     description="goal_update overwrites long_term_objective",
 )
-def arc_goal_updates(events: list[dict[str, Any]]) -> CheckerResult:
+def arc_goal_updates(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 

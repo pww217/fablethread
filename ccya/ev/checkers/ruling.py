@@ -22,7 +22,7 @@ _log = logging.getLogger(__name__)
     requires_fields=["ruling"],
     description="Verify ruling.reason is non-empty and substantive",
 )
-def ruling_reason_quality(events: list[dict[str, Any]]) -> CheckerResult:
+def ruling_reason_quality(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 
@@ -94,7 +94,7 @@ def ruling_reason_quality(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["ruling"],
     description="Detect skewed dice band distribution over a session",
 )
-def ruling_band_distribution(events: list[dict[str, Any]]) -> CheckerResult:
+def ruling_band_distribution(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     cfg = EngineConfig().checkers
     band_skew_ratio = cfg.band_skew_ratio
 

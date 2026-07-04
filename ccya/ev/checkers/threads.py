@@ -19,7 +19,7 @@ def _is_hashable(v: Any) -> bool:
     requires_fields=["extraction.record", "last_turn_state"],
     description="thread_add applied, thread_update IDs valid",
 )
-def thread_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
+def thread_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     prev_snap: dict[str, Any] | None = None
@@ -121,7 +121,7 @@ def _get_completed_threads(arc: dict[str, Any]) -> list[dict[str, Any]]:
     requires_fields=["last_turn_state"],
     description="Verify thread urgency decay: dormant after 4 turns, stepwise demotion after 8 turns",
 )
-def thread_urgency_decay(events: list[dict[str, Any]]) -> CheckerResult:
+def thread_urgency_decay(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     cfg = EngineConfig()
@@ -197,7 +197,7 @@ def thread_urgency_decay(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["last_turn_state", "extraction.record"],
     description="Verify thread cap enforcement: oldest active thread dormant when cap exceeded",
 )
-def thread_cap_eviction(events: list[dict[str, Any]]) -> CheckerResult:
+def thread_cap_eviction(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     cfg = EngineConfig()
@@ -245,7 +245,7 @@ def thread_cap_eviction(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["last_turn_state"],
     description="Verify dormant thread culling: oldest dormant threads abandoned when count >= 3",
 )
-def thread_culling(events: list[dict[str, Any]]) -> CheckerResult:
+def thread_culling(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     filtered = filter_turn_events(events)
@@ -293,7 +293,7 @@ def thread_culling(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["last_turn_state", "extraction.record"],
     description="Verify thread creation cooldown: thread_add only fires when cooldown elapsed",
 )
-def thread_cooldown(events: list[dict[str, Any]]) -> CheckerResult:
+def thread_cooldown(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     cfg = EngineConfig()
@@ -350,7 +350,7 @@ def thread_cooldown(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["last_turn_state"],
     description="Verify threads with >=3 progress entries appear in completed_threads",
 )
-def thread_completion(events: list[dict[str, Any]]) -> CheckerResult:
+def thread_completion(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     filtered = filter_turn_events(events)
@@ -396,7 +396,7 @@ def thread_completion(events: list[dict[str, Any]]) -> CheckerResult:
     requires_fields=["extraction.record"],
     description="Verify consecutive progress entries on same thread differ by <70% overlap",
 )
-def progress_dedup(events: list[dict[str, Any]]) -> CheckerResult:
+def progress_dedup(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     filtered = filter_turn_events(events)
