@@ -18,7 +18,7 @@ Scan narration for every proper name. For each:
 
 ```json
 {
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "motivation": "...", "fear": "...", "leverage": "...", "tie": "...", "presence": "present|nearby|known|departed", "position": "...", "party": true}]
+   "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "motivation": "...", "fear": "...", "leverage": "...", "tie": "...", "presence": "present|nearby|known|departed", "position": "..."}]
 }
 ```
 
@@ -37,7 +37,6 @@ Scan narration for every proper name. For each:
 - `presence`: present|nearby|known|departed. REQUIRED for every NPC update — never omit it.
 - `position`: Where the NPC is in the scene and what they are doing. One short phrase. Include spatial barriers and visibility constraints (e.g., 'behind a door, not visible', 'across the bar, watching', 'standing in the doorway blocking exit', 'at the player's elbow, whispering'). Update when narration changes the NPC's position or stance.
 - `departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. Examples: "killed in battle — Caught in the crossfire defending the village gates.", "sailed away — Booked passage on the evening tide, destination unknown."
-- `party`: true/false. Only emit when value changes.
 
 ### How to use compendium_npc_update
 
@@ -57,12 +56,7 @@ Decision rule: spatially proximate → `nearby`; physically left → `known`; ca
 - **Critical:** If an NPC is mentioned in the narration as being in the same scene as the player, you MUST set `presence: "present"` regardless of their current presence value. The location change demotion happens automatically — your job is to re-promote when the narration shows they followed.
 - **Re-promotion is mandatory:** When narration explicitly names an NPC and places them in the scene (e.g., "Elara Vance is already there, waiting by the door"), you MUST emit a compendium update with `presence: "present"`. Do NOT skip this just because the NPC was previously demoted.
 
-### Party assignment
 
-NPCs who consistently accompany the PC — companions, allies, hirelings — should be marked with `party: true`. Ask: "Is this character likely to follow the PC, or have they been following them?"
-- Set `party: true` when narration shows the NPC is traveling with, accompanying, or staying near the PC by choice.
-- Keep `party: true` until narration clearly shows the NPC parting ways (departure, betrayal, death, different destination). Removal requires a high bar.
-- Do NOT set `party: true` for NPCs who are oppositional, temporary scene characters, or neutral parties. Proximity alone is insufficient.
 
 ## NPC ID rules
 

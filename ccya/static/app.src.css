@@ -1193,6 +1193,50 @@ body {
   font-weight: 600;
 }
 
+/* Party toggle icon */
+.npc-party-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s;
+}
+.npc-party-toggle:hover {
+  opacity: 1;
+}
+.npc-party-toggle.active {
+  color: var(--accent-blue);
+  opacity: 1;
+}
+
+/* Inventory drop hover container */
+.inventory-drop-container {
+  position: relative;
+}
+.inv-drop-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  cursor: pointer;
+  color: var(--text-red, #ef4444);
+  opacity: 0;
+  transition: opacity 0.15s;
+  margin-left: 8px;
+}
+.inv-drop-btn:hover {
+  opacity: 1;
+}
+.inventory-drop-container:hover .inv-drop-btn {
+  opacity: 0.6;
+}
+.inventory-drop-container:hover .inv-drop-btn:hover {
+  opacity: 1;
+}
+
 /* Compendium */
 .compendium-list {
   display: flex;

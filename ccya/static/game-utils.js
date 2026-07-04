@@ -875,3 +875,58 @@ function _renderConditionPill(cond) {
     const tipHtml = desc ? `<div class="tooltip-body">${_escapeHtml(desc)}</div>` : '';
     return `<span class="${cls}">${_escapeHtml(label)}${tipHtml}</span>`;
 }
+
+function toggleNpcParty(npcId) {
+    fetch('/api/npc/' + npcId + '/toggle-party', {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            const toggle = document.querySelector(`.npc-party-toggle[data-npc-id="${npcId}"]`);
+            if (toggle) {
+                const isParty = data.party;
+                toggle.setAttribute('data-party', String(isParty));
+                toggle.classList.toggle('active', isParty);
+                toggle.style.color = isParty ? 'var(--accent-blue)' : '';
+            }
+        })
+        .catch(err => {
+            console.error('toggleNpcParty failed:', err);
+        });
+}
+
+function dropInventoryItem(itemId, amount, el) {
+    if (amount === 1) {
+        if (!confirm('Drop this item?')) return;
+        _doDropItem(itemId, null);
+    } else {
+        const qty = prompt(`Drop how many of ${amount}?`, amount);
+        if (qty === null) return;
+        const n = parseInt(qty, 10);
+        if (isNaN(n) || n < 1 || n > amount) return;
+        _doDropItem(itemId, n);
+    }
+}
+
+function _doDropItem(itemId, amount) {
+    fetch('/api/inventory/drop', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({item_id: itemId, amount: amount}),
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.inventory) {
+                const panel = document.getElementById('card-inventory');
+                if (panel) {
+                    const body = panel.querySelector('.sidebar-card-body');
+                    if (body) {
+                        body.innerHTML = data.inventory.length
+                            ? `<div class="inventory-drop-container">${data.inventory.map(item => _renderInventoryItem(item)).join('')}</div>`
+                            : '<span class="empty-state">You aren\'t carrying anything!</span>';
+                    }
+                }
+            }
+        })
+        .catch(err => {
+            console.error('dropInventoryItem failed:', err);
+        });
+}
