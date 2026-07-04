@@ -3,7 +3,6 @@ description: "Zombie T30 state extractor — verify location_change output after
 save: evals/runs/2026-06-29_0.30.0-59-g0c741454_0c74145/0333_unknown_custom_20t
 turn: 20
 stream: state
-model: VladimirGav/gemma4-26b-16GB-VRAM-Uncensored:latest
 temp: 0.7
 checks:
   - extraction_format:

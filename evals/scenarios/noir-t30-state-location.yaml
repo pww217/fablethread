@@ -3,7 +3,6 @@ description: "Noir T30 state extractor — verify location_change output after p
 save: /Users/pwilson/Repos/ccya/evals/runs/2026-06-20--0.28.0-29-g69faea92--69faea9/0432--noir-1930s--custom--30t
 turn: 30
 stream: state
-model: mlx-community/gemma-4-26b-a4b-it-mxfp8
 temp: 0.7
 checks:
   - extraction_format:

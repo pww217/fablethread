@@ -214,9 +214,6 @@ async def run_turn(
         diff_lines = _summarize_applied(applied)
         changes = summarize_changes(state_pre_apply, state, rejected)
 
-        # === Turn increment (single source of truth: here) ===
-        state = state.set_turn(state.meta.turn + 1)
-
         if _is_cancel_requested(ctx):
             return
         yield ("phase", {"phase": "persist"})
