@@ -168,7 +168,7 @@ Player input: {player_input}""",
     requires_fields=["ruling.intent", "ruling.impossible", "ruling.reason"],
     description="LLM check if 'impossible' flag matches player intent semantics",
 )
-def ruling_intent_match(events: list[dict[str, Any]]) -> CheckerResult:
+def ruling_intent_match(events: list[dict[str, Any]], *, config: EngineConfig | None = None) -> CheckerResult:
     if not events:
         return CheckerResult(
             checker_id="ruling_intent_match", passed=None, score=None,
@@ -195,5 +195,5 @@ def ruling_intent_match(events: list[dict[str, Any]]) -> CheckerResult:
 
     user_prompt = "\n\n---\n\n".join(user_parts)
 
-    llm_output = _call_llm_checker(system_prompt, user_prompt, config=_get_config())
+    llm_output = _call_llm_checker(system_prompt, user_prompt, config=_get_config(config))
     return _result_from_llm_output("ruling_intent_match", llm_output)

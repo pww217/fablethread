@@ -6,7 +6,7 @@
 |---|---|
 | `ccya/__main__.py` | CLI entry: argparse + uvicorn.run |
 | `ccya/cli.py` | CLI commands |
-| `ccya/models/` | Pydantic models: state, extraction, rules, config, compactor |
+| `ccya/models/` | Pydantic models: state, extraction, rules, config |
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
 | `ccya/engine/config.py` | EngineConfig dataclass (fields: convergence_alpha, convergence_enter_threshold, convergence_exit_threshold, RISING_min, CLIMAX_min, BREATHER_min, climax_turn_limit, extension_max, roll_starvation_threshold, threat_density_threshold, prepare_seed_temperature=0.4, prepare_seed_top_p=0.95, etc.); CheckerConfig threshold fields; turn lock management; Jinja env setup |
@@ -108,6 +108,7 @@
 | **State models** | [state-models.md](./architecture/state-models.md) |
 | **Cross-module contracts** | [cross-module-contracts.md](./architecture/cross-module-contracts.md) |
 | **Prompts architecture** | [prompts-architecture.md](./architecture/prompts-architecture.md) |
+| **Engine overhaul checklist** | [engine-overhaul-checklist.md](../engine-overhaul-checklist.md) | 16-domain checklist for validating engine changes
 | **Narration UI** | [narration-ui.md](./architecture/narration-ui.md) |
 | **Turn viewer UI** | [turn-viewer-ui.md](./architecture/turn-viewer-ui.md) |
 | **Logging standards** | [logging-standards.md](./architecture/logging-standards.md) |

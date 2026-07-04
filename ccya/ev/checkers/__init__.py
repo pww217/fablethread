@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Literal, TypedDict, cast
 
+from ccya.engine.config import EngineConfig
 from ccya.ev.events import filter_turn_events, load_current_state, extract_field
 
 _log = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ def register_checker(
     return decorator
 
 
-def run_checker(checker_id: str, events: list[dict[str, Any]], save_dir: Path | None = None) -> CheckerResult:
+def run_checker(checker_id: str, events: list[dict[str, Any]], *, config: EngineConfig | None = None, save_dir: Path | None = None) -> CheckerResult:
     fn = _checker_registry.get(checker_id)
     if fn is None:
         return CheckerResult(checker_id=checker_id, passed=None, score=None, detail=f"unknown checker: {checker_id}")
@@ -96,9 +97,9 @@ def run_checker(checker_id: str, events: list[dict[str, Any]], save_dir: Path | 
 
     t0 = time.perf_counter()
     if meta.get("needs_state", False):
-        raw = fn(filtered, _state)
+        raw = fn(filtered, _state, config=config)
     else:
-        raw = fn(filtered)
+        raw = fn(filtered, config=config)
     result = cast(CheckerResult, raw)
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
@@ -106,8 +107,8 @@ def run_checker(checker_id: str, events: list[dict[str, Any]], save_dir: Path | 
     return result
 
 
-def run_checkers(checker_ids: list[str], events: list[dict[str, Any]], save_dir: Path | None = None) -> dict[str, CheckerResult]:
-    return {cid: run_checker(cid, events, save_dir=save_dir) for cid in checker_ids}
+def run_checkers(checker_ids: list[str], events: list[dict[str, Any]], *, config: EngineConfig | None = None, save_dir: Path | None = None) -> dict[str, CheckerResult]:
+    return {cid: run_checker(cid, events, config=config, save_dir=save_dir) for cid in checker_ids}
 
 
 def list_checkers(checker_type: str | None = None) -> list[CheckerMeta]:

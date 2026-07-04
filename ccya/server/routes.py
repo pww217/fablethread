@@ -704,9 +704,8 @@ async def new_game_generate_pack(request: Request):
         return StreamingResponse(_err(), media_type="text/event-stream")
 
     try:
-        import json as _json
-        tags = _json.loads(tone_tags_raw)
-        rules = _json.loads(world_rules_raw)
+        tags = json.loads(tone_tags_raw)
+        rules = json.loads(world_rules_raw)
     except Exception:
         tags = []
         rules = []
@@ -734,7 +733,7 @@ async def new_game_generate_pack(request: Request):
             trace_id=trace_id,
             max_retries=max_retries,
         ):
-            yield f"data: {_json.dumps(event)}\n\n"
+            yield f"data: {json.dumps(event)}\n\n"
 
     return StreamingResponse(_stream(), media_type="text/event-stream")
 

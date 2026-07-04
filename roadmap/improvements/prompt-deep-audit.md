@@ -305,7 +305,7 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - `_npc_roster.j2` uses `n.position` (line 6) but `build_npc_roster()` does NOT return `position` — dead field in template, always renders empty
 - `_npc_roster.j2` uses `n.bond` (line 7) — returned by `build_npc_roster()` but not in `NPCRosterEntryBlock`
 - `_npc_roster.j2` uses `n.departed_reason` (line 5) — returned by `build_npc_roster()` but not in `NPCRosterEntryBlock`
-- `_npc_roster.j2` uses `n.personality_traits`, `n.personality_label`, `n.personality_speech_hint` (line 8) — returned by `build_npc_roster()` when `personality_registry` is passed, but not in `NPCRosterEntryBlock`
+- `_npc_roster.j2` does NOT use `n.personality_traits`, `n.personality_label`, `n.personality_speech_hint` — `personality_registry` was removed from `build_npc_roster()` in I-24
 - `show_all_fields` passed as `True` in `scene.py:33`, used in `_npc_roster.j2:8`. Since always `True`, the `{% else %}` branch is dead code.
 - `turn_no` passed in `scene.py:31`, used in `_npc_roster.j2:9` for "X turns ago" display — correct
 - `pc_name` passed in `scene.py:32`, used in `extract_scene_user.j2:1` — correct

@@ -1,6 +1,6 @@
 ---
 title: "NPC roster personality fields are dead weight in scene prompt"
-status: scoping
+status: done
 urgency: 3
 size: small
 created: 2026-07-01

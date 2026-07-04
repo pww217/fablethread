@@ -48,7 +48,7 @@ Narration:
     requires_fields=["ruling.intent", "narrate"],
     description="Does narration tone match the rules directive? (per-turn LLM call)",
 )
-def directive_tone_match(events: list[dict[str, Any]]) -> CheckerResult:
+def directive_tone_match(events: list[dict[str, Any]], *, config: EngineConfig | None = None) -> CheckerResult:
     if not events:
         return CheckerResult(
             checker_id="directive_tone_match", passed=None, score=None,
@@ -77,7 +77,7 @@ Narration:
 {narrate}"""
 
     system_prompt = _PROMPT_TEMPLATES["directive_tone_match"][0]
-    llm_output = _call_llm_checker(system_prompt, user_prompt, config=_get_config())
+    llm_output = _call_llm_checker(system_prompt, user_prompt, config=_get_config(config))
     return _result_from_llm_output("directive_tone_match", llm_output)
 
 
@@ -118,7 +118,7 @@ Narration of following turn:
     requires_fields=["last_turn_state.meta.pending_gm_beat", "narrate"],
     description="Does the GM beat produce observable narrative consequence?",
 )
-def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
+def beat_narrative_chain(events: list[dict[str, Any]], *, config: EngineConfig | None = None) -> CheckerResult:
     if not events:
         return CheckerResult(
             checker_id="beat_narrative_chain", passed=None, score=None,
@@ -152,7 +152,7 @@ Narration of following turn:
 {next_narrate}"""
 
     system_prompt = _PROMPT_TEMPLATES["beat_narrative_chain"][0]
-    llm_output = _call_llm_checker(system_prompt, user_prompt, config=_get_config())
+    llm_output = _call_llm_checker(system_prompt, user_prompt, config=_get_config(config))
     return _result_from_llm_output("beat_narrative_chain", llm_output)
 
 
@@ -199,7 +199,7 @@ Conditions removed:
                      "applied.pc_condition_add", "applied.pc_condition_remove"],
     description="Does extraction match what narration describes?",
 )
-def state_fidelity(events: list[dict[str, Any]]) -> CheckerResult:
+def state_fidelity(events: list[dict[str, Any]], *, config: EngineConfig | None = None) -> CheckerResult:
     if not events:
         return CheckerResult(
             checker_id="state_fidelity", passed=None, score=None,
@@ -240,7 +240,7 @@ Conditions removed:
 {condition_remove}"""
 
     system_prompt = _PROMPT_TEMPLATES["state_fidelity"][0]
-    llm_output = _call_llm_checker(system_prompt, user_prompt, config=_get_config())
+    llm_output = _call_llm_checker(system_prompt, user_prompt, config=_get_config(config))
     return _result_from_llm_output("state_fidelity", llm_output)
 
 
@@ -248,22 +248,12 @@ Conditions removed:
 # Config accessor
 # ---------------------------------------------------------------------------
 
-_engine_config: EngineConfig | None = None
-
-
-def _get_config() -> EngineConfig:
+def _get_config(config: EngineConfig | None = None) -> EngineConfig:
     """Get the engine config for LLM checker calls.
-
-    This is a module-level singleton that gets set by the check command
-    before running LLM checkers.
+    
+    Accepts an optional config; falls back to EngineConfig() if None.
+    Callers should pass config explicitly to avoid hidden coupling.
     """
-    global _engine_config
-    if _engine_config is None:
-        _engine_config = EngineConfig()
-    return _engine_config
-
-
-def set_checker_config(config: EngineConfig) -> None:
-    """Set the engine config for LLM checker calls."""
-    global _engine_config
-    _engine_config = config
+    if config is not None:
+        return config
+    return EngineConfig()

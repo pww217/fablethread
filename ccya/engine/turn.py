@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import traceback
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -207,7 +208,7 @@ async def run_turn(
         )
 
         # === Validate & apply delta ===
-        state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative = _apply_phase(
+        state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative, fallback_msg = _apply_phase(
             state, delta, record_result, config, trace_id, turn_no, str(save_dir), errors, narrative,
         )
 
@@ -226,7 +227,7 @@ async def run_turn(
             rendered_ruling_system, rendered_ruling_user,
             ruling_raw_response, ruling_parse_error,
             ruling_trimmed, ruling_trimmed_chars,
-            _pc, applied, rejected,
+            _pc, applied, rejected, fallback_msg,
             thread_dedup_rejections, reconcile_warnings,
             actions, outcome_summary, ext_metrics,
             extraction_event, errors, trace_id, turn_no,
@@ -253,7 +254,6 @@ async def run_turn(
         errors.append({"kind": exc.kind, "message": str(exc)})
         raise
     except Exception as exc:
-        import traceback
         tb = traceback.format_exc()
         _log.error(
             "run_turn failed: %s: %s\n%s", type(exc).__name__, exc, tb, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
@@ -364,21 +364,6 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
     narrate_result.narr_trimmed_chars = narr_trimmed_chars
 
 
-_FALLBACK_SENTINEL = "*That action didn't resolve as expected"
-
-
-def _strip_fallback(narration: str, *, trace_id: str, turn: int) -> str:
-    log = logging.getLogger(__name__)
-    lines = narration.splitlines()
-    clean = [ln for ln in lines if not ln.strip().startswith(_FALLBACK_SENTINEL)]
-    if len(clean) < len(lines):
-        log.warning(
-            "Fallback message stripped from narration",
-            extra={"trace_id": trace_id, "turn": turn},
-        )
-    return "\n".join(clean)
-
-
 async def _extract_phase(
     env: Any, state: WorldState, narrative: str, ctx: TurnContext,
     intent: IntentEnvelope, outcome: RulesOutcome, config: EngineConfig,
@@ -431,7 +416,6 @@ async def _extract_phase(
             else:
                 _extract_result = _evt
     except Exception as exc:
-        import traceback
         tb = traceback.format_exc()
         _log.error("turn.extraction_pipeline_error trace_id=%s turn_no=%d\n%s", trace_id, turn_no, tb)
         errors.append({"kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id, "message": str(exc)})
@@ -494,10 +478,10 @@ def _apply_phase(
     state: WorldState, delta: StateDelta | None, record_result: Any | None,
     config: EngineConfig, trace_id: str, turn_no: int, save_dir_str: str,
     errors: list[dict[str, Any]], narrative: str,
-) -> tuple[WorldState, WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str]:
+) -> tuple[WorldState, WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str, str]:
     """Apply delta + rejection handling.
 
-    Returns: (state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative)
+    Returns: (state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative, fallback_msg)
     """
     state_pre_apply = state.model_copy()
     applied: dict[str, Any] = {}
@@ -510,21 +494,20 @@ def _apply_phase(
             state, delta, record_result, config, trace_id, turn_no, save_dir_str,
         )
 
-    # Blocking rejection handling (stays in run_turn per design)
-    blocking = [r for r in rejected if r.get("kind") != "warn_overdraw"]
-    if blocking:
-        errors.append(
-            {
-                "kind": ErrorKind.DELTA_VALIDATION_FAILED,
-                "trace_id": trace_id,
-                "message": f"Delta validation failed ({len(blocking)} rejection(s)).",
-            }
-        )
-        narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
+        # Blocking rejection handling (stays in run_turn per design)
+        blocking = [r for r in rejected if r.get("kind") != "warn_overdraw"]
+        fallback_msg = ""
+        if blocking:
+            errors.append(
+                {
+                    "kind": ErrorKind.DELTA_VALIDATION_FAILED,
+                    "trace_id": trace_id,
+                    "message": f"Delta validation failed ({len(blocking)} rejection(s)).",
+                }
+            )
+            fallback_msg = f"That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing."
 
-    narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
-
-    return state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative
+    return state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative, fallback_msg
 
 
 @dataclass
@@ -565,6 +548,7 @@ async def _persist_and_async_cleanup(
     ruling_raw_response: str, ruling_parse_error: str | None,
     ruling_trimmed: bool, ruling_trimmed_chars: int,
     pc: Any, applied: dict[str, Any], rejected: list[dict[str, Any]],
+    fallback_msg: str,
     thread_dedup_rejections: list[dict[str, Any]], reconcile_warnings: list[str],
     actions: list[str], outcome_summary: str, ext_metrics: dict[str, Any],
     extraction_event: dict[str, Any], errors: list[dict[str, Any]], trace_id: str, turn_no: int,
@@ -705,7 +689,7 @@ async def _persist_and_async_cleanup(
     result_obj = TurnResult(
         turn=state.meta.turn,
         trace_id=trace_id,
-        narrative=narrative,
+        narrative=narrative + ("\n\n" + fallback_msg if fallback_msg else ""),
         state_delta=applied,
         applied=applied,
         rejected=rejected,

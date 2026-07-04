@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import json
 from pathlib import Path
 from typing import Any
 from ccya.models import WorldState
@@ -29,8 +30,6 @@ def _load_ruling_map(save_dir: Path) -> dict[int, dict[str, Any]]:
     if not path.exists():
         _log.debug("_load_ruling_map path=%s not found", path)
         return {}
-    import json
-
     raw = path.read_text().strip()
     if not raw:
         return {}
@@ -101,8 +100,6 @@ def _load_changes_map(save_dir: Path) -> dict[int, list[str]]:
     if not path.exists():
         return {}
     
-    import json
-    
     raw = path.read_text().strip()
     if not raw:
         return {}
@@ -149,8 +146,6 @@ def _load_recent_history(save_dir: Path, n: int = 50) -> list[dict[str, Any]]:
 
 def _load_last_actions(save_dir: Path) -> list[str]:
     """Return the actions list from the most recent turn event."""
-    import json
-
     path = save_dir / "events.jsonl"
     if not path.exists():
         return []

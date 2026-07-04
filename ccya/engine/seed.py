@@ -22,18 +22,6 @@ from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
 _NAME_RE = re.compile(r"[^\x00-\x7F]")
 
 
-def _is_named(name: str) -> bool:
-    """Heuristic: a proper name has 2+ words with first and last capitalized."""
-    if not name:
-        return False
-    words = name.strip().split()
-    if len(words) < 2:
-        return False
-    first_word = words[0]
-    last_word = words[-1]
-    return bool(first_word and first_word[0].isupper() and last_word and last_word[0].isupper())
-
-
 def _strip_non_ascii(text: str) -> str:
     if not text:
         return text
@@ -200,15 +188,6 @@ def _build_prepare_seed_messages(
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ], pool_selection
-
-
-def _soft_validate_seed(
-    _envelope: SeedStateEnvelope,
-    pack: Pack,
-    overrides: PlayerOverrides | None = None,
-) -> list[str]:
-    warnings: list[str] = []
-    return warnings
 
 
 async def prepare_seed(
@@ -401,13 +380,7 @@ async def prepare_seed(
                     )
                 )
 
-        soft_warnings = _soft_validate_seed(state_envelope, pack, overrides)
-        for w in soft_warnings:
-            _log.warning(
-                "prepare_seed soft-check: %s", w, extra={"trace_id": trace_id}
-            )
-        state_envelope.seed_state.meta["_seed_soft_warnings"] = soft_warnings
-
+        state_envelope.seed_state.meta["_seed_soft_warnings"] = []
         # Hard validation: at least 1 NPC must have presence="present"
         present_count = sum(
             1 for npc in state_envelope.seed_state.compendium.npcs.values()

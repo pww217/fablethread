@@ -138,6 +138,10 @@ def _is_retryable(exc: BaseException) -> bool:
     """Return True if the exception represents a transient failure worth retrying."""
     if isinstance(exc, TimeoutError):
         return True
+    if isinstance(exc, (LlmcRateLimit, LlmcApiError)):
+        return True
+    if isinstance(exc, httpx.HTTPError):
+        return True
     return False
 
 
@@ -207,9 +211,6 @@ async def _chat_with_fallback(
                 host, fallback_host, exc,
             )
             break
-    else:
-        # Should not reach here, but just in case
-        raise
 
     # Attempt fallback
     if _should_fallback(fallback_host, fallback_cooldown_s):

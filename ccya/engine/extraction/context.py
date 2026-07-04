@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import logging
 from dataclasses import dataclass, field
 from typing import Any
@@ -54,7 +53,7 @@ def _build_extraction_context(
         pc_condition_remove=list(state_result.pc_condition_remove or []),
     )
 
-    state_copy = copy.deepcopy(state)
+    state_copy = state.model_copy()
     post_state = apply_delta(state_copy, combined_delta)
 
     post_pc = post_state.pc
