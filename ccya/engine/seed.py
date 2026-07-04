@@ -605,11 +605,6 @@ async def narrate_seed(
                 raise ValueError(f"opening_narrative must be at least 50 characters, got {len(opening_narrative)}")
             
             outcome_summary = j.get("outcome_summary", "")
-            
-            # Strip non-ASCII from narrative fields
-            opening_narrative = _strip_non_ascii(opening_narrative)
-            actions = [_strip_non_ascii(a) for a in actions]
-            outcome_summary = _strip_non_ascii(outcome_summary)
 
         except Exception as exc:
             parse_error = str(exc)
