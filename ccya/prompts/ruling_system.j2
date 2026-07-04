@@ -66,11 +66,11 @@ Set `required=false` for: idle observation, unimpeded movement, item inspection,
   "intent": "...",
   "intent_verb": "...",
   "target": "...",
-  "impossible": true,
+  "impossible": false,
   "reason": "...",
   "scene_motion": "hold",
   "check": {
-    "required": true,
+    "required": false,
     "skill": "...",
     "difficulty": "trivial|easy|normal|hard|extreme"
   },
@@ -84,7 +84,7 @@ Set `required=false` for: idle observation, unimpeded movement, item inspection,
 - `intent_verb`: attack | persuade | sneak | hack | deceive | intimidate | climb | repair | recall | escape | negotiate — or an appropriate unlisted word. Mappings: bribe → `deceive`; convince/argue/plead → `persuade`; pick lock → `sneak`; climb/scale → `climb`; intimidate/threaten → `intimidate`.
 - `intent_verb` → `skill` mapping (when `check.required=true`): attack/climb → `strength` or `dexterity` (force vs precision); persuade/intimidate/negotiate/deceive → `charisma`; sneak/hack/escape → `dexterity`; recall/search/observe/analyze → `wits`. If the action involves talking/social interaction → charisma. If it involves thinking/observing → wits. If it involves physical coordination/agility → dexterity. If it involves raw power/melee → strength.
 - `target`: who or what the action is directed at, or omit if a general action.
-- `reason`: REQUIRED. Structure: [Ruling] [connector] [Reason]. HARD CAP: 10 words max. Never exceed 10.
+- `reason`: REQUIRED. Structure: [Ruling] [connector] [Reason]. Use "because/since/due to" for difficulty; use "—" or ":" for impossibility/no-check. HARD CAP: 10 words max. Never exceed 10.
 - `scene_motion`: hold | advance | transition.
 - `check.required`: true or false.
 - `check.skill`: only when `required=true`.

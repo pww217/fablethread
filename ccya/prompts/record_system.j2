@@ -38,21 +38,17 @@ Threads in the user prompt are shown with two labels: `[TYPE - URGENCY]`.
 
 **CRITICAL: Progress must be a new fact, not a rephrasing.** The system rejects progress entries that are 70%+ text-similar to the last entry. "Telegram reveals Captain Miller's involvement" followed by "Telegram confirms Captain Miller's involvement" will be rejected — changing one verb is not progress. Each progress entry must add genuinely new information: a new discovery, a setback, a shift in circumstances, or a concrete development.
 
-**CRITICAL: Thread IDs must be specific enough to avoid overlap.** Use descriptive IDs like "enemy_encroachment_south_flank" instead of generic "enemy_encroachment".
-
-**CRITICAL: Only reference threads that appear in the active threads list.** The user prompt shows all active threads with their IDs. You MUST use those exact IDs. If a thread ID is not shown in the active threads list, do NOT create or update it. Hallucinating thread IDs causes silent failures.
-
-**MANDATORY — EXACT THREAD ID PRESERVATION:** Thread IDs are opaque handles, not descriptions. When referencing a thread, copy the ID EXACTLY as shown in the prompt — character for character. Do NOT paraphrase, shorten, rename, or rephrase IDs.
+**Thread IDs:** Must be specific enough to avoid overlap (use "enemy_encroachment_south_flank" not "enemy_encroachment"). Only reference threads in the active threads list. Copy the ID EXACTLY as shown — character for character. Do NOT paraphrase, shorten, rename, or rephrase IDs.
   - Example: if prompt shows `dockside_enforcer_confrontation`, your output MUST use `"id": "dockside_enforcer_confrontation"`.
-  - WRONG: `"id": "enforcer_pursuit"` (paraphrased from `dockside_enforcer_confrontation`)
-  - WRONG: `"id": "enforcer_confrontation"` (abbreviated from `dockside_enforcer_confrontation`)
-  - RIGHT: `"id": "dockside_enforcer_confrontation"` (exact copy from prompt)
+  - WRONG: `"id": "enforcer_pursuit"` (paraphrased)
+  - WRONG: `"id": "enforcer_confrontation"` (abbreviated)
+  - RIGHT: `"id": "dockside_enforcer_confrontation"` (exact copy)
 
 **CRITICAL: Do NOT resolve threads that do not exist.** `thread_resolve` may only reference IDs from the active threads list.
 
 **CRITICAL: Never both update AND resolve the same thread in one turn.** If you are resolving a thread, emit it ONLY in `thread_resolve`. Do NOT also include a `thread_update` for that same ID.
 
-**CRITICAL: thread_add IDs must be unique.** Before emitting `thread_add`, check that your proposed ID does not already exist in the active or completed threads list.
+**thread_add IDs must be unique.** Before emitting `thread_add`, check that your proposed ID does not already exist in the active or completed threads list.
 
 **Urgency escalation:** Threat threads that go unaddressed for 3+ turns MUST escalate urgency from `normal` to `urgent`. If a threat thread is already `urgent` and still unaddressed, resolve it (thread_resolve) or create a new thread_add with a more specific ID. Do NOT let threat threads linger at `normal` urgency indefinitely.
 
@@ -66,13 +62,13 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 Emit **only** when the narrative chapter genuinely ends — a decisive win, a fundamental shift, or 8+ turns on the same goal. Target cadence: 8–15 turns.
 
-**CRITICAL: `thread_resolve` is the only way to drop threads from the active list.**
+**Note:** `thread_resolve` is the only way to drop threads from the active list.
 
 **CRITICAL: Do NOT emit `arc_resolve` as an empty object `{}`.** If you are not actually resolving the arc, omit the field entirely. An empty `arc_resolve` object will cause a validation error.
 
 WRONG: `arc_resolve` with unchanged `long_term_objective` (no-op). RIGHT: `arc_resolve` introduces a new goal.
 
-`goal_update` — the arc's direction shifted but the arc isn't over. **Use sparingly; arcs are meant to last 7+ turns.** Only update when: the main objective is impossible (target dead, location destroyed, ally betrayed); a revelation invalidates the current goal; the player's situation changed so drastically a different objective is now primary; the arc has coasted 8+ turns without meaningful progress. **Do NOT update when:** a thread resolved/failed/changed urgency; progress was made; the goal is still viable; a parallel thread became dominant. **Do NOT emit a no-op** — if the goal hasn't genuinely shifted, omit this field entirely. **CRITICAL: Compare your proposed `goal_update` against the current `long_term_objective`. If they are identical or nearly identical (same meaning, different wording), do NOT emit `goal_update`. Omit the field entirely instead.**
+`goal_update` — the arc's direction shifted but the arc isn't over. **Use sparingly; arcs are meant to last 7+ turns.** Only update when: the main objective is impossible (target dead, location destroyed, ally betrayed); a revelation invalidates the current goal; the player's situation changed so drastically a different objective is now primary; the arc has coasted 8+ turns without meaningful progress. **Do NOT update when:** a thread resolved/failed/changed urgency; progress was made; the goal is still viable; a parallel thread became dominant. **Do NOT emit a no-op** — if the goal hasn't genuinely shifted, omit this field entirely. **Compare your proposed `goal_update` against the current `long_term_objective`. If they are identical or nearly identical (same meaning, different wording), do NOT emit `goal_update`. Omit the field entirely instead.**
 
 ## Curtain Call — CLIMAX phase
 

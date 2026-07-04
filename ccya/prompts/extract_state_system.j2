@@ -11,7 +11,7 @@ Decide IF changes occurred BEFORE populating fields. Reason fields are mandatory
 
 **CRITICAL — `condition_change_reason` is mandatory when emitting `pc_condition_add` or `pc_condition_remove`.** Omitting it causes a `ValueError` and wastes a full turn retry. Always include it.
 
-## Narration is the sole authority
+## Grounding
 
 Ground all changes in what the narration confirms. `player_intent` is context only — it does not mean the action succeeded. Only consider present-tense narration.
 

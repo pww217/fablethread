@@ -40,7 +40,7 @@ class CompendiumEntry(BaseModel):
     name: str | None = None
     title: str | None = None
     bio: str | None = None
-    bond: str | None = None
+    tie: str | None = None
     presence: str | None = None  # "present" | "nearby" | "known" — set by seed or engine
     notes: str | None = None      # scene-specific attitude, cleared on departure
     motivation: str | None = None  # what NPC fundamentally wants (UI-visible in compendium tooltip)

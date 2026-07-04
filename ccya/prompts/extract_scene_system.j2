@@ -41,7 +41,15 @@ Scan narration for every proper name. For each:
 
 ### How to use compendium_npc_update
 
-- **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`position`.
+Presence levels:
+- `"present"` — in the immediate scene with the player
+- `"nearby"` — still in the area: just outside, next room, watching from shadows, within earshot. Auto-decays to `known` after 2 turns if not re-promoted.
+- `"known"` — physically left the area, but not permanently. The LLM manages this state.
+- `"departed"` — permanently gone: dead, sailed away, imprisoned for life, comatose, ascended, unreachable. Requires `departed_reason`. Auto-archived after 3 turns.
+
+Decision rule: spatially proximate → `nearby`; physically left → `known`; can never return → `departed`.
+
+- **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory), and optionally `title`. For known NPCs, only set `presence`/`position`.
 - **NPC behavior changes:** Update `position` with a brief situational cue reflecting their current stance toward the player.
 - **Durable identity updates:** Update `name`, `title`, `bio`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes. **EXCEPTION:** If an NPC was previously absent or known and the narration now places them in the scene or nearby, you MUST emit an update even if their other fields haven't changed.
@@ -61,7 +69,10 @@ NPCs who consistently accompany the PC — companions, allies, hirelings — sho
 - Use existing IDs from the `## known_characters` compendium section when referencing known NPCs.
 - For new NPCs, generate a stable `snake_case` ID from their name/title. Examples: `"scarred_tough"`, `"guard_captain_renn"`.
 - If an NPC is known from the compendium, use their existing compendium ID — do NOT create a new ID.
-- When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC — even ambient presence like "crowd" or "bystanders" needs a bio.**
+- When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC.**
+- **Dedup — mandatory pre-check:** Before emitting `compendium_npc_update`, check the `known_characters` compendium. If the NPC's name or title matches an existing entry (case-insensitive), use that entry's ID. NEVER create a new entry for an NPC that already exists.
+- **SAME ENTITY, DIFFERENT NAMES:** When narration mentions multiple names/titles that refer to the same entity, create ONE compendium entry with the most specific identifier. Do NOT create separate entries for what is clearly the same person.
+- **Re-promotion:** If an NPC was previously `known` and narration places them in the scene, set `presence: "present"` and update `position`. Do NOT create a new entry.
 
 ## NPC field requirements
 
@@ -72,20 +83,11 @@ NPCs who consistently accompany the PC — companions, allies, hirelings — sho
 
 If a named character enters the scene as the **recipient** of a major action (rescue, capture, healing, transport, medical aid), create a compendium entry for them even if they don't perform visible actions. Use whatever information is available from context — including details from recent narration history if needed for the bio.
 
-## Presence levels — SPATIAL
+## Ambient NPC encouragement
 
-- `"present"` — in the immediate scene with the player
-- `"nearby"` — still in the area: just outside, next room, watching from shadows, within earshot. Auto-decays to `known` after 2 turns if not re-promoted.
-- `"known"` — physically left the area, but not permanently. The LLM manages this state.
-- `"departed"` — permanently gone: dead, sailed away, imprisoned for life, comatose, ascended, unreachable. Requires `departed_reason`. Auto-archived after 3 turns.
+When there are zero or one present NPCs in the scene and the location is a public or populated space (street, market, tavern, barracks, plaza, etc.), create at least one ambient NPC to add narrative texture. This is encouragement, not a mandate — do not invent NPCs where none would logically exist (empty rooms, stealth sequences, desolate areas).
 
-**Decision rule:** If an NPC is spatially proximate to the player's location, they are `nearby`, not `known`. If they physically left the area, they are `known`. If they can never return, they are `departed`.
 
-- Emit `{ presence: "present" }` for NPCs entering the scene.
-- Emit `{ presence: "nearby" }` for NPCs who left the scene but remain spatially proximate.
-- Emit `{ presence: "known" }` for NPCs who physically departed the area.
-- Emit `{ presence: "departed", departed_reason: "..." }` for permanently unreachable NPCs.
-- Do NOT emit presence changes for NPCs not mentioned in narration — absence is not departure.
 
 ## Bio examples
 
@@ -111,17 +113,10 @@ If a named character enters the scene as the **recipient** of a major action (re
 
 Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit presence changes you can justify from the narration.
 
-## NPC dedup — mandatory pre-check (apply BEFORE every compendium_npc_update)
-
-Before you emit `compendium_npc_update` for ANY NPC:
-1. Check the `known_characters` compendium section. If the NPC's name or title matches an existing compendium entry (case-insensitive), use that entry's ID.
-2. If the NPC was previously known but had `presence: "known"` and is now present, set `presence: "present"` and update `position`.
-3. If the NPC is already in the compendium, do NOT re-emit `name`, `title`, or `bio` unless the narration reveals new information.
-4. NEVER create a new compendium entry for an NPC that already exists. Always reuse the existing ID.
-5. **SAME ENTITY, DIFFERENT NAMES:** When narration mentions multiple names/titles that refer to the same entity (e.g., "Iron Guard patrol" and "Two able-bodied guards"), create ONE compendium entry with the most specific identifier. Do NOT create separate entries for what is clearly the same group/person.
 
 ## Constraints
 
+- **Each NPC must be a singleton — one JSON entry per NPC. An ambient presence (crowd, barflies, market-goers) counts as ONE entry representing a collective. No plural/group entries where the same entity is split across multiple entries (no "crowd" + "bystanders" + "group of guards" for the same scene).**
 - **Limit new NPCs to at most 3 per turn.**
 - **Keep scenes to 6-8 NPCs total. Confrontational scenes should have at most 3.**
 

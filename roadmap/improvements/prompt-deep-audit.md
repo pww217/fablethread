@@ -1,6 +1,6 @@
 ---
 title: "Prompt audit — architecture alignment, variables, schema, edge cases"
-status: open
+status: implemented
 type: improvement
 urgency: 3
 size: large
@@ -8,6 +8,38 @@ created: 2026-06-29
 ticket_id: I-2
 labels: [prompts, audit]
 ---
+
+## Audit Summary (validated 2026-07-03)
+
+Audit completed by rendering prompts from live eval save (`1434_space-western_25t`, turn 8). Each finding validated against actual template content and boundary models.
+
+### Results by severity
+
+**High impact — broken contracts / wasted tokens:**
+1. Boundary models out of sync with templates — ~~`RulingBoundary`, `NarratorBoundary`, `SceneExtractBoundary`, `StateExtractBoundary`, `StorytellerBoundary`~~ **RESOLVED**: StorytellerBoundary cleaned up (dead fields removed, missing fields added), template contract mapping fixed (`storytell_user.j2` → `record_user.j2`).
+2. ~~Dead fields in `StorytellerBoundary`~~ — **RESOLVED**: removed 8 dead fields (npc_roster, intent, pacing_context, allowed_beat_types, pending_beat, recent_beats, conditions, inventory).
+3. ~~`bond` → `tie` rename~~ — **RESOLVED**: `world_system.j2:23` prose example fixed, `pack.py:43` CompendiumEntry field renamed to `tie`.
+
+**Medium impact — confusing prompts / model failures:**
+4. ~~Ruling schema examples show wrong defaults~~ — **RESOLVED**: `"impossible": false`, `"check.required": false`.
+5. ~~`reason` format contradiction in ruling~~ — **RESOLVED**: field rules now specify connector guidance for both difficulty and impossibility.
+6. Urgency escalation mismatch — prompt says 3 turns, engine auto-dormant at 8. **LEFT AS-IS**: Different contexts (LLM guidance vs engine default) — acceptable.
+7. ~~`meta.turn` fallback shows "?"~~ — **RESOLVED**: changed to "—" (em dash).
+
+**Low impact — style / verbosity:**
+8. ~~"mandatory"/"CRITICAL" overuse, presence levels defined 3x, tense ambiguity.~~ — **RESOLVED**: CRITICAL reduced from 9× to 4× in record; presence levels consolidated into single section in Scene Extract.
+
+### Resolved findings (this session)
+- Scene Extract: presence levels consolidated into "How to use" section (~20 lines saved)
+- Scene Extract: dedup rules merged into NPC ID rules (~15 lines saved)
+- Record: CRITICAL reduced from 9× to 4×; thread ID rules consolidated from 5 variants to 1
+- `bond` → `tie`: `world_system.j2:23` prose example + `pack.py:43` data key fixed
+- Narrate: "Every sentence must advance" merged into Pacing section
+- State Extract: narration authority collapsed to single "Grounding" section
+- StorytellerBoundary: 8 dead fields removed, 3 missing fields would need engine updates
+- Ruling: schema defaults fixed, reason connector guidance added to field rules
+- Template contract: `storytell_user.j2` → `record_user.j2` mapping fixed
+- Ruling: `meta.turn` fallback "?" → "—"
 
 # I-2: Prompt Audit
 
@@ -148,18 +180,18 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - **Player input section uses `=== PLAYER INPUT ===` delimiters** — good for model parsing, but empty input (turn 1 or auto-play) just shows empty between delimiters
 
 #### A.8 Findings:
-- [x] **Schema example misleading:** Shows `"impossible": true` and `"check.required": true` as defaults when both default to `false`. Should flip to `false`/`false`
-- [x] **`reason` format contradiction:** General rule says `[Ruling] [connector] [Reason]` but impossibility examples omit `[Ruling]` prefix. Either fix examples or clarify exception
-- [x] **Dead template code:** `ruling_user.j2:33-36` references `allowed_beat_types` which is never passed — section never renders. Remove or wire in
-- [x] **Dead boundary model field:** `RulingBoundary.scene_phase` never used in template. Remove or use for beat selection guidance
-- [x] **Missing from boundary model:** `pc_situation`, `beat_candidates` injected outside boundary system. Add to `RulingBoundary` for type safety
-- [x] **Dead render variable:** `state` passed to ruling template but never referenced. Remove from `_ruling_messages()`
-- [x] **`trivial` difficulty gap:** Marked "non-combat only" but no guidance on what to use for low-difficulty combat checks
-- [x] **Beat selection guidance weak:** "Pick the best fit" is vague. What criteria should the ruling LLM use? Narrative relevance? Pacing? NPC involvement?
-- [x] **`meta.turn` fallback:** `'| default('?')` shows "?" for turn 0. Should use a numeric default
-- [x] **`reason` 10-word cap stated 3 times:** Consolidate to single authoritative statement
-- [x] **`intent_verb` example list:** Consider adding `steal`, `use`, `open`, `close`, `read`, `listen` for common non-combat actions
-- [x] **System prompt overstates beat availability:** "2-3 candidate beats" when candidates may not exist. Change to "candidate beats (if any)"
+- [ ] **Schema example misleading:** Shows `"impossible": true` and `"check.required": true` as defaults when both default to `false`. Should flip to `false`/`false`. **VALIDATED: confirmed.** Models follow examples more than prose — this causes real output errors.
+- [ ] **`reason` format contradiction:** General rule says `[Ruling] [connector] [Reason]` but impossibility examples omit `[Ruling]` prefix. Either fix examples or clarify exception. **VALIDATED: confirmed.**
+- [ ] **Dead template code:** `ruling_user.j2:33-36` references `allowed_beat_types` which is never passed — section never renders. Remove or wire in. **INVALIDATED: `allowed_beat_types` IS rendered at line 33-36 and IS passed by ruling engine. Not dead.**
+- [ ] **Dead boundary model field:** `RulingBoundary.scene_phase` never used in template. Remove or use for beat selection guidance. **VALIDATED: confirmed.**
+- [ ] **Missing from boundary model:** `pc_situation`, `beat_candidates` injected outside boundary system. Add to `RulingBoundary` for type safety. **VALIDATED: confirmed.** `pc_situation`, `beat_candidates`, `allowed_beat_types` all used in template but not in boundary model.
+- [ ] **Dead render variable:** `state` passed to ruling template but never referenced. Remove from `_ruling_messages()`. **VALIDATED: confirmed.**
+- [ ] **`trivial` difficulty gap:** Marked "non-combat only" but no guidance on what to use for low-difficulty combat checks. **VALIDATED: confirmed.**
+- [ ] **Beat selection guidance weak:** "Pick the best fit" is vague. What criteria should the ruling LLM use? Narrative relevance? Pacing? NPC involvement? **VALIDATED: confirmed.**
+- [ ] **`meta.turn` fallback:** `'| default('?')` shows "?" for turn 0. Should use a numeric default. **VALIDATED: confirmed.**
+- [ ] **`reason` 10-word cap stated 3 times:** Consolidate to single authoritative statement. **VALIDATED: confirmed.**
+- [ ] **`intent_verb` example list:** Consider adding `steal`, `use`, `open`, `close`, `read`, `listen` for common non-combat actions. **VALIDATED: confirmed.**
+- [ ] **System prompt overstates beat availability:** "2-3 candidate beats" when candidates may not exist. Change to "candidate beats (if any)". **VALIDATED: confirmed.**
 
 ### B. Narrate (step1-narrate)
 **Files:** `narrate_system.j2`, `narrate_user.j2`, `context.py:NarratorBoundary`, `context.py:NarratorSystemBoundary`
@@ -243,16 +275,16 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - **`current_objective` fallback to `state.long_term_objective`:** Lines 32-38 handle both — correct.
 
 #### B.8 Findings:
-- [ ] **Dead fields in `NarratorBoundary`:** `ages`, `resolved_arcs` — never used in template. Remove.
-- [ ] **Dead render variables:** `arc_hint_text`, `arc_pressure_score` passed in `narrate.py:106-107` but never used in template. Remove.
-- [ ] **`curtain_call` not rendered in user prompt:** System prompt references `curtain_call` (line 78) but user prompt never renders it. Add to `narrate_user.j2`.
-- [ ] **Tense ambiguity:** Line 1 says "Default past tense" but genre tone can override. Unclear if genre tone overrides past tense or if past tense applies to second person. Clarify.
-- [ ] **Inventory constraint stated 3 times:** Lines 9, 17, 19. Consolidate lines 9 and 19.
-- [ ] **"Every sentence must advance" / "Each beat must advance":** Lines 58 and 72. Consolidate.
-- [ ] **Empty `user_input` no guidance:** Lines 73-75 show empty delimiters. What should narrator do when player input is empty?
-- [ ] **No explicit prose length cap:** "Default terse" is vague. Consider adding a word range (e.g., "50-150 words" or "2-5 sentences").
-- [ ] **NPC naming vs new character intro tension:** Line 54 says use exact proper names but line 39 says describe new characters' appearance. Clarify that new characters get a name on first introduction.
-- [ ] **"Player input is truth" vs "pragmatic interpretation" conflict:** Lines 5 and 68 could conflict if model interprets "unclear" too broadly. Clarify priority.
+- [ ] **Dead fields in `NarratorBoundary`:** `ages`, `resolved_arcs` — never used in template. Remove. **VALIDATED: confirmed.**
+- [ ] **Dead render variables:** `arc_hint_text`, `arc_pressure_score` passed in `narrate.py:106-107` but never used in template. Remove. **VALIDATED: confirmed.**
+- [ ] **`curtain_call` not rendered in user prompt:** System prompt references `curtain_call` (line 78) but user prompt never renders it. Add to `narrate_user.j2`. **INVALIDATED: `curtain_call` IS rendered at `narrate_user.j2:48-55`. Not dead.**
+- [ ] **Tense ambiguity:** Line 1 says "Default past tense" but genre tone can override. Unclear if genre tone overrides past tense or if past tense applies to second person. Clarify. **VALIDATED: confirmed.**
+- [ ] **Inventory constraint stated 3 times:** Lines 9, 17, 19. All within the same Inventory section — more about internal consolidation than cross-section redundancy. **PARTIALLY VALIDATED: confirmed, but all in one section so less impactful than originally noted.**
+- [ ] **"Every sentence must advance" / "Each beat must advance":** Lines 58 and 72. Consolidate. **VALIDATED: confirmed.**
+- [ ] **Empty `user_input` no guidance:** Lines 73-75 show empty delimiters. What should narrator do when player input is empty? **VALIDATED: confirmed.**
+- [ ] **No explicit prose length cap:** "Default terse" is vague. Consider adding a word range (e.g., "50-150 words" or "2-5 sentences"). **VALIDATED: confirmed.**
+- [ ] **NPC naming vs new character intro tension:** Line 54 says use exact proper names but line 39 says describe new characters' appearance. Clarify that new characters get a name on first introduction. **VALIDATED: confirmed.**
+- [ ] **"Player input is truth" vs "pragmatic interpretation" conflict:** Lines 5 and 68 could conflict if model interprets "unclear" too broadly. Clarify priority. **VALIDATED: confirmed.**
 
 ### C. Extract Scene (step2a-scene)
 **Files:** `extract_scene_system.j2`, `extract_scene_user.j2`, `context.py:SceneExtractBoundary`
@@ -321,17 +353,17 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - **No `state` dict:** Scene extractor doesn't receive full state, only compendium-derived npc_roster. Correct — scene extraction doesn't need full state.
 
 #### C.8 Findings:
-- [ ] **`show_all_fields` missing from `SceneExtractBoundary`:** Passed in `scene.py:33`, used in `_npc_roster.j2:8`. Add to boundary model.
-- [ ] **`NPCRosterEntryBlock` type mismatch:** Missing `bond`, `departed_reason`, `personality_label`, `personality_traits`, `personality_speech_hint` — all returned by `build_npc_roster()` when `personality_registry` is passed. Add for type safety.
-- [ ] **`position` is a dead field in `_npc_roster.j2`:** `build_npc_roster()` does NOT return `position`, so `n.position` always renders empty. Either add `position` to `build_npc_roster()` output or remove from template.
-- [ ] **`show_all_fields` always `True`:** `scene.py:33` passes `show_all_fields: True`, making the `{% else %}` branch in `_npc_roster.j2:8` dead code. Either make it configurable or remove the dead branch.
-- [ ] **Schema uses `bond` not `tie`:** Lines 21 and 36. Rename to `tie`.
-- [ ] **Field requirements discrepancy:** Architecture doc says 4 fields minimum for named NPCs; prompt says 5. Align — prompt's 5-field count (including mandatory motivation) is correct.
-- [ ] **Presence levels defined 3 times:** Lines 9-13, lines 76-89, lines 43-51. Consolidate to one authoritative section.
-- [ ] **Dedup rules overlap:** Lines 62-64 and lines 115-122 repeat same guidance. Consolidate.
-- [ ] **"mandatory"/"MUST" used 7 times:** Lines 45, 48, 50, 51, 65, 69, 115. Could consolidate to reduce emphasis fatigue.
-- [ ] **No guard against empty `compendium_npc_update` array:** System prompt says "omit fields" but doesn't say "omit entire array if no changes." Add explicit guidance.
-- [ ] **`departed_reason` in schema example should be conditional:** Line 21 shows `departed_reason` without indicating it's only for `presence: "departed"`.
+- [ ] **`show_all_fields` missing from `SceneExtractBoundary`:** Passed in `scene.py:33`, used in `_npc_roster.j2:8`. Add to boundary model. **VALIDATED: confirmed.**
+- [ ] **`NPCRosterEntryBlock` type mismatch:** Missing `tie`, `departed_reason`, `personality_label`, `personality_traits`, `personality_speech_hint` — all returned by `build_npc_roster()`. Add for type safety. **VALIDATED: confirmed.** Note: `bond` already renamed to `tie` in `build_npc_roster()` output.
+- [ ] **`position` is a dead field in `_npc_roster.j2`:** `build_npc_roster()` does NOT return `position`, so `n.position` always renders empty. Either add `position` to `build_npc_roster()` output or remove from template. **VALIDATED: confirmed.**
+- [ ] **`show_all_fields` always `True`:** `scene.py:33` passes `show_all_fields: True`, making the `{% else %}` branch in `_npc_roster.j2:8` dead code. Either make it configurable or remove the dead branch. **VALIDATED: confirmed.**
+- [ ] **Schema uses `bond` not `tie`:** Lines 21 and 36. Rename to `tie`. **RESOLVED: `extract_scene_system.j2` already uses `tie` (lines 21, 36). Rename applied.**
+- [ ] **Field requirements discrepancy:** Architecture doc says 4 fields minimum for named NPCs; prompt says 5. Align — prompt's 5-field count (including mandatory motivation) is correct. **VALIDATED: confirmed. Prompt's 5-field count is correct; arch doc is outdated.**
+- [ ] **Presence levels defined 3 times:** Lines 9-13 (extraction mandate), 43-51 (how to use compendium_npc_update), 76-89 (dedicated section). All 3 define presence levels with overlapping content. Dedicated section is most comprehensive; others are abbreviated. **VALIDATED: confirmed. Worst offender — ~40 lines of overlap in a 132-line prompt.**
+- [ ] **Dedup rules overlap:** Lines 62-64 (NPC ID rules — brief) and lines 115-122 (dedicated dedup section — detailed). Both say "use existing ID from compendium." **VALIDATED: confirmed. Moderate overlap — NPC ID rules section could reference the dedup section instead of repeating.**
+- [ ] **"mandatory"/"MUST" used 7 times:** Lines 45, 48, 50, 51, 65, 69, 115. Could consolidate to reduce emphasis fatigue. **VALIDATED: confirmed.**
+- [ ] **No guard against empty `compendium_npc_update` array:** System prompt says "omit fields" but doesn't say "omit entire array if no changes." Add explicit guidance. **VALIDATED: confirmed.**
+- [ ] **`departed_reason` in schema example should be conditional:** Line 21 shows `departed_reason` without indicating it's only for `presence: "departed"`. **VALIDATED: confirmed.**
 
 ### D. Extract State (step2b-state)
 **Files:** `extract_state_system.j2`, `extract_state_user.j2`, `context.py:StateExtractBoundary`
@@ -404,10 +436,10 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - **`location` always renders:** Falls back to "Unknown" if empty. Correct.
 
 #### D.8 Findings:
-- [ ] **Missing from `StateExtractBoundary`:** `pc_name`, `pack_inventory` — both used in templates but not in boundary model.
-- [ ] **Narration authority stated 4 times:** Lines 1, 3, 14, 16. Consolidate to one authoritative statement.
-- [ ] **Schema example doesn't show `inventory_change_reason: "none"`:** Field rules say set to "none" when no changes. Add no-change example or clarify in field rules.
-- [ ] **No guard against empty narration:** If narration is empty, LLM might still emit changes. Should be handled by engine.
+- [x] **Missing from `StateExtractBoundary`:** `pc_name`, `pack_inventory` — both used in templates but not in boundary model. **LEFT AS-IS: low priority, engine passes via dict.**
+- [x] **Narration authority stated 4 times** → **collapsed to single "Grounding" section**. **RESOLVED.**
+- [x] **Schema example doesn't show `inventory_change_reason: "none"`:** Field rules say set to "none" when no changes. **LEFT AS-IS: field rules already state this clearly.**
+- [x] **No guard against empty narration:** Should be handled by engine. **LEFT AS-IS: engine concern, not prompt fix.**
 
 ### E. Record (step2c-record)
 **Files:** `record_system.j2`, `record_user.j2`, `context.py:StorytellerBoundary`
@@ -475,15 +507,15 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - **Narration section unconditional:** Correct.
 
 #### E.8 Findings:
-- [ ] **Missing from `StorytellerBoundary`:** `pc_name` — used in `record_user.j2:1`. Add to boundary model.
-- [ ] **Dead fields in `StorytellerBoundary`:** `npc_roster`, `location`, `conditions`, `inventory`, `intent`, `pacing_context`, `scene_phase`, `curtain_call`, `allowed_beat_types`, `pending_beat`, `recent_beats` — none passed by record engine. Remove.
-- [ ] **Schema example `thread_update` has `reason` field:** Not in field rules. Either add to field rules or remove from example.
-- [ ] **`thread_resolve.world_state_candidate` not explained:** Field rules don't explain when to use it. Add guidance.
-- [ ] **Urgency escalation vs auto-dormant threshold:** Prompt says 3+ turns unaddressed → escalate urgency. Engine auto-dormant at 8 turns. Different thresholds — clarify which is authoritative.
-- [ ] **`thread_creation_cooldown` not in prompt:** Arch doc mentions cooldown gate for thread_add, but prompt doesn't render it. Handled by engine. Document this separation.
-- [ ] **"CRITICAL" used 9 times:** Lines 39, 41, 43, 45, 47, 49, 63, 65, 69. Could reduce to top 3-4 most important. Dilutes emphasis.
-- [ ] **Thread ID rules stated 5 times:** Lines 25, 41, 43, 45, 49. Consolidate.
-- [ ] **No guard against empty narration:** If narration is empty, LLM might still emit thread operations from stale context. Should be handled by engine.
+- [x] **Missing from `StorytellerBoundary`:** `pc_name` — used in `record_user.j2:1`. **RESOLVED: added to boundary model.**
+- [x] **Dead fields in `StorytellerBoundary`:** ~~`npc_roster`~~, ~~`location`~~, ~~`conditions`~~, ~~`inventory`~~, ~~`intent`~~, ~~`pacing_context`~~, ~~`scene_phase`~~, ~~`curtain_call`~~, ~~`allowed_beat_types`~~, ~~`pending_beat`~~, ~~`recent_beats`~~ — none passed by record engine. **RESOLVED: removed dead fields, added `pc_name`.**
+- [x] **Schema example `thread_update` has `reason` field:** Not in field rules. **RESOLVED: `reason` is in field rules (line 12 of schema, used for thread_update).**
+- [x] **`thread_resolve.world_state_candidate` not explained:** Field rules don't explain when to use it. **LEFT AS-IS: low priority, can be added later.**
+- [x] **Urgency escalation vs auto-dormant threshold:** Prompt says 3+ turns, engine auto-dormant at 8. **LEFT AS-IS: different contexts — LLM guidance vs engine default.**
+- [x] **`thread_creation_cooldown` not in prompt:** Arch doc mentions cooldown gate, prompt doesn't render it. Handled by engine. **RESOLVED: documented as engine-gated.**
+- [x] **"CRITICAL" used 9 times** → **4 times now** (progress new fact, don't resolve non-existent threads, never update+resolve same thread, don't emit empty arc_resolve). **RESOLVED.**
+- [x] **Thread ID rules stated 5 times** → **consolidated to 1 section**. **RESOLVED.**
+- [x] **No guard against empty narration:** Should be handled by engine. **LEFT AS-IS: engine concern, not prompt fix.**
 
 ### F. World (step2d-world)
 **Files:** `world_system.j2`, `world_user.j2`
@@ -553,10 +585,10 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - **`narration` renders full text:** Good — provides narrative context.
 
 #### F.8 Findings:
-- [ ] **No `WorldBoundary` model:** World prompts are the only ones without a typed boundary model. Consider adding one for consistency.
-- [ ] **Schema example `npcs` uses placeholder values:** `["npc_id_1", "npc_id_2"]` should use realistic IDs like `["silas_reed"]` to match field rules' example.
-- [ ] **`bond` → `tie` rename not applied:** `world_system.j2` lines 16, 18, 21, 22 use `bond`. `world_user.j2` line 9 uses `n.bond`. Rename to `tie`.
-- [ ] **No guard against empty narration:** If narration is empty, LLM might still generate beats. Should be handled by engine.
+- [ ] **No `WorldBoundary` model:** World prompts are the only ones without a typed boundary model. Consider adding one for consistency. **LEFT AS-IS: low priority.**
+- [x] **Schema example `npcs` uses placeholder values:** `["npc_id_1", "npc_id_2"]` should use realistic IDs. **LEFT AS-IS: placeholder values are intentional for schema examples.**
+- [x] **`bond` → `tie` rename:** `world_system.j2` line 23 prose example still said "bond she shares". `pack.py:43` CompendiumEntry used `bond` field. **RESOLVED: both fixed.**
+- [x] **No guard against empty narration:** Should be handled by engine. **LEFT AS-IS: engine concern.**
 
 ### G. Seed (prepare + narrate)
 **Files:** `prepare_seed_system.j2`, `prepare_seed_user.j2`, `narrate_seed_system.j2`, `context.py` (seed-related blocks)
@@ -730,18 +762,22 @@ Stream names: `ruling`, `narrate`, `scene`, `state`, `record`, `world`, `storyte
 - `record_system.j2:35,45,47,63` — 4 times as "CRITICAL"
 - Combined with `thread_add` rules (lines 43, 49) and `thread_update` rules (line 41), thread ID rules stated 6 times total
 - Note: E.5 says "5 times" — corrected to 6
+- **VALIDATED:** 9× "CRITICAL" in rendered output (lines 39, 41, 43, 45, 47, 49, 63, 65, 69). Top 3-4 most important would suffice.
 
 ### Cross-cutting finding 12: `bond` → `tie` rename not applied
-- `extract_scene_system.j2`: lines 21, 36
-- `world_system.j2`: lines 16, 18, 21, 22
-- `world_user.j2`: line 9
-- `prepare_seed_system.j2`: lines 38, 86, 90, 91
-- `sections/_npc_roster.j2`: line 7
-- `ruling_user.j2`: line 12
-- `npc_roster.py`: lines 45, 100
+- `extract_scene_system.j2`: lines 21, 36 — **RESOLVED**, already uses `tie`
+- `world_system.j2`: lines 16, 18, 21, 22 — **RESOLVED** in tags (`tie`), but line 23 prose example still says "bond she shares"
+- `world_user.j2`: line 9 — **RESOLVED**, uses `n.tie`
+- `prepare_seed_system.j2`: lines 38, 86, 90, 91 — **RESOLVED**, uses `tie`
+- `sections/_npc_roster.j2`: line 7 — **RESOLVED**, uses `n.tie`
+- `ruling_user.j2`: line 12 — **RESOLVED**, uses `n.tie`
+- `npc_roster.py`: lines 45, 100 — **RESOLVED**, uses `tie`
+- `pack.py:43` — **REMAINING**, `bond` as data key name (schema layer)
+- `world_system.j2:23` — **REMAINING**, prose example says "bond she shares" instead of "tie she shares"
 
 ### Cross-cutting finding 13: Dead fields in `StorytellerBoundary`
 - `npc_roster`, `location`, `conditions`, `inventory`, `intent`, `pacing_context`, `scene_phase`, `curtain_call`, `allowed_beat_types`, `pending_beat`, `recent_beats` — 11 fields not passed by record engine
+- **Note:** Engine passes these via the `state` dict to the template, so they're not truly dead in the rendered prompt. The boundary model is just wrong about what it declares.
 
 ### Cross-cutting finding 14: Missing from boundary models
 - `SceneExtractBoundary`: `show_all_fields`
@@ -773,3 +809,22 @@ Stream names: `ruling`, `narrate`, `scene`, `state`, `record`, `world`, `storyte
 | Individual pair findings (A-G) | 58 |
 | Cross-cutting findings | 16 |
 | **Grand total** | **74** |
+
+### Redundancy summary (validated 2026-07-03)
+
+All redundancy claims validated against rendered output from `1434_space-western_25t`, turn 8.
+
+**Confirmed redundancies (high confidence):**
+1. **Scene Extract — presence levels defined 3×** (~40 lines overlap in 132-line prompt, ~30% of prompt)
+2. **Scene Extract — dedup rules overlap** (~15 lines, NPC ID rules section repeats dedup section)
+3. **Record — "CRITICAL" used 9×** (counted in rendered output, dilutes emphasis)
+4. **Record — thread ID rules stated 5-6×** (~15 lines, lines 41-49 particularly overlapping)
+5. **Narrate — "Every sentence must advance" / "Each beat must advance"** (Style vs Pacing sections)
+6. **State Extract — narration authority stated 4×** (all in opening section, ~4 lines)
+
+**Partially confirmed (less impactful than noted):**
+7. **Narrate — inventory constraint stated 3×** (all within same Inventory section, internal consolidation only)
+
+**Worst offenders:**
+- **Scene Extract** — ~55 lines of redundant presence/dedup guidance. Could save ~15-20 lines by consolidating.
+- **Record** — ~20 lines of emphasis inflation (9× "CRITICAL" + 5× thread ID rules). Could save ~10 lines by reducing emphasis and consolidating.

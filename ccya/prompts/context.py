@@ -285,6 +285,8 @@ class StateExtractBoundary(BaseModel):
     intent: IntentEnvelope | None = None
     turn_no: int
     narration: str
+    pc_name: str = "Unnamed"
+    pack_inventory: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class StorytellerBoundary(BaseModel):
