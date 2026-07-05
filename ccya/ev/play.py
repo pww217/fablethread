@@ -137,6 +137,7 @@ async def _run_turn_async(
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
         "ms": round(elapsed_ms, 1),
+        "outcome_summary": turn_result.outcome_summary,
     }
 
 
@@ -472,10 +473,16 @@ def _interactive_session(config: EngineConfig, pack: str | None = None) -> None:
         turns_played += 1
         trace_ids.append(result.get("trace_id", ""))
 
-        if result.get("errors"):
-            print(format_error_output(result))
-        else:
-            print(format_play_output(result))
+        # Compact progress line — use stderr so it's never drowned by logging
+        outcome = result.get("outcome_summary", "")
+        turn_num = result.get("turn", "?")
+        ms = result.get("ms", 0)
+        ti = result.get("tokens_in", 0)
+        to = result.get("tokens_out", 0)
+        sys.stderr.write(f"T{turn_num}\n")
+        sys.stderr.write(f'  Outcome: "{outcome}"\n')
+        sys.stderr.write(f"  Metrics: {ms:.0f}ms, {ti}/{to} tokens\n\n")
+        sys.stderr.flush()
 
         state = load_state(session_dir)
 
@@ -515,6 +522,11 @@ def _llm_session(
 
     # Store recent turns for context (turn input + narrative)
     recent_turns: list[dict[str, str]] = []
+
+    # Suppress stdout logging during the turn loop — progress line is the only output
+    stdout_handlers = [h for h in logging.root.handlers if hasattr(h, 'stream') and h.stream == sys.stdout]
+    for h in stdout_handlers:
+        h.setLevel(logging.CRITICAL + 1)
 
     for turn_i in range(max_turns):
         context_parts = []
@@ -575,10 +587,16 @@ def _llm_session(
         turns_played += 1
         trace_ids.append(result.get("trace_id", ""))
 
-        if result.get("errors"):
-            print(format_error_output(result))
-        else:
-            print(format_play_output(result))
+        # Compact progress line
+        outcome = result.get("outcome_summary", "")
+        turn_num = result.get("turn", "?")
+        ms = result.get("ms", 0)
+        ti = result.get("tokens_in", 0)
+        to = result.get("tokens_out", 0)
+        sys.stdout.write(f"T{turn_num}\n")
+        sys.stdout.write(f'  Outcome: "{outcome}"\n')
+        sys.stdout.write(f"  Metrics: {ms:.0f}ms, {ti}/{to} tokens\n\n")
+        sys.stdout.flush()
 
         if until_error and result.get("errors"):
             print(f"Stopped due to errors on turn {turn_i + 1}.")
@@ -589,6 +607,10 @@ def _llm_session(
         recent_turns.append({"input": player_input, "narrative": narrative})
 
         state = load_state(save_dir)
+
+    # Restore stdout logging
+    for h in stdout_handlers:
+        h.setLevel(logging.INFO)
 
     print()
     print(f"Session ended. Turns: {turns_played}")
@@ -805,6 +827,17 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
         print(format_error_output(result))
     else:
         print(format_play_output(result))
+
+    # Compact progress line — use stderr so it's never drowned by logging
+    outcome = result.get("outcome_summary", "")
+    turn_num = result.get("turn", "?")
+    ms = result.get("ms", 0)
+    ti = result.get("tokens_in", 0)
+    to = result.get("tokens_out", 0)
+    sys.stderr.write(f"T{turn_num}\n")
+    sys.stderr.write(f'  Outcome: "{outcome}"\n')
+    sys.stderr.write(f"  Metrics: {ms:.0f}ms, {ti}/{to} tokens\n\n")
+    sys.stderr.flush()
 
     if result.get("errors"):
         sys.exit(1)

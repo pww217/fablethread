@@ -200,9 +200,9 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_com
             continue
 
         threads = []
-        # From last_turn_state
+        # From last_turn_state (arc may be under 'arc' or 'long_term_objective')
         ss = ev.get("last_turn_state") or {}
-        arc = ss.get("arc") or {}
+        arc = ss.get("arc") or ss.get("long_term_objective") or {}
         for th in (arc.get("threads") or []):
             if isinstance(th, dict) and th.get("id"):
                 threads.append({
@@ -1153,14 +1153,18 @@ def _render_arc_section(state: dict[str, Any]) -> None:
     if active_threads:
         print("  Active threads:")
         for t in active_threads:
-            text = (t.get("text") or "?") if isinstance(t, dict) else "?"
-            progress = t.get("progress", "") if isinstance(t, dict) else ""
+            text = (t.get("summary") or t.get("text") or "?") if isinstance(t, dict) else "?"
+            progress = t.get("major_updates", []) if isinstance(t, dict) else []
             line = f"    {text}"
             if progress:
-                line += f" ({progress})"
+                last = progress[-1] if isinstance(progress, list) and progress else ""
+                if isinstance(last, dict):
+                    last_text = last.get("text", "")
+                    if last_text:
+                        line += f" ({last_text})"
             print(line)
     if completed:
-        comp_names = [f"{(t.get('text') or '?')}" for t in completed if isinstance(t, dict)]
+        comp_names = [f"{(t.get('summary') or t.get('text') or '?')}" for t in completed if isinstance(t, dict)]
         print("  Completed threads:")
         for cn in comp_names:
             print(f"    {cn}")

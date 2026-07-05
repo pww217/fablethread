@@ -41,7 +41,7 @@ def _resolve_stream(name: str) -> str:
 
 def _strip_flags(args: list[str]) -> tuple[dict[str, str], list[str]]:
     # Boolean flags that don't take values
-    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact", "list", "verbose", "summary", "estimate", "include-compaction", "user-only", "auto-report", "llm-checkers", "eval", "help"}
+    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact", "list", "verbose", "summary", "estimate", "include-compaction", "user-only", "auto-report", "llm-checkers", "eval", "help", "from-events"}
     flags: dict[str, str] = {}
     positional: list[str] = []
     i = 0
@@ -78,7 +78,7 @@ def main() -> None:
     flags, args = _strip_flags(args)
     if not args:
        print("Error: no command specified.", file=sys.stderr)
-       print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes, prompt-eval", file=sys.stderr)
+       print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, sanitizer, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes, prompt-eval", file=sys.stderr)
        print("\nUsage: .venv/bin/python scripts/debug/ev.py <command> [args...]", file=sys.stderr)
        sys.exit(1)
 
@@ -135,7 +135,7 @@ def main() -> None:
     match cmd:
         case "help":
             print(__doc__.strip() if __doc__ else "ev.py — Debug CLI for CCYA events.jsonl")
-            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes, prompt-eval")
+            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, sanitizer, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes, prompt-eval")
             sys.exit(0)
         case "summary":
             from ccya.ev.inspect import cmd_summary
@@ -164,7 +164,7 @@ def main() -> None:
             cmd_prompt_eval(flags, args[1:])
         case "prompt":
             if len(args) < 3:
-                print("Usage: ev.py prompt TURN STREAM [--field FIELD] [--system]", file=sys.stderr)
+                print("Usage: ev.py prompt TURN STREAM [--field FIELD] [--system] [--from-events] --save-dir DIR", file=sys.stderr)
                 sys.exit(1)
             turn = int(args[1])
             stream = args[2]
@@ -176,7 +176,9 @@ def main() -> None:
             from ccya.ev.inspect import cmd_prompt
             field = flags.get("field")
             include_system = "system" in flags
-            cmd_prompt(ev, stream, field=field, include_system=include_system)
+            from_events = "from-events" in flags
+            save_dir = Path(flags["save-dir"]) if "save-dir" in flags else None
+            cmd_prompt(ev, stream, field=field, include_system=include_system, from_events=from_events, save_dir=save_dir)
         case "deltas":
             if len(args) < 2:
                 print("Usage: ev.py deltas TURN [--compact]", file=sys.stderr)
@@ -272,6 +274,13 @@ def main() -> None:
         case "storyteller-audit":
             from ccya.ev.audit import cmd_storyteller_audit
             cmd_storyteller_audit(events)
+        case "sanitizer":
+            if len(args) < 2:
+                print("Usage: ev.py sanitizer TURN --save-dir DIR", file=sys.stderr)
+                sys.exit(1)
+            turn = int(args[1])
+            from ccya.ev.audit import cmd_sanitizer
+            cmd_sanitizer(events, turn)
         case "thread-audit":
             from ccya.ev.audit import cmd_thread_audit
             cmd_thread_audit(events)

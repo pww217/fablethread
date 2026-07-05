@@ -36,19 +36,20 @@ Every session directory can contain an `ev.yaml`. Resolution: CLI flags > `ev.ya
 | One-line overview | `ev.py summary --save-dir DIR` |
 | Full timing + tokens | `ev.py timing --save-dir DIR` |
 | Full dump of one turn | `ev.py turn <N> --save-dir DIR` |
-| Specific stream prompt/output | `ev.py prompt <N> <stream> [--system] [--field FIELD] --save-dir DIR` |
+| Specific stream prompt/output | `ev.py prompt <N> <stream> [--system] [--field FIELD] [--from-events] --save-dir DIR` |
 | All JSON outputs for a turn | `ev.py turn <N> --json --save-dir DIR` |
+| Sanitizer events for a turn | `ev.py sanitizer <N> --save-dir DIR` |
 
-**Stream names:** `ruling` (or `rules`), `narrate`, `scene`, `state`, `record` (or `storytell`/`progress`), `world`.
+**Stream names:** `ruling` (or `rules`), `narrate`, `scene`, `state`, `record` (or `progress`), `world`. `storytell` is a deprecated alias for `record`.
 
 ## State & diff tracking
 
 | If you want... | Command |
 |---|---|
-| Current game state | `ev.py state --save-dir DIR [--format compact\|pc\|inventory\|...]` |
+| Current game state | `ev.py state --save-dir DIR [--format full\|compact\|pc\|inventory\|location\|scene\|arc\|npcs\|compidx]` |
 | What mutated on a turn | `ev.py deltas <N> --save-dir DIR` |
-| Compare two turns' state | `ev.py diff [turnA] [turnB] [--section npcs\|...] --save-dir DIR` |
-| Track one field across turns | `ev.py trace <field.path> [--from N] [--to N] --save-dir DIR` |
+| Compare two turns' state | `ev.py diff [turnA] [turnB] [--section npcs\|inventory\|conditions\|location\|tags\|applied] --save-dir DIR` |
+| Track one field across turns | `ev.py trace <field.path> [--from N] [--to N] [--show-unchanged] --save-dir DIR` |
 | Find turns matching a pattern | `ev.py search <field>:<value> [--or <field>:<value>] --save-dir DIR` |
 | Mechanics + beats + pacing | `ev.py mechanics <N> [--pacing] [--dice] [--sanitize] --save-dir DIR` |
 
@@ -61,12 +62,10 @@ Every session directory can contain an `ev.yaml`. Resolution: CLI flags > `ev.ya
 | Beat type + surface | `ev.py beats --save-dir DIR` |
 | Roll bands per turn | `ev.py rolls --save-dir DIR` |
 | Roll distribution | `ev.py rolls --summary --save-dir DIR` |
-| Convergence score | `ev.py convergence --save-dir DIR` |
-| Phase transitions | `ev.py phase-transitions --save-dir DIR` |
-| Curtain Call compliance | `ev.py curtain-call --save-dir DIR` |
+| Convergence score | `ev.py convergence --save-dir DIR [--by-scene]` |
+| Phase transitions | `ev.py phase-transitions --save-dir DIR [--by-scene]` |
+| Curtain Call compliance | `ev.py curtain-call --save-dir DIR [--by-scene]` |
 | Goal changes | `ev.py goals --save-dir DIR` |
-| Beat TTL expiration | `ev.py beat-ttl --save-dir DIR` |
-| Scene effective age | `ev.py effective-age --save-dir DIR` |
 
 All tabular commands filter compaction events by default. Use `--include-compaction` to include them.
 
@@ -102,6 +101,14 @@ ev.py init --pack noir-1930s --personality cautious
 ev.py status --save-dir evals/runs/latest
 ```
 
+## Persona registry
+
+```bash
+ev.py personas
+```
+
+Shows user persona registry from `PERSONA_REGISTRY_FILE`.
+
 ## Validate — checkers & eval
 
 ```bash
@@ -123,7 +130,7 @@ ev.py eval compare evals/runs/baseline evals/runs/current
 ev.py warnings --save-dir DIR
 ```
 
-Signals: `extract.retries`, `retry_errors`, `rejected`, `reconcile_warnings`.
+Signals: `extract.retries`, `retry_errors`, `rejected`, `reconcile_warnings`, `thread_dedup_rejections`, `compendium_dedup_redirects`.
 
 ## Prompt size analysis
 
@@ -149,7 +156,8 @@ ev.py prompt-eval call <scenario.yaml> --from-events
 
 | Command | What it does |
 |---|---|
-| `storyteller-audit` | Checks record output: thread_update/thread_resolve/actions format compliance |
+| `storyteller-audit` | Checks Record output: thread_update/thread_resolve/actions format compliance |
+| `sanitizer` | Shows sanitizer events for a turn: thread changes, goal updates, world state candidates, progress dedup rejections |
 | `ruling-audit` | Validates ruling.reason non-empty, condition IDs present, band distribution |
 | `thread-audit` | Thread lifecycle across all turns: created by thread_add, updated, resolved, orphan detection |
 | `npc-ghosting` | Detects NPC disappearance from compendium without departure tracking |

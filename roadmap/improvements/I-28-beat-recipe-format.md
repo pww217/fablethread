@@ -1,6 +1,6 @@
 ---
 title: "Beats: recipe format with NPC personality priority"
-status: done
+status: testing
 urgency: 3
 size: medium
 created: 2026-07-05
