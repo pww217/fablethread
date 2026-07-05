@@ -59,14 +59,14 @@ The output must be a JSON object with this structure:
 
 Build in this order, using everything already established before generating what comes next:
 
-1. **World facts (global tier)** — 3–5 immutable hard constraints that directly affect gameplay choices now (border closures, martial law, banned technologies, faction blockades). No historical backstory older than one generation unless it's an active constraint today. No flavor lore. Fewer high-quality facts beats many generic ones. Each fact must have `tier: "global"`, `permanent: true`, and a `valence` from: "threat", "complication", "neutral", "boon".
-2. **World facts (local tier)** — 2–3 facts specific to the PC's immediate area or situation. Each fact must have `tier: "local"`, `permanent: false`, and a `valence` from: "threat", "complication", "neutral", "boon".
+1. **World facts (global tier)** — 3–5 immutable hard constraints that directly affect gameplay choices now (border closures, martial law, banned technologies, faction blockades). No historical backstory older than one generation unless it's an active constraint today. No flavor lore. Fewer high-quality facts beats many generic ones. Each fact must have `"tier": "global"`, `"permanent": true`, and a `"valence"` from: "threat", "complication", "neutral", "boon".
+2. **World facts (local tier)** — 2–3 facts specific to the PC's immediate area or situation. Each fact must have `"tier": "local"`, `"permanent": false`, and a `"valence"` from: "threat", "complication", "neutral", "boon".
 3. **Key locations** — 4–5 named places that exist in the world at game start. Ordered from most accessible to least known. Include 1–2 breadcrumb locations (places the PC has heard of but not visited). Each has `id`, `name`, `description`, `status`, and `tags`.
 4. **Arc origin** — 2–3 sentences in past tense describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference the PC's personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to the PC will be established through arc threads later. Seed-time field only, never regenerated.
 5. **PC situation** — structured situational facts about the PC's current circumstances{% if scenario and scenario.pc_situation_schema %} ({% for s in scenario.pc_situation_schema %}{{ s.key }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Defined by `pc_situation_schema` in the pack.
 6. **Campaign arc** — informed by PC, world state, situation archetype, and character dynamic:
-    - `long_term_objective`: multi-stage objective. What happens after the first step succeeds? After it fails?
-    - `threads`: see Thread rules below.
+    - `long_term_objective` (multi-stage objective): What happens after the first step succeeds? After it fails?
+    - `threads` (see Thread rules below):
 7. **Opening scene + NPCs** — instantiates the situation archetype concretely.
    7a. Generate scene NPCs (at least 1 present in opening scene).
    7b. For every person named in `pc_situation`, create a compendium entry with presence set appropriately. These are REQUIRED — do not skip.
@@ -83,8 +83,8 @@ Build in this order, using everything already established before generating what
 
 ## NPC field requirements
 
-- **At least 1 NPC must have `presence: "present"`.** This is mandatory — the opening scene must include at least one NPC that is physically present. If you cannot generate an NPC with presence="present", you must generate one. This is not optional.
-- `presence` is required for all NPCs: set to `"present"` for NPCs in the opening scene, `"nearby"` for those nearby but not in the scene, `"known"` for those the PC knows but aren't nearby. All seed NPCs that appear in the opening narrative must have `presence: "present"`.
+- **At least 1 NPC must have `"presence": "present"`.** This is mandatory — the opening scene must include at least one NPC that is physically present. If you cannot generate an NPC with presence="present", you must generate one. This is not optional.
+- `presence` is required for all NPCs: set to `"present"` for NPCs in the opening scene, `"nearby"` for those nearby but not in the scene, `"known"` for those the PC knows but aren't nearby. All seed NPCs that appear in the opening narrative must have `"presence": "present"`.
 - NPCs have 4 behavioral fields: `motivation`, `fear`, `leverage`, `tie`.
 How many depends on the NPC's role:
 
@@ -101,20 +101,20 @@ How many depends on the NPC's role:
 Do NOT add `relation` or `notes` to compendium entries — engine-managed at runtime.
 **NPC generation from pc_situation (mandatory):** For every person named in `pc_situation` values, create a compendium entry with the full name from `pc_situation`. Give them a `bio`, presence (known/nearby/present), and all 4 behavioral fields. Scene NPCs come from the opening scene — pc_situation NPCs are in addition to scene NPCs.
 ## PC field rules
-- `pc.name`: given name + family name (e.g. "Mira Sovak"). No single-word names.
-- `pc.tagline`: 5–10 words — role + defining trait (e.g. "Structural engineer, nine months sober").
-- `pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now.
+- `pc.name` (given name + family name): e.g. "Mira Sovak". No single-word names.
+- `pc.tagline` (5–10 words): role + defining trait (e.g. "Structural engineer, nine months sober").
+- `pc.bio` (2–4 sentences): pre-event history, what shaped this person, what they want now.
 - `pc.stats`: four integers, range per hard constraints, total per hard constraints.
 ## Arc origin
-- `arc_origin`: 2–3 sentences in past tense describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference the PC's personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to the PC will be established through arc threads later. Seed-time field only, never regenerated.
+- `arc_origin` (2–3 sentences in past tense): describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference the PC's personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to the PC will be established through arc threads later. Seed-time field only, never regenerated.
 ## Session name
-- `meta.session_name`: A short, evocative title for this game session (3-6 words). Should capture the campaign's tone and setting without describing a specific scene or character. This name defines the entire playthrough.
+- `meta.session_name` (short, evocative title): A short, evocative title for this game session (3-6 words). Should capture the campaign's tone and setting without describing a specific scene or character. This name defines the entire playthrough.
 ## World state rules
 - Each fact states a constraint that directly affects gameplay choices: border closures, martial law, banned technologies, faction blockades, economic collapse.
 - One sentence each. Maximum 4 entries (including any engine-prepended baseline facts).
 - BAD: "The old empire fell three centuries ago." / "A peace treaty was signed in 2147." (historical flavor, no present impact)
 - GOOD: "Travel between districts requires a valid faction pass." / "All firearms are banned under penalty of immediate detention."
-- Valence requirement: The combined global + local world state must include at least one fact with `valence: "neutral"` or `valence: "boon"`. Without this instruction the LLM defaults to threats and complications.
+- Valence requirement: The combined global + local world state must include at least one fact with `"valence": "neutral"` or `"valence": "boon"`. Without this instruction the LLM defaults to threats and complications.
 ## Key locations
 - 4–5 named places that exist in the world at game start.
 - Ordered from most accessible to least known.
@@ -124,18 +124,18 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - Structured situational facts about the PC's current circumstances.
 {% if scenario and scenario.pc_situation_schema %}{% for s in scenario.pc_situation_schema %}
 - `{{ s.key }}` — {{ s.description }}{% endfor %}
-{% else %}- Keys are defined by `pc_situation_schema` in the pack (3–5 keys maximum, all `required: false`).
+{% else %}- Keys are defined by `pc_situation_schema` in the pack (3–5 keys maximum, all `"required": false`).
 {% endif %}- Values are short strings describing the PC's current situation for each key.
 - Values may include names of people or places. Names in `pc_situation` are the source of truth for NPC generation.
 - **When mentioning family members, always include a full name** (given + PC's family name). BAD: "Wife Clara in Morganstead." GOOD: "Wife Clara Vance in Morganstead."
-- **All keys marked `persist: true` MUST always have a value.** Never omit them. If there is no relevant fact, use a placeholder like "None" or "The PC has no [key]."
+- **All keys marked `"persist": true` MUST always have a value.** Never omit them. If there is no relevant fact, use a placeholder like "None" or "The PC has no [key]."
 - All other keys (not persist) may be omitted if there is no relevant fact.
 - **DO NOT generate any fields beyond those in pc_situation_schema. Never add 'opening', 'description', 'narrative', or other keys to pc.situation.**
 ## Inventory rules
 - 3–6 items appropriate to the opening scene and PC concept.
 - Every item has a specific, proper name — not "standard issue rifle" or "random book." Names should hint at why the item matters.
 - Firearms always come paired with an ammo item at a realistic starting count. Never put loaded counts in weapon `notes`.
-- EVERY consumable has `amount` in individual units (`pistol_rounds: 30`, `bandage: 2`). No clips/magazines/boxes for ammo. Melee/thrown exempt.
+- EVERY consumable has `amount` in individual units (`"pistol_rounds": 30`, `"bandage": 2`). No clips/magazines/boxes for ammo. Melee/thrown exempt.
 - No exotic or legendary weapons at start. No items for skills the PC hasn't invested in.
 - Inventory item names start with a capital letter.
 ## Thread rules

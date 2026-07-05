@@ -36,7 +36,7 @@
 {% endif %}{% endif %}
 {% if name_pool %}
 ## name_pool (sampled from this setting's locales — use at least one per category)
-name_seed: {{ name_seed }}
+name_seed: {{ name_seed }} (not a JSON key — just a value)
 - pc candidates (male names only for this genre): {{ name_pool.pc | join(", ") }}
 - npc candidates (male names only for this genre): {{ name_pool.npc | join(", ") }}
 - place name inspiration: {{ name_pool.location | join(", ") }}
