@@ -1,6 +1,6 @@
 ---
 title: "Fix opening prose leakage in prepare_seed output"
-status: testing
+status: implemented
 urgency: 2
 size: small
 created: 2026-07-04
@@ -82,3 +82,44 @@ No backward compat or migrations needed.
 - No leakage into `pc.situation` observed
 
 **Conclusion:** The ticket's fix is validated. `pc.situation` contains exactly 4 keys. No `opening` leakage. The proposed changes (tighten `prepare_seed_system.j2`, move `opening` to `seed_meta`, strip in `_build_narrate_seed_messages`, update `io.py`) are correct and should be implemented.
+
+## Updated Evaluation (2026-07-05 — Post-Fix Runs)
+
+### CONFIRMED REGRESSION: Opening prose leak is BACK
+
+All three new runs (noir-1930s, space-western, golden-piracy) show `opening` field in `pc.situation` containing full prose text (300-400 words of atmospheric narration).
+
+| Pack | Situation Keys | Opening Present |
+|------|---------------|-----------------|
+| noir-1930s | `family`, `office_location`, `opening`, `reputation`, `residence` | YES — ~380 words |
+| space-western | `filiation`, `home_port`, `opening`, `reputation`, `vessel` | YES — ~380 words |
+| golden-piracy | `alliance_status`, `home_port`, `opening`, `reputation`, `vessel` | YES — ~380 words |
+
+**Conclusion:** The I-25 prose leak fix (commit 4c009946) is NOT working or has been re-introduced. The `opening` field is present in `pc.situation` across all packs. The fix needs to be re-examined — either the code path wasn't triggered in the earlier space-western run, or a later change re-introduced the leak.
+
+**Note:** The earlier space-western run (2026-07-04, commit b593d8c) showed clean `pc.situation` with no `opening` leak. The new runs (2026-07-05, commits after 4c009946) show the leak. This suggests either:
+1. The fix in 4c009946 was incomplete (only affected some code paths)
+2. A later commit (d71fff2f — model change) re-introduced the leak
+3. The earlier run was from a different save/directory that hadn't been updated
+
+## Root Cause (2026-07-05)
+
+**ev.py still writes `opening` to `pc.situation["opening"]`.** 
+
+The I-25 fix updated `routes.py` (server path → `seed_meta["opening"]`) but did not update `ev.py` (CLI/eval path). At `ccya/ev/play.py:287`:
+
+```python
+seed_dict.setdefault("pc", {}).setdefault("situation", {})["opening"] = final_envelope.opening_narrative
+```
+
+This is the **only** code path that writes `opening` to `pc.situation` in eval runs. The server path was fixed; the CLI path was not.
+
+## Fix Applied (2026-07-05)
+
+Changed `ccya/ev/play.py:287` to write to `seed_meta["opening"]` (matching the server fix in routes.py):
+
+```python
+seed_dict.setdefault("seed_meta", {})["opening"] = final_envelope.opening_narrative
+```
+
+This aligns the CLI path with the server path fix from I-25.

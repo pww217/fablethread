@@ -218,6 +218,9 @@ class WorldState(BaseModel):
         scene = self.scene.model_copy(update={"scene_phase": phase, **kwargs})
         return self.model_copy(update={"scene": scene})
 
+    def set_scene(self, scene: Scene) -> "WorldState":
+        return self.model_copy(update={"scene": scene})
+
     def add_npc(self, npc_id: str, entry: NPCEntry) -> "WorldState":
         npcs = dict(self.compendium.npcs)
         npcs[npc_id] = entry

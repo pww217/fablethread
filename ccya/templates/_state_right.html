@@ -112,3 +112,26 @@
     <span>turn {{ state.meta.turn or 0 }}</span>
     <span title="{{ state.meta.model or '' }}">{{ state.meta.model or '—' }}</span>
 </div>
+
+<!-- Inventory drop modal -->
+<div id="drop-modal" class="drop-modal[hidden]" hidden>
+    <div class="drop-modal-backdrop" onclick="closeDropModal()"></div>
+    <div class="drop-modal-panel">
+        <div class="drop-modal-head">
+            <span class="drop-modal-title">Drop Item</span>
+            <button class="drop-modal-close" onclick="closeDropModal()">×</button>
+        </div>
+        <div class="drop-modal-body">
+            <div class="drop-modal-item-name" id="drop-modal-item-name"></div>
+            <div class="drop-modal-qty-row" id="drop-modal-qty-row">
+                <span class="drop-modal-qty-label">Quantity:</span>
+                <input type="range" id="drop-modal-qty-slider" min="1" max="1" value="1" oninput="document.getElementById('drop-modal-qty-val').textContent = this.value">
+                <span class="drop-modal-qty-val" id="drop-modal-qty-val">1</span>
+            </div>
+        </div>
+        <div class="drop-modal-foot">
+            <button class="drop-modal-btn drop-modal-btn-cancel" onclick="closeDropModal()">Cancel</button>
+            <button class="drop-modal-btn drop-modal-btn-confirm" onclick="confirmDropModal()">Drop</button>
+        </div>
+    </div>
+</div>

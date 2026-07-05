@@ -182,3 +182,19 @@ Very high difficulty rate — most checks are hard or normal. Only 1.2% easy.
 - This may be appropriate for the pack rather than a prompt issue
 
 **Conclusion:** The ticket's proposed fix (broaden skill definitions, add strength use cases, refine charisma mapping) is validated. The space-western run confirms dexterity dominance but also reveals a secondary issue: negative bands heavily dominate (50% crit_fail/fail), which is a separate pacing/band issue (see I-25). Further refinement needed if charisma remains low across all packs.
+
+## Updated Evaluation (2026-07-05 — Post-Fix Runs)
+
+### Insufficient Data from Short Runs (9 turns each)
+
+All three new runs (noir-1930s, space-western, golden-piracy) have very few dice rolls — most turns have `rolled: False` (no check required by ruling LLM).
+
+| Pack | Total Rolls | Skill Distribution |
+|------|-------------|-------------------|
+| noir-1930s | 3 | charisma (3) — 100% |
+| space-western | 2 | charisma (2) — 100% |
+| golden-piracy | 4 | wits (1), charisma (3) — 25% wits, 75% charisma |
+
+**Conclusion:** Cannot assess skill distribution imbalance from these short runs. Need longer runs (20+ turns) with more dice rolls. The ruling LLM is very aggressive about "no check required" — only 2-6 rolls per 9 turns. This is a ruling prompt issue (too many actions deemed routine), not a skill mapping issue.
+
+**Note:** The turns that DO have rolls are ALL charisma (noir, western) or charisma-heavy (piracy). This is consistent with earlier Phase 6 data showing low dexterity usage (3-4 rolls per 25 turns in post-fix runs). The skill distribution may be more balanced than earlier Phase 4 data (68% dexterity) but the sample is too small to confirm.

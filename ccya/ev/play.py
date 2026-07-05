@@ -284,7 +284,7 @@ def _ensure_seed_generated(
         seed_dict.setdefault("meta", {})["setting_pack"] = pack_id
         seed_dict.setdefault("meta", {})["_pack_source"] = pack_id
         if final_envelope.opening_narrative:
-            seed_dict.setdefault("pc", {}).setdefault("situation", {})["opening"] = final_envelope.opening_narrative
+            seed_dict.setdefault("seed_meta", {})["opening"] = final_envelope.opening_narrative
         if final_envelope.actions or final_envelope.outcome_summary:
             seed_dict["seed_meta"] = {
                 "actions": final_envelope.actions or [],
