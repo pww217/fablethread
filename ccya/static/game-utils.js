@@ -853,7 +853,7 @@ function _renderNpcListItem(npc) {
         if (mot) tipHtml += `<p><strong>Motivation:</strong> ${_escapeHtml(mot)}</p>`;
         if (tie) tipHtml += `<p><strong>Tie:</strong> ${_escapeHtml(tie)}</p>`;
     }
-    return `<div class="npc-item${hasTooltip ? ' has-tooltip' : ''}" style="border-left-color:${borderColor}"><span class="npc-name-row"><span class="npc-name">${nameHtml}</span><span class="npc-party-toggle" data-npc-id="${npc.id || ''}" data-party="${npc.party ? 'true' : 'false'}" onclick="toggleNpcParty('${npc.id || ''}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span></span>${posHtml}${hasTooltip ? `<div class="tooltip-body" data-md-compendium>${tipHtml}</div>` : ''}</div>`;
+    return `<div class="npc-item${hasTooltip ? ' has-tooltip' : ''}" style="border-left-color:${borderColor}"><span class="npc-name-row"><span class="npc-name">${nameHtml}</span><span class="npc-party-toggle${npc.party ? ' active' : ''}" data-npc-id="${npc.id || ''}" data-party="${npc.party ? 'true' : 'false'}" onclick="toggleNpcParty('${npc.id || ''}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span></span>${posHtml}${hasTooltip ? `<div class="tooltip-body" data-md-compendium>${tipHtml}</div>` : ''}</div>`;
 }
 
 function _renderInventoryItem(item) {
