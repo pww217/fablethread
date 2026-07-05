@@ -206,6 +206,12 @@ class GMBeat(BaseModel):
     effect: str = ""
     npcs: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def _validate_npcs(self) -> "GMBeat":
+        if not self.npcs and "[environment]" not in (self.effect or ""):
+            raise ValueError("npcs is required for NPC-driven beats")
+        return self
+
 
 class StorytellerResult(BaseModel):
     actions: list[str] = Field(default_factory=list)

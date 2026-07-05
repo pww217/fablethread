@@ -209,7 +209,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
             beat = None
 
     if beat and beat.get("type"):
-        state = state.model_copy(update={"meta": state.meta.model_copy(update={"pending_gm_beat": {"type": beat["type"], "effect": beat.get("effect", "")}})})
+        state = state.model_copy(update={"meta": state.meta.model_copy(update={"pending_gm_beat": {"type": beat["type"], "effect": beat.get("effect", ""), "npcs": beat.get("npcs", [])}})})
     else:
         state = state.model_copy(update={"meta": state.meta.model_copy(update={"pending_gm_beat": None})})
 

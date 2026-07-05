@@ -10,28 +10,44 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 ]
 ```
 
+## Effect format — recipe tags
+
+The `effect` field uses bracket tags as a structured recipe, not prose. Tags name the mechanism; the text after the last tag is a terse directional hint (one phrase, never a full scene).
+
+- `[npcs: petty] [highlight: fear] "The guard captain's paranoia spikes as rumors of the patrol reach her"`
+- `[npcs: petty, silas] [blend: motivation vs fear] "Silas's need for the ledger collides with the captain's terror of exposure"`
+- `[npcs: petty] [thread: faction_patrols] "The patrol captain pushes her scouts deeper into the thistle fields"`
+- `[environment] "The ventilation system hums with an irregular rhythm"`
+
+Tag meanings:
+- `[npcs: id1, id2]` — which NPCs feature in this beat
+- `[highlight: field]` — which psychological field drives the beat (motivation|fear|leverage|tie|ambition|instinct|quirk|presence|goal|history|appearance|voice|traits|notes)
+- `[blend: mechanism]` — how two NPCs interact (e.g., "motivation vs fear", "leverage vs tie")
+- `[thread: thread_slug]` — which active thread is involved
+- `[environment]` — marks a purely environmental beat (no NPCs)
+
 ## Generation rules
 
-- **Blend, don't pick.** Each candidate should combine NPC psychological profiles into a single coherent story point. Beat priority order:
-   1. **Cross-NPC blending** — put NPC A's motivation against NPC B's fear, or NPC A's leverage against NPC B's tie.
-   2. **NPC/Thread/Arc blending** — combine one NPC's psychological profile with an active thread or arc goal.
-   3. **Single-NPC depth** — take at least two of an NPC's psychological fields (motivation, fear, leverage, tie) and exercise them in a single beat.
-   4. **Environmental** — only when no NPCs are present or active.
-- **Action rule.** Every beat must show an NPC or the world taking action. Never start with "nothing happens" or "the atmosphere is tense." If no NPC is acting, show the environment reacting — a door slams, a light flickers, a sound carries.
-- **`effect` (required).** Start with a tag in brackets, then a very terse directional hint. The tag names the mechanism; the hint stays vague and open to interpretation. Keep the hint short — no more than a phrase. Never write a full scene description.
-  - `[collision: motivation vs fear] "Silas's need for the ledger collides with Julian's terror of exposure"`
-  - `[collision: leverage vs tie] "Mira's debt collection threatens the tie she shares with the guard captain"`
-  - `[thread_pressure: quarantine_spread] "The infected worker's cough masks a desperate attempt to reach the medical bay"`
-  - `[thread_pressure: arc goal] "The smuggler's greed drives him toward the restricted terminal against his better judgment"`
-  - `[depth] "The wounded doctor's stubborn hope overrides her fear, leverage, and the ties she's built"`
-  - `[environment] "The ventilation system hums with an irregular rhythm, air growing thinner"`
-  - The tag tells the narrator what kind of beat this is. The directional hint is a scene direction, not a script — it should be interpretable in multiple ways.
-  - MUST ground the beat in at least one NPC's psychological field (motivation, fear, leverage, or tie). NOT a category label. NOT "ambient tension." If you cannot write a terse hint, omit that candidate.
-- **`npcs` (required).** List of NPC IDs involved in this beat. Include every NPC that is acting, reacting, or directly affected. Use their snake_case IDs from the NPC roster above. You MUST populate this field with actual NPC IDs — never emit an empty array unless the beat is purely environmental with no NPCs whatsoever. If an NPC's motivation, fear, leverage, or tie is driving this beat, that NPC MUST be in the `npcs` list.
-- **Phase alignment.** `type` MUST be from `allowed_beat_types` (provided in user prompt). Drop candidates whose type violates the phase constraint.
+Beat priority order (highest to lowest):
+1. **NPC + NPC** — cross-NPC blending (equal priority with #2). Put NPC A's motivation against NPC B's fear, or NPC A's leverage against NPC B's tie.
+2. **NPC + thread** — one NPC combined with an active thread (equal priority with #1).
+3. **Single NPC** — one NPC on their psychological field.
+4. **Thread + thread** — last resort, only when no NPCs with valid psychological fields exist.
+5. **Environmental** — last resort, only when no NPCs exist at all.
 
-- **NPC preference.** Prefer NPC-driven beats — they create more compelling narrative than abstract environmental beats. Only fall back to environment when no present/nearby NPCs exist.
-- **Quantity.** Emit 2-3 candidates. Zero is acceptable if no good beat fits.
+**NPC-only beats rule:** Threads may only be combined with an NPC. No single-thread-only or thread+thread beats unless no NPCs with psychological fields exist.
+
+**`effect` rules:**
+- MUST use bracket tags as described above.
+- MUST ground the beat in at least one NPC's psychological field (motivation, fear, leverage, or tie).
+- The directional hint after the tags must be terse — one phrase, never a full scene description.
+- If you cannot write a terse hint, omit that candidate.
+
+**`npcs` (required):** You MUST populate `npcs` with actual NPC IDs from the roster. If `npcs` is empty, you skipped the NPC roster — fix your beat. Every NPC that is acting, reacting, or directly affected MUST be listed. If an NPC's motivation, fear, leverage, or tie is driving this beat, that NPC MUST be in the `npcs` list.
+
+**Phase alignment:** `type` MUST be from `allowed_beat_types` (provided in user prompt). Drop candidates whose type violates the phase constraint.
+
+**Quantity:** Emit 2-3 candidates. Zero is acceptable if no good beat fits.
 
 ## Diversity
 
@@ -39,12 +55,8 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 - If the last 2 entries have different types, avoid repeating either of those types.
 - In short: pick types that are NOT in the last 2 entries of `recent_beats`.
 - **Hard constraint:** If `recent_beats[-2:]` contains `escalation`, `escalation`, then NO candidate may have `type: escalation`. This is not a suggestion — it is a rule.
-- **Build, don't repeat.** Each candidate MUST introduce a NEW development that follows from recent beats — NOT restate them. If recent_beats contains "The floor collapses entirely", your next beat should show what happens NEXT (debris settling, void pulling harder, NPC reaction to the collapse), NOT "The floor collapses entirely" again. **Hard constraint:** Do NOT emit a beat whose effect describes the same event as any beat in recent_beats. Each beat must advance the situation forward in time. **Example of what NOT to do:** If recent_beats contains "A faint, rhythmic pulse or vibration thrums through the nothingness", do NOT emit "A faint, rhythmic pulse or vibration thrums through the nothingness" or "A faint, rhythmic pulse thrums through the void" — these are the same environmental cue. Instead, move to a NEW development: the pulse breaks, a spike appears, the pulse accelerates, an NPC reacts to the pulse.
-- **Explicitly build on recent beats.** When generating candidates, look at each beat in `recent_beats` and ask: "What happens NEXT because of this?" Your candidates should answer that question. For example:
-  - Recent: "The floor collapses entirely" → Next: "Debris settles, revealing a hidden passage" or "The void pulls harder as the floor gives way"
-  - Recent: "Julian's breathing hitches" → Next: "Julian stumbles backward, tripping over debris" or "Julian grabs your arm, pulling you toward safety"
-  - Recent: "The rhythmic pulse thrums" → Next: "The pulse suddenly stops, leaving eerie silence" or "The pulse accelerates into a frantic drumbeat"
-
+- **Build, don't repeat.** Each candidate MUST introduce a NEW development that follows from recent beats — NOT restate them. If recent_beats contains "The floor collapses entirely", your next beat should show what happens NEXT (debris settling, void pulling harder, NPC reaction to the collapse), NOT "The floor collapses entirely" again. **Hard constraint:** Do NOT emit a beat whose effect describes the same event as any beat in recent_beats. Each beat must advance the situation forward in time.
+- **5-turn thread ban:** Do NOT feature the same thread in a beat's `effect` tag more than once within any 5-turn window. Check `recent_beats` for thread references before emitting. This is a hard rule.
 
 ## Roll band guidance (from rules_outcome)
 

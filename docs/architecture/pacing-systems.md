@@ -71,7 +71,7 @@ Hard cutoff at `climax_turn_limit` unchanged (phase machine handles it). For def
 
 ### Definition
 
-Forward-facing storytelling beats emitted by **World** (Step 2d, async) as candidates, selected by **Ruling** (Step 0) for the upcoming turn, consumed by the narrator the same turn. Lifecycle state lives in `state.meta.pending_gm_beat` (the selected beat) and `state.meta.beat_candidates` (the world-prepared candidates). Each beat has a `type`, `effect`, `npcs` (list of NPC IDs involved). **No TTL** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic.
+Forward-facing storytelling beats emitted by **World** (Step 2d, async) as candidates, selected by **Ruling** (Step 0) for the upcoming turn, consumed by the narrator the same turn. Lifecycle state lives in `state.meta.pending_gm_beat` (the selected beat) and `state.meta.beat_candidates` (the world-prepared candidates). Each beat is a recipe string (bracket tags like `[npcs: x] [highlight: fear]`), with `type`, `effect`, and `npcs` (list of NPC IDs involved). **No TTL** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic.
 
 ### Beat types
 
@@ -132,7 +132,6 @@ flowchart LR
 
 | File | Line(s) | What |
 |------|---------|------|
-| `turn.py` | 57 | `PRESSURE_BEAT_TYPES` definition |
 | `narrate.py` | 168-170 | Narrate reads `pending_gm_beat` (pure reader, no mutation) |
 | `ruling.py` | `_ruling_phase` | Ruling sets/pops `pending_gm_beat`, appends `recent_beats`, pops `beat_candidates` |
 | `world.py` | `_run_world_step` | World generates beat candidates, validates via `GMBeat` |
@@ -388,7 +387,7 @@ T6:  normal climax rhythm continues
 | `_compute_narration_directive()` | `_pacing.py` | 145-168 | scene_age → directive (Scene Imperative purely age-based) |
 | `_compute_pacing_context()` | `_pacing.py` | 171-205 | scene_phase + urgency + age → PacingContext |
 | `_compute_ages()` | `_pacing.py` | 208-219 | Scene age computation |
-| `compute_convergence_score(scene_phase, active_threads, recent_beats, config, turn_no, recent_rolls)` | `_pacing.py` | 55-122 | **5-component** score (urgent_thread 0-2 count-capped, any_threat, **no scene_age**, beat_streak with carry-over, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
+| `compute_convergence_score(scene_phase, active_threads, recent_beats, config, turn_no, recent_rolls)` | `_pacing.py` | 55-122 | **5-component** score (urgent_thread 0-2 count-capped, any_threat, **no scene_age**, beat_streak with carry-over using tension bucket, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
 | `_compute_scene_phase(state, ages, config, smoothed_convergence, turn_no)` | `_pacing.py` | 218-318 | Phase transitions with hysteresis (enter/exit thresholds) and min_turns gates |
 | `derive_allowed_beat_types()` | `_pacing.py` | 61-73 | Phase + directive → allowed beat types |
 | `sanitize_threads()` | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |

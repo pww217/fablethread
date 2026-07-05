@@ -2,7 +2,7 @@
 
 ## EV checker library imports
 
-`ccya/ev/checkers/` imports directly from `ccya/engine/turn` (PRESSURE_BEAT_TYPES) and `ccya/engine/config` (EngineConfig) and `ccya/rules` (MOMENTUM_DELTA, BANDS). This is a deliberate dependency — checkers need engine constants to validate mechanical invariants. The checker library does NOT depend on the turn pipeline; it reads events.jsonl directly.
+`ccya/ev/checkers/` imports directly from `ccya/engine/_pacing` (BEAT_BUCKETS) and `ccya/engine/config` (EngineConfig) and `ccya/rules` (MOMENTUM_DELTA, BANDS). This is a deliberate dependency — checkers need engine constants to validate mechanical invariants. The checker library does NOT depend on the turn pipeline; it reads events.jsonl directly.
 
 ## Error propagation path (structured observability)
 
@@ -41,7 +41,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - `_compute_pacing_context(scene_phase, thread_urgency_count, effective_scene_age, ...)` — returns PacingContext with directive, outcome_hint, summary. (convergence_score/components/threads are on PacingContext model but NOT populated by this function — they're set elsewhere in turn.py).
 - `_compute_scene_phase(state, ages, config, total_convergence_score=0, turn_no=0)` — 5-state phase machine (SETUP→RISING→CLIMAX→RESOLUTION→BREATHER), returns updated `Scene` (not WorldState). RISING→CLIMAX transition driven by total_convergence_score ≥ config.convergence_enter_threshold. climax_turn_count tracked in returned Scene.
 - `_compute_ages(state)` returns only `{"scene_age": scene_age}` — location_age and combat_age removed in Phase 03 pacing overhaul; effective_scene_age set in _ruling_phase() by adding combat boost to scene_age.
-- `ccya/engine/_pacing.py` — BEAT_PHASE_MAP, BEAT_BUCKETS, derive_allowed_beat_types(directive=), compute_convergence_score(scene_phase, active_threads, recent_beats, config, turn_no, recent_rolls) → tuple[int, dict[str, int]] — beat constraint derivation with directive overrides, 5-component convergence score (0-6 range) for RISING→CLIMAX transition. Components: urgent_thread (0-2), threat_thread (+1), beat_streak (+1), roll_starvation (+1), threat_density (+1). `BEAT_BUCKETS` groups beat types into pressure/situation/relief functional buckets for phase-based filtering.
+- `ccya/engine/_pacing.py` — BEAT_PHASE_MAP (no hazard), BEAT_BUCKETS (tension/discovery/respite), derive_allowed_beat_types(directive=), compute_convergence_score(scene_phase, active_threads, recent_beats, config, turn_no, recent_rolls) → tuple[int, dict[str, int]] — beat constraint derivation with directive overrides, 5-component convergence score (0-6 range) for RISING→CLIMAX transition. Components: urgent_thread (0-2), threat_thread (+1), beat_streak (+1), roll_starvation (+1), threat_density (+1). `BEAT_BUCKETS` groups beat types into tension/discovery/respite functional buckets for phase-based filtering.
 
 ## Token budget cascade
 
