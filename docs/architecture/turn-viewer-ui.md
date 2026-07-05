@@ -149,10 +149,10 @@ flowchart LR
     RULING --> RECORD
     NARRATE --> SCENE
     NARRATE --> STATE
-    NARRATE --> STORY
+    NARRATE --> RECORD
     SCENE --> STATE
-    SCENE --> STORY
-    STATE --> STORY
+    SCENE --> RECORD
+    STATE --> RECORD
 ```
 
 Each `StreamDescriptor` defines: `key`, `label`, `stage_css`, `metrics_path` (dot-path into event JSON), `prompt_path`, `output_subkey`, `is_text_output`, `inputs` (upstream keys), `skip_token_display`.

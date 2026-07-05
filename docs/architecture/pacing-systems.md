@@ -36,21 +36,23 @@ flowchart TD
 
 ### Definition
 
-The phase engine tracks `state.scene.scene_phase` through five states: SETUP, RISING, CLIMAX, RESOLUTION, BREATHER. Transitions are driven by convergence score (6 components, urgent_thread 0-2, EMA smoothed) and scene age.
+The phase engine tracks `state.scene.scene_phase` through five states: SETUP, RISING, CLIMAX, RESOLUTION, BREATHER. Transitions are driven by convergence score (5 components, urgent_thread 0-2, max score 6, EMA smoothed) and scene age.
 
 ### Phase transitions
 
 | From | To | Condition |
 |------|-----|-----------|
-| SETUP | RISING | Urgent thread appears OR turns_in_phase ≥ 3 (3-turn TTL prevents stagnation) |
-| RISING | CLIMAX | smoothed_convergence ≥ enter_threshold (default 3) AND turns_in_phase ≥ RISING_min (default 3) |
-| CLIMAX | RESOLUTION | Signal-gated exit: (a) early exit on thread resolution + low convergence (< exit_threshold, default 1) AND min_turns (CLIMAX_min, default 3), (b) extension on sustained pressure (smoothed_convergence ≥ 3 + urgent active thread, hard cap at limit + extension_max), (c) default timeout at limit |
+| SETUP | RISING | Urgent thread appears OR turns_in_phase ≥ 3 OR `total_convergence_score >= 2 AND turns_in_phase >= 2` (2-turn TTL prevents stagnation) |
+| RISING | CLIMAX | smoothed_convergence ≥ enter_threshold (default **2**) AND turns_in_phase ≥ RISING_min (default 3) |
+| CLIMAX | RESOLUTION | Signal-gated exit: (a) early exit on **thread resolved on previous turn** + low convergence (< exit_threshold, default 1) AND min_turns (CLIMAX_min, default 3), (b) extension on sustained pressure (smoothed_convergence ≥ 3 + urgent active thread, hard cap at limit + extension_max), (c) default timeout at limit |
 | RESOLUTION | BREATHER | Always (1-turn transition) |
 | BREATHER | RISING | (Urgent thread appears OR breather_max_turns elapsed) AND turns_in_phase ≥ BREATHER_min (default 2) |
 
 ### Convergence score
 
-`compute_convergence_score()` computes a 6-component score (0-7) each turn to drive RISING→CLIMAX transition. Components: (1) urgent thread count (dormant-aware, capped at 2), (2) any threat thread (dormant-aware) (+1), (3) scene age ≥ threshold (+1), (4) beat streak: ≥60% pressure beats in recent window with carry-over for null types (+1), (5) roll_starvation: turns since last roll ≥ threshold (+1), (6) threat_density: active threat threads ≥ threshold (+1). Returns `(score, components_dict)`.
+`compute_convergence_score()` computes a 5-component score (0-6) each turn to drive RISING→CLIMAX transition. Components: (1) urgent thread count (dormant-aware, capped at 2, contributes 0-2), (2) any threat thread (dormant-aware) (+1), (3) beat streak: ≥60% pressure beats in recent window with carry-over for null types (+1), (4) roll_starvation: turns since last roll ≥ threshold (+1), (5) threat_density: active threat threads ≥ threshold (+1). Returns `(score, components_dict)`.
+
+Note: `scene_age` was removed from convergence — it is now used only by the narration directive, not the convergence score.
 
 The raw score is smoothed using exponential moving average (EMA) each turn: `smoothed = alpha * raw + (1 - alpha) * prev_smoothed`. Phase transitions use the smoothed value. First turn uses raw score as initial smoothed value.
 
@@ -151,8 +153,8 @@ PacingContext:
   directive: str                    # "Scene Imperative" | "Scene Pressure" | ""
   outcome_hint: str | None          # "hold" | "transition" (driven by scene_motion + Scene Imperative override + convergence hard gate)
   summary: str                      # Human-readable log, never sent to LLM
-  convergence_score: int            # Raw 6-component score (0-7), set in narrate.py
-  convergence_components: dict[str, int]  # {urgent_thread, threat_thread, scene_age, beat_streak, roll_starvation, threat_density}
+  convergence_score: int            # Raw 5-component score (0-6), set in narrate.py
+  convergence_components: dict[str, int]  # {urgent_thread, threat_thread, beat_streak, roll_starvation, threat_density}
   convergence_threads: list[dict]   # Thread dicts used for convergence computation
 ```
 
@@ -247,9 +249,9 @@ flowchart LR
 
 | Constraint | Condition | Effect |
 |------------|-----------|--------|
-| Auto-dormant | Thread untouched for 8 turns (urgent threads excluded) | `dormant: True`, `urgency: background` |
-| Urgency decay | Thread at same urgency for 8 turns | `urgent→normal→background` |
-| Thread cap eviction | Non-dormant threads > 5 on `thread_add` | Evict oldest non-dormant (by last_updated_turn) |
+| Auto-dormant | Thread untouched for 8 turns (`urgency != "urgent"` excluded) | `dormant: True`, `urgency: background` |
+| Urgency decay | Thread at same urgency for 8 turns | `urgent→normal→background` (stepwise demotion) |
+| Thread cap eviction | Non-dormant threads > 5 on `thread_add` | Set oldest non-dormant → `dormant: True` (not evicted) |
 | Engine culling | ≥3 dormant threads | Oldest (by last_updated_turn) → completed_threads with resolution_state: "abandoned" |
 | Progress dedup | ≥70% overlap with last progress entry | Reject new entry |
 
@@ -310,7 +312,7 @@ flowchart TD
 
 | Variable | Set by | Consumed by | Effect |
 |----------|--------|-------------|--------|
-| `convergence_score` | narrate.py (urgent_thread 0-2, threat, age, beats, roll_starvation, threat_density) | RISING→CLIMAX transition | Raw 6-component score (0-7), EMA smoothed value stored in state.meta.smoothed_convergence |
+| `convergence_score` | narrate.py (urgent_thread 0-2, threat, beats, roll_starvation, threat_density) | RISING→CLIMAX transition | Raw 5-component score (0-6), EMA smoothed value stored in state.meta.smoothed_convergence |
 | `scene_phase` | Phase engine | Directive, beat constraints, outcome_hint | Primary pacing signal |
 | `pending_gm_beat` | Ruling (selects from `state.meta.beat_candidates`) | Narrator (same turn), beat history | Forward-facing storytelling beat |
 | `arc.threads[].urgency` | Record (thread_update) + Python decay | Phase transitions, directive computation | Scene tension level |
@@ -357,7 +359,7 @@ T6:  normal climax rhythm continues
 | Config key | Default | System | Effect |
 |------------|---------|--------|--------|
 | `convergence_alpha` | 0.4 | Convergence | EMA smoothing factor for convergence score |
-| `convergence_enter_threshold` | 3 | Phase Engine | Convergence score needed for RISING→CLIMAX transition |
+| `convergence_enter_threshold` | **2** | Phase Engine | Convergence score needed for RISING→CLIMAX transition |
 | `convergence_exit_threshold` | 1 | Phase Engine | Convergence score for CLIMAX early exit |
 | `RISING_min` | 3 | Phase Engine | Minimum turns in RISING phase before transition |
 | `CLIMAX_min` | 3 | Phase Engine | Minimum turns in CLIMAX phase before early exit |
@@ -370,11 +372,11 @@ T6:  normal climax rhythm continues
 | `scene_pressure_threshold` | 3 | Pacing Context | Scene Pressure secondary directive threshold |
 | `scene_imperative_threshold` | 5 | Pacing Context | Scene Imperative directive threshold |
 | `recent_beats_max` | 5 | GM Beats | Max entries in recent_beats history |
-| `thread_max_active` | 5 | Thread Lifecycle | Thread cap, oldest evicted on overflow |
+| `thread_max_active` | 5 | Thread Lifecycle | Thread cap, oldest set dormant on overflow |
 | `thread_urgency_max_age` | 8 | Thread Lifecycle | Urgency decay after N turns at same level |
-| `sanitize_every` | 5 | Sanitizer | Run sanitizer every N turns (0=disabled) |
-| `thread_completion_threshold` | 3 | Thread Lifecycle | Auto-complete thread after N progress entries |
+| `thread_dormant_threshold` | **8** | Thread Lifecycle | Turns without activity before auto-dormant |
 | `thread_creation_cooldown` | 3 | Thread Lifecycle | Minimum turns between new thread additions |
+| `sanitize_every` | 5 | Sanitizer | Run sanitizer every N turns (0=disabled) |
 
 ## 9. Code Locations Summary
 
@@ -386,7 +388,7 @@ T6:  normal climax rhythm continues
 | `_compute_narration_directive()` | `_pacing.py` | 145-168 | scene_age → directive (Scene Imperative purely age-based) |
 | `_compute_pacing_context()` | `_pacing.py` | 171-205 | scene_phase + urgency + age → PacingContext |
 | `_compute_ages()` | `_pacing.py` | 208-219 | Scene age computation |
-| `compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls)` | `_pacing.py` | 50-127 | 6-component score (urgent_thread 0-2 count-capped, any_threat, scene_age, beat_streak with carry-over, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
+| `compute_convergence_score(scene_phase, active_threads, recent_beats, config, turn_no, recent_rolls)` | `_pacing.py` | 55-122 | **5-component** score (urgent_thread 0-2 count-capped, any_threat, **no scene_age**, beat_streak with carry-over, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
 | `_compute_scene_phase(state, ages, config, smoothed_convergence, turn_no)` | `_pacing.py` | 218-318 | Phase transitions with hysteresis (enter/exit thresholds) and min_turns gates |
 | `derive_allowed_beat_types()` | `_pacing.py` | 61-73 | Phase + directive → allowed beat types |
 | `sanitize_threads()` | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
@@ -395,7 +397,7 @@ T6:  normal climax rhythm continues
 
 | Function | File | Line(s) | What |
 |----------|------|---------|------|
-| World step | `world.py` | `_run_world_step` | Phase validation (purge invalid types) → Generate 2-3 beat candidates → `state.meta.beat_candidates`; returns purged list |
+| World step | `world.py` | `_run_world_step` | Phase validation (purge invalid types) → Generate 2-3 beat candidates → `state.meta.beat_candidates`; **does NOT return purged list** (purged logged only) |
 | Ruling beat selection | `ruling.py` | `_ruling_phase` | Validate `selected_beat` via `GMBeat`; set/pop `pending_gm_beat`; append `recent_beats`; pop `beat_candidates` |
 | Narrate beat read | `narrate.py` | 168-170 | Pure reader of `pending_gm_beat` (no mutation, no expiry) |
 

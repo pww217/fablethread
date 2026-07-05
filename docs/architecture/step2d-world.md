@@ -17,7 +17,7 @@ flowchart LR
     classDef outNode fill:#500724,color:#fbcfe8,stroke:#ec4899
 
     subgraph IN["Inputs (read at start of World)"]
-        S1["npc_roster<br>(from build_npc_roster(), filtered to present/nearby)"]:::xstream
+        S1["npc_roster<br>(from build_npc_roster(), filtered to **present** only)"]:::xstream
         S2["arc.threads[]<br>(urgency counts, active threads)"]:::xstream
         S3["pacing_context<br>(directive, outcome_hint)"]:::xstream
         S4["recent_beats<br>(state.meta.recent_beats)"]:::xstream
@@ -26,12 +26,12 @@ flowchart LR
     end
 
     subgraph LLM["LLM — world_system.j2 + world_user.j2"]
-        WL["temp: 0.55 · max_retries: 1<br>output: JSON array of GMBeat"]:::llmNode
+        WL["temp: 0.55 · top_p: 0.85 · max_retries: 0<br>output: JSON array of GMBeat"]:::llmNode
     end
 
     subgraph OUT["Outputs"]
         O1["state.meta.beat_candidates<br>[ {type, effect}, ... ]<br>0-3 candidates"]:::outNode
-        O2["extraction.world.purged<br>[ purged candidates ]"]:::outNode
+        O2["phase_purged: list[dict]<br>[ purged candidates, logged at WARNING/ERROR ]"]:::outNode
     end
 
     IN --> LLM --> OUT
@@ -49,7 +49,7 @@ if config.sanitize_every > 0:
     state, _ = await sanitize_threads(save_dir, state, config, trace_id=trace_id)
 yield ("phase", {"phase": "sanitize_done"})
 yield ("phase", {"phase": "world_start"})
-beat_candidates = await _run_world_step(env, state, narrative, scene_result, _pc, config, trace_id, turn_no)
+beat_candidates = await _run_world_step(env, state, narrative, pc, config, trace_id, turn_no)
 state = state.set_beat_candidates(beat_candidates or [])
 save_state(save_dir, state)          # single end-of-turn persist (Sanitize + candidates)
 yield ("phase", {"phase": "world_done"})
@@ -62,7 +62,7 @@ yield ("phase", {"phase": "world_done"})
 
 | Input | Source |
 |-------|--------|
-| `npc_roster` | `build_npc_roster()` from compendium (filtered to present/nearby) |
+| `npc_roster` | `build_npc_roster()` from compendium (filtered to **present** only) |
 | `long_term_objective.threads[]` | `state.long_term_objective.threads` |
 | `narration` | passed in from `run_turn` |
 | `pacing_context` | passed in from `run_turn` |
@@ -70,15 +70,13 @@ yield ("phase", {"phase": "world_done"})
 | `allowed_beat_types` | `derive_allowed_beat_types(scene_phase, directive)` |
 | `rules_outcome.band` | (optional) used for roll-band guidance |
 
-World reads NPC profiles directly from the compendium via `build_npc_roster()`, filtering to `presence in ["present", "nearby"]`. Beat generation follows priority order: cross-NPC blending → NPC/Thread blending → single-NPC depth → environmental.
+World reads NPC profiles directly from the compendium via `build_npc_roster()`, filtering to `presence == "present"` only (nearby excluded to prevent feedback loop: beats → narration → extractor re-promotion → beats for present). Beat generation follows priority order: cross-NPC blending → NPC/Thread blending → single-NPC depth → environmental.
 
 ## Outputs
 
 `state.meta.beat_candidates: list[dict]` — 0-3 validated candidate dicts (after phase validation + `GMBeat(**candidate)` validation; invalid candidates silently dropped, no retry). Each dict has `{type, effect, npcs}`. Ruling reads by index.
 
-`extraction.world.purged: list[dict]` — candidates purged by phase validation (stored for EV debugging).
-
-**Failure mode.** If the World LLM call times out, returns invalid JSON, or all candidates fail validation, the candidates list is `[]` and the next turn's Ruling proceeds without a beat selection (no `selected_beat` in JSON). The `world_done` event still fires; the lock releases; the next turn can submit. World resolves one way or another before the lock lifts.
+**Failure mode.** If the World LLM call times out, returns invalid JSON, or all candidates fail validation, the candidates list is `[]` and the next turn's Ruling proceeds without a beat selection (no `selected_beat` in JSON). The `world_done` event still fires; the lock releases; the next turn can submit. World resolves one way or another before the lock lifts. Purged candidates are logged at WARNING/ERROR level but are NOT returned from the function or stored in `extraction.world` (no `purged` field in the event).
 
 ## GMBeat schema (repurposed)
 
@@ -99,8 +97,8 @@ A candidate whose `type` ends up empty is dropped.
 Before GMBeat validation, World validates each candidate's `type` against the phase-derived `allowed_beat_types`. Candidates whose `type` is not in the allowed set are purged before reaching the GMBeat validation step. This prevents the LLM from generating beat types that the current phase machine considers inappropriate.
 
 - Purged candidates are logged at `WARNING` level if some remain after purging, `ERROR` if all are purged.
-- The purged list is returned as a 6th element from `_run_world_step()` and stored in `extraction.world.purged` for EV debugging.
 - This validation runs before GMBeat validation, so invalid-type candidates never reach the Pydantic validation step.
+- Purged candidates are NOT returned from the function or stored in the event.
 
 ## Temperature
 
@@ -114,11 +112,10 @@ World data is recorded in the main turn event under `extraction.world` (not as a
 
 ```
 extraction.world = {
-    "output": beat_candidates,       # list[dict] — validated GMBeat dicts
-    "purged": [...],                 # list[dict] — phase-purged candidates
+    "output": beat_candidates,       # list[dict] — validated GMBeat dicts (max 3)
     "skipped": False,
-    "tokens_in": 0,                  # reserved for future LLM token tracking
-    "tokens_out": 0,                 # reserved for future LLM token tracking
+    "tokens_in": <int>,
+    "tokens_out": <int>,
     "ms": <world_ms>,                # total wall-clock ms for world step
 }
 ```

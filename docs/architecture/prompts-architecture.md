@@ -25,7 +25,7 @@ Two entirely separate template systems exist — do not conflate them:
 
 ### Narrator user prompt (`ccya/prompts/narrate_user.j2`)
 
-- Sections reordered by recency: Player Character → Inventory → Location → Characters → World State → Immutable Reference → Scene Context → Scene phase → Prior History (renamed from Prior Turns) → Recent Turns → Campaign Arc → This Turn's Result → PLAYER INPUT → directives (most important signal last)
+- Sections reordered by recency: Player Character → Conditions → PC Situation → Inventory → Location → Characters → World State → Immutable Reference → Scene Context → Scene phase → Prior History (renamed from Prior Turns) → Recent Turns → Campaign Arc → This Turn's Result → PLAYER INPUT → directives (most important signal last)
 - Thread rendering code extracted to shared `sections/_thread_list.j2` include (eliminated duplicated for-loop in if/elif branches)
 - Renders ALL threads (active + dormant, scene-scoped + arc-scoped) with scope tags and [DORMANT] markers; completed_threads rendered as "### Past Resolutions" section after _arc.j2 include for full narrative continuity
 - Impossible action block: when `rules_outcome.impossible=true`, renders `**IMPOSSIBLE:**` fact with reason before the band/no-roll section
@@ -36,6 +36,7 @@ Two entirely separate template systems exist — do not conflate them:
 
 - Replaces `storytell_system.j2` (deleted in the beat generation split). 4-section hierarchy preserved: (1) Task/role, (2) Hard rules (Output schema, Output discipline, State-presence rule), (3) Behavioral guidance (Actions, Outcome summary, Thread operations, Rules-outcome, World state rules, Latent threads), (4) Campaign arc system. **The GM Beat guidance section is gone** — beat generation moved to World (Step 2d).
 - The `gm_beat` field has been removed from the `StorytellerResult` schema; Record no longer emits beats. Thread management (update/resolve/add) and action/outcome_summary generation remain in Record.
+- **Curtain Call section retained** in record_system.j2 — instructs record to emit `thread_resolve` when curtain_call is active/forced.
 
 ### Record user prompt (`ccya/prompts/record_user.j2`)
 
@@ -45,7 +46,8 @@ Two entirely separate template systems exist — do not conflate them:
   - ~~`allowed_beat_types`~~ — moved to World
   - ~~`pending_beat` / `recent_beats`~~ — moved to World
   - ~~`player_intent`~~ — not needed for backward-looking analysis
-- Sections reordered for record's backward-looking scope: player character → arc/threads → past resolutions → world_state → recent_turns → prior_history → band → CURRENT TURN NARRATION
+- Sections retained from original: `scene_phase` and `curtain_call` (still passed from record.py:93-94)
+- Sections reordered for record's backward-looking scope: arc/threads → world_state → band → scene_phase → curtain_call → prior_history → recent_turns → CURRENT TURN NARRATION
 
 ### World system prompt (`ccya/prompts/world_system.j2`)
 
@@ -54,7 +56,7 @@ Two entirely separate template systems exist — do not conflate them:
 
 ### World user prompt (`ccya/prompts/world_user.j2`)
 
-- New template. Renders `candidate_npcs` (from Scene Extract), active threads, `pacing_context`, `recent_beats`, `allowed_beat_types`, roll band, and the most recent narration. ~1000-2000 user tokens.
+- New template. Renders present NPC roster (from compendium, filtered to `presence == 'present'`), active threads, `pacing_context`, `recent_beats`, `allowed_beat_types`, roll band, and the most recent narration. ~1000-2000 user tokens.
 
 ### Prepare seed system prompt (`ccya/prompts/prepare_seed_system.j2`)
 
