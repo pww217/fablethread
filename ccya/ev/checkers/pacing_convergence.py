@@ -264,17 +264,11 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
 
         # Component 4: beat_streak (+1 if >=60% tension beats in recent window)
         tension_types = set(BEAT_BUCKETS["tension"])
-        last_non_null_type = None
         pressure_count = 0
         if recent_beats:
             n = len(recent_beats)
-            window = recent_beats[:min(n, 5)]
-            for b in window:
-                bt = b.get("type")
-                if bt is not None:
-                    last_non_null_type = bt
-                if last_non_null_type in tension_types:
-                    pressure_count += 1
+            window = recent_beats[: min(n, 5)]
+            pressure_count = sum(1 for b in window if b.get("type") in tension_types)
             threshold = ceil(n * 0.6) if n < 5 else 3
             components["beat_streak"] = 1 if pressure_count >= threshold else 0
         else:
