@@ -238,9 +238,9 @@ def _compute_scene_phase(
     # Phase transition logic
     old_phase = phase
     if phase == "SETUP":
-        if thread_urgency_count > 0 or turns_in_phase >= 3 or (convergence_score >= 2 and turns_in_phase >= 2):
+        if thread_urgency_count > 0 or turns_in_phase >= 3 or (total_convergence_score >= 2 and turns_in_phase >= 2):
             phase = "RISING"
-            turns_in_phase = 0
+            turns_in_phase = 1
             turn_entered = turn_no
 
     elif phase == "RISING":
