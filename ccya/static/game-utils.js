@@ -2,9 +2,9 @@ var CCYA_CARD_KEY = (name) => 'ccya_card_' + name;
 
 // Per-NPC color palette — 12 distinguishable muted colors for dark backgrounds
 const _NPC_PALETTE = [
-    '#e06c75', '#c67b40', '#e5c07b', '#98c379',
+    '#e06c75', '#c67b40', '#e5c07b', '#7eb8da',
     '#56b6c2', '#61afef', '#bb85f0', '#be5046',
-    '#d19a66', '#98c379', '#528bff', '#c678dd',
+    '#d19a66', '#7eb8da', '#528bff', '#c678dd',
 ];
 
 function _npcColor(id) {
@@ -853,7 +853,7 @@ function _renderNpcListItem(npc) {
         if (mot) tipHtml += `<p><strong>Motivation:</strong> ${_escapeHtml(mot)}</p>`;
         if (tie) tipHtml += `<p><strong>Tie:</strong> ${_escapeHtml(tie)}</p>`;
     }
-    return `<div class="npc-item${hasTooltip ? ' has-tooltip' : ''}" style="border-left-color:${borderColor}"><span class="npc-name">${nameHtml}</span>${posHtml}${hasTooltip ? `<div class="tooltip-body" data-md-compendium>${tipHtml}</div>` : ''}</div>`;
+    return `<div class="npc-item${hasTooltip ? ' has-tooltip' : ''}" style="border-left-color:${borderColor}"><span class="npc-name-row"><span class="npc-name">${nameHtml}</span><span class="npc-party-toggle" data-npc-id="${npc.id || ''}" data-party="${npc.party ? 'true' : 'false'}" onclick="toggleNpcParty('${npc.id || ''}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span></span>${posHtml}${hasTooltip ? `<div class="tooltip-body" data-md-compendium>${tipHtml}</div>` : ''}</div>`;
 }
 
 function _renderInventoryItem(item) {
@@ -864,7 +864,8 @@ function _renderInventoryItem(item) {
     const cls = 'inventory-item' + (item.id === 'credits' ? ' inventory-item-credits' : '') + (notes ? ' has-tooltip has-tooltip-right' : '');
     const amtHtml = (amt > 1 || item.id === 'credits') ? ` <span class="inventory-item-amount">×${amt}</span>` : '';
     const tipHtml = notes ? `<div class="tooltip-body" data-md>${_escapeHtml(notes)}</div>` : '';
-    return `<div class="${cls}"><span class="inventory-item-name">${_escapeHtml(name)}${amtHtml}</span>${tipHtml}</div>`;
+    const dropBtn = `<span class="inv-drop-btn" onclick="dropInventoryItem('${_escapeHtml(item.id)}', ${amt}, this)" title="Drop item"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>`;
+    return `<div class="${cls}"><span class="inventory-item-name">${_escapeHtml(name)}${amtHtml}</span>${dropBtn}${tipHtml}</div>`;
 }
 
 function _renderConditionPill(cond) {
@@ -894,16 +895,48 @@ function toggleNpcParty(npcId) {
 }
 
 function dropInventoryItem(itemId, amount, el) {
-    if (amount === 1) {
-        if (!confirm('Drop this item?')) return;
-        _doDropItem(itemId, null);
+    const modal = document.getElementById('drop-modal');
+    const nameEl = document.getElementById('drop-modal-item-name');
+    const qtyRow = document.getElementById('drop-modal-qty-row');
+    const slider = document.getElementById('drop-modal-qty-slider');
+    const qtyVal = document.getElementById('drop-modal-qty-val');
+    if (!modal || !nameEl) return;
+
+    const itemName = el?.closest?.('.inventory-item')?.querySelector('.inventory-item-name')?.textContent?.trim() || itemId;
+    nameEl.textContent = itemName;
+
+    if (amount <= 1) {
+        qtyRow.style.display = 'none';
+        slider.max = 1;
+        slider.value = 1;
+        qtyVal.textContent = '1';
     } else {
-        const qty = prompt(`Drop how many of ${amount}?`, amount);
-        if (qty === null) return;
-        const n = parseInt(qty, 10);
-        if (isNaN(n) || n < 1 || n > amount) return;
-        _doDropItem(itemId, n);
+        qtyRow.style.display = 'flex';
+        slider.min = 1;
+        slider.max = amount;
+        slider.value = amount;
+        qtyVal.textContent = String(amount);
     }
+
+    modal.hidden = false;
+    modal._dropData = { itemId, maxAmount: amount };
+}
+
+function closeDropModal() {
+    const modal = document.getElementById('drop-modal');
+    if (modal) modal.hidden = true;
+    if (modal?._dropData) delete modal._dropData;
+}
+
+function confirmDropModal() {
+    const modal = document.getElementById('drop-modal');
+    if (!modal?._dropData) return;
+    const { itemId, maxAmount } = modal._dropData;
+    const slider = document.getElementById('drop-modal-qty-slider');
+    const amt = slider ? parseInt(slider.value, 10) : 1;
+    if (isNaN(amt) || amt < 1 || amt > maxAmount) return;
+    closeDropModal();
+    _doDropItem(itemId, amt);
 }
 
 function _doDropItem(itemId, amount) {

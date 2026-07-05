@@ -16,7 +16,7 @@ _log = logging.getLogger(__name__)
     needs_state=True,
     description="Verify sanitizer thread operations are valid against state at each sanitizer turn",
 )
-def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any], *, config: Any = None) -> CheckerResult:
+def sanitizer_lifecycle(events: list[dict[str, Any]], state: Any, *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 
@@ -41,7 +41,7 @@ def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any], *, 
         if sev_turn and sev_turn in turn_states:
             arc = turn_states[sev_turn].get("arc") or {}
         else:
-            arc = state.get("arc") or {}
+            arc = getattr(state, "arc", None) or {}
 
         state_threads: dict[str, dict[str, Any]] = {}
         for t in arc.get("threads") or []:

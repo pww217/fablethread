@@ -226,6 +226,7 @@ def _compute_scene_phase(
     climax_turn_count = scene.climax_turn_count
     breather_turn_count = scene.breather_turn_count
     turns_in_phase = scene.turns_in_phase + 1
+    turn_entered = scene.turn_entered
 
     # Count urgent threads
     thread_urgency_count = 0
@@ -235,16 +236,19 @@ def _compute_scene_phase(
             thread_urgency_count += 1
 
     # Phase transition logic
+    old_phase = phase
     if phase == "SETUP":
-        if thread_urgency_count > 0 or turns_in_phase >= 3:
+        if thread_urgency_count > 0 or turns_in_phase >= 3 or (convergence_score >= 2 and turns_in_phase >= 2):
             phase = "RISING"
             turns_in_phase = 0
+            turn_entered = turn_no
 
     elif phase == "RISING":
         if total_convergence_score >= config.convergence_enter_threshold and turns_in_phase >= config.RISING_min:
             phase = "CLIMAX"
             climax_turn_count = 1
             turns_in_phase = 0
+            turn_entered = turn_no
 
     elif phase == "CLIMAX":
         climax_turn_count += 1
@@ -258,6 +262,7 @@ def _compute_scene_phase(
             phase = "RESOLUTION"
             climax_turn_count = 0
             turns_in_phase = 0
+            turn_entered = turn_no
         # Hard cap + extension — only evaluated at/after the limit
         elif climax_turn_count >= config.climax_turn_limit:
             # has_urgent_active_thread: explicit dormant filter (do NOT copy existing thread_urgency_count pattern)
@@ -270,17 +275,20 @@ def _compute_scene_phase(
                     phase = "RESOLUTION"
                     climax_turn_count = 0
                     turns_in_phase = 0
+                    turn_entered = turn_no
                 # else stay in CLIMAX (extension active)
             else:
                 phase = "RESOLUTION"
                 climax_turn_count = 0
                 turns_in_phase = 0
+                turn_entered = turn_no
         # else: stay in CLIMAX (below limit, no early-exit signal)
 
     elif phase == "RESOLUTION":
         phase = "BREATHER"
         breather_turn_count = 1
         turns_in_phase = 0
+        turn_entered = turn_no
 
     elif phase == "BREATHER":
         breather_turn_count += 1
@@ -288,6 +296,7 @@ def _compute_scene_phase(
             phase = "RISING"
             breather_turn_count = 0
             turns_in_phase = 0
+            turn_entered = turn_no
 
     # Compute curtain_call after phase may have changed
     _curtain_call = ""
@@ -305,7 +314,7 @@ def _compute_scene_phase(
         curtain_call=_curtain_call,
         tags=list(scene.tags),
         world_state=list(scene.world_state),
-        turn_entered=scene.turn_entered,
+        turn_entered=turn_entered,
         location_entered_turn=scene.location_entered_turn,
     )
 

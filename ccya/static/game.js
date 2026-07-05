@@ -951,7 +951,7 @@ function game() {
                     if (invBody) {
                         const items = data.data.inventory || [];
                         if (items.length > 0) {
-                            invBody.innerHTML = items.map(i => _renderInventoryItem(i)).join('');
+                            invBody.innerHTML = `<div class="inventory-drop-container">${items.map(i => _renderInventoryItem(i)).join('')}</div>`;
                         } else {
                             invBody.innerHTML = '<span class="empty-state">You aren\'t carrying anything!</span>';
                         }

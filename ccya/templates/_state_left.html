@@ -19,13 +19,15 @@
             {% set _has_tt = npc_bio or _mot or npc_tie %}
             {% set _color = npc.color | default(_k | npc_color) %}
             <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}" style="border-left-color:{{ _color }}" data-npc-id="{{ _k }}">
-                <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
+                <span class="npc-name-row">
+                    <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
+                    <span class="npc-party-toggle" data-npc-id="{{ _k }}" data-party="{{ 'true' if npc.party else 'false' }}" onclick="toggleNpcParty('{{ _k }}')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                </span>
                 {% if npc_position %}
                 <span class="npc-position-inline">{{ npc_position }}</span>
                 {% endif %}
-                <span class="npc-party-toggle" data-npc-id="{{ _k }}" data-party="{{ 'true' if npc.party else 'false' }}" onclick="toggleNpcParty('{{ _k }}')">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                </span>
                 {% if _has_tt %}
                 <div class="tooltip-body" data-md-compendium>
                     {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
@@ -53,13 +55,15 @@
             {% set npc_tie = npc.tie %}
             {% set _has_tt = npc_bio or _mot or npc_tie %}
             <div class="npc-item nearby-item{% if _has_tt %} has-tooltip{% endif %}" data-npc-id="{{ _k }}">
-                <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
+                <span class="npc-name-row">
+                    <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
+                    <span class="npc-party-toggle" data-npc-id="{{ _k }}" data-party="{{ 'true' if npc.party else 'false' }}" onclick="toggleNpcParty('{{ _k }}')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                </span>
                 {% if npc_position %}
                 <span class="npc-position-inline">{{ npc_position }}</span>
                 {% endif %}
-                <span class="npc-party-toggle" data-npc-id="{{ _k }}" data-party="{{ 'true' if npc.party else 'false' }}" onclick="toggleNpcParty('{{ _k }}')">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                </span>
                 {% if _has_tt %}
                 <div class="tooltip-body" data-md-compendium>
                     {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
