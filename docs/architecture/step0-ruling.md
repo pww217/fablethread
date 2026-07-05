@@ -19,6 +19,7 @@ flowchart LR
         I4["recent_turns[-1:]<br>(last turn's full narrative from chronicle.md<br>via load_last_narration();<br>ruling user prompt)"]
         I5["user_input"]
         I6["arc.threads<br>(urgent threads only)"]
+        I7["state.meta.beat_candidates<br>(from previous turn's World step)"]
     end
 
     subgraph LLM0["LLM — ruling_system.j2 + ruling_user.j2"]
@@ -26,7 +27,7 @@ flowchart LR
     end
 
     subgraph PYRES["Python — impossible check + rules.resolve_check()"]
-        P0["if impossible=true:<br>  synthesize fail outcome<br>  skip roll<br>else:<br>  roll 1d12 + stat_mod − diff_mod<br>  map total → Band"]:::pyNode
+         P0["if impossible=true:<br>  synthesize fail outcome<br>  skip roll<br>else:<br>  roll 1d12 + stat_mod + diff_mod<br>  map total → Band"]:::pyNode
     end
 
     subgraph OUT["Outputs"]
@@ -68,11 +69,11 @@ The ruling LLM also determines how the scene should progress: `"hold"` (scene co
 
 ## Key forward dependency
 
-`rules_outcome` feeds into `_compute_pacing_context()` which produces the single authoritative `PacingContext` struct passed to both Narrator and Record pipeline.
+`rules_outcome` feeds into `_compute_pacing_context()` which produces the single authoritative `PacingContext` struct passed to Narrator. Record does NOT receive PacingContext.
 
 ## Pacing Context
 
-All pacing signals are collapsed into one Python-computed struct (`PacingContext`) passed to both the Narrator and Record pipeline. The narrator receives `outcome_hint` (scene motion); Record receives the full struct including `directive`.
+All pacing signals are collapsed into one Python-computed struct (`PacingContext`) passed to Narrator. Record does NOT receive PacingContext. The narrator receives `outcome_hint` (scene motion).
 
 ### Struct definition
 
@@ -83,7 +84,7 @@ PacingContext:
    directive: str                    # "" | "Scene Imperative" | "Scene Pressure"; used by Narrator pipeline (Scene Imperative now purely age-based, CLIMAX turn-limit removed)
    outcome_hint: str | None          # "hold" | "advance" | "transition" — driven by scene_motion from ruling + Scene Imperative override + convergence hard gate
    summary: str                      # human-readable log string, never sent to LLM
-   convergence_score: int            # 6-component (0-7 range, urgent_thread 0-2 count-capped) raw score for RISING→CLIMAX transition (set by _narrate_setup, not _compute_pacing_context)
+   convergence_score: int            # 5-component (0-5 range, urgent_thread 0-2 count-capped) raw score for RISING→CLIMAX transition (set by _narrate_setup, not _compute_pacing_context)
    convergence_components: dict[str, int]  # breakdown of convergence score components
    convergence_threads: list[dict]   # thread dicts used for convergence computation
 ```

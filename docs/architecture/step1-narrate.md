@@ -12,12 +12,12 @@ flowchart LR
 
     subgraph IN["Inputs"]
         N1["state (full —<br>pc, location, scene,<br>inventory, compendium)"]
-        N2["prior_history<br>(last 20 incremental history bullets, all but last rendered as bullets)"]
+        N2["prior_history<br>(last 10 incremental history bullets, all but last rendered as bullets)"]
         N3["recent_turns[-1:]<br>(single most recent turn as full text)"]
         N4["rules_outcome<br>(band, directive, impossible, dice summary)"]:::xstream
         N5["conditions<br>(top-level list from pc.conditions)"]
         N6["npc_name_pool (cultural name list)"]
-        N7["npc_roster<br>(from build_npc_roster(comp),<br>  presence field: present/nearby/known)"]
+        N7["npc_roster<br>(from build_npc_roster(comp),<br>  filtered to presence == 'present' only)"]
         N9["world_factions<br>(immutable trace)"]:::xstream
         N10["pending_gm_beat<br>(type · effect metadata)"]
         N11["pacing_context<br>(outcome_hint)<br>from _compute_pacing_context()"]:::xstream
@@ -25,7 +25,7 @@ flowchart LR
     end
 
     subgraph LLM1["LLM — narrate_system.j2 + narrate_user.j2"]
-        NL["temp: 0.9 · streaming: yes<br>output: prose narrative (str)"]:::llmNode
+        NL["temp: 0.9 · top_p: 0.95 · freq_penalty: 0.5 · streaming: yes<br>output: prose narrative (str)"]:::llmNode
     end
 
     subgraph OUT["Outputs"]

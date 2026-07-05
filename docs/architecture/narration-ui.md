@@ -133,7 +133,7 @@ Grouped by category via emoji prefix:
 | 📜 | Faction/arc | `.tc-fa` |
 
 ### Cancel
-`POST /turn/cancel` sets a cancel flag on the running turn, waits for it to finish, then removes the completed turn's events via `remove_last_event()` and `remove_last_chronicle_turn()`, and returns `{"ok": true, "cancelled": true}`. No state revert needed since deferred atomic write means no disk writes occurred during the in-flight turn.
+`POST /turn/cancel` sets a cancel flag on the running turn, waits for it to finish, then returns `{"ok": true, "cancelled": true}`. Does NOT remove events or revert state — the in-flight turn's events remain in the history.
 
 ### Retry
 `POST /turn/delete` removes all events for the last turn from `events.jsonl` (including sanitizer events on turns divisible by `sanitize_every`) and `chronicle.md`, restores `last_turn_state` from the deleted turn's event, and returns previous actions for re-submission.

@@ -22,13 +22,13 @@ flowchart LR
     end
 
     subgraph LLM2C["LLM — record_system.j2 + record_user.j2"]
-        SL["temp: 0.4 · max_retries: 1<br>output: StorytellerResult JSON<br>(gm_beat field removed)"]:::llmNode
+        SL["temp: 0.4 · top_p: 0.85 · freq_penalty: 0.15 · max_retries: 1<br>output: StorytellerResult JSON<br>(gm_beat field removed)"]:::llmNode
     end
 
     subgraph OUT["Outputs — StorytellerResult"]
         O1["thread_update: list[ThreadUpdate]<br>  id + urgency/active/summary/progress/major_update_signal changes"]:::outNode
         O1b["goal_update: dict | None<br>  new long_term_objective, mid-arc pivot<br>  applied via goal_update['long_term_objective']"]:::outNode
-        O1c["arc_resolve: ArcResolution | None<br>  resolution, long_term_objective"]:::outNode
+        O1c["arc_resolve: ArcResolution | None<br>  resolution, long_term_objective (new goal string)"]:::outNode
         O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state, outcome,<br>resolved_turn, world_state_candidate"]:::outNode
         O3["thread_add: ArcThread | None"]:::outNode
         O4["actions: list[str]<br>  exactly 4 suggested player choices, grounded in game state (NPCs, inventory, location)"]:::outNode
@@ -141,7 +141,7 @@ flowchart TD
 
 ### Arc Context in Narration
 
-The arc state is passed to the narrator via `current_objective` in both system and user prompts. `goal_context` is present in the model but only surfaced in the player UI (tooltip/description text) — the pipeline and prompts never read it directly. The narrator sees arc metadata including resolved arcs (TTL-filtered) and completed threads.
+The arc state is passed to the narrator via `current_objective` in both system and user prompts. `arc_origin` is a seed-time field (2–3 sentences past tense) surfaced in the sidebar UI but NOT rendered in prompt context — the narrator works from general early-turn behavioral guidance, not the raw origin text. The narrator sees arc metadata including resolved arcs (TTL-filtered) and completed threads. `goal_context` was deleted, replaced by `arc_origin` on the seed model.
 
 ### Arc System Integration Points
 
@@ -161,14 +161,14 @@ flowchart TD
     end
 
     subgraph EXTRACT["Step 2c — Record Extract"]
-        E1["Storyteller emits<br>thread_update: list[ThreadUpdate],<br>goal_update: str | None,<br>arc_resolve: ArcResolution | None,<br>thread_resolve: list[ThreadResolution],<br>thread_add (gated by PacingContext.gate)"]:::pyNode
+        E1["Storyteller emits<br>thread_update: list[ThreadUpdate],<br>goal_update: str | None,<br>arc_resolve: ArcResolution | None,<br>thread_resolve: list[ThreadResolution],<br>thread_add (gated by phase, not PacingContext.gate)"]:::pyNode
     end
 
     subgraph ARC_ENGINE["Arc Engine (turn_state.py, called from turn.py)"]
         A1["_apply_thread_updates()<br>apply storyteller's explicit state changes"]:::pyNode
         A2["goal_update → dict assignment<br>state['long_term_objective']['long_term_objective'] = value"]:::pyNode
         A3["Same-turn conflict detection<br>update + resolve for same id → WARNING"]:::pyNode
-        A4["_apply_arc_resolve()<br>resolve arc, store in resolved_arcs,<br>create successor arc"]:::pyNode
+        A4["_apply_arc_resolve()<br>resolve arc, store in resolved_arcs,<br>create successor arc with new long_term_objective"]:::pyNode
         A5["_apply_thread_resolutions()<br>thread_resolve → completed_threads<br>with resolution_state, outcome, resolved_turn"]:::pyNode
         A6["_merge_arc_update()<br>engine arc_delta → state['long_term_objective']"]:::pyNode
     end
@@ -218,7 +218,7 @@ For each ThreadUpdate:
 
 #### Step-by-Step: `_apply_arc_resolve()`
 
-Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resolution`, `long_term_objective`).
+Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resolution`, `long_term_objective`). Note: `goal_context`, `thematic_question`, `drop_threads`, `new_threads` were removed from `ArcResolution` model.
 
 1. If `arc_resolve` is None → return None
 2. Validate arc from state; if missing/invalid → log WARNING, return None
@@ -260,7 +260,6 @@ Processes `storyteller_result.thread_resolve` (list of `ThreadResolution` with `
 | `config.thread_max_active` | 5 | Max active threads; oldest evicted when exceeded on thread_add |
 | `config.thread_urgency_max_age` | 8 | Turns at same urgency level before Python-side stepwise decay (urgent→normal→background) |
 | `config.sanitize_every` | 5 | Run sanitizer every N turns (0=disabled) |
-| `config.thread_completion_threshold` | 3 | Number of progress entries that auto-completes a thread |
 | `config.thread_creation_cooldown` | 3 | Minimum turns between new thread additions |
 | Auto-dormant threshold | 8 | Turns without activity before thread is auto-dormant (urgent threads excluded) |
 

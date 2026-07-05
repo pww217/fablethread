@@ -2,7 +2,7 @@
 
 ## EV checker library imports
 
-`ccya/ev/checkers/` imports directly from `ccya/engine/config` (EngineConfig, PRESSURE_BEAT_TYPES) and `ccya/rules` (MOMENTUM_DELTA, BANDS). This is a deliberate dependency — checkers need engine constants to validate mechanical invariants. The checker library does NOT depend on the turn pipeline; it reads events.jsonl directly.
+`ccya/ev/checkers/` imports directly from `ccya/engine/turn` (PRESSURE_BEAT_TYPES) and `ccya/engine/config` (EngineConfig) and `ccya/rules` (MOMENTUM_DELTA, BANDS). This is a deliberate dependency — checkers need engine constants to validate mechanical invariants. The checker library does NOT depend on the turn pipeline; it reads events.jsonl directly.
 
 ## Error propagation path (structured observability)
 
@@ -33,15 +33,15 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 - Config fields: thread_deescalate_on_success, arc_memory_ttl (default 3), thread_memory_ttl (default 3), thread_max_active (default 5), sanitize_every (default 5, 0=disabled). **Thread lifecycle enforcement:** thread_urgency_max_age (default 8, stepwise urgency decay threshold), thread_creation_cooldown (default 3, minimum turns between thread_add). YAML keys match Python field names directly. **Debug mode:** debug_mode (read from `game.debug.enabled` in config.yaml, default False) — gates streaming metadata display (scene_phase, outcome_hint, summary) in UI turn_complete handler. (gm_beat no longer in turn_complete SSE payload — beats flow through state.meta.pending_gm_beat; debug row reads from there if needed.)
 - New in beat generation split: `world_temperature` (default 0.55) — temperature for World step (Step 2d, async) beat-candidate generation.
-- Sampling parameters: ruling_temperature/ruling_top_p, extract_temperature/extract_top_p/extract_frequency_penalty, narrate_temperature/narrate_top_p/narrate_frequency_penalty, prepare_seed_temperature/prepare_seed_top_p (0.4/0.95, excludes temperature_override), pack_generation_temperature/pack_generation_top_p; stub fields always null until mlx-lm SDK support: seed, top_k, min_p, rep_penalty, rep_penalty_window. Config structure migrated from flat keys to nested `llm.<stage>.<param>` format (Phase 08).
+- Sampling parameters: ruling_temperature/ruling_top_p, extract_temperature/extract_top_p/extract_frequency_penalty (0.05), narrate_temperature/narrate_top_p/narrate_frequency_penalty (0.3), prepare_seed_temperature/prepare_seed_top_p (0.4/0.95, excludes temperature_override), pack_generation_temperature/pack_generation_top_p; stub fields always null until mlx-lm SDK support: seed, top_k, min_p, rep_penalty, rep_penalty_window. Config structure migrated from flat keys to nested `llm.<stage>.<param>` format (Phase 08).
 
 ## Computation functions (Phase 06b)
 
 - `_compute_narration_directive(scene_phase, thread_urgency_count, effective_scene_age, ...)` — purely age-based priority stack: Scene Imperative → Scene Pressure → empty. Removed Overwhelm/Pressure/Tension/Breathe directives (handled by phase).
-- `_compute_pacing_context(scene_phase, thread_urgency_count, effective_scene_age, ...)` — returns PacingContext with directive, outcome_hint, summary, convergence_score, convergence_components, convergence_threads fields.
-- `_compute_scene_phase(state, ages, config, convergence_score=0)` — 5-state phase machine (SETUP→RISING→CLIMAX→RESOLUTION→BREATHER), returns updated `WorldState` with new `state.scene` (immutable pattern). RISING→CLIMAX transition driven by convergence_score ≥ threshold. climax_turn_count tracked in `state.scene`.
+- `_compute_pacing_context(scene_phase, thread_urgency_count, effective_scene_age, ...)` — returns PacingContext with directive, outcome_hint, summary. (convergence_score/components/threads are on PacingContext model but NOT populated by this function — they're set elsewhere in turn.py).
+- `_compute_scene_phase(state, ages, config, total_convergence_score=0, turn_no=0)` — 5-state phase machine (SETUP→RISING→CLIMAX→RESOLUTION→BREATHER), returns updated `Scene` (not WorldState). RISING→CLIMAX transition driven by total_convergence_score ≥ config.convergence_enter_threshold. climax_turn_count tracked in returned Scene.
 - `_compute_ages(state)` returns only `{"scene_age": scene_age}` — location_age and combat_age removed in Phase 03 pacing overhaul; effective_scene_age set in _ruling_phase() by adding combat boost to scene_age.
-- `ccya/engine/_pacing.py` — BEAT_PHASE_MAP, BEAT_BUCKETS, derive_allowed_beat_types(directive=), compute_convergence_score(scene_phase, active_threads, scene_age, recent_beats, config, turn_no, recent_rolls) → tuple[int, dict[str, int]] — beat constraint derivation with directive overrides, 6-component convergence score for RISING→CLIMAX transition. `BEAT_BUCKETS` groups beat types into pressure/situation/relief functional buckets for phase-based filtering.
+- `ccya/engine/_pacing.py` — BEAT_PHASE_MAP, BEAT_BUCKETS, derive_allowed_beat_types(directive=), compute_convergence_score(scene_phase, active_threads, recent_beats, config, turn_no, recent_rolls) → tuple[int, dict[str, int]] — beat constraint derivation with directive overrides, 5-component convergence score (0-6 range) for RISING→CLIMAX transition. Components: urgent_thread (0-2), threat_thread (+1), beat_streak (+1), roll_starvation (+1), threat_density (+1). `BEAT_BUCKETS` groups beat types into pressure/situation/relief functional buckets for phase-based filtering.
 
 ## Token budget cascade
 

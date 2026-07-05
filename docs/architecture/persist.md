@@ -4,24 +4,24 @@ Atomic writes to disk. No LLM calls.
 
 ## Event field notes
 
-- `narrate_prompt` is saved at the event level (with `rendered_system`, `rendered_user`, `output`, `context_meta`)
-- `ruling_prompt` is saved at the event level (with `rendered_system`, `rendered_user`, `output`, `parse_error`, `context_meta`)
+- `narrate_prompt` is saved at the event level (with `output` + `context_meta` only; `rendered_system`/`rendered_user` go to `prompts.jsonl`)
+- `ruling_prompt` is saved at the event level (with `output`, `parse_error`, `context_meta` only; `rendered_system`/`rendered_user` go to `prompts.jsonl`)
 - `record_prompt` is NOT saved at the event level — it's available in `extraction.record.rendered_user` and `extraction.record.rendered_system` (record replaces the old storytell stream; see [step2c-record](./step2c-record.md))
-- `pacing_context` is saved at the event level (serialized dict with `directive`, `outcome_hint`, `summary`, `scene_phase`, etc.)
+- `pacing_context` is saved at the event level (serialized dict with `directive`, `outcome_hint`, `summary`, `scene_phase`, `climax_turn_count`, `breather_turn_count`, `convergence_score`, `convergence_components`, `convergence_threads`)
 - `last_turn_state` is saved at the event level (full state at end of turn, used by checkers for state-at-turn verification)
 - `changes` is saved at the event level (sanitizer output: inventory, player, facts, threads)
 - `extraction_context` is NOT saved at the event level — it's an internal dataclass used only during extraction to build the record prompt. Checkers that need this data must parse `extraction.record.rendered_user` or use `applied.*`/`last_turn_state`.
 
 ### last_turn_state timing
 
-`last_turn_state` is captured at `engine/turn.py` after all turn processing (ruling, narrate, extract, sanitizer, apply_delta). This means:
+`last_turn_state` is captured at `engine/turn.py` **after the async window** (sanitize + world). The turn order is: ruling → narrate → extract → **apply_delta** → async(sanitize → world → save). This means:
 
 - Thread resolutions are already reflected (resolved threads moved to `completed_threads`)
 - Arc resolutions are already reflected (arc may be resolved with successor)
 - Inventory/condition changes are already applied
 - Location changes are already applied
 - Prior history bullet is already appended
-- Sanitizer changes are already applied
+- Sanitizer changes are already applied (async window runs after apply)
 
 **Checker implication:** When validating `arc_resolve.drop_threads` or `thread_resolve` IDs, compare against the **previous** turn's `last_turn_state` (pre-resolution state), not the current turn's. See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for the tracking pattern.
 
@@ -37,9 +37,8 @@ When `config.sanitize_every > 0`, the sanitizer runs on turns divisible by `sani
 
 **Cancel** (`/turn/cancel`):
 1. Request cancel flag on the running turn
-2. Wait for turn to finish (`await_turn_done`)
-3. If turn completed (turn number advanced), remove the completed turn's events via `remove_last_event()` and `remove_last_chronicle_turn()`
-4. Return `{"ok": true, "cancelled": true}` — no state revert needed since no disk writes occurred during the in-flight turn
+2. Wait for turn to finish (`await_turn_done`, 30s timeout)
+3. Return `{"ok": true, "cancelled": true}` — **no events removed on cancel** (events remain in events.jsonl; player can delete the turn afterward if desired)
 
 **Delete** (`/turn/delete`):
 1. Load last turn's event to get `last_turn_state`
@@ -58,7 +57,7 @@ flowchart LR
 
     subgraph IN["Inputs"]
         P1["state (post-apply)"]
-        P2["event dict<br>(turn, input, applied, rejected,<br>actions, rules,<br>narrate/extract metrics, extraction<br>with per-stream prompts + attempts,<br>rules_prompt, narrate_prompt,<br>engine_expired_conditions, changes,<br>pacing_context, last_turn_state)"]
+        P2["event dict<br>(turn, input, applied, rejected, thread_dedup_rejections,<br>actions, ruling, pacing_context, post_turn_pending_beat,<br>allowed_beat_types, post_turn_location_id, scene_phase,<br>narrate, extract, extraction, changes, reconcile_warnings,<br>ruling_prompt, narrate_prompt)"]
         P3["narrative: str"]
         P4["turn number"]
     end

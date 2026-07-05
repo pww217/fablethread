@@ -20,7 +20,7 @@ flowchart LR
     end
 
     subgraph LLM2B["LLM — extract_state_system.j2 + extract_state_user.j2"]
-        SL["temp: 0.4 · max_retries: 1<br>output: StateExtractResult JSON"]:::llmNode
+        SL["temp: 0.4 · top_p: 0.85 · freq_penalty: 0.15 · max_retries: 1<br>output: StateExtractResult JSON"]:::llmNode
     end
 
     subgraph OUT["Outputs — StateExtractResult"]
@@ -39,4 +39,4 @@ flowchart LR
 
 ## Key forward dependency
 
-Step 2c receives `npc_roster` (from build_npc_roster()) and `location_change` from the merged StateDelta. Cross-stream items_gained/lost were removed — extraction_ctx now covers all this-turn derived data.
+Step 2c does NOT receive `npc_roster` or `location_change`. Record receives `narration`, `arc.threads[]`, `recent_turns[-10:]`, `band`, `world_state`, `prior_history` from `extraction_ctx` (built from scene_result + state_result). The merged StateDelta is applied separately by `_apply_state_updates()`.
