@@ -57,8 +57,6 @@ from ccya.state import (
 
 _log = logging.getLogger(__name__)
 
-PRESSURE_BEAT_TYPES = ("pressure", "escalation", "complication", "setback")
-
 
 async def run_turn(
     save_dir: Path,

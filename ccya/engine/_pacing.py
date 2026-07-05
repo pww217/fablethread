@@ -19,17 +19,17 @@ _log = logging.getLogger(__name__)
 
 
 BEAT_BUCKETS: dict[str, list[str]] = {
-    "pressure":  ["pressure", "complication", "escalation", "setback"],
-    "situation": ["revelation", "twist", "hazard", "callback"],
-    "relief":    ["opportunity", "breathing_room"],
+    "tension":   ["pressure", "complication", "escalation", "setback"],
+    "discovery": ["revelation", "twist", "callback"],
+    "respite":   ["opportunity", "breathing_room"],
 }
 
 BEAT_PHASE_MAP: dict[str, list[str]] = {
-    "SETUP":       ["pressure", "complication", "escalation", "revelation", "twist", "opportunity", "callback", "breathing_room", "hazard"],
+    "SETUP":       ["pressure", "complication", "escalation", "revelation", "twist", "opportunity", "callback", "breathing_room"],
     "RISING":      ["pressure", "complication", "escalation", "revelation", "twist"],
     "CLIMAX":      ["pressure", "escalation", "complication"],
     "RESOLUTION":  ["breathing_room", "callback", "revelation"],
-    "BREATHER":    ["opportunity", "revelation", "callback", "breathing_room", "hazard"],
+    "BREATHER":    ["opportunity", "revelation", "callback", "breathing_room"],
 }
 
 
@@ -46,7 +46,7 @@ def derive_allowed_beat_types(
     """
     base = BEAT_PHASE_MAP.get(scene_phase, list(BEAT_PHASE_MAP["SETUP"]))
     if directive == "Scene Imperative":
-        extra = ["revelation", "hazard", "callback", "opportunity", "setback", "breathing_room"]
+        extra = ["revelation", "callback", "opportunity", "setback", "breathing_room"]
         return list(dict.fromkeys(base + extra))  # dedupe, preserve order
 
     return base
@@ -93,13 +93,12 @@ def compute_convergence_score(
     # (scene_age removed — used by narration directive, not convergence)
 
     # Component 4: Beat streak (+1) — repaired carry-over logic
-    pressure_types = set(BEAT_BUCKETS["pressure"])
-    last_non_null_type = None
+    tension_types = set(BEAT_BUCKETS["tension"])
     pressure_count = 0
     if recent_beats:
         n = len(recent_beats)
         window = recent_beats[: min(n, 5)]
-        pressure_count = sum(1 for b in window if b.get("type") in pressure_types)
+        pressure_count = sum(1 for b in window if b.get("type") in tension_types)
         threshold = ceil(n * 0.6) if n < 5 else 3
         if pressure_count >= threshold:
             score += 1
@@ -236,7 +235,6 @@ def _compute_scene_phase(
             thread_urgency_count += 1
 
     # Phase transition logic
-    old_phase = phase
     if phase == "SETUP":
         if thread_urgency_count > 0 or turns_in_phase >= 3 or (total_convergence_score >= 2 and turns_in_phase >= 2):
             phase = "RISING"

@@ -262,8 +262,8 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
         # Component 3: scene_age (+1 if scene_age >= threshold)
         components["scene_age"] = 1 if scene_age >= cfg.scene_pressure_threshold else 0
 
-        # Component 4: beat_streak (+1 if >=60% pressure beats in recent window)
-        pressure_types = set(BEAT_BUCKETS["pressure"])
+        # Component 4: beat_streak (+1 if >=60% tension beats in recent window)
+        tension_types = set(BEAT_BUCKETS["tension"])
         last_non_null_type = None
         pressure_count = 0
         if recent_beats:
@@ -273,7 +273,7 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
                 bt = b.get("type")
                 if bt is not None:
                     last_non_null_type = bt
-                if last_non_null_type in pressure_types:
+                if last_non_null_type in tension_types:
                     pressure_count += 1
             threshold = ceil(n * 0.6) if n < 5 else 3
             components["beat_streak"] = 1 if pressure_count >= threshold else 0
