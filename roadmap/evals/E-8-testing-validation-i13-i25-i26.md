@@ -175,6 +175,27 @@ After eval runs, run targeted ev-review on:
 1. **Thread lifecycle (NEW):** `thread_update` and `thread_resolve` reference unknown thread IDs — no `thread_add` events exist. Threads are being updated/resolved without being added first. Found in space-western run (0002). Thread IDs affected: `guild_politics`, `coalition_pursuit`, `hidden_cargo`. **RESOLVED (2026-07-05):** FALSE POSITIVE — all three threads were seeded at turn 0 during `prepare_seed()`. The `thread_lifecycle` checker is too strict and doesn't account for seed threads (added_turn: 0). See B-30 for details.
 2. **Sanitizer lifecycle checker (pre-existing):** Checker code has bug — calls `.get()` on `WorldState` (Pydantic model) instead of dict access. **FIXED (2026-07-05):** Changed `state.get("arc")` to `getattr(state, "arc", None) or {}` in `ccya/ev/checkers/sanitizer.py:44`. Also fixed type annotation from `dict[str, Any]` to `Any`.
 
+## Validation — cordyceps-year-twenty-2026-07-05 (2026-07-05)
+
+Full 16-turn save examined. I-25 validation across all 6 positive-band turns.
+
+**I-25 confirmed working across all positive bands:**
+
+| Turn | Band | Intent | Result |
+|------|------|--------|--------|
+| T1 | crit_success | Sneak to ambush | Kills two scavengers — fully fulfilled |
+| T2 | success | Intimidate into surrender | Scavenger drops rifle and collapses |
+| T4 | success | Intimidate for intel | Reveals enemy count and equipment |
+| T10 | success | Destroy beacon + scavenge | Shatters beacon, strips gear |
+| T15 | partial | "Who are you?" | Identity revealed + demands half scrap (win-with-cost) |
+| T16 | success | "What's on the contract?" | Full ledger contents explained |
+
+- Authority hierarchy effective — band directives win over beats on all success turns
+- Beat treated as creative guidance, not direction
+- Partial band correctly manifests as win-with-cost
+- Fail bands correctly deny intent without consolation prizes
+- No I-25 failures found
+
 ## Output
 
 Phase reports at: `evals/runs/<group>/PHASE-1.md`, `PHASE-2.md`, `PHASE-3.md`

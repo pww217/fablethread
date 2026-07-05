@@ -51,11 +51,11 @@ class EngineConfig:
 
     # extract  
     extract_top_p: float = 0.85
-    extract_frequency_penalty: float = 0.15
+    extract_frequency_penalty: float = 0.05
 
     # narrate
     narrate_top_p: float = 0.95
-    narrate_frequency_penalty: float = 0.5
+    narrate_frequency_penalty: float = 0.3
 
     # prepare_seed
     prepare_seed_top_p: float = 0.95

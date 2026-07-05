@@ -433,6 +433,62 @@ def cmd_ruling_audit(events: list[dict[str, Any]]) -> None:
                 print(f"  T{v['turn']}: '{v['condition']}' not in reason=(empty)")
 
 
+def cmd_sanitizer(events: list[dict[str, Any]], turn: int) -> None:
+    """Show sanitizer events for a specific turn."""
+    sanitizer_events = [e for e in events if e.get("kind") == "sanitizer" and e.get("turn") == turn]
+    
+    if not sanitizer_events:
+        print(f"No sanitizer events for turn {turn}.")
+        return
+    
+    for se in sanitizer_events:
+        t = se.get("turn", "?")
+        print(f"=== Sanitizer — Turn {t} ===\n")
+        
+        # Thread changes
+        for field in ("threads_updated", "threads_removed", "threads_resolved", "threads_added"):
+            val = se.get(field)
+            if val:
+                print(f"-- {field} --")
+                if isinstance(val, list):
+                    for item in val:
+                        print(f"  {item}")
+                else:
+                    print(f"  {val}")
+                print()
+        
+        # Goal changes
+        goal_changed = se.get("goal_changed")
+        if goal_changed:
+            print("-- goal_changed --")
+            print(f"  {goal_changed}")
+            print()
+        
+        # Changes detail
+        cd = se.get("changes_detail")
+        if cd:
+            print("-- changes_detail --")
+            for k, v in cd.items():
+                print(f"  {k}: {v}")
+            print()
+        
+        # World state candidates
+        wsc = se.get("world_state_candidates")
+        if wsc:
+            print("-- world_state_candidates --")
+            for w in wsc:
+                print(f"  {w}")
+            print()
+        
+        # Progress dedup rejections
+        progress_rejections = se.get("progress_rejections") or se.get("progress_dedup_rejections")
+        if progress_rejections:
+            print("-- progress dedup rejections --")
+            for r in progress_rejections:
+                print(f"  {r}")
+            print()
+
+
 def cmd_thread_audit(events: list[dict[str, Any]]) -> None:
     """Audit thread lifecycle: creation, updates, resolution, and orphan detection."""
     violations: list[dict[str, Any]] = []

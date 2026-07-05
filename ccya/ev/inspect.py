@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from ccya.ev.events import (
@@ -125,8 +126,14 @@ def cmd_prompt(
     stream: str,
     field: str | None = None,
     include_system: bool = False,
+    from_events: bool = False,
+    save_dir: Path | None = None,
 ) -> None:
-    p = extract_prompt(ev, stream)
+    prompts = None
+    if from_events and save_dir is not None:
+        from ccya.ev.events import load_prompts
+        prompts = load_prompts(save_dir)
+    p = extract_prompt(ev, stream, prompts=prompts)
     if field:
         print(f"--- Turn {ev['turn']} \u2014 {stream} {field} ---")
         print(p.get(field, ""))

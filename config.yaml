@@ -1,7 +1,7 @@
 llm:
   host: http://10.75.100.51:1234/v1
   fallback_host: http://127.0.0.1:8080
-  model: gemma-4-26b-a4b-it
+  model: gemma-4-26b-a4b-it@iq3_xxs
   num_ctx: 16384
   context_window: 16384
   request_timeout_s: 180
@@ -14,12 +14,12 @@ llm:
   extract:
     temperature: 0.4
     top_p: 0.85
-    frequency_penalty: 0.15
+    frequency_penalty: 0.05
 
   narrate:
     temperature: 0.9
     top_p: 0.95
-    frequency_penalty: 0.5
+    frequency_penalty: 0.3
 
   prepare_seed:
     temperature: 0.4

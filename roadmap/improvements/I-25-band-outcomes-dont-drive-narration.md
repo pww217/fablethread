@@ -316,3 +316,24 @@ Phase persistence bug fixed: `_compute_scene_phase` result now written to `state
 - **First token ~1s** — narrate streaming starts consistently after ~1 second
 - **Noir fastest** (35.7s), piracy (36.6s), western (38.6s) — small variance
 - **Extract input grows** (7,800→9,500 tokens) — context accumulation across turns
+
+## Validation — cordyceps-year-twenty-2026-07-05 (2026-07-05)
+
+Full 16-turn save examined, all 6 positive-band turns validated.
+
+**I-25 is working.** All fixes holding:
+
+| Turn | Band | Intent | Result |
+|------|------|--------|--------|
+| T1 | crit_success | Sneak to ambush | Kills two scavengers, third breaks cover — fully fulfilled |
+| T2 | success | Intimidate into surrender | Presses shotgun, scavenger drops rifle and collapses |
+| T4 | success | Intimidate for intel | Reveals "Three more in a technical! Heavy rifles—automatic!" |
+| T10 | success | Destroy beacon + scavenge | Shatters beacon, strips gear from corpse |
+| T15 | partial | "Who are you?" | Thorne gives identity + demands half scrap — win-with-cost |
+| T16 | success | "What's on the contract?" | Thorne explains full ledger contents in detail |
+
+- Authority hierarchy effective — band directives win over beats on all success turns
+- Beat treated as creative guidance, not direction (T16: REVELATION manifest as coin catching light, not forced escalation)
+- Partial band correctly manifests as win-with-cost (T15)
+- Fail bands correctly deny intent without consolation prizes (T7/T8)
+- No I-25-related failures found in this save

@@ -1,3 +1,15 @@
+---
+title: "Eval cycle improvements tracking"
+status: triaged
+urgency: 2
+size: medium
+created: 2026-06-22
+ticket_id: E-10
+labels:
+  - eval
+  - engine
+---
+
 # Eval Cycle Improvements — Tracking
 
 Branch: `eval-cycle-improvements`
