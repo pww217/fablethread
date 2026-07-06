@@ -1,6 +1,7 @@
 ---
 title: "Fresh eval cycle — comprehensive post-I-28 validation"
-status: scoping
+status: done
+completed: 2026-07-06
 urgency: 2
 size: large
 created: 2026-07-06
@@ -9,6 +10,8 @@ labels:
   - eval
   - comprehensive
 ---
+
+## Status: Complete — all phases done, REPORT.md written
 
 ## LLM Backend
 
@@ -144,3 +147,29 @@ Consolidated report: `evals/runs/<group>/REPORT.md`
 
 New bugs filed as B- tickets in `roadmap/bugs/`.
 New eval findings filed as E- tickets if they warrant separate tracking.
+
+## Eval Findings (Phase 1-3)
+
+### Checker Fixes
+
+1. **`convergence_recompute`** — 2 bugs fixed:
+   - Removed `scene_age` component (removed from engine, checker still had it)
+   - `recent_rolls` now reads from previous turn's state (convergence runs in narrate phase, before world step)
+
+2. **`thread_lifecycle`** — 2 parts fixed:
+   - Engine: cooldown rejections now logged to `thread_dedup_rejections`
+   - Checker: skips thread_add when it's in `thread_dedup_rejections`
+
+3. **`thread_cooldown`** — checker now skips thread_add that engine rejected for cooldown
+
+### Engine Bugs Found
+
+4. **SETUP→RISING transitions early** — Engine transitions SETUP→RISING on turn 2 in zombie-survival without valid trigger (no urgent thread, `turns_in_phase=1 < 3`). Likely in `_compute_scene_phase()`.
+
+5. **World state TTL expiry not working** — Expired facts persist in `last_turn_state.scene.world_state` after `expires_turn`. Fact `edward_chaney_cornered` (expires_turn=5) still present on turns 6-9. TTL expiry in `turn.py:131-144` may not be persisting mutations.
+
+6. **Beat candidates empty on some turns** — Investigated: world step legitimately returns 0 beats on turns 18, 24, 25 (zombie run) and turns 23-25 (allied-ww2 run). This is a late-game LLM issue — the world step LLM fails to generate beats in later turns. Not a checker bug.
+
+### B-29 Status
+
+- **Fixed** — `_state_left.html` template bug resolved, `npc.id` → dict key usage confirmed working.
