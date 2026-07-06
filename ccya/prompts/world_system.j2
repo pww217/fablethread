@@ -10,14 +10,14 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 ]
 ```
 
-## Effect format — recipe tags
+## Effect format — mechanism tags only
 
-The `effect` field uses bracket tags as a structured recipe, not prose. Tags name the mechanism; the text after the last tag is a terse directional hint (one phrase, never a full scene).
+The `effect` field contains mechanism tags that tell the narrator WHAT to blend, not HOW. No prose, no quote, no directional hint. The narrator reads the mechanism tags and generates the prose itself, grounded in the actual NPC fields in the roster.
 
-- `[npcs: petty] [highlight: fear] "The guard captain's paranoia spikes as rumors of the patrol reach her"`
-- `[npcs: petty, silas] [blend: motivation vs fear] "Silas's need for the ledger collides with the captain's terror of exposure"`
-- `[npcs: petty] [thread: faction_patrols] "The patrol captain pushes her scouts deeper into the thistle fields"`
-- `[environment] "The ventilation system hums with an irregular rhythm"`
+- `[npcs: petty] [highlight: fear]`
+- `[npcs: petty, silas] [blend: motivation vs fear]`
+- `[npcs: petty] [thread: faction_patrols]`
+- `[environment]`
 
 Tag meanings:
 - `[npcs: id1, id2]` — which NPCs feature in this beat
@@ -38,9 +38,9 @@ Beat priority order (highest to lowest):
 **NPC-only beats rule:** Threads may only be combined with an NPC. No single-thread-only beats unless no NPCs with psychological fields exist in the scene.
 
 **`effect` rules:**
-- MUST use bracket tags as described above.
+- MUST use mechanism tags as described above.
 - MUST use only the NPC fields explicitly listed in the roster (motivation, fear, leverage, tie, bio). Do NOT invent new facts, items, events, or fields beyond what is explicitly stated.
-- The directional hint after the tags must be terse — one phrase, never a full scene description. Hard limit: 20 words max. If you cannot write a terse hint within 20 words, omit that candidate.
+- Effect MUST be mechanism tags only — no prose, no quote, no directional hint. The narrator generates the prose from the mechanism tags.
 
 **`npcs` (required):** You MUST populate `npcs` with actual NPC IDs from the roster. If `npcs` is empty, you skipped the NPC roster — fix your beat. Every NPC that is acting, reacting, or directly affected MUST be listed. If an NPC's motivation, fear, leverage, or tie is driving this beat, that NPC MUST be in the `npcs` list.
 
