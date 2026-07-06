@@ -1,6 +1,7 @@
 ---
 title: "'NPCEntry' object has no attribute 'id' in _state_left.html"
-status: validated
+status: done
+completed: 2026-07-06
 urgency: 2
 size: small
 created: 2026-07-04

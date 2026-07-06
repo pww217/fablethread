@@ -536,6 +536,13 @@ def _apply_state_updates(
                         trace_id, turn_no, _last_add, config.thread_creation_cooldown,
                         extra={"trace_id": trace_id, "turn": turn_no},
                     )
+                    if thread_dedup_rejections is not None:
+                        thread_dedup_rejections.append({
+                            "thread_id": storyteller_result.thread_add.id,
+                            "rejected_reason": "cooldown",
+                            "similarity": 0.0,
+                            "turn": turn_no,
+                        })
                 else:
                     _new_thread = storyteller_result.thread_add
                     turn_no_for_add = state.meta.turn + 1

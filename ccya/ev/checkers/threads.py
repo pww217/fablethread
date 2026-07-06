@@ -38,6 +38,14 @@ def thread_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -> Che
         if thread_add and isinstance(thread_add, dict):
             tid = thread_add.get("id")
             if tid:
+                # Check if thread was rejected for a valid reason (cooldown, duplicate, etc.)
+                rejected_ids = {
+                    r.get("thread_id")
+                    for r in (ev.get("thread_dedup_rejections") or [])
+                    if isinstance(r, dict) and r.get("thread_id")
+                }
+                if tid in rejected_ids:
+                    continue
                 # Check against CURRENT turn's last_turn_state (already has thread_add applied)
                 snap = extract_field(ev, "last_turn_state") or {}
                 nxt_arc = snap.get("arc") or snap.get("long_term_objective") or {}
@@ -317,6 +325,15 @@ def thread_cooldown(events: list[dict[str, Any]], *, config: Any = None) -> Chec
         thread_add = record_output.get("thread_add")
 
         if thread_add and isinstance(thread_add, dict):
+            # Skip if engine rejected this thread_add (cooldown, duplicate, etc.)
+            rejected_ids = {
+                r.get("thread_id")
+                for r in (ev.get("thread_dedup_rejections") or [])
+                if isinstance(r, dict) and r.get("thread_id")
+            }
+            tid = thread_add.get("id")
+            if tid and tid in rejected_ids:
+                continue
             # Read last_thread_creation_turn from PREVIOUS turn's meta
             if prev_snap_for_this:
                 last_turn_created = prev_snap_for_this.get("meta", {}).get("last_thread_creation_turn")

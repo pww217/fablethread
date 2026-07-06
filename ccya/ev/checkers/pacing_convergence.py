@@ -51,6 +51,7 @@ def phase_transition_signals(events: list[dict[str, Any]], *, config: Any = None
             prev_breather_turn_count = prev_scene.get("breather_turn_count", 0)
 
             # SETUP→RISING: fires when urgent thread appears OR turns_in_phase >= 3
+            #              OR (convergence >= 2 AND turns_in_phase >= 2)
             if i > 0:
                 prev_ev = filtered[i - 1]
                 prev_pc = extract_field(prev_ev, "pacing_context") or {}
@@ -63,11 +64,14 @@ def phase_transition_signals(events: list[dict[str, Any]], *, config: Any = None
                     prev_scene = prev_snap.get("scene") or {}
                     prev_turns_in_phase = prev_scene.get("turns_in_phase", 0)
                     reached_turn_threshold = prev_turns_in_phase + 1 >= 3
-                    if not has_urgent and not reached_turn_threshold:
+                    convergence_met = (convergence_score is not None
+                                       and convergence_score >= 2
+                                       and prev_turns_in_phase + 1 >= 2)
+                    if not has_urgent and not reached_turn_threshold and not convergence_met:
                         findings.append({
                             "turn": turn_no,
                             "check": "setup_rising_trigger",
-                            "detail": f"SETUP→RISING at turn {turn_no} without urgent thread (count={prev_urgent_count}) or turns_in_phase>=3 (prev_scene={prev_turns_in_phase})",
+                            "detail": f"SETUP→RISING at turn {turn_no} without urgent thread (count={prev_urgent_count}) or turns_in_phase>=3 (prev_scene={prev_turns_in_phase}) or convergence>=2 (score={convergence_score})",
                         })
                         all_passed = False
 
@@ -238,9 +242,14 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
             if prev_recent_beats:
                 recent_beats = prev_recent_beats
 
-        # Get recent_rolls — read from current turn's state because
-        # convergence runs in narrate phase, after ruling appends rolls.
-        recent_rolls: list[dict[str, Any]] = meta.get("recent_rolls") or []
+        # Get recent_rolls — read from previous turn's state to match
+        # what was used for convergence calculation (convergence runs in
+        # narrate phase, before world step appends new rolls).
+        recent_rolls: list[dict[str, Any]] = []
+        if i > 0:
+            prev_rolls = prev_turn_meta.get("recent_rolls") or []
+            if prev_rolls:
+                recent_rolls = prev_rolls
 
         # Recompute each component independently
         components: dict[str, int] = {}
@@ -259,9 +268,6 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
         )
         components["threat_thread"] = 1 if any_threat else 0
 
-        # Component 3: scene_age (+1 if scene_age >= threshold)
-        components["scene_age"] = 1 if scene_age >= cfg.scene_pressure_threshold else 0
-
         # Component 4: beat_streak (+1 if >=60% tension beats in recent window)
         tension_types = set(BEAT_BUCKETS["tension"])
         pressure_count = 0
@@ -274,15 +280,16 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
         else:
             components["beat_streak"] = 0
 
-        # Component 5: roll_starvation (+1 if turns_since_last_roll >= threshold)
+        # Component 4: roll_starvation (+1 if turns_since_last_roll >= threshold)
+        # Engine uses turn_no directly (not current_turn), so match that
         turns_since_last_roll = None
         if recent_rolls:
             last_roll_turn = recent_rolls[0].get("turn") if isinstance(recent_rolls[0], dict) else None
             if last_roll_turn is not None:
-                turns_since_last_roll = current_turn - last_roll_turn
+                turns_since_last_roll = turn_no - last_roll_turn
         components["roll_starvation"] = 1 if (turns_since_last_roll is not None and turns_since_last_roll >= cfg.roll_starvation_threshold) else 0
 
-        # Component 6: threat_density (+1 if active threat count >= threshold)
+        # Component 5: threat_density (+1 if active threat count >= threshold)
         active_threat_count = sum(
             1 for t in convergence_threads
             if t.get("type") == "threat" and not t.get("dormant", False)
