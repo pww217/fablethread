@@ -46,7 +46,7 @@ def new_thread_validity(events: list[dict[str, Any]], *, config: Any = None) -> 
 
         # Check no duplicate thread ids in state
         snap = extract_field(ev, "last_turn_state") or {}
-        arc = snap.get("arc") or {}
+        arc = snap.get("arc") or snap.get("long_term_objective") or {}
         thread_ids = [
             t.get("id") for t in (arc.get("threads") or [])
             if isinstance(t, dict) and t.get("id") == tid
