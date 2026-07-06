@@ -124,6 +124,32 @@ def build_prompt_context(
             "turn_no": turn_no,
         }
 
+    if stream == "record":
+        arc = prev_snap.get("arc") or {}
+        pc = prev_snap.get("pc") or {}
+        # Format thread progress like _storytell_messages does
+        all_threads = []
+        for t in (arc.get("threads") or []):
+            if isinstance(t, dict):
+                entry = dict(t)
+                entry.setdefault("last_updated_turn", None)
+                from ccya.prompts.context import _fmt_progress
+                entry["progress"] = _fmt_progress(entry.get("major_updates"))
+                all_threads.append(entry)
+            else:
+                all_threads.append({"id": "", "summary": ""})
+        return {
+            "pc_name": pc.get("name", "Unnamed"),
+            "all_threads": all_threads,
+            "world_state": list(prev_snap.get("scene", {}).get("world_state") or []),
+            "band": (turn_ev.get("ruling") or {}).get("band", ""),
+            "scene_phase": turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP"),
+            "curtain_call": turn_ev.get("pacing_context", {}).get("curtain_call", ""),
+            "prior_history": list((prev_meta.get("prior_history") or [])[:-1]),
+            "narration": narration,
+            "turn_no": turn_no,
+        }
+
     if stream == "storytell":
         arc = prev_snap.get("arc") or {}
         scene = prev_snap.get("scene") or {}
