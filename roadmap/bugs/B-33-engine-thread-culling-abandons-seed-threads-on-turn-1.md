@@ -1,6 +1,7 @@
 ---
 title: "Engine thread culling abandons seed threads on turn 1"
-status: new
+status: done
+completed: 2026-07-06
 urgency: 2
 size: small
 created: 2026-07-06

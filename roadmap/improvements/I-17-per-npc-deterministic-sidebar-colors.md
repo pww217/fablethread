@@ -1,6 +1,7 @@
 ---
 title: "Per-NPC deterministic sidebar colors for NPC identification"
-status: scoping
+status: done
+completed: 2026-07-06
 urgency: 3
 size: small
 created: 2026-07-04
