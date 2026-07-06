@@ -10,12 +10,10 @@ labels:
   - comprehensive
 ---
 
-## LLM Backend Note
+## LLM Backend
 
-Primary LLM (`10.75.100.51:1234`) is down. Use fallback backend:
-- **Host:** `localhost:8080`
-- **Model:** Gemma 4-26B via llama-swap
-- **Config:** `config.yaml` → `llm.host` should be set to `localhost:8080`
+- **Primary:** `10.75.100.51:1234` (LMStudio, `google/gemma-4-26b-a4b-it`)
+- **Fallback:** `localhost:8080` (llama-swap, Gemma 4-26B)
 
 ## Purpose
 
