@@ -1,6 +1,6 @@
 ---
 title: "Beats: recipe format with NPC personality priority"
-status: testing
+status: done
 urgency: 3
 size: medium
 created: 2026-07-05
@@ -170,12 +170,16 @@ Per AGENTS.md: "Stale docs are bugs." Must update:
 - Check for thread repetition (same thread in 5-turn window)
 - Verify NPC-only beats rule (no thread-only beats when NPCs exist)
 
-## Testing Results: FAILING
+## Testing Results: PASSING (20-turn verification)
 
-All 3 eval runs show 100% of beats with empty `npcs` field:
-- `1717_space-western_15t`: 45/45 beats empty `npcs`
-- `1723_golden-piracy_15t`: 45/45 beats empty `npcs`
-- `1655_noir-1930s_15t`: 3/3 beats empty `npcs`
+**2026-07-05 20-turn golden-piracy eval** (`1944_golden-piracy_20t`):
+- 18/20 pending beats populated with NPCs
+- 1 environment beat (T10, correct — no NPCs in marshlands)
+- 1 turn with no beat (T1, normal for first turn)
+- Beat/NPC behavior verified across full 20-turn run
+- GM Beat checkers: `gm_beat_lifecycle` PASS, `beat_phase_validity` PASS
+- NPC checkers: `npc_presence` PASS, `compendium_lifecycle` PASS
+- Overall pass rate: 87.2%
 
 ### Root cause
 
