@@ -170,6 +170,14 @@ New eval findings filed as E- tickets if they warrant separate tracking.
 
 6. **Beat candidates empty on some turns** — Investigated: world step legitimately returns 0 beats on turns 18, 24, 25 (zombie run) and turns 23-25 (allied-ww2 run). This is a late-game LLM issue — the world step LLM fails to generate beats in later turns. Not a checker bug.
 
+### B-37 Status (folded from B-37)
+
+- **Fixed** — `beat_candidates` now persisted at event top level (`turn.py:620`). Previously only in `extraction.world.output` (nested, hard to query). Added `beat_candidates` key to event dict in `_persist_and_async_cleanup()`.
+
+### B-36 Status (folded from B-36)
+
+- **Open** — `thread_add` extracted but silently dropped. `physical_bypass_retrieval` extracted as thread_add at turn 4 but never applied to `arc.threads`. No dedup/cooldown rejection logged. Suspected silent exception in arc validation block or early eviction by `thread_max_active` cap.
+
 ### B-29 Status
 
 - **Fixed** — `_state_left.html` template bug resolved, `npc.id` → dict key usage confirmed working.

@@ -617,6 +617,7 @@ async def _persist_and_async_cleanup(
         })
 
     _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    beat_candidates = state.meta.beat_candidates or []
     event = {
         "ts": _ts,
         "trace_id": trace_id,
@@ -638,6 +639,7 @@ async def _persist_and_async_cleanup(
             "convergence_components": pc.convergence_components if pc else {},
             "convergence_threads": pc.convergence_threads if pc else [],
         },
+        "beat_candidates": beat_candidates,
         "post_turn_pending_beat": state.meta.pending_gm_beat,
         "allowed_beat_types": derive_allowed_beat_types(
             state.scene.scene_phase,
