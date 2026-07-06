@@ -170,13 +170,57 @@ New eval findings filed as E- tickets if they warrant separate tracking.
 
 6. **Beat candidates empty on some turns** — Investigated: world step legitimately returns 0 beats on turns 18, 24, 25 (zombie run) and turns 23-25 (allied-ww2 run). This is a late-game LLM issue — the world step LLM fails to generate beats in later turns. Not a checker bug.
 
-### B-37 Status (folded from B-37)
+### B-37 Status
 
 - **Fixed** — `beat_candidates` now persisted at event top level (`turn.py:620`). Previously only in `extraction.world.output` (nested, hard to query). Added `beat_candidates` key to event dict in `_persist_and_async_cleanup()`.
 
-### B-36 Status (folded from B-36)
+### B-36 Status
 
 - **Open** — `thread_add` extracted but silently dropped. `physical_bypass_retrieval` extracted as thread_add at turn 4 but never applied to `arc.threads`. No dedup/cooldown rejection logged. Suspected silent exception in arc validation block or early eviction by `thread_max_active` cap.
+
+### Thread Lifecycle Deep Dive (zombie-survival 25t) — B-36 investigation
+
+**6 threads total:** 3 seed (supply_stranglehold, sabotage_evidence, black_market_routes), 3 extraction thread_add (internal_corruption_discovery, physical_bypass_retrieval, locker_security_lockdown)
+
+**4 resolved:** supply_stranglehold (turn 8), internal_corruption_discovery (turn 9), locker_security_lockdown (turn 7), sabotage_evidence (turn 10)
+**2 active:** physical_bypass_retrieval (turn 4, never resolved), black_market_routes (turn 11, never resolved)
+
+**Lifetimes:**
+- locker_security_lockdown: 1-turn lifetime (extracted turn 6, resolved turn 7)
+- internal_corruption_discovery: 6-turn lifetime (extracted turn 3, resolved turn 9)
+- supply_stranglehold: 8-turn lifetime (seed turn 1, resolved turn 8)
+- sabotage_evidence: 9-turn lifetime (seed turn 1, first update turn 8, resolved turn 10)
+
+**Bugs found:**
+
+1. **physical_bypass_retrieval thread lost** — extracted as thread_add at turn 4 but never applied to seed/thread pool (never appears in convergence_threads), no dedup rejection or cooldown rejection logged
+2. **seed threads dedup-rejected** — supply_stranglehold dedup-rejected at turn 6, black_market_routes dedup-rejected at turns 14 and 15 (seed threads should bypass dedup)
+
+### Beat System Deep Dive (zombie-survival 25t)
+
+**Findings:**
+- `selected_beat` always `0` across all 15 turns examined — ruling always selects first candidate
+- `post_turn_pending_beat` null on 40% of turns (1, 7, 8, 11)
+- When present, pending beats are predominantly `[npcs: Danny Gallegos] [highlight: leverage/motivation/fear]` — narrow NPC focus with repetitive effect patterns
+- Allowed beat types shift correctly with phase: SETUP (8 types), RISING (5 types), CLIMAX (3 types)
+- Beat diversity is low — effect patterns repeat, no novel beat types emerge beyond NPC pressure and thread revelation
+
+### NPC Management Deep Dive (zombie-survival 25t, allied-ww2 25t, space-western 15t)
+
+**NPC creation source:** Scene extractor only (via `extraction.scene.output.compendium_npc_update`). World step produces beat candidates only, not NPCs.
+
+**NPC counts:**
+- zombie-survival: 1 NPC created during gameplay (danny_gallegos), 2 in final state (1 seed)
+- allied-ww2: 3 NPCs created (jose_gonzalez, unnamed_scout, armed_guards), 4 in final state (1 seed)
+- space-western: 6 NPCs created during gameplay, 7 in final state (1 seed)
+
+**Observability:** NPC data only in `extraction.scene.output.compendium_npc_update` (nested), not at event top level. Requires digging through extraction pipeline to see NPC changes.
+
+**Presence None values:** Scene extractor sends `presence=None` when it doesn't want to change presence. Semantically correct (None = no change) but confusing for observability — cannot distinguish "no change" from "data missing" without schema knowledge.
+
+**NPC dedup:** No dedup redirects found across all 3 runs. Scene extractor handles NPC identity correctly.
+
+**NPC lifecycle:** jose_gonzalez departed at turn 18 (killed in action), properly tracked with `departed_reason` and `departed_turn`. armed_guards remains present through end of allied-ww2 run.
 
 ### B-29 Status
 
