@@ -1,0 +1,7 @@
+id: world-npcs-test
+description: "Test world step NPC population"
+save: evals/runs/2026-07-05_0.31.0-23-g8fda1bfe_8fda1bfe/1717_space-western_15t
+turn: 2
+stream: world
+temp: 0.7
+checks: []
