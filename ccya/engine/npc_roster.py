@@ -19,11 +19,15 @@ _NPC_PALETTE = [
 ]
 
 
-def _generate_npc_color(npc_id: str) -> str:
+def generate_npc_color(npc_id: str) -> str:
     """Generate a deterministic color for an NPC based on its ID."""
     h = hashlib.sha256(npc_id.encode()).hexdigest()
     idx = int(h[:8], 16) % len(_NPC_PALETTE)
     return _NPC_PALETTE[idx]
+
+
+# Backward compat alias
+_generate_npc_color = generate_npc_color
 
 
 def _is_named(name: str) -> bool:
