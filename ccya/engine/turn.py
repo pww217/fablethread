@@ -756,7 +756,7 @@ async def _persist_and_async_cleanup(
     world_usage: dict[str, int] = {"tokens_in": 0, "tokens_out": 0}
     t_world = asyncio.get_event_loop().time()
     try:
-        beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
+        state, beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
             env, state, narrative, pc, config, trace_id, turn_no,
         )
     except Exception as exc:

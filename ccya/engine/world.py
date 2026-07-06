@@ -27,15 +27,16 @@ async def _run_world_step(
     config: EngineConfig,
     trace_id: str,
     turn_no: int,
-) -> tuple[list[dict[str, Any]], str, str, str, dict[str, int]]:
+    ) -> tuple[WorldState, list[dict[str, Any]], str, str, str, dict[str, int]]:
     """Generate 2-3 candidate GM beats for the next turn.
 
-    Returns (beat_candidates, system_text, user_text, raw_response, usage).
+    Returns (updated_state, beat_candidates, system_text, user_text, raw_response, usage).
+    updated_state has recent_beats appended with all generated beat candidates.
     beat_candidates is a list of validated beat dicts (model_dump shape).
     system_text and user_text are the rendered template strings.
     raw_response is the raw LLM response text.
     usage is a dict with tokens_in and tokens_out.
-    On any failure, returns ([], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}).
+    On any failure, returns (state, [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}).
     """
     recent_beats = list(state.meta.recent_beats or [])
     scene_phase = state.scene.scene_phase or "SETUP"
@@ -129,7 +130,7 @@ async def _run_world_step(
             extra={"trace_id": trace_id, "turn": turn_no},
         )
         _log.debug("world.step_no_json trace_id=%s turn=%d", trace_id, turn_no)
-        return [], system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}
+        return state, [], system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}
 
     valid_beats: list[dict[str, Any]] = []
     seen_effects: set[str] = set()
@@ -198,7 +199,7 @@ async def _run_world_step(
         )
 
     _log.debug("world.step_complete trace_id=%s turn=%d valid_beats=%d", trace_id, turn_no, len(valid_beats))
-    return valid_beats, system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}
+    return state, valid_beats, system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}
 
 
 def _parse_candidate_array(raw: str) -> list[dict[str, Any]] | None:
