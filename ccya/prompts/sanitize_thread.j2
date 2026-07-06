@@ -60,7 +60,7 @@ Review each active thread and output a JSON object inside <sanitize> tags.
 ### Per-thread checks
 1. **Resolved?** → add to resolved_threads[] with resolution_state + outcome.
 2. **Urgency wrong?** → update urgency field.
-3. **Type wrong?** → update type field (threat/opportunity/complication/revelation).
+3. **Type wrong or missing?** → update type field (threat/opportunity/complication/revelation). If a thread has no type assigned, assign one based on the thread summary and current narrative context.
 4. **Should be dormant or re-activated?** → set dormant field.
 5. **Progress noisy or redundant?** → consolidate to fewer entries (5–7 words, factual, net outcomes over step-by-step logs).
 
