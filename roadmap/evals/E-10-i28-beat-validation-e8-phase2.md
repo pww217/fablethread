@@ -15,7 +15,7 @@ labels:
 
 Complete the 3x15 persona eval runs that were started for I-28 beat recipe validation and E-8 Phase 2. This single eval batch validates both tickets simultaneously.
 
-## Status: I-28 FAILING — `npcs` always empty
+## Status: I-28 PASSING — 20-turn verification complete
 
 All 3 runs show 100% of beats with empty `npcs` field:
 - `1717_space-western_15t`: 45/45 beats empty `npcs`
@@ -49,6 +49,20 @@ All user prompts render correctly after I-28 fixes:
 | state | OK | No NPC roster needed |
 | record | OK | Works via --from-events |
 | storytell | BROKEN (pre-existing) | No Jinja templates exist |
+
+## 20-turn verification (2026-07-05)
+
+**Run:** `1944_golden-piracy_20t` — 20 turns, golden-piracy pack
+
+**Beat/NPC behavior:**
+- 18/20 pending beats populated with NPCs
+- 1 environment beat (T10, correct — no NPCs in marshlands)
+- 1 turn with no beat (T1, normal for first turn)
+
+**Checker results:**
+- GM Beat checkers: `gm_beat_lifecycle` PASS, `beat_phase_validity` PASS
+- NPC checkers: `npc_presence` PASS, `compendium_lifecycle` PASS
+- Overall pass rate: 87.2%
 
 ### E-8 (I-13, I-25, I-26 testing validation)
 - **Phase 1:** noir-1930s:driven 5 turns — critical check passed
