@@ -169,3 +169,26 @@ Per AGENTS.md: "Stale docs are bugs." Must update:
 - Verify narrator can interpret recipe beats naturally
 - Check for thread repetition (same thread in 5-turn window)
 - Verify NPC-only beats rule (no thread-only beats when NPCs exist)
+
+## Testing Results: FAILING
+
+All 3 eval runs show 100% of beats with empty `npcs` field:
+- `1717_space-western_15t`: 45/45 beats empty `npcs`
+- `1723_golden-piracy_15t`: 45/45 beats empty `npcs`
+- `1655_noir-1930s_15t`: 3/3 beats empty `npcs`
+
+### Root cause
+
+**Bug: `state.compendium.npcs` is a `FrozenDict[str, NPCEntry]` (Pydantic models). `build_npc_roster()` calls `entry.get("presence")` on Pydantic models → returns `None` → defaults to `KNOWN` at `npc_roster.py:91` → filters everyone out.**
+
+The scene extractor (`scene.py:20`) already does `.model_dump()` correctly, which is why it works. The world step (`world.py:43`), narrate step (`narrate.py:51`, `narrate.py:242`), and ruling step (`ruling.py:162`) all pass raw `state.compendium.npcs` without `.model_dump()`.
+
+**Fix applied:** Added `.model_dump()` dict comprehension in:
+- `world.py:43` — world step NPC roster
+- `narrate.py:51` — `_narrate_messages()` default npc_roster
+- `narrate.py:242` — `_build_narrate_context()` present-only roster
+- `ruling.py:162` — ruling step NPC roster
+
+**Template fix:** `narrate_user.j2` — added `## Characters` header before `{% include "sections/_npc_roster.j2" %}` to match the system prompt's reference to "## Characters list."
+
+**Verification:** Re-rendered turn 4 prompts for golden-piracy:15t — all 4 streams (world, narrate, ruling, scene) now correctly show 4 NPCs with presence status. Record stream works via stored events. Storytell stream has no Jinja templates (removed in `dfdabe7e` when split into Record + Ruling).

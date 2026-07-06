@@ -159,7 +159,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     t_rules = asyncio.get_event_loop().time()
 
     # Build ruling messages
-    _comp = state.compendium.npcs
+    _comp = {nid: entry.model_dump() for nid, entry in (state.compendium.npcs or {}).items()}
     scene_phase = state.scene.scene_phase
     beat_candidates = list(state.meta.beat_candidates)
     ruling_messages = _ruling_messages(

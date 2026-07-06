@@ -40,7 +40,7 @@ async def _run_world_step(
     recent_beats = list(state.meta.recent_beats or [])
     scene_phase = state.scene.scene_phase or "SETUP"
 
-    comp = state.compendium.npcs or {}
+    comp = {nid: entry.model_dump() for nid, entry in (state.compendium.npcs or {}).items()}
     npc_roster = build_npc_roster(comp, turn_no=turn_no)
     # Only include present NPCs in beat generation to avoid re-injecting nearby NPCs
     # that should be decaying. Nearby NPCs are excluded from beats to prevent the

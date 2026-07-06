@@ -1,6 +1,6 @@
 ---
 title: "COMMANDS.md audit and fixes"
-status: triaged
+status: done
 urgency: 2
 size: medium
 created: 2026-07-05
