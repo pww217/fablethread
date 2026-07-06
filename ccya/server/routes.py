@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import sys
-import yaml
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -84,10 +83,13 @@ def _apply_seed_to_save_dir(
     seed_dict.setdefault("meta", {})["model"] = _app_mod.engine_config.model
     if pack_source is not None:
         seed_dict.setdefault("meta", {})["_pack_source"] = pack_source
+    if opening_narrative is not None:
+        seed_dict.setdefault("pc", {}).setdefault("situation", {})["opening"] = opening_narrative
     if opening_narrative is not None or actions is not None:
-        seed_dict.setdefault("seed_meta", {})["opening"] = opening_narrative
-        seed_dict["seed_meta"]["actions"] = actions or []
-        seed_dict["seed_meta"]["outcome_summary"] = outcome_summary
+        seed_dict["seed_meta"] = {
+            "actions": actions or [],
+            "outcome_summary": outcome_summary,
+        }
     init_save_dir(save_dir, WorldState.from_dict(seed_dict))
     if opening_narrative is not None:
         _app_mod._dynamic_opening = opening_narrative
@@ -160,16 +162,6 @@ def _list_saves() -> list[dict[str, Any]]:
         pack_name = state.meta.setting_pack
         pc_name = state.pc.name
         location_name = state.location.name
-        arc_goal = state.long_term_objective.long_term_objective if state.long_term_objective else None
-
-        # arc_origin is stored in state.yaml but not part of WorldState model
-        arc_origin = None
-        try:
-            with open(entry / "state.yaml") as f:
-                raw = yaml.safe_load(f)
-                arc_origin = raw.get("arc_origin")
-        except Exception:
-            _log.debug("Save %s: arc_origin read failed", name)
 
         resolved = entry.resolve()
         kind = "eval" if str(resolved).startswith(str(Path("evals/runs").resolve())) else "user"
@@ -181,8 +173,6 @@ def _list_saves() -> list[dict[str, Any]]:
             "last_modified": last_modified,
             "pc_name": pc_name,
             "location_name": location_name,
-            "long_term_objective": arc_goal,
-            "arc_origin": arc_origin,
             "kind": kind,
         })
 
@@ -491,18 +481,13 @@ async def new_game(request: Request):
             opening_narrative=narrate_fields["opening_narrative"],
             actions=narrate_fields["actions"],
             outcome_summary=narrate_fields["outcome_summary"],
-            arc=partial.seed_state.long_term_objective,
+            arc=partial.seed_state.arc,
             arc_origin=partial.seed_state.arc_origin,
         )
         seed = final_envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
         if pc_stats_dict:
             seed.setdefault("pc", {})["stats"] = pc_stats_dict
-        if _app_mod._active_pack.scenario and _app_mod._active_pack.scenario.pc_situation_schema:
-            seed["pc_situation_schema"] = [
-                {"key": s.key, "description": s.description, "required": s.required, "persist": s.persist}
-                for s in _app_mod._active_pack.scenario.pc_situation_schema
-            ]
         _apply_seed_to_save_dir(seed, final_envelope.opening_narrative, final_envelope.actions, outcome_summary=final_envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("new_game failed")
@@ -536,16 +521,11 @@ async def new_game_reroll(request: Request):
             opening_narrative=narrate_fields["opening_narrative"],
             actions=narrate_fields["actions"],
             outcome_summary=narrate_fields["outcome_summary"],
-            arc=partial.seed_state.long_term_objective,
+            arc=partial.seed_state.arc,
             arc_origin=partial.seed_state.arc_origin,
         )
         seed = final_envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
-        if _app_mod._active_pack.scenario and _app_mod._active_pack.scenario.pc_situation_schema:
-            seed["pc_situation_schema"] = [
-                {"key": s.key, "description": s.description, "required": s.required, "persist": s.persist}
-                for s in _app_mod._active_pack.scenario.pc_situation_schema
-            ]
         _apply_seed_to_save_dir(seed, final_envelope.opening_narrative, final_envelope.actions, outcome_summary=final_envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("seed generation reroll failed")
@@ -581,7 +561,7 @@ def _resolve_npc_ties(state: WorldState) -> WorldState:
         if scenario and scenario.npc_bonds:
             tie_lookup = {b.id: b.description for b in scenario.npc_bonds if b.description}
     except Exception:
-        _log.debug("NPC tie resolution failed, showing raw IDs")
+        pass
 
     updated: dict[str, NPCEntry] = {}
     for key, entry in npcs.items():
@@ -702,10 +682,10 @@ async def new_game_generate_pack(request: Request):
         return StreamingResponse(_err(), media_type="text/event-stream")
 
     try:
-        tags = json.loads(tone_tags_raw)
-        rules = json.loads(world_rules_raw)
+        import json as _json
+        tags = _json.loads(tone_tags_raw)
+        rules = _json.loads(world_rules_raw)
     except Exception:
-        _log.warning("tone_tags/world_rules JSON parse failed, defaulting to empty lists")
         tags = []
         rules = []
 
@@ -732,7 +712,7 @@ async def new_game_generate_pack(request: Request):
             trace_id=trace_id,
             max_retries=max_retries,
         ):
-            yield f"data: {json.dumps(event)}\n\n"
+            yield f"data: {_json.dumps(event)}\n\n"
 
     return StreamingResponse(_stream(), media_type="text/event-stream")
 
@@ -855,10 +835,16 @@ def healthz():
     llm_version = ""
     try:
         with httpx.Client(timeout=5) as client:
-            resp = client.get(f"{host}/models")
-            resp.raise_for_status()
-            body = resp.json()
-            models = [m["id"] for m in body.get("data", [])]
+            if "/api/chat" in host:
+                resp = client.get(f"{host}/tags")
+                resp.raise_for_status()
+                body = resp.json()
+                models = [m["name"] for m in body.get("models", [])]
+            else:
+                resp = client.get(f"{host}/models")
+                resp.raise_for_status()
+                body = resp.json()
+                models = [m["id"] for m in body.get("data", [])]
             model = _app_mod.engine_config.model
             return {
                 "llm": "ok",
@@ -866,8 +852,7 @@ def healthz():
                 "available": model in models,
                 "llm_version": llm_version,
             }
-    except Exception as exc:
-        _log.warning("LLM health check failed: %s", exc)
+    except Exception:
         return {
             "llm": "fail",
             "model": _app_mod.engine_config.model,

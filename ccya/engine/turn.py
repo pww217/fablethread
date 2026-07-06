@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import traceback
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -31,8 +30,8 @@ from ccya.engine.ruling import _ruling_phase
 from ccya.engine.narrate import _narrate_setup
 from ccya.engine.world import _run_world_step
 from ccya.llm_client import (
-    chat_with_config as llm_chat_with_config,
-    chat_stream_with_config as llm_chat_stream_with_config,
+    chat as llm_chat,
+    chat_stream as llm_chat_stream,
     strip_thinking,
     trim_messages,
 )
@@ -56,6 +55,8 @@ from ccya.state import (
 )
 
 _log = logging.getLogger(__name__)
+
+PRESSURE_BEAT_TYPES = ("pressure", "escalation", "complication", "setback")
 
 
 async def run_turn(
@@ -163,10 +164,6 @@ async def run_turn(
         narr_trimmed = _narrate_result.narr_trimmed
         narr_trimmed_chars = _narrate_result.narr_trimmed_chars
 
-        # Persist scene phase engine output (was computed but never saved)
-        if _narrate_result.new_scene is not None:
-            state = state.set_scene(_narrate_result.new_scene)
-
         delta = None
         actions = []
         outcome_summary: str = ""
@@ -210,12 +207,15 @@ async def run_turn(
         )
 
         # === Validate & apply delta ===
-        state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative, fallback_msg = _apply_phase(
+        state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative = _apply_phase(
             state, delta, record_result, config, trace_id, turn_no, str(save_dir), errors, narrative,
         )
 
         diff_lines = _summarize_applied(applied)
         changes = summarize_changes(state_pre_apply, state, rejected)
+
+        # === Turn increment (single source of truth: here) ===
+        state = state.set_turn(state.meta.turn + 1)
 
         if _is_cancel_requested(ctx):
             return
@@ -229,7 +229,7 @@ async def run_turn(
             rendered_ruling_system, rendered_ruling_user,
             ruling_raw_response, ruling_parse_error,
             ruling_trimmed, ruling_trimmed_chars,
-            _pc, applied, rejected, fallback_msg,
+            _pc, applied, rejected,
             thread_dedup_rejections, reconcile_warnings,
             actions, outcome_summary, ext_metrics,
             extraction_event, errors, trace_id, turn_no,
@@ -256,6 +256,7 @@ async def run_turn(
         errors.append({"kind": exc.kind, "message": str(exc)})
         raise
     except Exception as exc:
+        import traceback
         tb = traceback.format_exc()
         _log.error(
             "run_turn failed: %s: %s\n%s", type(exc).__name__, exc, tb, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
@@ -300,8 +301,7 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
     yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
     # Build narration context and messages (extracted phase)
-    _pc, narr_messages, new_scene = await _narrate_setup(ctx)
-    narrate_result.new_scene = new_scene
+    _pc, narr_messages = await _narrate_setup(ctx)
 
     # Trim + log (stays inline for simplicity)
     rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
@@ -316,9 +316,13 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
     t0 = asyncio.get_event_loop().time()
     narr_stream_stats: dict[str, Any] = {}
     first_visible = True
-    async for chunk in llm_chat_stream_with_config(
-        config,
+    async for chunk in llm_chat_stream(
+        config.host,
+        config.model,
         narr_messages,
+        fallback_host=config.fallback_host,
+        fallback_model=config.fallback_model,
+        fallback_cooldown_s=config.fallback_cooldown_s,
         temperature=config.narrate_temperature,
         top_p=config.narrate_top_p,
         frequency_penalty=config.narrate_frequency_penalty,
@@ -365,6 +369,21 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
     narrate_result.rendered_narr_user = rendered_narr_user
     narrate_result.narr_trimmed = narr_trimmed
     narrate_result.narr_trimmed_chars = narr_trimmed_chars
+
+
+_FALLBACK_SENTINEL = "*That action didn't resolve as expected"
+
+
+def _strip_fallback(narration: str, *, trace_id: str, turn: int) -> str:
+    log = logging.getLogger(__name__)
+    lines = narration.splitlines()
+    clean = [ln for ln in lines if not ln.strip().startswith(_FALLBACK_SENTINEL)]
+    if len(clean) < len(lines):
+        log.warning(
+            "Fallback message stripped from narration",
+            extra={"trace_id": trace_id, "turn": turn},
+        )
+    return "\n".join(clean)
 
 
 async def _extract_phase(
@@ -419,6 +438,7 @@ async def _extract_phase(
             else:
                 _extract_result = _evt
     except Exception as exc:
+        import traceback
         tb = traceback.format_exc()
         _log.error("turn.extraction_pipeline_error trace_id=%s turn_no=%d\n%s", trace_id, turn_no, tb)
         errors.append({"kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id, "message": str(exc)})
@@ -481,10 +501,10 @@ def _apply_phase(
     state: WorldState, delta: StateDelta | None, record_result: Any | None,
     config: EngineConfig, trace_id: str, turn_no: int, save_dir_str: str,
     errors: list[dict[str, Any]], narrative: str,
-) -> tuple[WorldState, WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str, str]:
+) -> tuple[WorldState, WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str]:
     """Apply delta + rejection handling.
 
-    Returns: (state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative, fallback_msg)
+    Returns: (state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative)
     """
     state_pre_apply = state.model_copy()
     applied: dict[str, Any] = {}
@@ -497,20 +517,21 @@ def _apply_phase(
             state, delta, record_result, config, trace_id, turn_no, save_dir_str,
         )
 
-        # Blocking rejection handling (stays in run_turn per design)
-        blocking = [r for r in rejected if r.get("kind") != "warn_overdraw"]
-        fallback_msg = ""
-        if blocking:
-            errors.append(
-                {
-                    "kind": ErrorKind.DELTA_VALIDATION_FAILED,
-                    "trace_id": trace_id,
-                    "message": f"Delta validation failed ({len(blocking)} rejection(s)).",
-                }
-            )
-            fallback_msg = f"That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing."
+    # Blocking rejection handling (stays in run_turn per design)
+    blocking = [r for r in rejected if r.get("kind") != "warn_overdraw"]
+    if blocking:
+        errors.append(
+            {
+                "kind": ErrorKind.DELTA_VALIDATION_FAILED,
+                "trace_id": trace_id,
+                "message": f"Delta validation failed ({len(blocking)} rejection(s)).",
+            }
+        )
+        narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
 
-    return state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative, fallback_msg
+    narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
+
+    return state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative
 
 
 @dataclass
@@ -522,7 +543,6 @@ class NarrateResult:
     rendered_narr_user: str = ""
     narr_trimmed: bool = False
     narr_trimmed_chars: int = 0
-    new_scene: Any = None
 
 
 @dataclass
@@ -552,7 +572,6 @@ async def _persist_and_async_cleanup(
     ruling_raw_response: str, ruling_parse_error: str | None,
     ruling_trimmed: bool, ruling_trimmed_chars: int,
     pc: Any, applied: dict[str, Any], rejected: list[dict[str, Any]],
-    fallback_msg: str,
     thread_dedup_rejections: list[dict[str, Any]], reconcile_warnings: list[str],
     actions: list[str], outcome_summary: str, ext_metrics: dict[str, Any],
     extraction_event: dict[str, Any], errors: list[dict[str, Any]], trace_id: str, turn_no: int,
@@ -693,7 +712,7 @@ async def _persist_and_async_cleanup(
     result_obj = TurnResult(
         turn=state.meta.turn,
         trace_id=trace_id,
-        narrative=narrative + ("\n\n" + fallback_msg if fallback_msg else ""),
+        narrative=narrative,
         state_delta=applied,
         applied=applied,
         rejected=rejected,
@@ -756,7 +775,7 @@ async def _persist_and_async_cleanup(
     world_usage: dict[str, int] = {"tokens_in": 0, "tokens_out": 0}
     t_world = asyncio.get_event_loop().time()
     try:
-        state, beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
+        beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
             env, state, narrative, pc, config, trace_id, turn_no,
         )
     except Exception as exc:
@@ -820,12 +839,16 @@ async def _persist_and_async_cleanup(
 
 async def warmup(config: EngineConfig) -> None:
     try:
-        await llm_chat_with_config(
-            config,
+        await llm_chat(
+            config.host,
+            config.model,
             [{"role": "user", "content": "ok"}],
+            fallback_host=config.fallback_host,
+            fallback_model=config.fallback_model,
+            fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=0.0,
             timeout=30.0,
             num_ctx=config.num_ctx,
         )
-    except Exception as exc:
-        _log.warning("Warmup LLM call failed — continuing without warmup cache: %s", exc, exc_info=True)
+    except Exception:
+        _log.warning("Warmup LLM call failed — continuing without warmup cache")
