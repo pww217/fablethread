@@ -40,7 +40,7 @@ def thread_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -> Che
             if tid:
                 # Check against CURRENT turn's last_turn_state (already has thread_add applied)
                 snap = extract_field(ev, "last_turn_state") or {}
-                nxt_arc = snap.get("arc") or {}
+                nxt_arc = snap.get("arc") or snap.get("long_term_objective") or {}
                 thread_ids: set[str] = set()
                 for t in (nxt_arc.get("threads") or []):
                     if isinstance(t, dict) and t.get("id"):
@@ -64,13 +64,14 @@ def thread_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -> Che
         thread_updates = record_output.get("thread_update") or []
         if thread_updates:
             snap = extract_field(ev, "last_turn_state") or {}
+            arc = snap.get("arc") or snap.get("long_term_objective") or {}
             state_thread_ids = {
-                t.get("id") for t in ((snap.get("arc") or {}).get("threads") or [])
+                t.get("id") for t in ((arc.get("threads") or []) + (arc.get("completed_threads") or []))
                 if isinstance(t, dict) and _is_hashable(t.get("id")) and t.get("id")
             }
             # Also check previous turn's state for initial seeded threads
             if prev_snap_for_this:
-                prev_arc = (prev_snap_for_this.get("arc") or {})
+                prev_arc = (prev_snap_for_this.get("arc") or prev_snap_for_this.get("long_term_objective") or {})
                 prev_thread_ids = {
                     t.get("id") for t in ((prev_arc.get("threads") or []) + (prev_arc.get("completed_threads") or []))
                     if isinstance(t, dict) and _is_hashable(t.get("id")) and t.get("id")
