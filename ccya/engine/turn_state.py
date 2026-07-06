@@ -483,7 +483,7 @@ def _apply_state_updates(
             if entry is None:
                 new_entry = NPCEntry(
                     name=cu.id.replace("_", " ").title(),
-                    presence="nearby",
+                    presence=NpcPresence.NEARBY,
                 )
                 state = state.add_npc(cu.id, new_entry)
             state = state.update_npc(
