@@ -147,6 +147,7 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - `"complication"`: An entanglement that complicates existing goals without being purely positive or negative.
 - `"revelation"`: Information or discovery that changes the PC's understanding of the world.
 - At least one thread must have `type == "threat"`. At least one thread must have `type != "threat"`.
+- **CRITICAL:** Every thread MUST have a `type` field in the JSON. Omitting `type` will cause the seed to be rejected with a retry request.
 **Thread count (hard limits at game start):**
 - Exactly 1–2 threads with `"dormant": false` — prefer 1 if unsure. Never more than 2.
 - All other threads with `"dormant": true`.
