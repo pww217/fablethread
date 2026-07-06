@@ -336,7 +336,6 @@ class NarratorSystemBoundary(BaseModel):
 # ---------------------------------------------------------------------------
 
 TEMPLATE_CONTRACTS: dict[str, type[BaseModel]] = {
-    "storytell_user.j2": StorytellerBoundary,
     "narrate_user.j2": NarratorBoundary,
     "ruling_user.j2": RulingBoundary,
     "extract_scene_user.j2": SceneExtractBoundary,
