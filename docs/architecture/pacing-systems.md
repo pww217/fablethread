@@ -71,7 +71,7 @@ Hard cutoff at `climax_turn_limit` unchanged (phase machine handles it). For def
 
 ### Definition
 
-Forward-facing storytelling beats emitted by **World** (Step 2d, async) as candidates, selected by **Ruling** (Step 0) for the upcoming turn, consumed by the narrator the same turn. Lifecycle state lives in `state.meta.pending_gm_beat` (the selected beat) and `state.meta.beat_candidates` (the world-prepared candidates). Each beat is a recipe string (bracket tags like `[npcs: x] [highlight: fear]`), with `type`, `effect`, and `npcs` (list of NPC IDs involved). **No TTL** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic.
+Forward-facing storytelling beats emitted by **World** (Step 2d, async) as candidates, selected by **Ruling** (Step 0) for the upcoming turn, consumed by the narrator the same turn. Lifecycle state lives in `state.meta.pending_gm_beat` (the selected beat) and `state.meta.beat_candidates` (the world-prepared candidates). Each beat is mechanism tags only (e.g., `[npcs: x] [highlight: fear]`) — no quote, no prose, no directional hint. The narrator reads mechanism tags as creative guidance and generates prose itself, grounded in the actual NPC fields in the roster. **No TTL** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic.
 
 ### Beat types
 
@@ -122,19 +122,19 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    BEAT["pending_gm_beat.type"] -. "narrative guidance" .-> NARR["Narrator<br>weaves beat into prose"]
-    WORLD["World" ] -. "diversity: recent_beats dedup (exact + first-5-words semantic + within-batch)" .-> WORLD_GEN["World<br>avoid repeat effects"]
+    BEAT["pending_gm_beat.type + mechanism tags"] -. "creative guidance" .-> NARR["Narrator<br>generates prose from mechanism tags"]
+    WORLD["World" ] -. "diversity: 5-beat ban on types/NPCs/threads appearing 2+ times" .-> WORLD_GEN["World<br>avoid repeat mechanism tags"]
 
-    style BEAT fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    style BEAT fill:#3b0764,color:#e9d5ff,stroke:#3b82f6
 ```
 
 ### Code locations
 
 | File | Line(s) | What |
 |------|---------|------|
-| `narrate.py` | 168-170 | Narrate reads `pending_gm_beat` (pure reader, no mutation) |
-| `ruling.py` | `_ruling_phase` | Ruling sets/pops `pending_gm_beat`, appends `recent_beats`, pops `beat_candidates` |
-| `world.py` | `_run_world_step` | World generates beat candidates, validates via `GMBeat` |
+| `narrate.py` | 168-170 | Narrate reads `pending_gm_beat` mechanism tags as creative guidance, generates prose grounded in NPC roster |
+| `ruling.py` | `_ruling_phase` | Ruling sets/pops `pending_gm_beat`, pops `beat_candidates` |
+| `world.py` | `_run_world_step` | World generates mechanism-tag-only beat candidates, validates via `GMBeat`, returns updated state with `recent_beats` appended |
 | `changes.py` | 333-373 | General change summarization (conditions, facts, threads, inventory) |
 
 ## 4. Pacing Context

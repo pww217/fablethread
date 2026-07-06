@@ -107,10 +107,12 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 - **EngineConfig**: LLM settings (host, model, num_ctx, temperatures, top_p, frequency_penalty per stage), pacing thresholds (climax_turn_limit, breather_max_turns, convergence_alpha, convergence_enter/exit_threshold, RISING/CLIMAX/BREATHER_min, roll_starvation_threshold, threat_density_threshold, extension_max, near_miss_softening), thread management (thread_max_active, thread_dormant_threshold, thread_urgency_max_age, thread_creation_cooldown, thread_memory_ttl, arc_memory_ttl, thread_deescalate_on_success), NPC lifecycle (nearby_decay_ttl, departed_archive_ttl, condition_default_ttl), sanitization (sanitize_every, sanitize_temperature), misc (debug_mode, difficulty_curve, scene_pressure/imperative_threshold, recent_beats_max, checkers). Plus `build_engine_config()` factory and `_find_json()` JSON extraction utility.
 
 ## Non-obvious model behavior
-
 ### GMBeat
-- Repurposed as the validation schema for World candidates and Ruling's `selected_beat`. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str), `npcs` (list[str] — NPC IDs involved in this beat).
+
+- Repurposed as the validation schema for World candidates and Ruling's `selected_beat`. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str — mechanism tags only, no quote/prose), `npcs` (list[str] — NPC IDs involved in this beat).
+- **Mechanism tags only.** `effect` contains mechanism tags that tell the narrator WHAT to blend (e.g., `[npcs: petty] [highlight: fear]`). No quote, no prose, no directional hint. The narrator reads mechanism tags as creative guidance and generates prose itself, grounded in the actual NPC fields in the roster.
 - **`npc_id`, `driver`, `beat_expires_turn` fields removed** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic. No orphan can survive a turn boundary.
+- **`recent_beats` persistence fixed.** `add_recent_beat()` now returns the updated state which is returned from `_run_world_step()` and consumed by `turn.py`. `recent_beats` is capped at 5 entries (config: `recent_beats_max: 5`).
 - The old `StorytellerResult._nullify_invalid_gm_beat` validator is gone; its logic (drop beat if `type` is None/falsy) now lives inline in `ruling.py:_ruling_phase`.
 
 ### WorldStateFact

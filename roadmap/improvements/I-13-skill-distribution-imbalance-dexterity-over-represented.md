@@ -1,6 +1,6 @@
 ---
 title: "Skill distribution imbalance — dexterity over-represented, strength under-represented"
-status: testing
+status: done
 urgency: 3
 size: medium
 created: 2026-06-29

@@ -184,21 +184,21 @@ Record reads: type, effect (npc_id and driver never used)
 
 ### Proposed Flow (minimal)
 ```
-World → beat_candidates: [type, effect]
-Ruling prompt shows: numbered list (1. type — effect, 2. type — effect)
-Ruling returns: selected_beat: 0 (index into beat_candidates)
-Pending_gm_beat stores: {type, effect}
-Narrate reads: type, effect
-Record reads: type, effect
+World → beat_candidates: mechanism tags only (e.g., "[npcs: x] [highlight: fear]")
+Ruling prompt shows: mechanism tags as creative guidance
+Ruling returns: mechanism tags as selected beat
+Pending_gm_beat stores: mechanism tags
+Narrate reads mechanism tags as creative brief, generates prose grounded in NPC roster
+Record reads mechanism tags (for audit trail)
 ```
 
 ### Changes Required
-1. **World prompt** — remove driver/npc_id from candidate generation instructions. World just produces `type` + `effect`.
-2. **Ruling prompt** — simplify beat candidates display to numbered list (0-based). Ruling just picks an index.
-3. **Ruling code** (`ruling.py:260`) — index lookup into beat_candidates, store just `{type, effect}` as `pending_gm_beat`.
-4. **GMBeat model** — remove `npc_id` and `driver` fields entirely. Keep `type` + `effect`.
-5. **Scene** — no changes. Still produces `[{id, type, effect}]`. World reads `id` to identify NPC but just passes `type` + `effect` downstream.
-6. **Narrate** — no changes. Already just reads `pending_beat.effect`.
+1. **World prompt** — mechanism tags only (no quote/prose/directional hint). World produces mechanism tags that tell the narrator WHAT to blend, not HOW.
+2. **Ruling prompt** — mechanism tags as creative guidance. Ruling just picks mechanism tags that best match player intent.
+3. **Ruling code** (`ruling.py:260`) — mechanism tags stored as `pending_gm_beat`.
+4. **GMBeat model** — mechanism tags only in `effect` field (no quote/prose).
+5. **Scene** — no changes. Still produces `[{id, type, effect}]`. World reads `id` to identify NPC but just passes mechanism tags downstream.
+6. **Narrate** — mechanism tags as creative brief, narrator generates prose grounded in actual NPC fields in the roster.
 
 ### Rationale
 - `npc_id` is useful for world to identify which NPC a beat relates to, but never needed downstream — just the effect text matters for narration.
