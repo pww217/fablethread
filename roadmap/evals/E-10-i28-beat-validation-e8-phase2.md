@@ -15,16 +15,16 @@ labels:
 
 Complete the 3x15 persona eval runs that were started for I-28 beat recipe validation and E-8 Phase 2. This single eval batch validates both tickets simultaneously.
 
-## Status: I-28 PASSING — 20-turn verification complete
+## Status: I-28 PASSING — mechanism-only tags (20-turn verification complete)
 
 All 3 runs show 100% of beats with empty `npcs` field:
 - `1717_space-western_15t`: 45/45 beats empty `npcs`
 - `1723_golden-piracy_15t`: 45/45 beats empty `npcs`
 - `1655_noir-1930s_15t`: 3/3 beats empty `npcs` (incomplete run — only 3 turns before investigation)
 
-### Root cause discovered
+### Session 2026-07-05 fixes (post-initial I-28 implementation)
 
-**Bug: `state.compendium.npcs` is a `FrozenDict[str, NPCEntry]` (Pydantic models). `build_npc_roster()` calls `entry.get("presence")` on Pydantic models → returns `None` → defaults to `KNOWN` at `npc_roster.py:91` → filters everyone out.**
+**Root cause #1:** `state.compendium.npcs` is a `FrozenDict[str, NPCEntry]` (Pydantic models). `build_npc_roster()` calls `entry.get("presence")` on Pydantic models → returns `None` → defaults to `KNOWN` at `npc_roster.py:91` → filters everyone out.
 
 The scene extractor (`scene.py:20`) already does `.model_dump()` correctly, which is why it works. The world step (`world.py:43`), narrate step (`narrate.py:51`, `narrate.py:242`), and ruling step (`ruling.py:162`) all pass raw `state.compendium.npcs` without `.model_dump()`.
 
@@ -33,6 +33,22 @@ The scene extractor (`scene.py:20`) already does `.model_dump()` correctly, whic
 - `narrate.py:51` — `_narrate_messages()` default npc_roster
 - `narrate.py:242` — `_build_narrate_context()` present-only roster
 - `ruling.py:162` — ruling step NPC roster
+
+**Root cause #2:** `recent_beats` always empty — `add_recent_beat()` creates new state object but never returned/persisted by caller. This means diversity rules in `world_system.j2` can never execute, causing beat repetition.
+
+**Fix applied:** `_run_world_step()` now returns `(updated_state, beat_candidates, ...)` as first element. `turn.py` unpacks the updated state which has `recent_beats` appended with all generated beat candidates.
+
+**Root cause #3:** Beat quote/prose too long — model ignores "terse one phrase" constraint, outputs full scene descriptions instead. "MUST ground the beat in at least one NPC's psychological field" is too vague — "controls access to ledgers" loosely "grounds" "reveals a redacted page" even though "redacted page" isn't actually there.
+
+**Fix applied:** Beat recipe changed to mechanism-only tags — no quote, no prose, no directional hint. The narrator reads mechanism tags as creative guidance and generates prose itself, grounded in the actual NPC fields in the roster. This eliminates the "inventing new facts" problem since the narrator works directly from the roster instead of a quote that may invent things.
+
+**Prompt changes:**
+- `world_system.j2` — mechanism-only tags (no quote/prose), never environmental, dormant thread revival, 5-beat diversity ban (type/NPC/thread appearing 2+ times in window), "Do NOT invent new facts, items, events, or fields beyond what is explicitly stated"
+- `narrate_system.j2` — mechanism tags as creative brief, narrator generates prose from mechanism tags
+- `narrate_user.j2` — mechanism tags as creative guidance
+- `config.yaml` — `recent_beats_max: 10` → `5`
+- `prompts/context.py` — removed stale `storytell_user.j2` from `TEMPLATE_CONTRACTS`
+- `ev/prompt_context.py` — added `record` stream case (template exists but context builder was missing)
 
 **Template fix:** `narrate_user.j2` — added `## Characters` header before `{% include "sections/_npc_roster.j2" %}` to match the system prompt's reference to "## Characters list."
 

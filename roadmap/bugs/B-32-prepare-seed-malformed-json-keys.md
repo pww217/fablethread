@@ -1,6 +1,6 @@
 ---
 title: "prepare_seed: LLM outputs malformed JSON keys with colon inside opening quote"
-status: testing
+status: done
 urgency: 2
 size: small
 created: 2026-07-05
@@ -28,3 +28,5 @@ Removed all YAML-style `key: value` patterns from `prepare_seed_system.j2` and `
 ## Verification
 
 Run a multi-game eval and check `saves/prepare_seed_failures/` for new files. Should be zero.
+
+**Verified (2026-07-05):** noir-1930s 5-turn run + space-western 5-turn run — zero prepare_seed failures across both packs. No new files in `saves/prepare_seed_failures/`.

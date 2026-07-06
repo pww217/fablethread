@@ -20,7 +20,6 @@ from ccya.models import (
     InventoryItem,
     IntentEnvelope,
     LongTermObjective,
-    NpcPresence,
     ProgressEntry,
     RulesOutcome,
 )
@@ -190,7 +189,7 @@ class ChronicleEntryBlock(BaseModel):
 class PacingBlock(BaseModel):
     """Pacing context snapshot for prompt rendering."""
 
-    directive: str | None = None  # used by storytell_user.j2 line 56 and narrate_user.j2 line 80
+    directive: str | None = None  # used by narrate_user.j2 line 80
 
 
 class LastSeenBlock(BaseModel):
@@ -209,7 +208,7 @@ class NPCRosterEntryBlock(BaseModel):
     name: str
     title: str | None = None
     bio: str | None = None
-    presence: NpcPresence  # reuses existing enum from models.py
+    presence: str  # plain string from build_npc_roster() — "present"/"nearby"/"known"/"departed"/"archived"
     motivation: str | None = None
     fear: str | None = None
     leverage: str | None = None
@@ -287,37 +286,6 @@ class StateExtractBoundary(BaseModel):
     narration: str
     pc_name: str = "Unnamed"
     pack_inventory: list[dict[str, Any]] = Field(default_factory=list)
-
-
-class StorytellerBoundary(BaseModel):
-    """Context for storytell_user.j2.
-
-    npc_roster/location/inventory/conditions come from extraction_ctx.
-    all_threads/world_state/intent/pacing_context/recent_turns/turn_no/band/scene_phase/allowed_beat_types are top-level variables.
-    current_objective provides campaign arc metadata (long_term_objective, resolution) via _arc.j2 include.
-    all_threads is mapped to threads via {% set threads = all_threads %} before _thread_list.j2 include.
-    """
-
-    narration: str
-    npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_presence_turn/last_seen_location/departed_reason
-    location: LocationBlock
-    conditions: list[Condition]
-    inventory: list[InventoryItem]
-    current_objective: dict[str, Any]  # campaign arc metadata — passed to _arc.j2 include
-    all_threads: list[ArcThreadSummary]  # source is state.long_term_objective.threads (raw dicts) — Pydantic coerces since ArcThreadSummary field names match dict keys; schema tests must validate both raw-dict and object inputs
-    world_state: list[str | dict[str, Any]]  # template uses `world_state` variable name
-    intent: IntentEnvelope | None = None
-    pacing_context: PacingBlock | None = None
-    recent_turns: list[ChronicleEntryBlock]
-    prior_history: list[str]
-    turn_no: int
-    band: str
-    scene_phase: str = "SETUP"
-    curtain_call: str = ""
-    allowed_beat_types: list[str] = Field(default_factory=list)
-    pending_beat: dict[str, Any] | None = None
-    recent_beats: list[dict[str, Any]] = Field(default_factory=list)
-    resolved_arcs: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class NarratorSystemBoundary(BaseModel):

@@ -66,11 +66,11 @@ yield ("phase", {"phase": "world_done"})
 | `long_term_objective.threads[]` | `state.long_term_objective.threads` |
 | `narration` | passed in from `run_turn` |
 | `pacing_context` | passed in from `run_turn` |
-| `recent_beats` | `state.meta.recent_beats` |
+| `recent_beats` | `state.meta.recent_beats` (capped at 5 entries) |
 | `allowed_beat_types` | `derive_allowed_beat_types(scene_phase, directive)` |
 | `rules_outcome.band` | (optional) used for roll-band guidance |
 
-World reads NPC profiles directly from the compendium via `build_npc_roster()`, filtering to `presence == "present"` only (nearby excluded to prevent feedback loop: beats → narration → extractor re-promotion → beats for present). Beat generation follows priority order: cross-NPC blending → NPC/Thread blending → single-NPC depth → environmental.
+World reads NPC profiles directly from the compendium via `build_npc_roster()`, filtering to `presence == "present"` only (nearby excluded to prevent feedback loop: beats → narration → extractor re-promotion → beats for present). Beat generation follows priority order: cross-NPC blending → NPC/Thread blending → single-NPC depth → single thread (last resort). Environmental beats are never generated — there is always an NPC or thread worth featuring.
 
 ## Outputs
 
@@ -80,15 +80,17 @@ World reads NPC profiles directly from the compendium via `build_npc_roster()`, 
 
 ## GMBeat schema (repurposed)
 
-The `GMBeat` Pydantic model is used as the validation schema for World candidates. Ruling no longer validates against GMBeat — it selects by index. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str), `npcs` (list[str] — NPC IDs involved in this beat). The `npc_id`, `driver`, and `beat_expires_turn` fields are removed (no TTL — see "Beat lifecycle" below).
+The `GMBeat` Pydantic model is used as the validation schema for World candidates. Ruling no longer validates against GMBeat — it selects by index. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str — mechanism tags only, no quote/prose), `npcs` (list[str] — NPC IDs involved in this beat). The `npc_id`, `driver`, and `beat_expires_turn` fields are removed (no TTL — see "Beat lifecycle" below).
 
 ```
 GMBeat
   type: complication | revelation | opportunity | breathing_room |
         pressure | twist | setback | escalation | callback | None
-  effect: str                       # required
+  effect: str                       # mechanism tags only (e.g., "[npcs: petty] [highlight: fear]")
   npcs: list[str]                   # NPC IDs involved in this beat
 ```
+
+**Mechanism tags only.** The `effect` field contains mechanism tags that tell the narrator WHAT to blend, not HOW. No prose, no quote, no directional hint. The narrator reads the mechanism tags and generates the prose itself, grounded in the actual NPC fields in the roster. Examples: `[npcs: petty] [highlight: fear]`, `[npcs: petty, silas] [blend: motivation vs fear]`, `[npcs: petty] [thread: faction_patrols]`.
 
 A candidate whose `type` ends up empty is dropped.
 
@@ -149,7 +151,7 @@ Beats are now single-turn commitments:
 
 1. **World (turn N, async after `complete`):** generates 2-3 candidates → `state.meta.beat_candidates`.
 2. **Ruling (turn N+1, sync at start):** reads `state.meta.beat_candidates`, picks one by index (or none), sets `state.meta.pending_gm_beat` (if selected) or pops it (if not). Always pops `state.meta.beat_candidates` (no carryover).
-3. **Narrate (turn N+1, sync):** reads `state.meta.pending_gm_beat` (set by Ruling this same turn), integrates it as atmospheric pressure / scene direction. Narrate is a pure reader of `pending_gm_beat` — it does not mutate it.
+3. **Narrate (turn N+1, sync):** reads `state.meta.pending_gm_beat` (set by Ruling this same turn), interprets mechanism tags as creative guidance and generates prose grounded in the actual NPC fields in the roster. Narrate is a pure reader of `pending_gm_beat` — it does not mutate it.
 4. **Turn boundary:** Ruling's per-turn "always replace or pop" rule keeps `pending_gm_beat` hygienic. No expiry arithmetic — beats are single-turn commitments.
 
 **Why no TTL?** Ruling unconditionally resolves `pending_gm_beat` every turn (replace with new or pop to None). An orphan can never survive a turn boundary, so `beat_expires_turn` is vestigial and was removed.

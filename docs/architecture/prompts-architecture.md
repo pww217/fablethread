@@ -14,8 +14,7 @@ Two entirely separate template systems exist — do not conflate them:
 ### Narrator system prompt (`ccya/prompts/narrate_system.j2`)
 
 - Restructured into 4-section hierarchy: (1) Task/role, (2) Hard rules (Player Input Is Truth, Inventory, Never Repeat Prior Narration, Fail-Band Outcomes), (3) Behavioral guidance (NPCs merged single section, Style, Pragmatic Interpretation, Pacing, Campaign arc context), (4) Formatting/output (Markdown). Output discipline section removed (narrator emits only prose after ARC UPDATE removal). Dynamic sections (Universe rules, Genre tone) remain at end.
-- ARC UPDATE section (former lines 70-87) removed entirely — narrator never emits the block, extraction code removed from turn.py
-- Directives section: removed Combat Fatigue, Location Pressure, Location Imperative definitions; added Scene Pressure (≥3 effective scene age, intermediate signal to wind down or shift focus) and Scene Imperative (≥5 effective scene age, high-priority directive forcing story advancement); new directives use scene-level language reflecting single-age signal from collapsed _compute_ages()
+- Beat mechanism tags: narrator reads mechanism tags as creative brief — generates prose grounded in actual NPC fields in the roster. No quote/prose in mechanism tags; narrator generates the prose itself.
 - Null-beat fallback: when no GM beat is present, narrate purely from outcome hint and player input — no added pressure or relief beyond what the scene demands
 - Anti-repetition: consolidated three scattered rules into a prominent "Never repeat prior narration" section in Hard rules; covers plot/event rehashing and includes self-check instruction
 - NPC favoring: soft guidance after NPC BEHAVIOR DRIVERS to favor NPCs with motivation/fear/leverage set and treat empty-driver NPCs as background
@@ -26,6 +25,7 @@ Two entirely separate template systems exist — do not conflate them:
 ### Narrator user prompt (`ccya/prompts/narrate_user.j2`)
 
 - Sections reordered by recency: Player Character → Conditions → PC Situation → Inventory → Location → Characters → World State → Immutable Reference → Scene Context → Scene phase → Prior History (renamed from Prior Turns) → Recent Turns → Campaign Arc → This Turn's Result → PLAYER INPUT → directives (most important signal last)
+- Beat mechanism tags rendered as creative guidance: mechanism tags tell the narrator WHAT to blend, narrator generates the prose itself grounded in the actual NPC fields in the roster
 - Thread rendering code extracted to shared `sections/_thread_list.j2` include (eliminated duplicated for-loop in if/elif branches)
 - Renders ALL threads (active + dormant, scene-scoped + arc-scoped) with scope tags and [DORMANT] markers; completed_threads rendered as "### Past Resolutions" section after _arc.j2 include for full narrative continuity
 - Impossible action block: when `rules_outcome.impossible=true`, renders `**IMPOSSIBLE:**` fact with reason before the band/no-roll section
@@ -51,7 +51,7 @@ Two entirely separate template systems exist — do not conflate them:
 
 ### World system prompt (`ccya/prompts/world_system.j2`)
 
-- New template added in the beat generation split. Constrained beat-candidate generation instructions: schema (array of 2-3 GMBeat), generation rules (blend candidate_npcs, prefer NPC-driven beats, action rule), diversity (no same type twice consecutively), phase-beat alignment (`allowed_beat_types` constraint), roll-band guidance.
+- New template added in the beat generation split. Constrained beat-candidate generation instructions: mechanism-only tags (no quote/prose), beat priority order (NPC+NPC → NPC+thread → single NPC → single thread, never environmental), diversity ban (5-beat window: ban types/NPCs/threads appearing 2+ times), phase-beat alignment (`allowed_beat_types` constraint), roll-band guidance, dormant thread revival guidance.
 - ~200-250 system tokens, lightweight.
 
 ### World user prompt (`ccya/prompts/world_user.j2`)
