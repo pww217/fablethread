@@ -1,6 +1,6 @@
 ---
 title: "Fresh eval cycle — comprehensive post-I-28 validation"
-status: done
+status: testing
 completed: 2026-07-06
 urgency: 2
 size: large
@@ -191,6 +191,42 @@ New eval findings filed as E- tickets if they warrant separate tracking.
 
 1. **physical_bypass_retrieval thread lost** — extracted as thread_add at turn 4 but never applied to seed/thread pool (never appears in convergence_threads), no dedup rejection or cooldown rejection logged
 2. **seed threads dedup-rejected** — supply_stranglehold dedup-rejected at turn 6, black_market_routes dedup-rejected at turns 14 and 15 (seed threads should bypass dedup)
+
+### Thread Lifecycle Ownership — Record vs Narrator (2026-07-07)
+
+**Problem identified:** The Record prompt (`record_system.j2`) contains corrective thread lifecycle rules that belong in the Narrator prompt. The Record is a log-keeper — it should only jot down what the Narrator did, not independently decide when threads should be added, updated, or resolved.
+
+**Record prompt rules that should be removed:**
+- "3+ turns unaddressed → resolve" rule (line 35): forces premature thread resolution
+- Urgency escalation rules (line 53): tells Record to escalate threads the Narrator didn't engage with
+- Thread sustainability rules (line 57): "Target: 3-4 threads" — tells Record to manage thread count, not log what happened
+- Scene phase thread guidance (line 59): "When the arc is approaching its climax: resolve side-threads" — Record makes scene-phase decisions it can't verify
+
+**Record prompt rules that should stay:**
+- Thread ID rules (exact copy, no paraphrase)
+- Progress must be new fact (not rephrasing)
+- Don't both update AND resolve the same thread
+- Don't resolve threads that don't exist
+
+**Record user prompt:** Remove curtain call block (lines 28-35) — Record doesn't need engine metadata about it.
+
+**Narrator prompt needs thread lifecycle authority:** The Narrator writes the prose and knows what happened. It should receive authority over thread decisions, not a script. Each turn, Narrator decides which threads to open, advance, or resolve based on scene motion and player actions. Threads that persist across turns should evolve with new facts, not repeat.
+
+**Narrator user prompt:** Remove existing curtain call block (lines 51-58), replace with soft guidance: "When `curtain_call` is active, bias toward resolving the main pressure thread if the narration warrants it. When forced, resolve it."
+
+**Impact:** The Record's corrective rules are pulling the rug out from under the Narrator. The Record resolves threads the Narrator didn't resolve, creating contradictions between event log and prose. The 2.7 avg thread lifespan is driven by Record's "3+ turns → resolve" rule, not by actual narrative resolution.
+
+### Implementation Plan (2026-07-07)
+
+1. **Record system prompt (`record_system.j2`):** Remove lines 35, 53, 57-59. Keep curtain call rules (lines 73-77) — soft guidance, engine-directed.
+
+2. **Record user prompt (`record_user.j2`):** Remove curtain call block (lines 28-35).
+
+3. **Narrator system prompt (`narrate_system.j2`):** Add one short addition: "You control thread state. Each turn, decide which threads to open, advance, or resolve based on scene motion and player actions. Threads that persist across turns should evolve with new facts, not repeat."
+
+4. **Narrator user prompt (`narrate_user.j2`):** Remove curtain call block (lines 51-58), replace with: "When `curtain_call` is active, bias toward resolving the main pressure thread if the narration warrants it. When forced, resolve it."
+
+5. **Validate with fresh eval cycle** — verify thread lifespan increases, convergence stays higher through CLIMAX.
 
 ### Beat System Deep Dive (zombie-survival 25t)
 

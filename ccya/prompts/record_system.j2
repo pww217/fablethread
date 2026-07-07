@@ -32,7 +32,7 @@ Threads in the user prompt are shown with two labels: `[TYPE - URGENCY]`.
 
 **Urgency:** `normal` (active, not pressing), `urgent` (immediate), `background` (faded, set `dormant: true`).
 
-**`thread_resolve`:** Use when a thread concluded, failed, was absorbed, or urgency fully decayed. Do NOT resolve threads still meaningfully active — prefer `dormant: true` for threads that might resurface. If a thread went unaddressed for 3+ turns, resolve or demote. **Close actively:** if a thread is done, emit `thread_resolve`. **IMPORTANT: `thread_resolve` removes the thread from the active list and moves it to completed_threads.** In CLIMAX or RESOLUTION phases, if the narrator has resolved the main pressure thread in the prose, record it as `thread_resolve` rather than `thread_update`.
+**`thread_resolve`:** Use when a thread concluded, failed, was absorbed, or urgency fully decayed. Do NOT resolve threads still meaningfully active — prefer `dormant: true` for threads that might resurface. **Close actively:** if a thread is done, emit `thread_resolve`. **IMPORTANT: `thread_resolve` removes the thread from the active list and moves it to completed_threads.** In CLIMAX or RESOLUTION phases, if the narrator has resolved the main pressure thread in the prose, record it as `thread_resolve` rather than `thread_update`.
 
 **`thread_update`:** Only `progress` (5–7 words max) — factual, confirmed by this turn's events, no speculation. `major_update_signal` classifies the change. If the thread is no longer relevant, resolve it (thread_resolve) or set dormant: true, then create a new thread via thread_add — do not repurpose with progress that contradicts the summary.
 
@@ -50,13 +50,9 @@ Threads in the user prompt are shown with two labels: `[TYPE - URGENCY]`.
 
 **thread_add IDs must be unique.** Before emitting `thread_add`, check that your proposed ID does not already exist in the active or completed threads list.
 
-**Urgency escalation:** Threat threads that go unaddressed for 3+ turns MUST escalate urgency from `normal` to `urgent`. If a threat thread is already `urgent` and still unaddressed, resolve it (thread_resolve) or create a new thread_add with a more specific ID. Do NOT let threat threads linger at `normal` urgency indefinitely.
-
 **Include location in thread summaries when relevant:** `"rescue hostages from warehouse district"` not `"rescue hostages"`.
 
-**Before emitting `thread_add`:** scan all active AND latent threads for conceptual overlap. If the same tension is already tracked, use `thread_update` instead. Only create a new thread for genuinely distinct tension. Target: 3–4 threads (~4 total). Hard cap: 5. If you would add a thread but are at 4–5, first resolve or demote an existing one.
-
-When the arc is approaching its climax: resolve side-threads, don't create new ones, consolidate toward the main arc thread.
+**Before emitting `thread_add`:** scan all active AND latent threads for conceptual overlap. If the same tension is already tracked, use `thread_update` instead. Only create a new thread for genuinely distinct tension.
 
 ## Arc resolution
 
@@ -69,12 +65,6 @@ Emit **only** when the narrative chapter genuinely ends — a decisive win, a fu
 WRONG: `arc_resolve` with unchanged `long_term_objective` (no-op). RIGHT: `arc_resolve` introduces a new goal.
 
 `goal_update` — the arc's direction shifted but the arc isn't over. **Use sparingly; arcs are meant to last 7+ turns.** Only update when: the main objective is impossible (target dead, location destroyed, ally betrayed); a revelation invalidates the current goal; the player's situation changed so drastically a different objective is now primary; the arc has coasted 8+ turns without meaningful progress. **Do NOT update when:** a thread resolved/failed/changed urgency; progress was made; the goal is still viable; a parallel thread became dominant. **Do NOT emit a no-op** — if the goal hasn't genuinely shifted, omit this field entirely. **Compare your proposed `goal_update` against the current `long_term_objective`. If they are identical or nearly identical (same meaning, different wording), do NOT emit `goal_update`. Omit the field entirely instead.**
-
-## Curtain Call — CLIMAX phase
-
-When `curtain_call` is `"active"` (turn 1 of CLIMAX): you MUST resolve the active thread this scene. Include at least one `thread_resolve` entry in your output. This turn sets the stakes — the next turns drive toward conclusion.
-
-When `curtain_call` is `"forced"` (final climactic turn before hard cutoff): This thread MUST resolve now, for better or worse. The engine will force a transition if you don't. Prefer decisive resolution.
 
 ## Outcome summary
 
