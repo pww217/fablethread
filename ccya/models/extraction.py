@@ -80,7 +80,7 @@ def _coerce_condition_remove_item(v: Any) -> Any:
     return out
 
 
-class StateDelta(BaseModel):
+class StateMerge(BaseModel):
     inventory_change_reason: str = ""
     condition_change_reason: str = ""
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
@@ -213,7 +213,7 @@ class GMBeat(BaseModel):
         return self
 
 
-class StorytellerResult(BaseModel):
+class RecordResult(BaseModel):
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
     goal_update: dict[str, Any] | None = None
@@ -239,13 +239,13 @@ class StorytellerResult(BaseModel):
         return coerced
 
     @model_validator(mode="after")
-    def _nullify_empty_arc_resolve(self) -> "StorytellerResult":
+    def _nullify_empty_arc_resolve(self) -> "RecordResult":
         if isinstance(self.arc_resolve, dict) and not self.arc_resolve:
             self.arc_resolve = None
         return self
 
     @model_validator(mode="after")
-    def _nullify_empty_thread_add(self) -> "StorytellerResult":
+    def _nullify_empty_thread_add(self) -> "RecordResult":
         if isinstance(self.thread_add, dict) and not self.thread_add:
             self.thread_add = None
         return self
@@ -266,7 +266,7 @@ class StorytellerResult(BaseModel):
         return out
 
     @model_validator(mode="after")
-    def _warn_empty_actions(self) -> "StorytellerResult":
+    def _warn_empty_actions(self) -> "RecordResult":
         if not self.actions:
             _log.debug(
                 "storytell.actions is empty — LLM omitted field or returned []",

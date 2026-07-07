@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from ccya.models import NPCEntry, SceneExtractResult, StateDelta, StateExtractResult, WorldState
+from ccya.models import NPCEntry, SceneExtractResult, StateMerge, StateExtractResult, WorldState
 
 _log = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ def _build_extraction_context(
     """
     from ccya.state.delta_builder import apply_delta
 
-    combined_delta = StateDelta(
+    combined_delta = StateMerge(
         compendium_npc_update=list(scene_result.compendium_npc_update or []),
         location_change=state_result.location_change,
         inventory_add=list(state_result.inventory_add or []),

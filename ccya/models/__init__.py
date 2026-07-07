@@ -8,7 +8,7 @@ from ccya.models.state import (
 )
 from ccya.models.extraction import (
     CompendiumNpcUpdate as CompendiumNpcUpdate, GMBeat as GMBeat, SceneExtractResult as SceneExtractResult,
-    StateDelta as StateDelta, StateExtractResult as StateExtractResult, StorytellerResult as StorytellerResult,
+    StateMerge as StateMerge, StateExtractResult as StateExtractResult, RecordResult as RecordResult,
 )
 from ccya.models.rules import IntentEnvelope as IntentEnvelope, RulesCheck as RulesCheck, RulesOutcome as RulesOutcome
 from ccya.models.config import Band as Band, Difficulty as Difficulty, SkillName as SkillName, TurnResult as TurnResult, load_config as load_config, save_config as save_config

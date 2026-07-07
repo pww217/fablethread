@@ -36,7 +36,7 @@ from ccya.llm_client import (
     trim_messages,
 )
 from ccya.models import (
-    StateDelta,
+    StateMerge,
     TurnResult,
     WorldState,
     IntentEnvelope,
@@ -81,7 +81,7 @@ async def run_turn(
     metrics: dict[str, Any] = {}
     state = load_state(save_dir)
     narrative_chunks: list[str] = []
-    delta: StateDelta | None = None
+    delta: StateMerge | None = None
     actions: list[str] = []
 
     try:
@@ -399,7 +399,7 @@ async def _extract_phase(
     """
     t2 = asyncio.get_event_loop().time()
 
-    delta: StateDelta | None = None
+    delta: StateMerge | None = None
     actions: list[str] = []
     outcome_summary: str = ""
     extraction_event: dict[str, Any] = {}
@@ -497,10 +497,10 @@ async def _extract_phase(
 
 
 def _apply_phase(
-    state: WorldState, delta: StateDelta | None, record_result: Any | None,
+    state: WorldState, delta: StateMerge | None, record_result: Any | None,
     config: EngineConfig, trace_id: str, turn_no: int, save_dir_str: str,
     errors: list[dict[str, Any]], narrative: str,
-) -> tuple[WorldState, WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str]:
+) -> tuple[WorldState, WorldState, StateMerge | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str]:
     """Apply delta + rejection handling.
 
     Returns: (state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative)
@@ -546,7 +546,7 @@ class NarrateResult:
 
 @dataclass
 class ExtractResult:
-    delta: StateDelta | None = None
+    delta: StateMerge | None = None
     actions: list[str] | None = None
     outcome_summary: str = ""
     extraction_event: dict[str, Any] | None = None
