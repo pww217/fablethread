@@ -52,12 +52,11 @@ def phase_transition_signals(events: list[dict[str, Any]], *, config: Any = None
 
             # SETUP→RISING: fires when urgent thread appears OR turns_in_phase >= 3
             #              OR (convergence >= 2 AND turns_in_phase >= 2)
-            if i > 0:
-                prev_ev = filtered[i - 1]
-                prev_pc = extract_field(prev_ev, "pacing_context") or {}
-                prev_phase = prev_pc.get("scene_phase", "SETUP")
+            prev_ev = filtered[i - 1]
+            prev_pc = extract_field(prev_ev, "pacing_context") or {}
+            prev_phase = prev_pc.get("scene_phase", "SETUP")
 
-                if prev_phase == "SETUP" and phase == "RISING":
+            if prev_phase == "SETUP" and phase == "RISING":
                     has_urgent = prev_urgent_count > 0
                     # Read turns_in_phase from previous turn's scene (pacing_context
                     # turns_in_phase is post-transition, already reset to 0)
@@ -152,11 +151,11 @@ def phase_transition_signals(events: list[dict[str, Any]], *, config: Any = None
                         "detail": f"BREATHER→RISING at turn {turn_no} without min_turns (prev_turns_in_phase={prev_turns_in_phase}+1 >= {cfg.BREATHER_min})",
                     })
                     all_passed = False
-                elif prev_urgent_count == 0 and prev_breather_turn_count < cfg.breather_max_turns:
+                elif prev_urgent_count == 0 and prev_breather_turn_count + 1 < cfg.breather_max_turns:
                     findings.append({
                         "turn": turn_no,
                         "check": "breather_rising_trigger",
-                        "detail": f"BREATHER→RISING at turn {turn_no} without urgent thread (count={prev_urgent_count}) or breather_turn_count>={cfg.breather_max_turns} (prev={prev_breather_turn_count})",
+                        "detail": f"BREATHER→RISING at turn {turn_no} without urgent thread (count={prev_urgent_count}) or breather_turn_count>={cfg.breather_max_turns} (prev={prev_breather_turn_count}, engine checks prev+1={prev_breather_turn_count+1})",
                     })
                     all_passed = False
 
