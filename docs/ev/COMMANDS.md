@@ -59,10 +59,12 @@ Every session directory can contain an `ev.yaml`. Resolution: CLI flags > `ev.ya
 |---|---|
 | Thread lifecycle | `ev.py threads --save-dir DIR` |
 | Thread resolution summary | `ev.py threads --summary --save-dir DIR` |
-| Beat type + surface | `ev.py beats --save-dir DIR` |
+| Beat type + surface + candidates | `ev.py beats --save-dir DIR` |
 | Roll bands per turn | `ev.py rolls --save-dir DIR` |
 | Roll distribution | `ev.py rolls --summary --save-dir DIR` |
-| Convergence score | `ev.py convergence --save-dir DIR [--by-scene]` |
+| Convergence score + threads | `ev.py convergence --save-dir DIR [--by-scene]` |
+| Convergence threads list | `ev.py trace convergence_threads --save-dir DIR` |
+| NPC updates per turn | `ev.py trace npc_updates --save-dir DIR` |
 | Phase transitions | `ev.py phase-transitions --save-dir DIR [--by-scene]` |
 | Curtain Call compliance | `ev.py curtain-call --save-dir DIR [--by-scene]` |
 | Goal changes | `ev.py goals --save-dir DIR` |
@@ -197,6 +199,7 @@ Events are one JSON line per turn in `events.jsonl`. Key fields:
 |-------|----------|
 | `.turn` | Turn number |
 | `.input` | Player's text input |
+| `.type` | Event type: `"turn"` for real turns, `"sanitizer"` for thread sanitizer events |
 | `.ruling_prompt.*` | Ruling stream: system, user, output |
 | `.narrate_prompt.*` | Narrate stream: system, user, prose output |
 | `.extraction.scene.*` | Scene extractor: system, user, NPC/location JSON |
@@ -205,7 +208,10 @@ Events are one JSON line per turn in `events.jsonl`. Key fields:
 | `.extraction.world.*` | World step: system, user, beat suggestions |
 | `.applied` | State deltas that were applied |
 | `.rejected` | State deltas that were rejected with reasons |
-| `.pacing_context` | scene_phase, directive, outcome_hint, convergence |
+| `.pacing_context` | scene_phase, directive, outcome_hint, convergence, convergence_threads |
+| `.pacing_context.convergence_threads` | Thread IDs used for convergence computation |
+| `.npc_updates` | Per-turn NPC updates from scene extraction |
+| `.curtain_call` | Curtain call status: `"active"`, `"forced"`, or `""` |
 | `.last_turn_state` | Full state at start of turn |
 | `.post_turn_pending_beat` | pending_gm_beat after turn processing |
 
@@ -219,7 +225,10 @@ Events are one JSON line per turn in `events.jsonl`. Key fields:
 | Threads | `.extraction.record.output.*`, sanitizer events, `state.long_term_objective.threads` | threads, thread-audit |
 | Beat data | `state.meta.pending_gm_beat`, `state.meta.beat_candidates`, `.pacing_context` | beats, mechanics |
 | Pacing | `.pacing_context` | beats, mechanics --pacing, convergence |
-| Goals | sanitizer `changes_detail.goal`, `state.arc.long_term_objective` | goals, arc_goal_updates |
+| Convergence threads | `.pacing_context.convergence_threads` | convergence, trace |
+| NPC updates | `.npc_updates` | trace |
+| Curtain call | `.curtain_call` | curtain-call |
+| Goal changes | sanitizer `changes_detail.goal`, `state.arc.long_term_objective` | goals, arc_goal_updates |
 | Sanitizer | `kind="sanitizer"` events | thread-audit, sanitizer_lifecycle |
 
 ---

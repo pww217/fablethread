@@ -8,7 +8,7 @@ from typing import Any
 from jinja2 import Environment
 
 from ccya.engine.config import EngineConfig, _render
-from ccya.engine.extraction.context import _ExtractionContext
+from ccya.engine.extraction.context import _PostDeltaContext
 from ccya.engine.extraction.utils import _filter_evicted_threads
 from ccya.engine.narrate import _get_resolved_arcs
 from ccya.models import ArcThread, LongTermObjective, WorldState
@@ -22,7 +22,7 @@ def _record_messages(
     narration: str,
     state: WorldState,
     *,
-    extraction_ctx: _ExtractionContext,
+    extraction_ctx: _PostDeltaContext,
     recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
     band: str = "",

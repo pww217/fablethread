@@ -11,7 +11,7 @@ import re
 from typing import Any
 
 from ccya.errors import ErrorKind
-from ccya.models import Condition, InventoryItem, LongTermObjective, NpcPresence, SceneExtractResult, StateDelta, WorldState
+from ccya.models import Condition, InventoryItem, LongTermObjective, NpcPresence, SceneExtractResult, StateMerge, WorldState
 from ccya.state.inventory import (
     _fuzzy_match_inventory,
     resolve_inventory_canonical_id,
@@ -64,7 +64,7 @@ def _merge_arc_update(arc: LongTermObjective, au: LongTermObjective) -> LongTerm
     return arc.model_copy(update=updates)
 
 
-def reconcile_delta(state: WorldState, delta: StateDelta) -> tuple[StateDelta, list[str]]:
+def reconcile_delta(state: WorldState, delta: StateMerge) -> tuple[StateMerge, list[str]]:
     """Validate and clean `delta` against current `state`.
 
     Returns a ``(reconciled_delta, warnings)`` tuple.  Does NOT mutate
@@ -110,7 +110,7 @@ def reconcile_delta(state: WorldState, delta: StateDelta) -> tuple[StateDelta, l
 
 
 def apply_delta(
-    state: WorldState, delta: StateDelta,
+    state: WorldState, delta: StateMerge,
     *, trace_id: str | None = None,
 ) -> WorldState:
     current_turn = state.meta.turn
@@ -274,7 +274,7 @@ def apply_delta(
     if delta.arc_update is not None:
         state = state.model_copy(update={"long_term_objective": _merge_arc_update(state.long_term_objective, delta.arc_update)})
 
-    # --- Persist storyteller actions as rolling window ---
+    # --- Persist record actions as rolling window ---
     if delta.actions:
         pc = pc.model_copy(update={"actions": list(delta.actions[-10:])})
         _log.info(

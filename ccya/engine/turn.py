@@ -36,7 +36,7 @@ from ccya.llm_client import (
     trim_messages,
 )
 from ccya.models import (
-    StateDelta,
+    StateMerge,
     TurnResult,
     WorldState,
     IntentEnvelope,
@@ -81,7 +81,7 @@ async def run_turn(
     metrics: dict[str, Any] = {}
     state = load_state(save_dir)
     narrative_chunks: list[str] = []
-    delta: StateDelta | None = None
+    delta: StateMerge | None = None
     actions: list[str] = []
 
     try:
@@ -180,7 +180,7 @@ async def run_turn(
         }
 
         # === Call 2: Extraction pipeline + metrics ===
-        _extract_result_container = ExtractResult()
+        _extract_result_container = ExtractionResult()
         _extract_gen = _extract_phase(env, state, narrative, ctx, _intent, _outcome, config, trace_id, turn_no, recent_turns, narr_metrics, errors, _extract_result_container)
         try:
             async for _item in _extract_gen:
@@ -301,7 +301,7 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
     yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
     # Build narration context and messages (extracted phase)
-    _pc, narr_messages = await _narrate_setup(ctx)
+    _pc, narr_messages, _ = await _narrate_setup(ctx)
 
     # Trim + log (stays inline for simplicity)
     rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
@@ -321,7 +321,6 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
         config.model,
         narr_messages,
         fallback_host=config.fallback_host,
-        fallback_model=config.fallback_model,
         fallback_cooldown_s=config.fallback_cooldown_s,
         temperature=config.narrate_temperature,
         top_p=config.narrate_top_p,
@@ -391,7 +390,7 @@ async def _extract_phase(
     intent: IntentEnvelope, outcome: RulesOutcome, config: EngineConfig,
     trace_id: str, turn_no: int, recent_turns: list[dict[str, Any]],
     narr_metrics: dict[str, Any], errors: list[dict[str, Any]],
-    extract_result: ExtractResult,
+    extract_result: ExtractionResult,
 ) -> AsyncIterator[tuple[str, Any]]:
     """Run extraction pipeline + build metrics.
 
@@ -400,7 +399,7 @@ async def _extract_phase(
     """
     t2 = asyncio.get_event_loop().time()
 
-    delta: StateDelta | None = None
+    delta: StateMerge | None = None
     actions: list[str] = []
     outcome_summary: str = ""
     extraction_event: dict[str, Any] = {}
@@ -498,10 +497,10 @@ async def _extract_phase(
 
 
 def _apply_phase(
-    state: WorldState, delta: StateDelta | None, record_result: Any | None,
+    state: WorldState, delta: StateMerge | None, record_result: Any | None,
     config: EngineConfig, trace_id: str, turn_no: int, save_dir_str: str,
     errors: list[dict[str, Any]], narrative: str,
-) -> tuple[WorldState, WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str]:
+) -> tuple[WorldState, WorldState, StateMerge | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str]:
     """Apply delta + rejection handling.
 
     Returns: (state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative)
@@ -546,8 +545,8 @@ class NarrateResult:
 
 
 @dataclass
-class ExtractResult:
-    delta: StateDelta | None = None
+class ExtractionResult:
+    delta: StateMerge | None = None
     actions: list[str] | None = None
     outcome_summary: str = ""
     extraction_event: dict[str, Any] | None = None
@@ -617,10 +616,14 @@ async def _persist_and_async_cleanup(
         })
 
     _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    beat_candidates = state.meta.beat_candidates or []
+    # NPC updates from scene extraction (observability)
+    npc_updates = ((extraction_event.get("scene") or {}).get("output") or {}).get("compendium_npc_update") or []
     event = {
         "ts": _ts,
         "trace_id": trace_id,
         "turn": state.meta.turn,
+        "type": "turn",
         "input": user_input,
         "applied": applied,
         "rejected": rejected,
@@ -628,7 +631,7 @@ async def _persist_and_async_cleanup(
         "actions": actions,
         "ruling": ruling_event,
         "pacing_context": {
-            "directive": pc.directive if pc else "",
+            "directive": pc.directives if pc else "",
             "outcome_hint": pc.outcome_hint if pc else None,
             "summary": pc.summary if pc else "",
             "scene_phase": state.scene.scene_phase,
@@ -638,13 +641,16 @@ async def _persist_and_async_cleanup(
             "convergence_components": pc.convergence_components if pc else {},
             "convergence_threads": pc.convergence_threads if pc else [],
         },
+        "beat_candidates": beat_candidates,
+        "npc_updates": npc_updates,
         "post_turn_pending_beat": state.meta.pending_gm_beat,
         "allowed_beat_types": derive_allowed_beat_types(
             state.scene.scene_phase,
-            directive=pc.directive if pc else "",
+            directive=pc.directives if pc else "",
         ),
         "post_turn_location_id": state.location.id,
         "scene_phase": state.scene.scene_phase,
+        "curtain_call": state.scene.curtain_call,
         "narrate": {**narr_metrics, "prose": narrative},
         "extract": ext_metrics,
         "extraction": extraction_event,
@@ -771,11 +777,11 @@ async def _persist_and_async_cleanup(
     world_system_text = ""
     world_user_text = ""
     world_raw_response = ""
-    beat_candidates: list[dict[str, Any]] = []
+    beat_candidates = []
     world_usage: dict[str, int] = {"tokens_in": 0, "tokens_out": 0}
     t_world = asyncio.get_event_loop().time()
     try:
-        beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
+        _, beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
             env, state, narrative, pc, config, trace_id, turn_no,
         )
     except Exception as exc:
@@ -844,7 +850,6 @@ async def warmup(config: EngineConfig) -> None:
             config.model,
             [{"role": "user", "content": "ok"}],
             fallback_host=config.fallback_host,
-            fallback_model=config.fallback_model,
             fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=0.0,
             timeout=30.0,

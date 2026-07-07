@@ -6,14 +6,14 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from ccya.models import NPCEntry, SceneExtractResult, StateDelta, StateExtractResult, WorldState
+from ccya.models import NPCEntry, SceneExtractResult, StateMerge, StateExtractResult, WorldState
 
 _log = logging.getLogger(__name__)
 
 
 @dataclass
-class _ExtractionContext:
-    """Carries this-turn deltas from scene + state streams into the storytell stream.
+class _PostDeltaContext:
+    """Carries this-turn deltas from scene + state streams into the record stream.
 
     All fields are derived from extract results, NOT from ``state``.  They
     represent what happened *this turn* as determined by the prior two streams.
@@ -29,21 +29,21 @@ class _ExtractionContext:
     """pc.conditions after applying pc_condition_add/remove from state result."""
 
 
-def _build_extraction_context(
+def _build_post_delta_context(
     state: WorldState,
     scene_result: "SceneExtractResult",
     state_result: "StateExtractResult",
-) -> _ExtractionContext:
+) -> _PostDeltaContext:
     """Compute this-turn derived context from the two upstream extraction results.
 
-    Calls apply_delta() on a deep copy of state so the storyteller's
+    Calls apply_delta() on a deep copy of state so the record stream's
     view of NPCs, inventory, and conditions is guaranteed to match what
     apply_delta() will actually write — including any validation rejections.
     Does NOT mutate ``state``.
     """
     from ccya.state.delta_builder import apply_delta
 
-    combined_delta = StateDelta(
+    combined_delta = StateMerge(
         compendium_npc_update=list(scene_result.compendium_npc_update or []),
         location_change=state_result.location_change,
         inventory_add=list(state_result.inventory_add or []),
@@ -62,7 +62,7 @@ def _build_extraction_context(
     if state_result.location_description:
         location_this_turn["description"] = state_result.location_description
 
-    return _ExtractionContext(
+    return _PostDeltaContext(
         comp_this_turn=post_state.compendium.npcs,
         location_this_turn=location_this_turn,
         inventory_this_turn=[item.model_dump() for item in post_state.inventory],

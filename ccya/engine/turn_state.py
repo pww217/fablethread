@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from ccya.engine.config import EngineConfig
-from ccya.models import ArcThread, LongTermObjective, NPCEntry, NpcPresence, ProgressEntry, StorytellerResult, StateDelta, WorldState
+from ccya.models import ArcThread, LongTermObjective, NPCEntry, NpcPresence, ProgressEntry, RecordResult, StateMerge, WorldState
 from ccya.state import resolve_inventory_remove_target
 from ccya.state.delta_builder import _merge_arc_update
 
@@ -16,12 +16,12 @@ _log = logging.getLogger(__name__)
 
 def _apply_thread_updates(
     state: WorldState,
-    storyteller_result: StorytellerResult,
+    record_result: RecordResult,
     config: EngineConfig | None = None,
     dedup_rejections: list[dict[str, Any]] | None = None,
 ) -> LongTermObjective | None:
-    """Apply explicit thread updates from the storyteller."""
-    if not storyteller_result.thread_update:
+    """Apply explicit thread updates from the record step."""
+    if not record_result.thread_update:
         return None
 
     arc_raw = state.long_term_objective
@@ -43,7 +43,7 @@ def _apply_thread_updates(
 
     mutated = False
     remaining_threads = list(arc.threads)
-    for update in storyteller_result.thread_update:
+    for update in record_result.thread_update:
         found_idx = None
         for i, t in enumerate(remaining_threads):
             if getattr(t, "id", "") == update.id:
@@ -168,16 +168,16 @@ def _apply_thread_updates(
 
 def _apply_arc_resolve(
     state: WorldState,
-    storyteller_result: StorytellerResult,
+    record_result: RecordResult,
     config: EngineConfig,
 ) -> WorldState:
-    """Process arc resolution from the storyteller.
+    """Process arc resolution from the record step.
 
     Resolves current arc, stores it in resolved_arcs with TTL tracking,
     then creates a new successor arc with all threads carried forward.
     Returns updated state.
     """
-    if not storyteller_result.arc_resolve:
+    if not record_result.arc_resolve:
         return state
 
     turn_no = state.meta.turn + 1
@@ -189,7 +189,7 @@ def _apply_arc_resolve(
         )
         return state
 
-    resolution = storyteller_result.arc_resolve
+    resolution = record_result.arc_resolve
 
     # Store resolved arc entry in state's resolved_arcs list with TTL tracking
     resolved_arc_entry = {
@@ -228,9 +228,9 @@ def _apply_arc_resolve(
 
 def _apply_thread_resolutions(
     state: WorldState,
-    storyteller_result: StorytellerResult,
+    record_result: RecordResult,
 ) -> WorldState:
-    """Process thread_resolve from StorytellerResult.
+    """Process thread_resolve from the record step.
 
     Moves resolved/failed/abandoned threads from arc.threads[] to
     arc.completed_threads[], setting resolution_state on each.
@@ -239,7 +239,7 @@ def _apply_thread_resolutions(
     creating a duplicate.
     Returns updated state.
     """
-    if not storyteller_result.thread_resolve:
+    if not record_result.thread_resolve:
         return state
 
     turn_no = state.meta.turn + 1
@@ -257,7 +257,7 @@ def _apply_thread_resolutions(
     updates: list[ArcThread] = []
     any_found = False
 
-    for res in storyteller_result.thread_resolve:
+    for res in record_result.thread_resolve:
         found_idx = None
         for i, t in enumerate(arc.threads):
             if getattr(t, "id", "") == res.id:
@@ -311,7 +311,7 @@ def _apply_thread_resolutions(
     })
 
 
-def _validate(state: WorldState, delta: StateDelta) -> list[dict[str, Any]]:
+def _validate(state: WorldState, delta: StateMerge) -> list[dict[str, Any]]:
     rejections: list[dict[str, Any]] = []
 
     inv_list = list(state.inventory)
@@ -418,13 +418,13 @@ def _expire_conditions(
 
 def _apply_state_updates(
     state: WorldState,
-    delta: StateDelta | None,
-    storyteller_result: StorytellerResult | None,
+    delta: StateMerge | None,
+    record_result: RecordResult | None,
     config: EngineConfig,
     trace_id: str,
     turn_no: int,
     save_dir: str,
-) -> tuple[WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[str], list[dict[str, Any]]]:
+) -> tuple[WorldState, StateMerge | None, dict[str, Any], list[dict[str, Any]], list[str], list[dict[str, Any]]]:
     """Apply state updates from extraction pipeline: delta, beats, NPCs, arcs.
 
     Returns (state, delta, applied, rejected, reconcile_warnings, thread_dedup_rejections).
@@ -493,8 +493,8 @@ def _apply_state_updates(
             )
 
         # Arc director: process thread updates and arc resolution
-        if storyteller_result and (state.long_term_objective or storyteller_result.thread_add):
-            thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
+        if record_result and (state.long_term_objective or record_result.thread_add):
+            thread_delta = _apply_thread_updates(state, record_result, config, dedup_rejections=thread_dedup_rejections)
             if thread_delta is not None:
                 state = state.model_copy(update={"long_term_objective": _merge_arc_update(state.long_term_objective, thread_delta)})
                 if delta is not None:
@@ -503,17 +503,17 @@ def _apply_state_updates(
                     )
 
             # Apply goal_update (mid-arc long_term_objective change, separate from arc_resolve)
-            if storyteller_result.goal_update:
-                state = state.model_copy(update={"long_term_objective": state.long_term_objective.model_copy(update={"long_term_objective": storyteller_result.goal_update["long_term_objective"]})})
+            if record_result.goal_update:
+                state = state.model_copy(update={"long_term_objective": state.long_term_objective.model_copy(update={"long_term_objective": record_result.goal_update["long_term_objective"]})})
                 _log.info(
                     "goal_update trace_id=%s long_term_objective='%s'",
-                    trace_id, storyteller_result.goal_update["long_term_objective"],
+                    trace_id, record_result.goal_update["long_term_objective"],
                     extra={"trace_id": trace_id},
                 )
 
             # Detect same-turn thread_update + thread_resolve conflict
-            update_ids = {u.id for u in (storyteller_result.thread_update or [])}
-            resolve_ids = {r.id for r in (storyteller_result.thread_resolve or [])}
+            update_ids = {u.id for u in (record_result.thread_update or [])}
+            resolve_ids = {r.id for r in (record_result.thread_resolve or [])}
             conflict_ids = update_ids & resolve_ids
             if conflict_ids:
                 _log.warning(
@@ -522,76 +522,59 @@ def _apply_state_updates(
                 )
 
             # Process arc resolution (resolves arc + creates successor)
-            state = _apply_arc_resolve(state, storyteller_result, config)
+            state = _apply_arc_resolve(state, record_result, config)
 
             # Process thread resolutions (resolved/failed/abandoned -> completed)
-            state = _apply_thread_resolutions(state, storyteller_result)
+            state = _apply_thread_resolutions(state, record_result)
 
-            if storyteller_result.thread_add:
-                # Cooldown gate: only allow thread_add if cooldown satisfied
-                _last_add = state.meta.last_thread_creation_turn
-                if _last_add is not None and config and (turn_no - _last_add < config.thread_creation_cooldown):
-                    _log.debug(
-                        "thread_add.cooldown trace_id=%s turn=%d last_add=%d cooldown=%d — skipping",
-                        trace_id, turn_no, _last_add, config.thread_creation_cooldown,
-                        extra={"trace_id": trace_id, "turn": turn_no},
-                    )
-                    if thread_dedup_rejections is not None:
-                        thread_dedup_rejections.append({
-                            "thread_id": storyteller_result.thread_add.id,
-                            "rejected_reason": "cooldown",
-                            "similarity": 0.0,
-                            "turn": turn_no,
-                        })
-                else:
-                    _new_thread = storyteller_result.thread_add
-                    turn_no_for_add = state.meta.turn + 1
-                    arc = state.long_term_objective
-                    if delta is not None:
-                        try:
-                            existing_ids = {t.id for t in arc.threads} | {t.id for t in arc.completed_threads}
-                            if _new_thread.id not in existing_ids:
-                                _updated_t = _new_thread.model_copy(update={
-                                    "added_turn": turn_no_for_add,
-                                    "urgency_set_turn": turn_no_for_add,
-                                })
-                                arc_with_new_thread = arc.model_copy(
-                                    update={"threads": list(arc.threads) + [_updated_t],
-                                            "last_thread_created_turn": turn_no_for_add}
-                                )
-                                if config:
-                                    non_dormant = [t for t in arc_with_new_thread.threads if not t.dormant]
-                                    if len(non_dormant) > config.thread_max_active:
-                                        evict = min(non_dormant, key=lambda t: t.last_updated_turn or 0)
-                                        evicted = evict.model_copy(update={"dormant": True, "last_updated_turn": turn_no_for_add})
-                                        arc_with_new_thread = arc_with_new_thread.model_copy(
-                                            update={"threads": [evicted if t.id == evict.id else t for t in arc_with_new_thread.threads]}
-                                        )
-                                        _log.info(
-                                            "thread_cap.evict trace_id=%s evicted=%s non_dormant_count=%d max=%d",
-                                            trace_id, evict.id, len(non_dormant), config.thread_max_active,
-                                            extra={"trace_id": trace_id, "turn": turn_no},
-                                        )
-                                state = state.model_copy(update={"long_term_objective": arc_with_new_thread})
-                                state = state.set_last_thread_creation_turn(turn_no_for_add)
-                                delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
-                            else:
-                                _log.warning(
-                                    "thread_add.duplicate_id trace_id=%s turn=%d thread=%s — ID already exists in arc, skipping",
-                                    trace_id, turn_no, _new_thread.id, extra={"trace_id": trace_id, "turn": turn_no},
-                                )
-                                if thread_dedup_rejections is not None:
-                                    thread_dedup_rejections.append({
-                                        "thread_id": _new_thread.id,
-                                        "rejected_reason": "duplicate_id",
-                                        "similarity": 1.0,
-                                        "turn": turn_no,
-                                    })
-                        except Exception as exc:
-                            _log.warning(
-                                "thread_add: failed to validate arc at T%d for thread %s: %s",
-                                turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},
+            if record_result.thread_add:
+                _new_thread = record_result.thread_add
+                turn_no_for_add = state.meta.turn + 1
+                arc = state.long_term_objective
+                if delta is not None:
+                    try:
+                        existing_ids = {t.id for t in arc.threads} | {t.id for t in arc.completed_threads}
+                        if _new_thread.id not in existing_ids:
+                            _updated_t = _new_thread.model_copy(update={
+                                "added_turn": turn_no_for_add,
+                                "urgency_set_turn": turn_no_for_add,
+                            })
+                            arc_with_new_thread = arc.model_copy(
+                                update={"threads": list(arc.threads) + [_updated_t],
+                                        "last_thread_created_turn": turn_no_for_add}
                             )
+                            if config:
+                                non_dormant = [t for t in arc_with_new_thread.threads if not t.dormant]
+                                if len(non_dormant) > config.thread_max_active:
+                                    evict = min(non_dormant, key=lambda t: t.last_updated_turn or 0)
+                                    evicted = evict.model_copy(update={"dormant": True, "last_updated_turn": turn_no_for_add})
+                                    arc_with_new_thread = arc_with_new_thread.model_copy(
+                                        update={"threads": [evicted if t.id == evict.id else t for t in arc_with_new_thread.threads]}
+                                    )
+                                    _log.info(
+                                        "thread_cap.evict trace_id=%s evicted=%s non_dormant_count=%d max=%d",
+                                        trace_id, evict.id, len(non_dormant), config.thread_max_active,
+                                        extra={"trace_id": trace_id, "turn": turn_no},
+                                    )
+                            state = state.model_copy(update={"long_term_objective": arc_with_new_thread})
+                            delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
+                        else:
+                            _log.warning(
+                                "thread_add.duplicate_id trace_id=%s turn=%d thread=%s — ID already exists in arc, skipping",
+                                trace_id, turn_no, _new_thread.id, extra={"trace_id": trace_id, "turn": turn_no},
+                            )
+                            if thread_dedup_rejections is not None:
+                                thread_dedup_rejections.append({
+                                    "thread_id": _new_thread.id,
+                                    "rejected_reason": "duplicate_id",
+                                    "similarity": 1.0,
+                                    "turn": turn_no,
+                                })
+                    except Exception as exc:
+                        _log.warning(
+                            "thread_add: failed to validate arc at T%d for thread %s: %s",
+                            turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},
+                        )
 
             # Engine culling: when >= 3 dormant threads, move oldest to completed
             if state.long_term_objective:

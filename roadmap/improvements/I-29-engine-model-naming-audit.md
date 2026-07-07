@@ -1,6 +1,6 @@
 ---
 title: "Engine model and pipeline naming audit"
-status: scoping
+status: implemented
 urgency: 3
 size: large
 created: 2026-07-05
@@ -104,3 +104,35 @@ This is a pure naming refactoring with no behavior changes. Each item:
 4. **Structural changes**: Merge `SeedStateEnvelope`/`SeedEnvelope`, merge `SanitizedWorldStateFact`/`WorldStateFact`, align `CompendiumEntry.bond` → `tie`, move `TurnResult` to `turn.py`
 5. **Doc updates**: Arch docs, repomap, state-models.md, cross-pipeline.md
 6. **Cleanup**: Fix outdated "storytell" references in `engine/_pacing.py` docstring, `state/delta_builder.py` comment, `pack.py` comment
+
+## Execution summary
+
+### Done
+- **Phase 1** (committed): `StorytellerResult` → `RecordResult`, `StateDelta` → `StateMerge` across engine/models/docs
+- **Phase 2** (committed): `_ExtractionResult` → `_ExtractionAccumulator`, `_ExtractionVariant` → `_ExtractionStreamConfig`, `_ExtractionContext` → `_PostDeltaContext`, `ExtractResult` → `ExtractionResult`
+- **Phase 5** (committed): `PC.directive` → `PC.directives`
+
+### No-ops (already done or names don't exist)
+- `NarrationResult` → `Narration` — doesn't exist (current: `NarrateResult`)
+- `TurnCompleteResult` → `TurnComplete` — doesn't exist
+- `WorldFactsBlock` → `WorldFacts` — doesn't exist
+- `DirectiveBlock` → `Directive` — doesn't exist
+- `ArcThreadSummaryItem` → `ArcThreadSummary` — doesn't exist (current: `ArcThreadSummary`)
+- `TurnResult` (move) — no-op (stays in turn.py)
+- `Scene.world_facts` → `Scene.world_state` — already `world_state`
+- `SeedScene.world_facts` → `SeedScene.world_state` — already `world_state`
+- `SeedPC.directive` → `SeedPC.directives` — doesn't exist on `SeedPC` (has `drive`)
+- `SeedState.world_info` → `SeedState.world` — already `world`
+- `storyteller_result` param → `record_result` — already done
+
+### Cross-cutting audit (Phase 6)
+- Ev checkers: no changes needed (uses `Narration:` text in prompts, not class refs)
+- Server routes: `SeedEnvelope` correct (not `SeedStateEnvelope`)
+- Prompt templates: `world_state`, `pacing_context.directive`, `rules_outcome.directive` all correct
+- State I/O: `default_world_state()` function name correct
+- Seed pipeline: no references to old names
+
+### Discrepancies found
+- I-29 ticket and plan listed `NarrationResult`, `TurnCompleteResult`, `WorldFactsBlock`, `DirectiveBlock`, `ArcThreadSummaryItem` as old names — none exist in codebase
+- I-29 listed `SeedPC.directive` but `SeedPC` has `drive`, not `directive`
+- Historical design docs in `docs/design/complete/` still reference old names (`StorytellerResult`, `StateDelta`) — these describe past states and are intentionally not updated
