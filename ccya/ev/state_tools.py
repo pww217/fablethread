@@ -345,6 +345,7 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
             "convergence": None,
             "world_candidates": [],
             "selected_beat": None,
+            "beat_candidates": [],
         }
 
         # From state.meta.pending_gm_beat (moved from record extraction)
@@ -361,6 +362,11 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
             beat_entry["directive"] = pacing.get("directive", "")
             beat_entry["phase"] = pacing.get("scene_phase", "")
             beat_entry["convergence"] = pacing.get("convergence_score")
+
+        # From event top level: beat_candidates (canonical source post B-37)
+        bc = ev.get("beat_candidates") or []
+        if isinstance(bc, list):
+            beat_entry["beat_candidates"] = bc
 
         # From world extraction: beat candidates generated
         world_output = ((ev.get("extraction") or {}).get("world") or {}).get("output") or []
@@ -471,6 +477,21 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
         selected = bd.get("selected_beat")
 
         print(f"\nTurn {t} | Phase: {phase or 'N/A'} | Convergence: {conv if conv is not None else 'N/A'}")
+
+        # beat_candidates from event top level
+        bc = bd.get("beat_candidates", [])
+        if bc:
+            print(f"  beat_candidates ({len(bc)}):")
+            for i, c in enumerate(bc):
+                if isinstance(c, dict):
+                    ctype = c.get("type", "?")
+                    ceffect = c.get("effect", "")
+                    cmotivation = c.get("motivation", "")
+                    print(f"    [{i}] {ctype}: {ceffect}{f' ({cmotivation})' if cmotivation else ''}")
+                else:
+                    print(f"    [{i}] {c}")
+        else:
+            print("  beat_candidates: (none)")
 
         if world:
             print(f"  world candidates ({len(world)}):")
@@ -677,6 +698,9 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
             }
             score = est_score
 
+        convergence_threads = pc.get("convergence_threads") or []
+        thread_ids = [t.get("id", "") if isinstance(t, dict) else str(t) for t in convergence_threads]
+
         rows.append({
             "turn": t,
             "phase": phase,
@@ -687,6 +711,7 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
             "roll": comps.get("roll_starvation", "?"),
             "score": score,
             "entry": phase == "CLIMAX" and prev_phase != "CLIMAX",
+            "convergence_threads": thread_ids,
         })
         prev_phase = phase
 
@@ -700,8 +725,8 @@ def _format_convergence_table(rows: list[dict[str, Any]], had_components: bool, 
         return
 
     out_lines: list[str] = []
-    out_lines.append(f"{'Turn':>5} | {'Phase':<10} | Thread | Depth | Age | Beat | Dice | Score | >=3?")
-    out_lines.append(f"{'─' * 5}┼{'─' * 12}┼{'─' * 7}┼{'─' * 6}┼{'─' * 4}┼{'─' * 5}┼{'─' * 5}┼{'─' * 7}┼{'─' * 5}")
+    out_lines.append(f"{'Turn':>5} | {'Phase':<10} | Thread | Depth | Age | Beat | Dice | Score | >=3? | Threads")
+    out_lines.append(f"{'─' * 5}┼{'─' * 12}┼{'─' * 7}┼{'─' * 6}┼{'─' * 4}┼{'─' * 5}┼{'─' * 5}┼{'─' * 7}┼{'─' * 5}┼{'─' * 40}")
     for r in rows:
         marker = " " if not r["entry"] else "\u2192"
         score_ok = r["score"] >= 3
@@ -714,7 +739,10 @@ def _format_convergence_table(rows: list[dict[str, Any]], had_components: bool, 
         else:
             score_display = score_padded
         ok_str = f"YES{marker}" if score_ok else "NO "
-        out_lines.append(f"{r['turn']:>5} | {r['phase']:<10} |   {r['thread']}    |   {r['depth']}   |  {r['age']}  |  {r['beat']}   |   {r['roll']}  |  {score_display} | {ok_str}")
+        threads = r.get("convergence_threads", [])
+        thread_str = ", ".join(threads) if threads else ""
+        thread_display = thread_str[:38] + ".." if len(thread_str) > 40 else thread_str
+        out_lines.append(f"{r['turn']:>5} | {r['phase']:<10} |   {r['thread']}    |   {r['depth']}   |  {r['age']}  |  {r['beat']}   |   {r['roll']}  |  {score_display} | {ok_str} | {thread_display}")
     if not had_components and not estimate:
         out_lines.append("")
         out_lines.append("[Note: convergence_components not recorded in this save. Use --estimate to retro-compute.]")

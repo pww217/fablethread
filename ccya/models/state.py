@@ -31,7 +31,6 @@ class Meta(BaseModel):
     last_inventory_change_reason: str | None = None
     last_condition_change_reason: str | None = None
     last_rules_outcome: dict[str, Any] | None = None
-    last_thread_creation_turn: int | None = None
     last_arc_resolve_turn: int | None = None
 
 
@@ -194,9 +193,6 @@ class WorldState(BaseModel):
 
     def set_last_rules_outcome(self, outcome: dict[str, Any] | None) -> "WorldState":
         return self.model_copy(update={"meta": self.meta.model_copy(update={"last_rules_outcome": outcome})})
-
-    def set_last_thread_creation_turn(self, turn: int) -> "WorldState":
-        return self.model_copy(update={"meta": self.meta.model_copy(update={"last_thread_creation_turn": turn})})
 
     def set_last_arc_resolve_turn(self, turn: int) -> "WorldState":
         return self.model_copy(update={"meta": self.meta.model_copy(update={"last_arc_resolve_turn": turn})})

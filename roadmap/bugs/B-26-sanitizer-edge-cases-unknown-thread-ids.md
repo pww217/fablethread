@@ -1,6 +1,6 @@
 ---
 title: "Sanitizer edge cases — unknown thread IDs, thread resolutions"
-status: new
+status: canceled
 urgency: 4
 size: small
 created: 2026-06-29

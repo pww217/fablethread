@@ -301,7 +301,7 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
     yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
     # Build narration context and messages (extracted phase)
-    _pc, narr_messages = await _narrate_setup(ctx)
+    _pc, narr_messages, _ = await _narrate_setup(ctx)
 
     # Trim + log (stays inline for simplicity)
     rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
@@ -321,7 +321,6 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
         config.model,
         narr_messages,
         fallback_host=config.fallback_host,
-        fallback_model=config.fallback_model,
         fallback_cooldown_s=config.fallback_cooldown_s,
         temperature=config.narrate_temperature,
         top_p=config.narrate_top_p,
@@ -618,10 +617,13 @@ async def _persist_and_async_cleanup(
 
     _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     beat_candidates = state.meta.beat_candidates or []
+    # NPC updates from scene extraction (observability)
+    npc_updates = ((extraction_event.get("scene") or {}).get("output") or {}).get("compendium_npc_update") or []
     event = {
         "ts": _ts,
         "trace_id": trace_id,
         "turn": state.meta.turn,
+        "type": "turn",
         "input": user_input,
         "applied": applied,
         "rejected": rejected,
@@ -640,6 +642,7 @@ async def _persist_and_async_cleanup(
             "convergence_threads": pc.convergence_threads if pc else [],
         },
         "beat_candidates": beat_candidates,
+        "npc_updates": npc_updates,
         "post_turn_pending_beat": state.meta.pending_gm_beat,
         "allowed_beat_types": derive_allowed_beat_types(
             state.scene.scene_phase,
@@ -647,6 +650,7 @@ async def _persist_and_async_cleanup(
         ),
         "post_turn_location_id": state.location.id,
         "scene_phase": state.scene.scene_phase,
+        "curtain_call": state.scene.curtain_call,
         "narrate": {**narr_metrics, "prose": narrative},
         "extract": ext_metrics,
         "extraction": extraction_event,
@@ -773,11 +777,11 @@ async def _persist_and_async_cleanup(
     world_system_text = ""
     world_user_text = ""
     world_raw_response = ""
-    beat_candidates: list[dict[str, Any]] = []
+    beat_candidates = []
     world_usage: dict[str, int] = {"tokens_in": 0, "tokens_out": 0}
     t_world = asyncio.get_event_loop().time()
     try:
-        beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
+        _, beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
             env, state, narrative, pc, config, trace_id, turn_no,
         )
     except Exception as exc:
@@ -846,7 +850,6 @@ async def warmup(config: EngineConfig) -> None:
             config.model,
             [{"role": "user", "content": "ok"}],
             fallback_host=config.fallback_host,
-            fallback_model=config.fallback_model,
             fallback_cooldown_s=config.fallback_cooldown_s,
             temperature=0.0,
             timeout=30.0,

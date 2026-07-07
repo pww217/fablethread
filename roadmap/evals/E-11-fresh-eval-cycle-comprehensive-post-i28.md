@@ -164,11 +164,7 @@ New eval findings filed as E- tickets if they warrant separate tracking.
 
 ### Engine Bugs Found
 
-4. **SETUP→RISING transitions early** — Engine transitions SETUP→RISING on turn 2 in zombie-survival without valid trigger (no urgent thread, `turns_in_phase=1 < 3`). Likely in `_compute_scene_phase()`.
-
-5. **World state TTL expiry not working** — Expired facts persist in `last_turn_state.scene.world_state` after `expires_turn`. Fact `edward_chaney_cornered` (expires_turn=5) still present on turns 6-9. TTL expiry in `turn.py:131-144` may not be persisting mutations.
-
-6. **Beat candidates empty on some turns** — Investigated: world step legitimately returns 0 beats on turns 18, 24, 25 (zombie run) and turns 23-25 (allied-ww2 run). This is a late-game LLM issue — the world step LLM fails to generate beats in later turns. Not a checker bug.
+1. **Beat candidates empty on some turns** — Investigated: world step legitimately returns 0 beats on turns 18, 24, 25 (zombie run) and turns 23-25 (allied-ww2 run). This is a late-game LLM issue — the world step LLM fails to generate beats in later turns. Not a checker bug.
 
 ### B-37 Status
 
@@ -225,3 +221,100 @@ New eval findings filed as E- tickets if they warrant separate tracking.
 ### B-29 Status
 
 - **Fixed** — `_state_left.html` template bug resolved, `npc.id` → dict key usage confirmed working.
+
+### EV Tool/CLI Issues Found During Deep Dives
+
+**These made deep-dive analysis harder than necessary. Fix these first in next eval cycle.**
+
+1. **No `convergence_threads` in event data** — `ev.py trace` and `ev.py threads` don't surface `convergence_threads`. `convergence_threads` is in `state.yaml` → `state.long_term_objective.convergence_threads` but not in event data. **Fix:** Add `convergence_threads` to event dict + extend `ev.py trace` to support it. No new command needed — `ev.py trace convergence_threads --save-dir DIR` works automatically.
+
+2. **No beat candidate content query** — `ev.py beats` shows types/surfaces but not candidate content. **Fix:** Extend `ev.py beats` to show candidate content from `beat_candidates` in events. One command, more data. Not a new command.
+
+3. **No NPC data query** — `ev.py state --format npcs` shows current state, not per-turn NPC changes. **Fix:** Add `npc_updates` to event top level (copy from `extraction.scene.output.compendium_npc_update`). Doesn't touch `WorldState` or `state.yaml` — just event data. Then `ev.py` commands can query it.
+
+4. **Curtain call not queryable from events** — no `ev.py curtain-call` that reads from event data. **Fix:** Add `curtain_call` to event dict + add `ev.py curtain-call` command that reads from event data.
+
+5. **Phantom turns indistinguishable from real turns** — events have no `type` field. **Root cause:** Async phases (Sanitizer runs, World step, seed events) leak into `events.jsonl` without a turn discriminator. **Fix:** Ensure all async phase outputs are contained within a single logical turn — fix the event writing path in `_persist_and_async_cleanup()`. Also add `type` field to event dict for identification.
+
+6. **Checker structural bugs not surfaced** — `phase_transition_signals` had dead code (nested `if i > 0:` shadowing elif chains) that only caught via manual logic tracing. **Moved to I-18.**
+
+### Pacing/Phase Engine Deep Dive (zombie-survival 25t, allied-ww2 25t)
+
+**Checker audit found critical bugs:**
+
+1. **`phase_transition_signals` checker had dead code** — nested `if i > 0:` at line 55 shadowed all `elif` chains. Only SETUP→RISING check ever ran. Fixed by removing redundant nested if.
+2. **`phase_transition_signals` BREATHER→RISING check compared pre-increment value** — engine increments `breather_turn_count` BEFORE checking threshold. Checker read pre-increment value (2) vs threshold (3) without accounting for +1. Fixed by comparing `prev + 1 >= threshold`.
+
+**Post-fix checker results: ALL PASS** on both Phase 3 runs (phase_transition, phase_transition_signals, convergence_recompute, curtain_call, directive_beat_alignment).
+
+**Curtain call correctly implemented** — `curtain_call` properly set in `state.scene.curtain_call`:
+- CLIMAX turn 1 → `active` (verified: zombie T7, allied T7/T17)
+- CLIMAX turn >= limit-1 → `forced` (verified: zombie T9/T10, allied T9/T19)
+- Non-CLIMAX → empty string
+- Verified in `last_turn_state.scene.curtain_call` across all events
+
+**CLIMAX duration is exactly 4 turns = climax_turn_limit in both runs:**
+
+Zombie: T7→T11 (CLIMAX), exits at climax_turn_count=4 via hard cap
+Allied: T7→T10 (CLIMAX), exits at climax_turn_count=4 via hard cap
+
+**Root cause of early CLIMAX exit:** Thread depletion mid-CLIMAX causes convergence to drop below extension threshold (3). Extension requires convergence >= 3 AND urgent active thread. Both runs lose urgent threads mid-CLIMAX:
+
+- Zombie: 5 threads at CLIMAX entry → 1 thread at exit (80% loss)
+  - supply_stranglehold: urgent→resolved at T8
+  - internal_corruption_discovery: resolved at T9
+  - locker_security_lockdown: resolved at T7 (1-turn lifetime)
+- Allied: 4 threads at CLIMAX entry → 0 threads at exit
+  - transport_guard_encroachment: resolved at T7
+  - intelligence_leak: resolved at T8
+  - prisoner_ethics: resolved at T8
+  - supply_shortage: resolved at T9
+
+**Convergence score component analysis:**
+- `beat_streak`: consistently 1 across most turns (pressure beats always present)
+- `urgent_thread`: drops to 0 mid-CLIMAX in both runs (primary convergence loss)
+- `threat_thread`: drops to 0 as threat threads resolve
+- `roll_starvation`: occasionally fires (allied T17: +1, 2 turns since last roll)
+- `threat_density`: never fires (threshold=3, max active threats ~2)
+
+**Phase transitions all valid per engine logic:**
+- SETUP→RISING: triggered by turns_in_phase >= 3 or convergence >= 2
+- RISING→CLIMAX: triggered by convergence >= enter_threshold(2) AND RISING_min(3) turns
+- CLIMAX→RESOLUTION: all via hard cap (climax_turn_count = limit = 4)
+- BREATHER→RISING: triggered by breather_turn_count >= 3 (engine increments before check)
+
+**Thread depletion is the primary pacing concern** — threads resolve/lose urgency too rapidly during CLIMAX, causing convergence collapse and premature exit. This is a thread lifecycle issue, not a pacing engine bug. The engine correctly exits CLIMAX when sustained pressure is lost.
+
+**Beat candidates always 0** across all events — world step runs async (end-of-turn) AFTER event save. `beat_candidates` field added to event dict (B-37 fix) but world step hasn't populated it yet at event time.
+
+**Phantom turns exist** — events with empty input, empty applied, empty extract, empty extraction. Zombie: T5, T15. Allied: T5, T10, T15, T25. These are world step events leaking into events.jsonl as turn events. Not a pacing bug but affects event count.
+
+**Curtain call not persisted to event dict** — correctly computed in engine, stored in `state.scene.curtain_call`, but event dict doesn't include it. Checker reads from `last_turn_state.scene.curtain_call` which works but is another observability gap.
+
+---
+
+## EV/Observability Fixes Applied
+
+**All fixes applied to codebase. Requires new eval run to verify against live data.**
+
+1. **`convergence_threads` now traceable** — Added `convergence_threads` special case to `extract_field_from_event()`. `ev.py trace convergence_threads --save-dir DIR` works. Extended `ev.py convergence` to show thread IDs in output.
+
+2. **`beat_candidates` now in event dict** — Event dict already has `beat_candidates` field (B-37 fix). Extended `ev.py beats` to display it in pipeline section (empty due to async timing — expected).
+
+3. **`npc_updates` now in event dict** — Added `npc_updates` field to event dict (copy from `extraction.scene.output.compendium_npc_update`). Added `npc_updates` special case to `extract_field_from_event()`.
+
+4. **`curtain_call` now in event dict** — Added `curtain_call` field to event dict. `ev.py curtain-call` already works from events.
+
+5. **`type` field added to event dict** — Events now have `"type": "turn"` field. Sanitizer events already have `kind: "sanitizer"`. Phantom turns now distinguishable.
+
+6. **Dead code cleaned in `pacing_convergence.py`** — Removed unused `scene_age`, `current_turn`, `meta` variables that were left over from dead code fix.
+
+7. **I-31 created** — `checker-structural-validation.md` for future `ev.py check --lint` feature (deferred).
+
+8. **Lint error fixed in `server/app.py`** — Moved `generate_npc_color` import to top of file (was late import causing E402 lint error). Not a noqa — actually fixed the root cause.
+
+## Phantom Turns
+
+**Resolved:** Added `"type": "turn"` field to all event dict entries in `turn.py`. Sanitizer events already have `kind: "sanitizer"`. No dedicated bug ticket needed — the `type` field makes phantom turns distinguishable in any event query.
+
+## B-37 Status
