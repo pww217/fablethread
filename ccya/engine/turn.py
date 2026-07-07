@@ -36,7 +36,7 @@ from ccya.llm_client import (
     trim_messages,
 )
 from ccya.models import (
-    StateDelta,
+    StateMerge,
     TurnResult,
     WorldState,
     IntentEnvelope,
@@ -81,7 +81,7 @@ async def run_turn(
     metrics: dict[str, Any] = {}
     state = load_state(save_dir)
     narrative_chunks: list[str] = []
-    delta: StateDelta | None = None
+    delta: StateMerge | None = None
     actions: list[str] = []
 
     try:
@@ -180,7 +180,7 @@ async def run_turn(
         }
 
         # === Call 2: Extraction pipeline + metrics ===
-        _extract_result_container = ExtractResult()
+        _extract_result_container = ExtractionResult()
         _extract_gen = _extract_phase(env, state, narrative, ctx, _intent, _outcome, config, trace_id, turn_no, recent_turns, narr_metrics, errors, _extract_result_container)
         try:
             async for _item in _extract_gen:
@@ -390,7 +390,7 @@ async def _extract_phase(
     intent: IntentEnvelope, outcome: RulesOutcome, config: EngineConfig,
     trace_id: str, turn_no: int, recent_turns: list[dict[str, Any]],
     narr_metrics: dict[str, Any], errors: list[dict[str, Any]],
-    extract_result: ExtractResult,
+    extract_result: ExtractionResult,
 ) -> AsyncIterator[tuple[str, Any]]:
     """Run extraction pipeline + build metrics.
 
@@ -399,7 +399,7 @@ async def _extract_phase(
     """
     t2 = asyncio.get_event_loop().time()
 
-    delta: StateDelta | None = None
+    delta: StateMerge | None = None
     actions: list[str] = []
     outcome_summary: str = ""
     extraction_event: dict[str, Any] = {}
@@ -497,10 +497,10 @@ async def _extract_phase(
 
 
 def _apply_phase(
-    state: WorldState, delta: StateDelta | None, record_result: Any | None,
+    state: WorldState, delta: StateMerge | None, record_result: Any | None,
     config: EngineConfig, trace_id: str, turn_no: int, save_dir_str: str,
     errors: list[dict[str, Any]], narrative: str,
-) -> tuple[WorldState, WorldState, StateDelta | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str]:
+) -> tuple[WorldState, WorldState, StateMerge | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str]:
     """Apply delta + rejection handling.
 
     Returns: (state_pre_apply, state, delta, applied, rejected, thread_dedup_rejections, reconcile_warnings, narrative)
@@ -545,8 +545,8 @@ class NarrateResult:
 
 
 @dataclass
-class ExtractResult:
-    delta: StateDelta | None = None
+class ExtractionResult:
+    delta: StateMerge | None = None
     actions: list[str] | None = None
     outcome_summary: str = ""
     extraction_event: dict[str, Any] | None = None
@@ -631,7 +631,7 @@ async def _persist_and_async_cleanup(
         "actions": actions,
         "ruling": ruling_event,
         "pacing_context": {
-            "directive": pc.directive if pc else "",
+            "directive": pc.directives if pc else "",
             "outcome_hint": pc.outcome_hint if pc else None,
             "summary": pc.summary if pc else "",
             "scene_phase": state.scene.scene_phase,
@@ -646,7 +646,7 @@ async def _persist_and_async_cleanup(
         "post_turn_pending_beat": state.meta.pending_gm_beat,
         "allowed_beat_types": derive_allowed_beat_types(
             state.scene.scene_phase,
-            directive=pc.directive if pc else "",
+            directive=pc.directives if pc else "",
         ),
         "post_turn_location_id": state.location.id,
         "scene_phase": state.scene.scene_phase,
