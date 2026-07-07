@@ -191,7 +191,6 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
             continue
 
         snap = extract_field(ev, "last_turn_state") or {}
-        meta = snap.get("meta") or {}
         scene = snap.get("scene") or {}
         # Use convergence_threads from event if available (threads used for computation),
         # otherwise can't accurately recompute for old saves
@@ -203,8 +202,6 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
         # Compute scene_age
         # meta.turn in last_turn_state is already incremented (post-turn),
         # but _compute_ages runs at ruling time (pre-increment), so subtract 1
-        mt = meta.get("turn")
-        current_turn = (mt if mt is not None else turn_no) - 1  # type: ignore[operator]
         # scene.turn_entered in last_turn_state is set by delta_builder AFTER
         # ruling, but _compute_ages runs at ruling time. Read from previous
         # turn's state to get the pre-delta_builder value.
@@ -230,7 +227,6 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
         if scene_entered is None:
             # Fallback: match _compute_ages() which defaults to 0 when turn_entered is not set
             scene_entered = 0
-        scene_age = current_turn - scene_entered
 
         # Get recent_beats — read from previous turn's state to match
         # what was used for convergence calculation (convergence runs in

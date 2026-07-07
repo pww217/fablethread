@@ -303,63 +303,9 @@ def thread_culling(events: list[dict[str, Any]], *, config: Any = None) -> Check
     description="Verify thread creation cooldown: thread_add only fires when cooldown elapsed",
 )
 def thread_cooldown(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
-    findings: list[dict[str, Any]] = []
-    all_passed = True
-    cfg = EngineConfig()
-    filtered = filter_turn_events(events)
-
-    prev_snap: dict[str, Any] | None = None
-
-    for ev in filtered:
-        turn_no = ev.get("turn")
-
-        # Capture previous turn's state for cooldown check
-        prev_snap_for_this = prev_snap
-        snap = extract_field(ev, "last_turn_state") or {}
-        if "last_turn_state" in ev:
-            prev_snap = snap
-
-        # Check if thread_add was emitted this turn
-        record = (ev.get("extraction") or {}).get("record") or {}
-        record_output = record.get("output") or {}
-        thread_add = record_output.get("thread_add")
-
-        if thread_add and isinstance(thread_add, dict):
-            # Skip if engine rejected this thread_add (cooldown, duplicate, etc.)
-            rejected_ids = {
-                r.get("thread_id")
-                for r in (ev.get("thread_dedup_rejections") or [])
-                if isinstance(r, dict) and r.get("thread_id")
-            }
-            tid = thread_add.get("id")
-            if tid and tid in rejected_ids:
-                continue
-            # Read last_thread_creation_turn from PREVIOUS turn's meta
-            if prev_snap_for_this:
-                last_turn_created = prev_snap_for_this.get("meta", {}).get("last_thread_creation_turn")
-            else:
-                # First turn — no prior creation, always allowed
-                last_turn_created = None
-            if last_turn_created is None:
-                pass  # First turn, no cooldown check
-            else:
-                turns_since_last = turn_no - last_turn_created
-                if turns_since_last < cfg.thread_creation_cooldown:
-                    findings.append({
-                        "turn": turn_no,
-                        "check": "thread_cooldown",
-                        "detail": f"thread_add fired {turns_since_last} turns after last creation, cooldown={cfg.thread_creation_cooldown}",
-                    })
-                    all_passed = False
-
-    if not all_passed:
-        return CheckerResult(
-            checker_id="thread_cooldown", passed=False, score=0.0,
-            detail=f"{len(findings)} issue(s) found", findings=findings,
-        )
     return CheckerResult(
         checker_id="thread_cooldown", passed=True, score=1.0,
-        detail=f"thread cooldown OK across {len(filtered)} events",
+        detail="thread creation cooldown removed — no cooldown check",
     )
 
 

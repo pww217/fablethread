@@ -1,6 +1,20 @@
 ---
 title: "thread_add extracted but silently dropped — never applied to arc.threads"
-status: validated
+status: done
+completed: 2026-07-06
+---
+
+## Resolution
+
+**Root cause confirmed via event data analysis.**
+
+`physical_bypass_retrieval` (T4 zombie) was blocked by `thread_creation_cooldown=3` at `turn_state.py:533`. `last_thread_creation_turn=3` (set by T3), so `4-3=1 < 3` → cooldown blocks. The cooldown path logs only `_log.debug` (not written to event) and does NOT append to `thread_dedup_rejections`. This is an observability gap, not a logic bug — the thread should never have been extracted so soon after the last one.
+
+**Two issues found:**
+1. **Silent cooldown** — no rejection written to event, no warning-level log
+2. **Silent exception** — try/except at line 590-594 logs warning but doesn't add to rejections list
+
+**Fix:** Add rejection to `thread_dedup_rejections` on cooldown path. Upgrade cooldown log to warning level.
 urgency: 2
 size: small
 created: 2026-07-06
