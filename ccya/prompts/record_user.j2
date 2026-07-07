@@ -25,14 +25,6 @@ Band: {{ band | upper }}. Apply thread advancement freely on success/crit_succes
 {% if scene_phase %}
 ## Scene phase: {{ scene_phase }}
 {% endif %}
-{% if curtain_call and curtain_call != "" %}
-## Curtain Call: {{ curtain_call | upper }}
-{% if curtain_call == "active" %}
-You MUST resolve the active thread this scene. Include at least one `thread_resolve` entry. This turn sets the stakes — the next turns drive toward conclusion.
-{% elif curtain_call == "forced" %}
-FORCED: This thread MUST resolve now, for better or worse. The engine will force a transition if you don't. Prefer decisive resolution.
-{% endif %}
-{% endif %}
 {% if prior_history %}
 ## Recent Outcomes
 {% for b in prior_history %}{{ b }}

@@ -471,9 +471,9 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - `goal_update` example shows `long_term_objective` — correct.
 
 #### E.4 Internal consistency
-- **Urgency escalation (3+ turns unaddressed → escalate) vs engine auto-dormant (8 turns):** Different thresholds. Prompt's 3-turn escalation would trigger much earlier than engine's 8-turn dormancy. Clarify which is authoritative.
+- **Urgency escalation (3+ turns unaddressed → escalate) vs engine auto-dormant (8 turns):** Different thresholds. Prompt's 3-turn escalation would trigger much earlier than engine's 8-turn dormancy. **UPDATED (2026-07-07):** These rules should be removed from Record entirely. The Record is a log-keeper, not a decision-maker. Thread lifecycle rules (urgency escalation, scene phase thread guidance, curtain call forcing) belong in the Narrator prompt. The Record should only log what the Narrator did.
 - **`thread_creation_cooldown` in arch doc vs no cooldown in prompt:** Handled by engine, not prompt. Document this separation.
-- **Curtain call guidance for CLIMAX phase:** Clear.
+- **Curtain call guidance for CLIMAX phase:** **UPDATED (2026-07-07):** Should be removed from Record prompt. The Narrator writes the prose and decides when threads are resolved. The Record should only log the Narrator's decisions, not force them.
 - **No curtain call guidance for other phases:** Correct (not applicable).
 - **Outcome summary: "one sentence" — clear.**
 - **Actions: "exactly 4 choices" — clear.**
@@ -511,11 +511,12 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - [x] **Dead fields in `StorytellerBoundary`:** ~~`npc_roster`~~, ~~`location`~~, ~~`conditions`~~, ~~`inventory`~~, ~~`intent`~~, ~~`pacing_context`~~, ~~`scene_phase`~~, ~~`curtain_call`~~, ~~`allowed_beat_types`~~, ~~`pending_beat`~~, ~~`recent_beats`~~ — none passed by record engine. **RESOLVED: removed dead fields, added `pc_name`.**
 - [x] **Schema example `thread_update` has `reason` field:** Not in field rules. **RESOLVED: `reason` is in field rules (line 12 of schema, used for thread_update).**
 - [x] **`thread_resolve.world_state_candidate` not explained:** Field rules don't explain when to use it. **LEFT AS-IS: low priority, can be added later.**
-- [x] **Urgency escalation vs auto-dormant threshold:** Prompt says 3+ turns, engine auto-dormant at 8. **LEFT AS-IS: different contexts — LLM guidance vs engine default.**
+- [x] **Urgency escalation vs auto-dormant threshold:** Prompt says 3+ turns, engine auto-dormant at 8. **UPDATED (2026-07-07): These rules should be removed from Record entirely. The Record is a log-keeper, not a decision-maker. Thread lifecycle rules belong in the Narrator prompt.**
 - [x] **`thread_creation_cooldown` not in prompt:** Arch doc mentions cooldown gate, prompt doesn't render it. Handled by engine. **RESOLVED: documented as engine-gated.**
 - [x] **"CRITICAL" used 9 times** → **4 times now** (progress new fact, don't resolve non-existent threads, never update+resolve same thread, don't emit empty arc_resolve). **RESOLVED.**
 - [x] **Thread ID rules stated 5 times** → **consolidated to 1 section**. **RESOLVED.**
 - [x] **No guard against empty narration:** Should be handled by engine. **LEFT AS-IS: engine concern, not prompt fix.**
+- [x] **Record prompt thread lifecycle rules should be removed:** Curtain call forcing, scene phase thread rules, "3+ turns → resolve" rule, urgency escalation rules, thread sustainability rules. These belong in the Narrator prompt. The Record should only log what the Narrator did. **RESOLVED (2026-07-07): All rules stripped from Record prompt. Thread authority added to Narrator prompt. Curtain call soft guidance moved to Narrator user prompt.**
 
 ### F. World (step2d-world)
 **Files:** `world_system.j2`, `world_user.j2`

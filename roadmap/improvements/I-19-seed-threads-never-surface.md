@@ -32,7 +32,7 @@ The thread sanitizer gives the LLM the current thread list with status, but the 
 
 ## Design Question
 
-Should the engine auto-surface dormant threads, or is this the LLM's responsibility?
+Should the engine auto-surface dormant threads, or is this the Narrator's responsibility?
 
 ### Option A: Engine auto-surface
 - After N turns of dormancy, the sanitizer injects a "thread reactivation" signal
@@ -40,18 +40,23 @@ Should the engine auto-surface dormant threads, or is this the LLM's responsibil
 - Pro: guaranteed thread engagement, no threads lost
 - Con: may force narrative in unwanted directions, reduces player agency
 
-### Option B: LLM responsibility with stronger prompting
-- Add explicit guidance to sanitizer prompt: "You MUST update at least one dormant thread every 5 turns"
-- Add thread diversity constraint to ruling prompt
-- Pro: preserves player agency, LLM can naturally weave threads in
-- Con: LLM may still ignore threads, no guarantee of engagement
+### Option B: Narrator responsibility with stronger prompting
+- The Narrator prompt receives thread lifecycle guidance (urgency, scene phase, convergence)
+- The Narrator naturally weaves dormant threads into prose when appropriate
+- The Record only logs what the Narrator did (no corrective thread rules)
+- Pro: preserves player agency, Narrator has narrative context, no engine interference
+- Con: Narrator may still ignore threads, no guarantee of engagement
 
 ### Option C: Hybrid
 - Engine tracks thread age (turns since last update)
 - When a thread exceeds max_age (e.g., 8 turns), the sanitizer adds a "stale" flag
-- The ruling prompt includes stale threads with higher visual weight
-- Pro: gives engine control while preserving LLM narrative freedom
+- The Narrator prompt includes stale threads with higher visual weight
+- Pro: gives engine control while preserving Narrator narrative freedom
 - Con: more complex, requires new config field
+
+### Note (2026-07-07)
+
+Record prompt should NOT contain thread lifecycle rules. The Record is a log-keeper — it should only jot down what the Narrator did. Thread lifecycle guidance belongs in the Narrator prompt, where the Narrator has the context to naturally weave threads into prose. The Record's corrective rules (curtain call forcing, "3+ turns → resolve", urgency escalation) are pulling the rug out from under the Narrator and causing premature thread resolution.
 
 ## Related
 - E-7 thread audit findings
