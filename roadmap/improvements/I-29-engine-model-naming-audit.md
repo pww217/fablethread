@@ -1,10 +1,11 @@
 ---
 title: "Engine model and pipeline naming audit"
-status: implemented
+status: done
 urgency: 3
 size: large
 created: 2026-07-05
 ticket_id: I-29
+completed: 2026-07-07
 labels: [engine, models, naming]
 ---
 
