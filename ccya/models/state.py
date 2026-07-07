@@ -49,7 +49,7 @@ class PC(BaseModel):
     conditions: list[Condition] = Field(default_factory=list)
     allegiance: str | None = None
     situation: dict[str, Any] = Field(default_factory=dict)
-    directive: str = ""
+    directives: str = ""
     actions: list[str] = Field(default_factory=list)
 
 

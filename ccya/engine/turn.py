@@ -631,7 +631,7 @@ async def _persist_and_async_cleanup(
         "actions": actions,
         "ruling": ruling_event,
         "pacing_context": {
-            "directive": pc.directive if pc else "",
+            "directive": pc.directives if pc else "",
             "outcome_hint": pc.outcome_hint if pc else None,
             "summary": pc.summary if pc else "",
             "scene_phase": state.scene.scene_phase,
@@ -646,7 +646,7 @@ async def _persist_and_async_cleanup(
         "post_turn_pending_beat": state.meta.pending_gm_beat,
         "allowed_beat_types": derive_allowed_beat_types(
             state.scene.scene_phase,
-            directive=pc.directive if pc else "",
+            directive=pc.directives if pc else "",
         ),
         "post_turn_location_id": state.location.id,
         "scene_phase": state.scene.scene_phase,

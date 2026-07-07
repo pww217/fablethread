@@ -198,7 +198,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
 
     # Validate selected beat type against phase constraints
     if beat and beat.get("type"):
-        directive = state.pc.directive
+        directive = state.pc.directives
         allowed = derive_allowed_beat_types(scene_phase, directive=directive)
         if beat["type"] not in allowed:
             _log.warning(
