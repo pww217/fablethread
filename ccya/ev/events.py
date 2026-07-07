@@ -353,6 +353,15 @@ def extract_field_from_event(ev: dict[str, Any], field: str) -> Any | None:
             return loc_id
         return None
 
+    elif field == "convergence_threads":
+        pc = ev.get("pacing_context") or {}
+        threads = pc.get("convergence_threads") or []
+        return [{"id": t.get("id", "") if isinstance(t, dict) else str(t)} for t in threads]
+
+    elif field == "npc_updates":
+        updates = ev.get("npc_updates") or []
+        return [{"id": u.get("id", "") if isinstance(u, dict) else str(u), "presence": u.get("presence", "") if isinstance(u, dict) else ""} for u in updates]
+
     # Generic fallback: dot-notation traversal on event dict
     parts = field.split(".")
     current: Any = ev

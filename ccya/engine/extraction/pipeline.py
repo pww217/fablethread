@@ -12,7 +12,7 @@ from typing import Any
 from jinja2 import Environment
 
 from ccya.engine.config import EngineConfig
-from ccya.engine.extraction.context import _ExtractionContext, _build_extraction_context
+from ccya.engine.extraction.context import _PostDeltaContext, _build_post_delta_context
 from ccya.engine.extraction.scene import _extract_scene_messages
 from ccya.engine.extraction.state import _extract_state_messages
 from ccya.engine.extraction.record import _record_messages
@@ -24,9 +24,9 @@ from ccya.models import (
     CompendiumNpcUpdate,
     IntentEnvelope,
     SceneExtractResult,
-    StateDelta,
+    StateMerge,
     StateExtractResult,
-    StorytellerResult,
+    RecordResult,
     WorldState,
 )
 
@@ -34,15 +34,15 @@ _log = logging.getLogger(__name__)
 
 
 @dataclass
-class _ExtractionResult:
+class _ExtractionAccumulator:
     scene_result: tuple[Any, dict[str, Any]] | None = None
     state_result: tuple[Any, dict[str, Any]] | None = None
     record_result: tuple[Any, dict[str, Any]] | None = None
-    extraction_ctx: _ExtractionContext | None = None
+    extraction_ctx: _PostDeltaContext | None = None
 
 
 @dataclass
-class _ExtractionVariant:
+class _ExtractionStreamConfig:
     name: str
     result_type: type
     build_messages: Callable[..., list[dict[str, str]]]
@@ -56,11 +56,11 @@ class _ExtractionVariant:
 
 async def _run_extraction_stream(
     state: WorldState,
-    variant: _ExtractionVariant,
+    variant: _ExtractionStreamConfig,
     config: EngineConfig,
     trace_id: str,
     turn_no: int,
-    container: _ExtractionResult,
+    container: _ExtractionAccumulator,
 ) -> AsyncIterator[tuple[str, Any]]:
     yield ("phase", {"phase": "extract_stream_start", "stream": variant.name})
     t_stream = asyncio.get_event_loop().time()
@@ -139,7 +139,7 @@ async def _run_extraction_pipeline(
     band: str = "",
     recent_turns: list[dict[str, Any]] | None = None,
     packing: dict[str, Any] | None = None,
-) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'StorytellerResult', 'SceneExtractResult', '_ExtractionContext']]":
+) -> "AsyncIterator[tuple[str, Any] | tuple['StateMerge', list[str], str, dict[str, Any], 'RecordResult', 'SceneExtractResult', '_PostDeltaContext']]":
     _log.debug("extraction.pipeline.start trace_id=%s turn_no=%d", trace_id, turn_no)
     """Run the three extraction streams in sequence.
 
@@ -159,9 +159,9 @@ async def _run_extraction_pipeline(
     # Defaults if a stream is skipped
     scene_result = SceneExtractResult()
     state_result = StateExtractResult()
-    record_result = StorytellerResult()
+    record_result = RecordResult()
     extraction_event: dict[str, Any] = {}
-    container = _ExtractionResult()
+    container = _ExtractionAccumulator()
 
     # --- Stream 1: Scene ---
     async for event in _scene_stream(state, env, narration, turn_no, config, trace_id, container):
@@ -180,10 +180,10 @@ async def _run_extraction_pipeline(
     # from narration (world step), not from record.
     async for event in _record_stream(state, env, narration, scene_result, state_result, turn_no, config, trace_id, band, recent_turns, container):
         yield event
-    record_result, extraction_event["record"] = container.record_result if container.record_result else (StorytellerResult(), _SKIPPED)
+    record_result, extraction_event["record"] = container.record_result if container.record_result else (RecordResult(), _SKIPPED)
 
     _log.debug("extraction.dedup.start trace_id=%s compendium_updates=%d state_inv_add=%d", trace_id, len(scene_result.compendium_npc_update or []), len(state_result.inventory_add or []))
-    # --- Dedup compendium updates before merging into StateDelta ---
+    # --- Dedup compendium updates before merging into StateMerge ---
     _comp = {nid: entry.model_dump() for nid, entry in state.compendium.npcs.items()}
     existing_npcs: list[dict[str, Any]] = []
     for nid, npc in _comp.items():
@@ -223,8 +223,8 @@ async def _run_extraction_pipeline(
     _log.debug(
         "extraction.merge.start trace_id=%s inv_add=%d", trace_id, len(state_result.inventory_add or [])
     )
-    # --- Merge into single StateDelta ---
-    merged = StateDelta(
+    # --- Merge into single StateMerge ---
+    merged = StateMerge(
         compendium_npc_update=scene_result.compendium_npc_update,
         location_change=state_result.location_change,
         location_description=state_result.location_description,
@@ -253,15 +253,15 @@ async def _run_extraction_pipeline(
 async def _scene_stream(
     state: WorldState, env: "Environment", narration: str,
     turn_no: int, config: EngineConfig, trace_id: str,
-    container: _ExtractionResult,
+    container: _ExtractionAccumulator,
 ) -> AsyncIterator[tuple[str, Any]]:
-    variant = _ExtractionVariant(
+    variant = _ExtractionStreamConfig(
         name="scene",
         result_type=SceneExtractResult,
         build_messages=lambda s: _extract_scene_messages(env, narration, s, turn_no=turn_no),
         build_messages_kwargs={},
         strip_keys=(),
-        preview_builder=lambda s, r: apply_delta(s.model_copy(), StateDelta(compendium_npc_update=r.compendium_npc_update or []), trace_id=trace_id),
+        preview_builder=lambda s, r: apply_delta(s.model_copy(), StateMerge(compendium_npc_update=r.compendium_npc_update or []), trace_id=trace_id),
         panel_builder=lambda s: {
             "npcs": {nid: entry.model_dump() for nid, entry in s.compendium.npcs.items()},
             "location": s.location.model_dump(),
@@ -277,15 +277,15 @@ async def _state_stream(
     state: WorldState, env: "Environment", narration: str,
     intent: "IntentEnvelope | None", turn_no: int, packing: dict[str, Any] | None,
     config: EngineConfig, trace_id: str,
-    container: _ExtractionResult,
+    container: _ExtractionAccumulator,
 ) -> AsyncIterator[tuple[str, Any]]:
-    variant = _ExtractionVariant(
+    variant = _ExtractionStreamConfig(
         name="state",
         result_type=StateExtractResult,
         build_messages=lambda s: _extract_state_messages(env, narration, s, intent=intent, turn_no=turn_no, pack_inventory=(packing or {}).get("inventory") or []),
         build_messages_kwargs={},
         strip_keys=("_reasoning",),
-        preview_builder=lambda s, r: apply_delta(s.model_copy(), StateDelta(
+        preview_builder=lambda s, r: apply_delta(s.model_copy(), StateMerge(
             inventory_add=r.inventory_add or [],
             inventory_remove=r.inventory_remove or [],
             inventory_update=r.inventory_update or [],
@@ -310,12 +310,12 @@ async def _record_stream(
     scene_result: SceneExtractResult, state_result: StateExtractResult,
     turn_no: int, config: EngineConfig, trace_id: str,
     band: str, recent_turns: list[dict[str, Any]] | None,
-    container: _ExtractionResult,
+    container: _ExtractionAccumulator,
 ) -> AsyncIterator[tuple[str, Any]]:
-    container.extraction_ctx = _build_extraction_context(state, scene_result, state_result)
-    variant = _ExtractionVariant(
+    container.extraction_ctx = _build_post_delta_context(state, scene_result, state_result)
+    variant = _ExtractionStreamConfig(
         name="record",
-        result_type=StorytellerResult,
+        result_type=RecordResult,
         build_messages=lambda s: _record_messages(env, narration, s, extraction_ctx=container.extraction_ctx, recent_turns=(recent_turns or [])[-10:], turn_no=turn_no, band=band, arc_ttl=config.arc_memory_ttl, config=config),  # type: ignore[arg-type]
         build_messages_kwargs={},
         strip_keys=("_reasoning",),
@@ -328,7 +328,7 @@ async def _record_stream(
     )
     async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no, container):
         yield event
-    record_result, extraction_event = container.record_result if container.record_result else (StorytellerResult(), {"skipped": True, "tokens_in": 0, "tokens_out": 0, "ms": 0, "attempts": 0, "retry_errors": []})
+    record_result, extraction_event = container.record_result if container.record_result else (RecordResult(), {"skipped": True, "tokens_in": 0, "tokens_out": 0, "ms": 0, "attempts": 0, "retry_errors": []})
     if record_result and not record_result.actions:
         narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
         present_npc_names = [getattr(entry, "name", "") for entry in container.extraction_ctx.comp_this_turn.values() if getattr(entry, "presence", None) == "present"]

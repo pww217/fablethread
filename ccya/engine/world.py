@@ -103,21 +103,21 @@ async def _run_world_step(
             extra={"trace_id": trace_id, "turn": turn_no},
         )
         _log.debug("world.step_failed trace_id=%s turn=%d error=timeout", trace_id, turn_no)
-        return [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}
+        return state, [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}
     except asyncio.CancelledError:
         _log.warning(
             "world LLM call cancelled",
             extra={"trace_id": trace_id, "turn": turn_no},
         )
         _log.debug("world.step_failed trace_id=%s turn=%d error=cancelled", trace_id, turn_no)
-        return [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}
+        return state, [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}
     except Exception as exc:
         _log.warning(
             "world LLM call failed: %s", exc,
             extra={"trace_id": trace_id, "turn": turn_no},
         )
         _log.debug("world.step_failed trace_id=%s turn=%d error=%s", trace_id, turn_no, exc)
-        return [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}
+        return state, [], system_text, user_text, "", {"tokens_in": 0, "tokens_out": 0}
 
     raw = result.content
     usage = result.usage

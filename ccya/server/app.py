@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, pass_context
 
 from ccya.engine import build_engine_config, warmup
+from ccya.engine.npc_roster import generate_npc_color
 from ccya.errors import ErrorKind, LlmcApiError, LlmcRateLimit, LlmcTimeout
 from ccya.logging_setup import setup_logging, setup_server_logging
 from ccya.models import load_config as _load_config
@@ -209,10 +210,7 @@ _jinja_env = Environment(
 )
 _jinja_env.filters["tojson"] = pass_context(lambda ctx, obj: __import__("json").dumps(obj))
 
-# NPC color generation for Jinja templates — use shared function from npc_roster
-from ccya.engine.npc_roster import generate_npc_color as _jinja_npc_color
-
-_jinja_env.filters["npc_color"] = _jinja_npc_color
+_jinja_env.filters["npc_color"] = generate_npc_color
 
 
 def _render(template_name: str, context: dict[str, Any]) -> HTMLResponse:

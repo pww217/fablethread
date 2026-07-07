@@ -2,7 +2,7 @@
 
 This module encapsulates the beat constraint table in Python so both
 `turn.py` (phase engine, directive computation) and `extraction.py`
-(storytell context) can import it without circular imports.
+(record context) can import it without circular imports.
 """
 
 from __future__ import annotations
