@@ -12,7 +12,7 @@ from typing import Any
 from jinja2 import Environment
 
 from ccya.engine.config import EngineConfig
-from ccya.engine.extraction.context import _ExtractionContext, _build_extraction_context
+from ccya.engine.extraction.context import _PostDeltaContext, _build_post_delta_context
 from ccya.engine.extraction.scene import _extract_scene_messages
 from ccya.engine.extraction.state import _extract_state_messages
 from ccya.engine.extraction.record import _record_messages
@@ -34,15 +34,15 @@ _log = logging.getLogger(__name__)
 
 
 @dataclass
-class _ExtractionResult:
+class _ExtractionAccumulator:
     scene_result: tuple[Any, dict[str, Any]] | None = None
     state_result: tuple[Any, dict[str, Any]] | None = None
     record_result: tuple[Any, dict[str, Any]] | None = None
-    extraction_ctx: _ExtractionContext | None = None
+    extraction_ctx: _PostDeltaContext | None = None
 
 
 @dataclass
-class _ExtractionVariant:
+class _ExtractionStreamConfig:
     name: str
     result_type: type
     build_messages: Callable[..., list[dict[str, str]]]
@@ -56,11 +56,11 @@ class _ExtractionVariant:
 
 async def _run_extraction_stream(
     state: WorldState,
-    variant: _ExtractionVariant,
+    variant: _ExtractionStreamConfig,
     config: EngineConfig,
     trace_id: str,
     turn_no: int,
-    container: _ExtractionResult,
+    container: _ExtractionAccumulator,
 ) -> AsyncIterator[tuple[str, Any]]:
     yield ("phase", {"phase": "extract_stream_start", "stream": variant.name})
     t_stream = asyncio.get_event_loop().time()
@@ -139,7 +139,7 @@ async def _run_extraction_pipeline(
     band: str = "",
     recent_turns: list[dict[str, Any]] | None = None,
     packing: dict[str, Any] | None = None,
-) -> "AsyncIterator[tuple[str, Any] | tuple['StateMerge', list[str], str, dict[str, Any], 'RecordResult', 'SceneExtractResult', '_ExtractionContext']]":
+) -> "AsyncIterator[tuple[str, Any] | tuple['StateMerge', list[str], str, dict[str, Any], 'RecordResult', 'SceneExtractResult', '_PostDeltaContext']]":
     _log.debug("extraction.pipeline.start trace_id=%s turn_no=%d", trace_id, turn_no)
     """Run the three extraction streams in sequence.
 
@@ -161,7 +161,7 @@ async def _run_extraction_pipeline(
     state_result = StateExtractResult()
     record_result = RecordResult()
     extraction_event: dict[str, Any] = {}
-    container = _ExtractionResult()
+    container = _ExtractionAccumulator()
 
     # --- Stream 1: Scene ---
     async for event in _scene_stream(state, env, narration, turn_no, config, trace_id, container):
@@ -253,9 +253,9 @@ async def _run_extraction_pipeline(
 async def _scene_stream(
     state: WorldState, env: "Environment", narration: str,
     turn_no: int, config: EngineConfig, trace_id: str,
-    container: _ExtractionResult,
+    container: _ExtractionAccumulator,
 ) -> AsyncIterator[tuple[str, Any]]:
-    variant = _ExtractionVariant(
+    variant = _ExtractionStreamConfig(
         name="scene",
         result_type=SceneExtractResult,
         build_messages=lambda s: _extract_scene_messages(env, narration, s, turn_no=turn_no),
@@ -277,9 +277,9 @@ async def _state_stream(
     state: WorldState, env: "Environment", narration: str,
     intent: "IntentEnvelope | None", turn_no: int, packing: dict[str, Any] | None,
     config: EngineConfig, trace_id: str,
-    container: _ExtractionResult,
+    container: _ExtractionAccumulator,
 ) -> AsyncIterator[tuple[str, Any]]:
-    variant = _ExtractionVariant(
+    variant = _ExtractionStreamConfig(
         name="state",
         result_type=StateExtractResult,
         build_messages=lambda s: _extract_state_messages(env, narration, s, intent=intent, turn_no=turn_no, pack_inventory=(packing or {}).get("inventory") or []),
@@ -310,10 +310,10 @@ async def _record_stream(
     scene_result: SceneExtractResult, state_result: StateExtractResult,
     turn_no: int, config: EngineConfig, trace_id: str,
     band: str, recent_turns: list[dict[str, Any]] | None,
-    container: _ExtractionResult,
+    container: _ExtractionAccumulator,
 ) -> AsyncIterator[tuple[str, Any]]:
-    container.extraction_ctx = _build_extraction_context(state, scene_result, state_result)
-    variant = _ExtractionVariant(
+    container.extraction_ctx = _build_post_delta_context(state, scene_result, state_result)
+    variant = _ExtractionStreamConfig(
         name="record",
         result_type=RecordResult,
         build_messages=lambda s: _record_messages(env, narration, s, extraction_ctx=container.extraction_ctx, recent_turns=(recent_turns or [])[-10:], turn_no=turn_no, band=band, arc_ttl=config.arc_memory_ttl, config=config),  # type: ignore[arg-type]

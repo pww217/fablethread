@@ -180,7 +180,7 @@ async def run_turn(
         }
 
         # === Call 2: Extraction pipeline + metrics ===
-        _extract_result_container = ExtractResult()
+        _extract_result_container = ExtractionResult()
         _extract_gen = _extract_phase(env, state, narrative, ctx, _intent, _outcome, config, trace_id, turn_no, recent_turns, narr_metrics, errors, _extract_result_container)
         try:
             async for _item in _extract_gen:
@@ -390,7 +390,7 @@ async def _extract_phase(
     intent: IntentEnvelope, outcome: RulesOutcome, config: EngineConfig,
     trace_id: str, turn_no: int, recent_turns: list[dict[str, Any]],
     narr_metrics: dict[str, Any], errors: list[dict[str, Any]],
-    extract_result: ExtractResult,
+    extract_result: ExtractionResult,
 ) -> AsyncIterator[tuple[str, Any]]:
     """Run extraction pipeline + build metrics.
 
@@ -545,7 +545,7 @@ class NarrateResult:
 
 
 @dataclass
-class ExtractResult:
+class ExtractionResult:
     delta: StateMerge | None = None
     actions: list[str] | None = None
     outcome_summary: str = ""
