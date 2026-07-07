@@ -61,7 +61,7 @@ class SeedScene(BaseModel):
 class SeedState(BaseModel):
     """Full validated game state shape — used for dynamic seed writing.
 
-    NOTE: StateDelta.inventory_add has max_length=6 (per-turn add cap).
+    NOTE: StateMerge.inventory_add has max_length=6 (per-turn add cap).
     Inventory is empty at seed time — PCs acquire items through gameplay.
     """
 
