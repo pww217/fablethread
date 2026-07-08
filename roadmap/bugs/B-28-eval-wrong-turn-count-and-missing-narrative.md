@@ -117,8 +117,15 @@ Impact: Storytell prompt gets no memory of prior turns. World/Scene/State prompt
 
 ## Fix
 
-1. **`ccya/engine/turn.py:218`** — removed duplicate `state.set_turn()` call. Single source of truth is now `_persist_and_async_cleanup()` at line 585.
-2. **`ccya/ev/prompt_context.py:111`** — changed `.get("output", "")` to `.get("prose", "")`
-3. **`ccya/ev/prompt_context.py:160`** — changed `.get("output", "")` to `.get("prose", "")`
+### Bug 1: Double `state.set_turn()` — NOT YET FIXED
+
+The fix was documented but never applied. Line 218 in `run_turn()` still has the duplicate `state.set_turn()` call.
+
+**Fix applied:** Removed the `state.set_turn()` call at `ccya/engine/turn.py:218`. Single source of truth is `_persist_and_async_cleanup()` at line 585.
+
+### Bug 2: `prompt_context.py` convention mismatch
+
+`ccya/ev/prompt_context.py:111` — changed `.get("output", "")` to `.get("prose", "")`
+`ccya/ev/prompt_context.py:160` — changed `.get("output", "")` to `.get("prose", "")`
 
 `make check` passes (ruff + mypy + YAML validation + vulture).
