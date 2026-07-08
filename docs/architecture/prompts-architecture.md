@@ -37,6 +37,8 @@ Two entirely separate template systems exist — do not conflate them:
 - Replaces `storytell_system.j2` (deleted in the beat generation split). 4-section hierarchy preserved: (1) Task/role, (2) Hard rules (Output schema, Output discipline, State-presence rule), (3) Behavioral guidance (Actions, Outcome summary, Thread operations, Rules-outcome, World state rules, Latent threads), (4) Campaign arc system. **The GM Beat guidance section is gone** — beat generation moved to World (Step 2d).
 - The `gm_beat` field has been removed from the `StorytellerResult` schema; Record no longer emits beats. Thread management (update/resolve/add) and action/outcome_summary generation remain in Record.
 - **Curtain Call section retained** in record_system.j2 — instructs record to emit `thread_resolve` when curtain_call is active/forced.
+- **Thread urgency interpretation rules** (I-32): instructs Record to translate narrator portrayal into urgency labels. Escalate to urgent when threat is immediate/imminent, background thread resurfaces, or phase is CLIMAX. Demote to background when thread is faded/distant/past, associated NPC departed, or dormant 6+ turns. CLIMAX phase awareness: at least one thread MUST be urgent in CLIMAX.
+- **Matching threads to narration** (I-32): instructs Record to match narration events to thread summaries by people, places, and actions (concrete event-mappable criteria, not abstract implications).
 
 ### Record user prompt (`ccya/prompts/record_user.j2`)
 
