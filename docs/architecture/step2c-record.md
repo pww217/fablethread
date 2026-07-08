@@ -39,6 +39,15 @@ flowchart LR
     LLM2C --> OUT
 ```
 
+## Urgency interpretation (I-32)
+
+Record receives urgency interpretation rules in its system prompt (added by I-32). These translate the Narrator's prose portrayal into urgency labels — not corrective rules that force state changes:
+
+- **Escalate to urgent:** threat described as immediate/imminent (armed, approaching, time-sensitive), background thread's NPC appears or resurfaces, scene phase is CLIMAX.
+- **Demote to background:** thread described as faded/distant/past, associated NPC departed, dormant 6+ turns.
+- **CLIMAX awareness:** at least one thread MUST be urgent in CLIMAX phase; prefer `thread_resolve` for the main pressure thread.
+- **Matching:** Record matches narration events to thread summaries by people, places, and actions (concrete event-mappable criteria).
+
 ## Always runs
 
 Record is the post-narration backward-looking scribe. It always executes every turn (never skipped) and feeds the next turn's rules call via `thread_update/goal_update/arc_resolve/thread_resolve/thread_add` (record-managed thread lifecycle). World state candidates are collected in `state.world_state_candidates` from ThreadResolution.world_state_candidate; sanitizer evaluation is handled by the seed worldbuilding plan.

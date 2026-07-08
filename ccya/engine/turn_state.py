@@ -620,7 +620,7 @@ def _apply_state_updates(
                             turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},
                         )
 
-            # Engine culling: when >= 3 dormant threads, move oldest to completed
+            # Engine culling: when >= 4 dormant threads, move oldest to completed
             if state.long_term_objective:
                 try:
                     arc = state.long_term_objective

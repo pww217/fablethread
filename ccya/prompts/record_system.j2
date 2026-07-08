@@ -32,7 +32,7 @@ Threads in the user prompt are shown with two labels: `[TYPE - URGENCY]`.
 
 **Urgency:** `normal` (active, not pressing), `urgent` (immediate), `background` (faded, set `dormant: true`).
 
-**`thread_resolve`:** Use when a thread concluded, failed, was absorbed, or urgency fully decayed. Do NOT resolve threads still meaningfully active — prefer `dormant: true` for threads that might resurface. **Close actively:** if a thread is done, emit `thread_resolve`. **IMPORTANT: `thread_resolve` removes the thread from the active list and moves it to completed_threads.** In CLIMAX or RESOLUTION phases, if the narrator has resolved the main pressure thread in the prose, record it as `thread_resolve` rather than `thread_update`.
+**`thread_resolve`:** Use when a thread concluded, failed, was absorbed, or urgency fully decayed. Do NOT resolve threads still meaningfully active — prefer `dormant: true` for threads that might resurface. **Close actively:** if a thread is done, emit `thread_resolve`. **IMPORTANT: `thread_resolve` removes the thread from the active list and moves it to completed_threads.** In CLIMAX or RESOLUTION phases, if the narrator has resolved the main pressure thread in the prose, record it as `thread_resolve` rather than `thread_update`. **In CLIMAX, only resolve the main pressure thread — keep secondary threads active with `dormant: true` instead of `thread_resolve`.**
 
 **`thread_update`:** Only `progress` (5–7 words max) — factual, confirmed by this turn's events, no speculation. `major_update_signal` classifies the change. If the thread is no longer relevant, resolve it (thread_resolve) or set dormant: true, then create a new thread via thread_add — do not repurpose with progress that contradicts the summary.
 
@@ -54,7 +54,49 @@ Threads in the user prompt are shown with two labels: `[TYPE - URGENCY]`.
 
 **Before emitting `thread_add`:** scan all active AND latent threads for conceptual overlap. If the same tension is already tracked, use `thread_update` instead. Only create a new thread for genuinely distinct tension.
 
+## Thread urgency interpretation
+
+The Narrator controls thread portrayal. Your job is to translate that portrayal into urgency labels.
+
+**Escalate to urgent when:**
+- The narrator describes a threat as immediate/imminent (armed, approaching, time-sensitive)
+- A background thread's NPC appears or the thread resurfaces in narration
+- Scene phase is CLIMAX — at least one thread MUST be urgent
+
+**Demote to background when:**
+- The narrator describes a thread as faded/distant/past
+- An NPC associated with the thread departed
+- A thread has been dormant for 6+ turns
+
+**Set dormant: true when:**
+- The associated NPC departed
+- The thread is fading and unlikely to resurface soon
+- You're resolving the thread (thread_resolve)
+
+**Set dormant: false when:**
+- The associated NPC is present again
+- The thread resurfaces in narration
+
+## CLIMAX phase
+
+If `scene_phase` is CLIMAX:
+- At least one thread MUST be urgent. If none are, set the most relevant to urgent.
+- When the main pressure thread resolves, escalate the next strongest thread to urgent before resolving any others.
+
+## Matching threads to narration
+
+For each event in the narration, find the matching thread by comparing the event to the thread summary. If the event involves the same people, places, or actions, it relates to that thread.
+
+Thread summaries describe concrete events, not implications. Match by:
+- **People:** character names, roles (guard, merchant, captain)
+- **Places:** locations, districts, landmarks
+- **Actions:** pursuits, discoveries, confrontations, damages
+
+If a thread's `last_updated_turn` is ≥ 6 turns ago and urgency is still `normal`, consider escalating to `urgent` — it may have been ignored by the player.
+
 ## Arc resolution
+
+**CLIMAX guard:** Do NOT emit `arc_resolve` during CLIMAX or RESOLUTION phases. Arc resolution waits until the narrative chapter is fully complete.
 
 Emit **only** when the narrative chapter genuinely ends — a decisive win, a fundamental shift, or 8+ turns on the same goal. Target cadence: 8–15 turns.
 

@@ -616,7 +616,6 @@ async def _persist_and_async_cleanup(
         })
 
     _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    beat_candidates = state.meta.beat_candidates or []
     # NPC updates from scene extraction (observability)
     npc_updates = ((extraction_event.get("scene") or {}).get("output") or {}).get("compendium_npc_update") or []
     event = {
@@ -641,7 +640,7 @@ async def _persist_and_async_cleanup(
             "convergence_components": pc.convergence_components if pc else {},
             "convergence_threads": pc.convergence_threads if pc else [],
         },
-        "beat_candidates": beat_candidates,
+        "beat_candidates": [],
         "npc_updates": npc_updates,
         "post_turn_pending_beat": state.meta.pending_gm_beat,
         "allowed_beat_types": derive_allowed_beat_types(
@@ -809,6 +808,9 @@ async def _persist_and_async_cleanup(
         "rendered_user": world_user_text,
     })
     append_prompts(save_dir, prompts_list)
+
+    # Update beat_candidates in event from async world step output
+    event["beat_candidates"] = beat_candidates or []
 
     # Save event/state AFTER async window (with world data included)
     event["last_turn_state"] = state.to_dict()
