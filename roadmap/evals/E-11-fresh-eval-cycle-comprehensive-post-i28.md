@@ -1,7 +1,6 @@
 ---
 title: "Fresh eval cycle — comprehensive post-I-28 validation"
-status: done
-completed: 2026-07-06
+status: testing
 urgency: 2
 size: large
 created: 2026-07-06
@@ -11,7 +10,7 @@ labels:
   - comprehensive
 ---
 
-## Status: Complete — all phases done, REPORT.md written
+## Status: Testing — verifications incomplete, needs follow-up
 
 ## LLM Backend
 
