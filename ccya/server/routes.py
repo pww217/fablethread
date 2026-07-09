@@ -82,7 +82,7 @@ def _apply_seed_to_save_dir(
 
     seed_dict.setdefault("meta", {})["model"] = _app_mod.engine_config.model
     if pack_source is not None:
-        seed_dict.setdefault("meta", {})["_pack_source"] = pack_source
+        seed_dict.setdefault("meta", {})["pack_source"] = pack_source
     if opening_narrative is not None:
         seed_dict.setdefault("pc", {}).setdefault("situation", {})["opening"] = opening_narrative
     if opening_narrative is not None or actions is not None:
@@ -118,8 +118,8 @@ def _save_rel_name(save_dir: Path) -> str:
 
 
 def _list_saves() -> list[dict[str, Any]]:
-    """List all available saves."""
-    save_dirs = _app_mod._find_all_save_dirs()
+    """List the 30 most recent saves."""
+    save_dirs = _app_mod._find_all_save_dirs(limit=30)
     save_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
     result = []
@@ -328,6 +328,7 @@ async def get_turn(input: str = ""):
                                 "outcome_hint": result.outcome_hint,
                                 "scene_phase": result.scene_phase,
                                 "summary": result.summary,
+                                "post_turn_pending_beat": result.post_turn_pending_beat,
                                 "ts": _ts_display,
                             }
                         ),
@@ -481,13 +482,19 @@ async def new_game(request: Request):
             opening_narrative=narrate_fields["opening_narrative"],
             actions=narrate_fields["actions"],
             outcome_summary=narrate_fields["outcome_summary"],
-            arc=partial.seed_state.arc,
+            long_term_objective=partial.seed_state.long_term_objective,
             arc_origin=partial.seed_state.arc_origin,
         )
         seed = final_envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
         if pc_stats_dict:
             seed.setdefault("pc", {})["stats"] = pc_stats_dict
+        scenario = _app_mod._active_pack.scenario
+        if scenario and scenario.pc_situation_schema:
+            seed["pc_situation_schema"] = [
+                {"key": s.key, "description": s.description, "required": s.required, "persist": s.persist}
+                for s in scenario.pc_situation_schema
+            ]
         _apply_seed_to_save_dir(seed, final_envelope.opening_narrative, final_envelope.actions, outcome_summary=final_envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("new_game failed")
@@ -521,11 +528,17 @@ async def new_game_reroll(request: Request):
             opening_narrative=narrate_fields["opening_narrative"],
             actions=narrate_fields["actions"],
             outcome_summary=narrate_fields["outcome_summary"],
-            arc=partial.seed_state.arc,
+            long_term_objective=partial.seed_state.long_term_objective,
             arc_origin=partial.seed_state.arc_origin,
         )
         seed = final_envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
+        scenario = _app_mod._active_pack.scenario
+        if scenario and scenario.pc_situation_schema:
+            seed["pc_situation_schema"] = [
+                {"key": s.key, "description": s.description, "required": s.required, "persist": s.persist}
+                for s in scenario.pc_situation_schema
+            ]
         _apply_seed_to_save_dir(seed, final_envelope.opening_narrative, final_envelope.actions, outcome_summary=final_envelope.outcome_summary, pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("seed generation reroll failed")

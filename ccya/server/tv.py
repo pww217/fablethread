@@ -813,8 +813,8 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
     no_events = False
     try:
         st = load_state(save_dir)
-        meta = st.meta
-        if meta._pack_source:
+        pack_source = st.meta.pack_source or ""
+        if pack_source:
             seed_state = {
                 "pc": st.pc.model_dump(),
                 "location": st.location.model_dump(),
@@ -826,10 +826,10 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             seed_row = {
                 "row_kind": "seed",
                 "turn": 0,
-                "pack_source": meta._pack_source,
+                "pack_source": pack_source,
                 "seed_json": _json.dumps(seed_state, indent=2, default=str),
             }
-            rows.append(seed_row)
+            rows.insert(0, seed_row)
     except Exception as exc:
         _log.warning("Failed to load state for turn_viewer seed display", extra={"error": str(exc)})
 

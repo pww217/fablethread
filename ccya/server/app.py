@@ -69,8 +69,8 @@ async def _await_turn_done(timeout: float = 30.0) -> bool:
         return False
 
 
-def _find_all_save_dirs() -> list[Path]:
-    """Find save directories in both saves/ and evals/runs/."""
+def _find_all_save_dirs(limit: int | None = None) -> list[Path]:
+    """Find save directories in both saves/ and evals/runs/, optionally limited to most recent."""
     all_dirs: dict[str, Path] = {}
     for root in [Path("saves"), Path("evals/runs")]:
         if root.exists():
@@ -85,7 +85,11 @@ def _find_all_save_dirs() -> list[Path]:
                         if sub.is_dir() and (sub / "state.yaml").exists():
                             r = sub.resolve()
                             all_dirs.setdefault(str(r), r)
-    return list(all_dirs.values())
+    result = list(all_dirs.values())
+    if limit is not None:
+        result.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+        result = result[:limit]
+    return result
 
 
 def _find_latest_save() -> Path | None:

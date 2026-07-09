@@ -47,6 +47,7 @@ class TurnResult:
     summary: str = field(default="")
     ts: str = field(default="")
     state_snapshot: WorldState = field(default_factory=WorldState)
+    post_turn_pending_beat: dict[str, Any] | None = None
 
 
 def load_config(path: str | os.PathLike[str] = "config.yaml") -> dict[str, Any]:

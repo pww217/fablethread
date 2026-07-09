@@ -164,6 +164,8 @@ async def run_turn(
         narr_trimmed = _narrate_result.narr_trimmed
         narr_trimmed_chars = _narrate_result.narr_trimmed_chars
 
+        # Save the beat before clearing it (used by event logging/UI)
+        _saved_beat = state.meta.pending_gm_beat
         # Clear pending_gm_beat after narration reads it (single-turn commitment)
         state = state.set_pending_beat(None)
 
@@ -235,7 +237,7 @@ async def run_turn(
             extraction_event, errors, trace_id, turn_no,
             config, diff_lines, changes, metrics,
             narr_metrics, rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars,
-            _persist_result,
+            _persist_result, _saved_beat,
         )
         try:
             async for _item in _persist_gen:
@@ -561,6 +563,7 @@ class PersistResult:
     result_obj: TurnResult | None = None
     final_metrics: dict[str, Any] | None = None
     final_state: WorldState | None = None
+    post_turn_pending_beat: dict[str, Any] | None = None
 
 
 async def _persist_and_async_cleanup(
@@ -577,7 +580,7 @@ async def _persist_and_async_cleanup(
     config: EngineConfig, diff_lines: list[str], changes: dict[str, Any], metrics: dict[str, Any],
     narr_metrics: dict[str, Any], rendered_narr_system: str, rendered_narr_user: str,
     narr_trimmed: bool, narr_trimmed_chars: int,
-    persist_result: PersistResult,
+    persist_result: PersistResult, saved_beat: dict[str, Any] | None,
 ) -> AsyncIterator[tuple[str, Any]]:
     """Build event, yield complete, run async cleanup (sanitize + world + save).
 
@@ -642,7 +645,7 @@ async def _persist_and_async_cleanup(
         },
         "beat_candidates": [],
         "npc_updates": npc_updates,
-        "post_turn_pending_beat": state.meta.pending_gm_beat,
+        "post_turn_pending_beat": saved_beat,
         "allowed_beat_types": derive_allowed_beat_types(
             state.scene.scene_phase,
             directive=pc.directive if pc else "",
@@ -733,6 +736,7 @@ async def _persist_and_async_cleanup(
         summary=pc.summary if pc else "",
         ts=_ts,
         state_snapshot=state,
+        post_turn_pending_beat=saved_beat,
     )
     yield ("complete", result_obj)
 
