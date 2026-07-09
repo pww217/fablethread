@@ -283,7 +283,7 @@ def _ensure_seed_generated(
         )
         seed_dict = final_envelope.seed_state.model_dump(mode="json")
         seed_dict.setdefault("meta", {})["setting_pack"] = pack_id
-        seed_dict.setdefault("meta", {})["_pack_source"] = pack_id
+        seed_dict.setdefault("meta", {})["pack_source"] = pack_id
         if final_envelope.opening_narrative:
             seed_dict.setdefault("seed_meta", {})["opening"] = final_envelope.opening_narrative
         if final_envelope.actions or final_envelope.outcome_summary:

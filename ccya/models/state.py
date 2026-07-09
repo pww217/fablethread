@@ -21,6 +21,7 @@ class Meta(BaseModel):
     setting_pack: str = ""
     model: str = ""
     session_name: str = ""
+    pack_source: str = ""
     compendium_touch_order: list[str] = Field(default_factory=list)
     prior_history: list[str] = Field(default_factory=list)
     pending_gm_beat: dict[str, Any] | None = None
