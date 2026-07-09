@@ -38,14 +38,13 @@ Generate opening narrative, actions, and outcome summary for a new game session.
 The player can see their bio, stats, inventory, and full NPC roster in the UI. Your job is to fill in the gaps — establish the world context, the character's immediate situation, and the arc they're about to pursue.
 
 **Must weave in:**
-- **PC situation** — unit, theater, chain of command, family ties. This is ground truth for how the player and narrator treat the character.
-- **Arc origin** — the world-level event or condition that shaped the current situation. Background pressure.
+- **PC situation** — this is ground truth for how the player and narrator treat the character. Weave in the specific details: unit, theater, chain of command, family ties, residence, reputation. Make the player feel their circumstances, not that they're reading a dossier.
+- **Arc origin** — the world-level event or condition that shaped the current situation. Background pressure, not exposition.
 - **Arc objective** — what the character is trying to accomplish. Surface it through what the player observes, not what the narrator announces.
-- **Location** — set the scene through environmental detail, not exposition.
 
 **Weave in naturally (only what fits):**
 - Present NPCs — show through action or dialogue, not introduction.
-- Scene bundle details — objects, conditions, sensory elements that fit the moment.
+- Environmental details — derive from the situation and arc, not a catalog. One or two specific objects or sensory details that imply the scene, not a room description.
 
 **Do NOT repeat:**
 - Stats (mechanical, shown in UI)
@@ -61,7 +60,6 @@ Tagline: {{ pc.tagline }}
 Situation: {{ pc.situation }}
 
 **Location:** {{ location.name }}
-{{ location.description }}
 
 **Arc origin:** {{ arc_origin }}
 
@@ -76,14 +74,6 @@ Situation: {{ pc.situation }}
 - {{ npc.name }} ({{ npc.title }}) — {{ npc.bio }}
 {% endif %}
 {% endfor %}
-{% endif %}
-
-{% if pool_selection and pool_selection.get("scene_bundle") %}
-**Scene bundle:**
-{% set sb = pool_selection["scene_bundle"] %}
-{% if sb["items"] %}Objects: {{ sb["items"] | join(", ") }}.{% endif %}
-{% if sb["conditions"] %}Conditions: {{ sb["conditions"] | join(", ") }}.{% endif %}
-{% if sb["sensory"] %}Sensory: {{ sb["sensory"] | join(", ") }}.{% endif %}
 {% endif %}
 
 ## Actions
