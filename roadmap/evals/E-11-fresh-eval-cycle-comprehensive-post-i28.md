@@ -10,7 +10,7 @@ labels:
   - comprehensive
 ---
 
-## Status: Done — all bug verifications complete, Phase 1-2 passed
+## Status: Done — all bug verifications complete, Phase 1-3 passed
 
 ## LLM Backend
 
@@ -347,3 +347,27 @@ Allied: T7→T10 (CLIMAX), exits at climax_turn_count=4 via hard cap
 
 - `evals/runs/2026-07-09_0.31.0-62-ga6b521f9_a6b521f9/Phase-1.md` — Phase 1 (5-turn noir-1930s)
 - `evals/runs/2026-07-09_0.31.0-62-ga6b521f9_a6b521f9/Phase-2.md` — Phase 2 (15-turn noir-1930s, space-western, golden-piracy)
+- `evals/runs/2026-07-09_0.31.0-63-g15559cea_15559cea/Phase-3.md` — Phase 3 (25-turn zombie-survival, allied-ww2)
+
+## E-11 Eval Results (Phase 3)
+
+### Runs Executed (2 total, 50 turns)
+
+| # | Pack | Persona | Turns | Pass Rate | Status |
+|---|------|---------|-------|-----------|--------|
+| 1 | zombie-survival | cautious | 25 | 97.4% | PASS (1 inventory issue) |
+| 2 | allied-ww2 | aggressive | 25 | 100.0% | PASS |
+
+### Bug Verifications (25-turn runs)
+
+- **B-38** (thread urgency decay/auto-dormant): FIXED ✓ — urgency_decay fires at T9/T11/T13 in both runs, _apply_thread_automatics() called unconditionally, checker passes 25/25 in both runs
+- **B-39** (pending GM beat TTL): FIXED ✓ — no pending_gm_beat in any last_turn_state across 50 turns, gm_beat_lifecycle passes 25/25 in both runs
+- **B-40** (location change guard): FIXED ✓ — 0 location_change deltas in both runs (guard working correctly, player stays in same location or location ID unchanged)
+- **B-41** (seed prompt meta.turn): FIXED ✓ — seed generation succeeds in both runs, LLM no longer setting meta.turn in example prompt
+
+### Observations
+
+- **zombie-survival**: Player detained by guards for most of run (T4-T25), cautious persona leads to passive play. supply_line_sabotage thread dominates, urgency oscillates normal↔urgent. 1 inventory issue (specialized_bypass_chip not in canonical inventory).
+- **allied-ww2**: Player actively engages scouts, combat-heavy narrative. Jammed M1911 creates interesting constraint (T23-T25). Strong pacing, multiple threads active, refugee_surge goes dormant at T24.
+- **Late-game LLM**: Both runs complete all 25 turns without LLM failures, world step produces beat candidates consistently, player actions remain coherent through T25.
+- **Pydantic warnings**: Presence enum serialization warnings (nearby, present, departed) — cosmetic, non-blocking in both runs.
