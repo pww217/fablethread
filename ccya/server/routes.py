@@ -90,7 +90,7 @@ def _apply_seed_to_save_dir(
             "actions": actions or [],
             "outcome_summary": outcome_summary,
         }
-    init_save_dir(save_dir, WorldState.from_dict(seed_dict))
+    init_save_dir(save_dir, WorldState.from_dict(seed_dict), opening=opening_narrative)
     if opening_narrative is not None:
         _app_mod._dynamic_opening = opening_narrative
     else:
