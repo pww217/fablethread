@@ -442,14 +442,13 @@ def _build_narrate_seed_messages(
     
     Context passed to template (focused on what player needs at turn 0):
     - pc.name, pc.tagline, pc.situation (NOT bio, stats, conditions — shown in UI)
-    - location.name, location.description
+    - location.name only (no description — narration derives scene from situation)
     - arc_origin (world-level context)
     - arc.objective (the goal)
     - Present NPCs only (bio for context)
-    - Scene bundle details (objects, conditions, sensory)
     - setting_info (genre, universe rules, creative direction)
     
-    NOT passed: world_state, meta, world.locations, full inventory, known NPCs
+    NOT passed: world_state, meta, world.locations, full inventory, known NPCs, location.description, scene bundles
     """
     pc = seed_state.pc
     location = seed_state.location
@@ -490,7 +489,6 @@ def _build_narrate_seed_messages(
         "location": {
             "id": location.id,
             "name": location.name,
-            "description": location.description,
         },
         "arc_origin": seed_state.arc_origin,
         "pool_selection": pool_selection,

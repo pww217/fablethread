@@ -69,8 +69,9 @@ Two entirely separate template systems exist — do not conflate them:
 ### Narrate seed system prompt (`ccya/prompts/narrate_seed_system.j2`)
 
 - Generates opening_narrative (~700 words, second person, present tense, 3 movements), actions (exactly 4, 7-10 words each), and outcome_summary (one sentence, 10-20 words)
-- Receives filtered context: pc (name, tagline, bio, stats, conditions, situation), location, arc_origin, world_locations, inventory_items, pool_selection
-- Opening narrative weaving: weave pc.situation naturally, weave arc_origin as background pressure, set scene in key location, show NPC personal ties through action/dialogue, reference compendium NPCs naturally
+- Receives filtered context: pc (name, tagline, situation), location.name only, arc_origin, arc.objective, present NPCs (name/title/bio/presence), setting_info (genre, universe rules, creative direction)
+- NOT passed: location.description, bio, stats, conditions, inventory, world_locations, pool_selection/scene_bundles, compendium.npcs beyond present NPCs
+- Opening narrative weaving: pc.situation is ground truth — weave in specific details (unit, theater, chain of command, family ties, residence, reputation) so the player feels their circumstances, not a dossier. Arc_origin as background pressure. Arc objective surfaced through observation, not announcement. Environmental details derived from situation and arc, not a catalog. Present NPCs shown through action/dialogue, not introduction.
 - Scene ideal: 1–4 present NPCs; narrative pressure for exits above that (soft guidance only, engine does NOT track or enforce NPC count at runtime — hard cap removed per Phase 01)
 - Group NPC bio: must describe individuals in the group with at least one distinguishing feature per person (appearance, demeanor, visible trait). Name stays short with quantity + type; bio carries identity. Prevents generic "Two sailors" with no distinguishing features.
 
