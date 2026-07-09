@@ -61,7 +61,7 @@
                             <span class="tv-compaction-icon">✦</span>
                             <span class="tv-compaction-title">Seed</span>
                             <span class="tv-stage-badge" x-text="t.pack_type"></span>
-                            <span class="tv-compaction-range" x-text="t.pack_source"></span>
+                            <span class="tv-compaction-range" x-text="t.pack_source + ' · ' + t.model"></span>
                             <span class="tv-stage-chevron" :class="{ open: !isTurnCollapsed('seed') }">▶</span>
                         </div>
                         <div class="tv-compaction-body" x-show="!isTurnCollapsed('seed')">
@@ -71,6 +71,10 @@
                                     <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.seed_pools_json)"></code></pre>
                                 </div>
                             </template>
+                            <div>
+                                <div class="tv-compaction-label">Seed</div>
+                                <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.seed_json)"></code></pre>
+                            </div>
                             <div>
                                 <div class="tv-compaction-label">Game State</div>
                                 <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.seed_json)"></code></pre>

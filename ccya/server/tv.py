@@ -827,6 +827,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "row_kind": "seed",
                 "turn": 0,
                 "pack_source": pack_source,
+                "model": st.meta.model or "",
                 "seed_json": _json.dumps(seed_state, indent=2, default=str),
             }
             rows.insert(0, seed_row)
