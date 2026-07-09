@@ -86,11 +86,11 @@ The `GMBeat` Pydantic model is used as the validation schema for World candidate
 GMBeat
   type: complication | revelation | opportunity | breathing_room |
         pressure | twist | setback | escalation | callback | None
-  effect: str                       # mechanism tags only (e.g., "[npcs: petty] [highlight: fear]")
+  effect: str                       # mechanism tags only (e.g., "[highlight: fear]")
   npcs: list[str]                   # NPC IDs involved in this beat
 ```
 
-**Mechanism tags only.** The `effect` field contains mechanism tags that tell the narrator WHAT to blend, not HOW. No prose, no quote, no directional hint. The narrator reads the mechanism tags and generates the prose itself, grounded in the actual NPC fields in the roster. Examples: `[npcs: petty] [highlight: fear]`, `[npcs: petty, silas] [blend: motivation vs fear]`, `[npcs: petty] [thread: faction_patrols]`.
+**Mechanism tags only.** The `effect` field contains mechanism tags that tell the narrator WHAT to blend, not HOW. No prose, no quote, no directional hint. The narrator reads mechanism tags and generates the prose itself, grounded in the actual NPC fields in the roster. Examples: `[highlight: fear]`, `[blend: motivation vs fear]`, `[thread: faction_patrols]`. The `npcs` field is separate and lists which NPCs feature.
 
 A candidate whose `type` ends up empty is dropped.
 
