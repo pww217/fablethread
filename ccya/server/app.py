@@ -92,10 +92,24 @@ def _find_all_save_dirs(limit: int | None = None) -> list[Path]:
     return result
 
 
+def _has_game_progress(save_dir: Path) -> bool:
+    """Check if a save directory has actual game progress (not just a fresh init)."""
+    events = save_dir / "events.jsonl"
+    if events.exists() and events.stat().st_size > 0:
+        return True
+    chronicle = save_dir / "chronicle.md"
+    if chronicle.exists() and chronicle.stat().st_size > 0:
+        content = chronicle.read_text()
+        if "## Turn 1" in content or "## Turn 2" in content:
+            return True
+    return False
+
+
 def _find_latest_save() -> Path | None:
-    """Return the most recently modified save directory across saves/ and evals/runs/, or None."""
+    """Return the most recently modified save directory with actual game progress."""
     candidates = _find_all_save_dirs()
-    return max(candidates, key=lambda d: d.stat().st_mtime) if candidates else None
+    progress = [d for d in candidates if _has_game_progress(d)]
+    return max(progress, key=lambda d: d.stat().st_mtime) if progress else None
 
 
 _latest = _find_latest_save()

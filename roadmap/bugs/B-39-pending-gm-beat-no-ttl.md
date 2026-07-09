@@ -1,6 +1,7 @@
 ---
 title: "pending_gm_beat has no TTL enforcement — persists unchanged across turns"
-status: testing
+status: done
+completed: 2026-07-09
 urgency: 2
 size: small
 created: 2026-07-07
@@ -31,6 +32,13 @@ The checker `gm_beat_lifecycle` flags `beat_consumed` when the beat persists unc
 ## Root Cause
 
 `state.meta.pending_gm_beat` is set by the ruling step when a beat is selected. It is cleared when the player acts on it or when a new beat is selected. However, there is no TTL mechanism to expire stale beats.
+
+## Evidence (ev-review 2026-07-09, noir-1930s 15t)
+
+- No pending_gm_beat found in any last_turn_state across all 15 turns (verified via events.jsonl scan)
+- Beats selected at T6, T8, T9, T12 (selected_beat=1) — all cleared after narrate, never persist to next turn
+- state.set_pending_beat(None) at turn.py:170 after narrate completes, before extract begins
+- gm_beat_lifecycle checker passes 5/5, 15/15, 15/15, 15/15 across all four runs
 
 ## Fix
 

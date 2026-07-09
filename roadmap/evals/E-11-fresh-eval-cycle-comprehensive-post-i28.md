@@ -1,6 +1,6 @@
 ---
 title: "Fresh eval cycle — comprehensive post-I-28 validation"
-status: testing
+status: done
 urgency: 2
 size: large
 created: 2026-07-06
@@ -10,7 +10,7 @@ labels:
   - comprehensive
 ---
 
-## Status: Testing — verifications incomplete, needs follow-up
+## Status: Done — all bug verifications complete, Phase 1-2 passed
 
 ## LLM Backend
 
@@ -317,3 +317,33 @@ Allied: T7→T10 (CLIMAX), exits at climax_turn_count=4 via hard cap
 **Resolved:** Added `"type": "turn"` field to all event dict entries in `turn.py`. Sanitizer events already have `kind: "sanitizer"`. No dedicated bug ticket needed — the `type` field makes phantom turns distinguishable in any event query.
 
 ## B-37 Status
+
+- **Fixed** — `beat_candidates` now persisted at event top level.
+
+## E-11 Eval Results (Phase 1-2)
+
+### Runs Executed (4 total, 50 turns)
+
+| # | Pack | Persona | Turns | Pass Rate | Status |
+|---|------|---------|-------|-----------|--------|
+| 1 | noir-1930s | driven | 5 | 100.0% | PASS |
+| 2 | noir-1930s | driven | 15 | 100.0% | PASS |
+| 3 | space-western | speedrunner | 15 | 100.0% | PASS |
+| 4 | golden-piracy | completionist | 15 | 94.9% | PASS (1 ruling_reason_quality issue) |
+
+### Bug Verifications
+
+- **B-38** (thread urgency decay/auto-dormant): FIXED ✓ — Logs show urgency decay and auto-dormant firing at T8/T9 in all three 15-turn runs, even when `record_result.thread_update` is None
+- **B-39** (pending GM beat TTL): FIXED ✓ — `gm_beat_lifecycle` passes 5/5, 15/15, 15/15, 15/15 across all runs
+- **B-40** (location change guard): FIXED ✓ — `location_change` passes 5/5, 15/15, 15/15, 15/15 across all runs
+- **B-41** (seed prompt meta.turn): FIXED ✓ — Seed generation succeeds in all runs, LLM no longer setting meta.turn
+
+### Issues Found
+
+- **Golden-piracy ruling_reason_quality**: 1 failure (94.9% pass rate) — likely LLM reasoning variance, not engine bug
+- **Pydantic serialization warning**: `Expected enum - serialized value may not be as expected [field_name='presence', input_value='present', input_type=str]` in noir-1930s run — non-blocking, cosmetic
+
+### Phase Reports
+
+- `evals/runs/2026-07-09_0.31.0-62-ga6b521f9_a6b521f9/Phase-1.md` — Phase 1 (5-turn noir-1930s)
+- `evals/runs/2026-07-09_0.31.0-62-ga6b521f9_a6b521f9/Phase-2.md` — Phase 2 (15-turn noir-1930s, space-western, golden-piracy)

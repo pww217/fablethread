@@ -1,7 +1,15 @@
 ---
 title: "thread_add extracted but silently dropped — never applied to arc.threads"
 status: done
+urgency: 3
+size: medium
+created: 2026-07-06
 completed: 2026-07-06
+ticket_id: B-36
+labels:
+  - engine
+  - threads
+  - extraction
 ---
 
 ## Resolution

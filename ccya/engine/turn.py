@@ -780,7 +780,7 @@ async def _persist_and_async_cleanup(
     world_system_text = ""
     world_user_text = ""
     world_raw_response = ""
-    beat_candidates = []
+    beat_candidates: list[dict[str, Any]] = []
     world_usage: dict[str, int] = {"tokens_in": 0, "tokens_out": 0}
     t_world = asyncio.get_event_loop().time()
     try:

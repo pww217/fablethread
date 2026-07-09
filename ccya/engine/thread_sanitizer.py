@@ -411,7 +411,7 @@ def _apply_sanitization(
             final_urgency = updates_dict.get("urgency", getattr(arc.threads[found_idx], "urgency", "normal"))
             if final_urgency == "urgent":
                 updates_dict["urgency"] = "background"
-                updates_dict["urgency_set_turn"] = turn_no
+                updates_dict["urgency_set_turn"] = current_turn
 
         if updates_dict:
             arc = arc.model_copy(update={"threads": [
