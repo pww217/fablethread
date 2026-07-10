@@ -251,6 +251,7 @@ class PackManifest(BaseModel):
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
     use_male_only_names: bool = False
     checkers: dict[str, Any] = Field(default_factory=dict)
+    baseline_facts: list[str] = Field(default_factory=list)
 
 
 class Pack(BaseModel):

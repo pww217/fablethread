@@ -610,6 +610,8 @@ async def _persist_and_async_cleanup(
         ruling_event.update({
             "skill": outcome.skill,
             "difficulty": outcome.difficulty,
+            "original_difficulty": outcome.original_difficulty,
+            "difficulty_adjustment": outcome.difficulty_adjustment,
             "dice": outcome.dice,
             "stat_mod": outcome.stat_mod,
             "diff_mod": outcome.diff_mod,
