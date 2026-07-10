@@ -77,6 +77,9 @@ Narrate the attempt and its natural failure. Do NOT write a version where the ac
 
 **Band:** {{ rules_outcome.band | upper | replace('_', ' ') }} → {{ rules_outcome.directive }}
 **Roll:** d12: {{ rules_outcome.dice[0] if rules_outcome.dice else '?' }} + {{ rules_outcome.stat_mod or 0 }} ({{ rules_outcome.skill | capitalize }}) → {{ rules_outcome.final_total }}
+{% if rules_outcome.dice and rules_outcome.dice[0] %}
+**Prose intensity (BINDING):** Shape prose to the specific die value. On 12, write as exceptional — the character does something remarkable, beyond what was asked. On 11, write as effortless — total control, clean execution. On 10-9, write as competent — the character knows what they're doing. On 7-6, write as hard-won — the character has to work for it. On 5-4, write as precarious — the character is outmatched. On 3-2, write as hopeless — the character has no control. On 1, write as catastrophic — the situation has collapsed entirely.
+{% endif %}
 
 {% elif rules_outcome and not rules_outcome.rolled %}
 
