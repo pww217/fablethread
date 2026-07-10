@@ -1,5 +1,10 @@
 currency_id: credits
 starting_currency_amount: 0
+world_facts:
+  - The world was overrun by an infected plague that turned most of the population into mindless attackers
+  - Settlements survive behind fortified walls and checkpoints, with rationing controlled by whoever holds supply routes
+  - The infected are drawn to sound and movement but avoid fire and loud mechanical noise
+
 constraints:
    # required-presence
   min_objectives_per_quest: 2
@@ -98,13 +103,13 @@ character_dynamics:
     incompatible_with: [trusted_insider, disgraced_leader]
   - id: rising_challenger
     tags: [ambitious, disruptive, emerging_power]
-    incompatible_with: [established_authority, free_agent]
+    incompatible_with: [free_agent]
   - id: disgraced_leader
     tags: [fallen_status, redemption_needed, community_ties]
     incompatible_with: [trusted_insider, free_agent]
   - id: free_agent
     tags: [independent, unaligned, self_reliant]
-    incompatible_with: [trusted_insider, loyal_soldier, established_authority]
+    incompatible_with: [trusted_insider]
   - id: pariah
     tags: [outcast, hunted, isolated]
     incompatible_with: [trusted_insider, reluctant_outsider]

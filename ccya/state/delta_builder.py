@@ -214,23 +214,31 @@ def apply_delta(
     })
 
     if delta.location_change and (delta.location_change.id or delta.location_change.name):
-        for nid, entry in list(state.compendium.npcs.items()):
-            if entry.presence == NpcPresence.PRESENT:
-                if entry.party:
-                    continue
-                state = state.update_npc(nid, presence=NpcPresence.NEARBY)
+        # Only apply location_change if the ID differs from the current location
+        current_loc_id = getattr(state.location, "id", "")
+        if delta.location_change.id and delta.location_change.id == current_loc_id:
+            _log.info(
+                "location_change.skipped id=%s matches current location",
+                delta.location_change.id, extra={"trace_id": trace_id, "turn": current_turn},
+            )
+        else:
+            for nid, entry in list(state.compendium.npcs.items()):
+                if entry.presence == NpcPresence.PRESENT:
+                    if entry.party:
+                        continue
+                    state = state.update_npc(nid, presence=NpcPresence.NEARBY)
 
-        _stamp_turn = state.meta.turn + 1
-        scene = state.scene.model_copy(update={
-            "turn_entered": _stamp_turn,
-            "location_entered_turn": _stamp_turn,
-        })
-        state = state.model_copy(update={
-            "location": delta.location_change,
-            "scene": scene,
-        })
-        _log.info("location_change.applied location=%s name=%s", delta.location_change.id, delta.location_change.name,
-                  extra={"trace_id": trace_id, "turn": current_turn})
+            _stamp_turn = state.meta.turn + 1
+            scene = state.scene.model_copy(update={
+                "turn_entered": _stamp_turn,
+                "location_entered_turn": _stamp_turn,
+            })
+            state = state.model_copy(update={
+                "location": delta.location_change,
+                "scene": scene,
+            })
+            _log.info("location_change.applied location=%s name=%s", delta.location_change.id, delta.location_change.name,
+                      extra={"trace_id": trace_id, "turn": current_turn})
     elif delta.location_description:
         loc = state.location
         state = state.model_copy(update={"location": loc.model_copy(update={"description": delta.location_description})})

@@ -1,5 +1,10 @@
 currency_id: dollars
 starting_currency_amount: 75
+world_facts:
+  - The war has been raging for years with no clear end in sight, and fronts shift without warning
+  - Occupied territories resist through underground networks while collaborationist governments maintain order under threat
+  - Advanced weapons technology and codebreaking are changing the nature of combat and intelligence gathering
+
 constraints:
   # required-presence
   min_objectives_per_quest: 2

@@ -71,7 +71,7 @@ Hard cutoff at `climax_turn_limit` unchanged (phase machine handles it). For def
 
 ### Definition
 
-Forward-facing storytelling beats emitted by **World** (Step 2d, async) as candidates, selected by **Ruling** (Step 0) for the upcoming turn, consumed by the narrator the same turn. Lifecycle state lives in `state.meta.pending_gm_beat` (the selected beat) and `state.meta.beat_candidates` (the world-prepared candidates). Each beat is mechanism tags only (e.g., `[npcs: x] [highlight: fear]`) — no quote, no prose, no directional hint. The narrator reads mechanism tags as creative guidance and generates prose itself, grounded in the actual NPC fields in the roster. **No TTL** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic.
+Forward-facing storytelling beats emitted by **World** (Step 2d, async) as candidates, selected by **Ruling** (Step 0) for the upcoming turn, consumed by the narrator the same turn. Lifecycle state lives in `state.meta.pending_gm_beat` (the selected beat) and `state.meta.beat_candidates` (the world-prepared candidates). Each beat has mechanism tags only in `effect` (e.g., `[highlight: fear]`) — no quote, no prose, no directional hint. The `npcs` field is separate. The narrator reads mechanism tags as creative guidance and generates prose itself, grounded in the actual NPC fields in the roster. **No TTL** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic.
 
 ### Beat types
 

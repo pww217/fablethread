@@ -14,13 +14,12 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 
 The `effect` field contains mechanism tags that tell the narrator WHAT to blend, not HOW. No prose, no quote, no directional hint. The narrator reads the mechanism tags and generates the prose itself, grounded in the actual NPC fields in the roster.
 
-- `[npcs: petty] [highlight: fear]`
-- `[npcs: petty, silas] [blend: motivation vs fear]`
-- `[npcs: petty] [thread: faction_patrols]`
+- `[highlight: fear]`
+- `[blend: motivation vs fear]`
+- `[thread: faction_patrols]`
 - `[environment]`
 
 Tag meanings:
-- `[npcs: id1, id2]` — which NPCs feature in this beat
 - `[highlight: field]` — which psychological field drives the beat (motivation|fear|leverage|tie|ambition|instinct|quirk|presence|goal|history|appearance|voice|traits|notes)
 - `[blend: mechanism]` — how two NPCs interact (e.g., "motivation vs fear", "leverage vs tie")
 - `[thread: thread_slug]` — which active thread is involved

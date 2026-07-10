@@ -110,7 +110,7 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 ### GMBeat
 
 - Repurposed as the validation schema for World candidates and Ruling's `selected_beat`. Fields: `type` (Literal — silently coerced to `None` if not in valid set), `effect` (str — mechanism tags only, no quote/prose), `npcs` (list[str] — NPC IDs involved in this beat).
-- **Mechanism tags only.** `effect` contains mechanism tags that tell the narrator WHAT to blend (e.g., `[npcs: petty] [highlight: fear]`). No quote, no prose, no directional hint. The narrator reads mechanism tags as creative guidance and generates prose itself, grounded in the actual NPC fields in the roster.
+- **Mechanism tags only.** `effect` contains mechanism tags that tell the narrator WHAT to blend (e.g., `[highlight: fear]`). No quote, no prose, no directional hint. The narrator reads mechanism tags as creative guidance and generates prose itself, grounded in the actual NPC fields in the roster.
 - **`npc_id`, `driver`, `beat_expires_turn` fields removed** — beats are single-turn commitments. Ruling's per-turn "always replace or pop" rule keeps state hygienic. No orphan can survive a turn boundary.
 - **`recent_beats` persistence fixed.** `add_recent_beat()` now returns the updated state which is returned from `_run_world_step()` and consumed by `turn.py`. `recent_beats` is capped at 5 entries (config: `recent_beats_max: 5`).
 - The old `StorytellerResult._nullify_invalid_gm_beat` validator is gone; its logic (drop beat if `type` is None/falsy) now lives inline in `ruling.py:_ruling_phase`.

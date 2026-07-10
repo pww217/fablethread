@@ -1022,7 +1022,7 @@ function game() {
                     const debugDiv = document.createElement('div');
                     debugDiv.className = 'debug-metadata-row';
 
-                    const pendingGm = (result.state?.meta?.pending_gm_beat) || {};
+                    const pendingGm = result.post_turn_pending_beat || {};
                     const gmBeatText = pendingGm.type ? `${pendingGm.type} — ${pendingGm.effect || '—'}` : '\u2014';
 
                     debugDiv.innerHTML = `<span class="debug-label">Phase:</span> ${_capitalizeFirst(result.scene_phase || '')}&ensp;|&ensp;<span class="debug-label">GM Beat:</span> ${gmBeatText}&ensp;|&ensp;<span class="debug-label">Hint:</span> ${_capitalizeFirst(result.outcome_hint || '')}&ensp;|&ensp;<span class="debug-label">Summary:</span> ${_capitalizeFirst(result.summary || '')}`;

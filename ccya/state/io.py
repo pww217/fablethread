@@ -61,12 +61,10 @@ def save_state(save_dir: Path, state: WorldState) -> None:
         yaml.dump(raw, f, default_flow_style=False, allow_unicode=True)
     os.replace(str(tmp_path), str(real_path))
 
-def init_save_dir(save_dir: Path, seed: WorldState) -> None:
+def init_save_dir(save_dir: Path, seed: WorldState, opening: str | None = None) -> None:
     save_dir.mkdir(parents=True, exist_ok=True)
     save_state(save_dir, seed)
     chronicle_path = save_dir / "chronicle.md"
-    chronicle_path.write_text("")
-    opening = seed.seed_meta.get("opening") if seed.seed_meta else None
     if opening:
         chronicle_path.write_text(f"\n## Turn 0 — Seed\n\n{opening.strip()}")
     else:
