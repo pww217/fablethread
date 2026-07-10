@@ -41,6 +41,7 @@
 | `ccya/server/tv_mirror.py` | StreamDescriptor registry — single source of truth for pipeline topology (6 stages: ruling→narrate→scene→state→record→world) |
 | `ccya/server/metrics.py` | Turn latency/token formatting |
 | `scripts/debug/ev.py` | CLI tool: inspect events.jsonl (summary, timing, turn, prompt, checkers, play, eval) |
+| `scripts/validate_packs.py` | Static pack validation — loads every pack and validates structural integrity (CI/pre-commit/manual) |
 | `ccya/ev/events.py` | Shared data access: load_events(), find_turn(), filter_turn_events() |
 | `ccya/ev/inspect.py` | Inspection commands: summary, timing, turn, prompt |
 | `ccya/ev/deltas.py` | Deltas and mechanics commands |
@@ -63,7 +64,7 @@
 | `ccya/ev/checkers/pacing_convergence.py` | Phase transition signals, convergence recomputation (6 components, no stall_floor), curtain_call, directive-beat alignment |
 | `ccya/ev/checkers/state.py` | State checkers: `location_description_consistency`, `world_state_facts` |
 | `ccya/personality.py` | NpcPersonality dataclass; 12 archetype registry; assign_personality() |
-| `ccya/pack.py` | SeedStateEnvelope (wraps SeedState without narrative min_length), SeedEnvelope, load_pack(), list_packs() — validates pack has seed or scenario; PackManifest.checkers for pack-level checker overrides |
+| `ccya/pack.py` | SeedStateEnvelope (wraps SeedState without narrative min_length), SeedEnvelope, load_pack(), list_packs(), validate_pack(), _validate_pool_entries() — validates pack has seed or scenario; PackManifest.checkers for pack-level checker overrides |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band) |
 | `ccya/llm_client.py` | chat(), chat_stream(), chat_with_config(), chat_stream_with_config() — OpenAI-compatible (10.75.100.51:1234, google/gemma-4-26b-a4b-it on RTX 5070 Ti); trim_messages() |
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler for `logs/game.log` + console handler; `setup_server_logging()` for `logs/server.log` |
@@ -84,7 +85,8 @@
 - **save_state()** → `ccya/state/io.py` — atomic write (tmp + rename)
 - **apply_delta()** → `ccya/state/delta_builder.py` — merges extraction results into state
 - **app** → `ccya/server/__init__.py` — FastAPI instance with ~25 routes
-- **load_pack()** → `ccya/pack.py` — loads scenario.yaml packs
+- **load_pack()** → `ccya/pack.py` — loads scenario.yaml packs (validates after loading)
+- **validate_pack()** → `ccya/pack.py` — structural validation gate for all packs (called by load_pack and list_packs)
 - **resolve_check()** → `ccya/rules.py` — 1d12+stat_mod+diff_mod→Band (pure Python)
 - **chat()** → `ccya/llm_client.py` — non-streaming LLM call with retry
 - **chat_stream()** → `ccya/llm_client.py` — streaming tokens

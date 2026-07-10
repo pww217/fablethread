@@ -1,5 +1,10 @@
 currency_id: doubloons
 starting_currency_amount: 25
+world_facts:
+  - The seas are controlled by powerful pirate fleets and colonial navies that clash over trade routes and island holdings
+  - Island settlements trade in rum, spices, and stolen cargo, with loyalty bought by shares of the plunder
+  - Mutiny is common on every vessel and a captain's authority depends on keeping the crew fed and motivated
+
 constraints:
    # required-presence
   min_objectives_per_quest: 2

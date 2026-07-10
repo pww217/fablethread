@@ -1,5 +1,10 @@
 currency_id: dollars
 starting_currency_amount: 50
+world_facts:
+  - The city is gripped by corruption spanning police, politics, and organized crime that no reform can touch
+  - Prohibition has created a black market that funds everything from speakeasies to bootleg operations and smuggling rings
+  - The economic depression has driven desperate people to crime while the wealthy insulate themselves behind wealth and influence
+
 constraints:
   # required-presence
   min_objectives_per_quest: 2

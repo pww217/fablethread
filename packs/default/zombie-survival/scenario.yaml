@@ -1,5 +1,10 @@
 currency_id: credits
 starting_currency_amount: 0
+world_facts:
+  - The world was overrun by an infected plague that turned most of the population into mindless attackers
+  - Settlements survive behind fortified walls and checkpoints, with rationing controlled by whoever holds supply routes
+  - The infected are drawn to sound and movement but avoid fire and loud mechanical noise
+
 constraints:
    # required-presence
   min_objectives_per_quest: 2
