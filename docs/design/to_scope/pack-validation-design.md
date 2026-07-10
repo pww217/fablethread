@@ -1,6 +1,6 @@
 # Pack Validation Design
 
-> **Status:** scoping
+> **Status:** implemented
 > **Related designs:**
 > - [Pack Parity](./to_scope/pack-parity-redesign.md) — **depends on this.** Pack parity requires a single validation gate that both YAML authoring and LLM generation paths must pass.
 > - [Dynamic Factions](./to_scope/dynamic-factions-redesign.md) — **depends on this.** Dynamic factions need the same schema contracts as hardcoded factions.
@@ -37,16 +37,20 @@ The result: a pack can be malformed in ways that don't crash at load time but ca
 
 ## Current State: Undeclared Fields in PackManifest
 
-Every `pack.yaml` in `packs/default/` contains these fields that are **not declared** in `PackManifest`:
+**These fields were added to PackManifest in F-15 (pack-validation-design implemented):**
 
 | Field | Type | Present in all packs? | Current behavior |
 |---|---|---|---|
-| `description` | str | Yes | Silently ignored |
-| `version` | int | Yes | Silently ignored |
-| `mode` | str | Yes (all `"dynamic"`) | Silently ignored |
-| `files` | dict | Yes | Silently ignored |
+| `description` | str | Yes | **Now declared** in PackManifest |
+| `files` | PackFiles | Yes | **Now declared** as `PackFiles` |
 
-These need to be declared in the model. Changing `extra: ignore` to `extra: forbid` will catch any future typos or unknown fields immediately.
+**Previously silent, now enforced:**
+- `extra: ignore` → `extra: forbid` — unknown fields raise Pydantic validation errors
+- `baseline_facts` **removed** from PackManifest (replaced by `ScenarioBrief.world_facts`)
+
+**Removed in pack-parity redesign:**
+- `version` — unused by engine, no pack update paths needed
+- `mode` — always `"dynamic"`, dead field (F-15 added it but it serves no purpose)
 
 ## Proposed Schema Changes
 
@@ -63,22 +67,22 @@ class PackManifest(BaseModel):
     id: str
     name: str
     description: str = ""
-    version: int = 1
-    mode: str = "dynamic"
     tone_tags: list[str] = Field(default_factory=list)
-    baseline_facts: list[str] = Field(default_factory=list, max_length=3)
     files: PackFiles = Field(default_factory=PackFiles)
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
     use_male_only_names: bool = False
     checkers: dict[str, Any] = Field(default_factory=dict)
 ```
 
-Changes:
+Changes from original (baseline_facts removed in F-15):
 - `extra: ignore` → `extra: forbid` — unknown fields raise validation errors
 - Add `description: str = ""` — declared, not silently dropped
-- Add `version: int = 1` — declared, not silently dropped
-- Add `mode: str = "dynamic"` — declared, not silently dropped
 - Add `files: PackFiles` — declared, not silently dropped
+- **Remove `baseline_facts`** — replaced by `ScenarioBrief.world_facts` (injected at seed time, not pack time)
+
+**Removed in pack-parity redesign:**
+- `version` — unused by engine, no pack update paths needed
+- `mode` — always `"dynamic"`, dead field (F-15 added it but it serves no purpose)
 
 ### ScenarioBrief
 
@@ -93,27 +97,27 @@ Called at the end of `load_pack()`, after all files are assembled into a `Pack` 
 **Checks:**
 
 1. **Manifest structural:**
-   - `manifest.id` is non-empty
-   - `manifest.name` is non-empty (after stripping)
-   - `manifest.mode` is `"dynamic"` or `"static"`
+    - `manifest.id` is non-empty
+    - `manifest.name` is non-empty (after stripping)
 
 2. **Dynamic mode requirements:**
-   - If `mode == "dynamic"`, `pack.scenario` must not be `None`
+    - If `mode == "dynamic"`, `pack.scenario` must not be `None`
 
 3. **Pool entry structural integrity (all pool fields in ScenarioBrief):**
-   - Each pool's entries must have unique IDs
-   - Each pool's `incompatible_with` references must point to valid IDs within the same pool
-   - Pool fields checked: `situation_archetypes`, `arc_categories`, `character_dynamics`, `moral_pressures`, `npc_bonds`
+    - Each pool's entries must have unique IDs
+    - Each pool's `incompatible_with` references must point to valid IDs within the same pool
+    - Each pool must have at least 1 entry (prevents `_select_from_pool()` ValueError at seed time)
+    - Pool fields checked: `situation_archetypes`, `arc_categories`, `character_dynamics`, `moral_pressures`, `npc_bonds`
 
 4. **Faction uniqueness:**
-   - If factions exist, their IDs must be unique
+    - If factions exist, their IDs must be unique
 
 5. **PC situation schema:**
-   - If `pc_situation_schema` exists, keys must be unique
-   - **This is the only pack-specific field that varies.** No minimum count requirement — a pack may legitimately have 0–5 keys.
+    - If `pc_situation_schema` exists, keys must be unique
+    - **This is the only pack-specific field that varies.** No minimum count requirement — a pack may legitimately have 0–5 keys.
 
 6. **Scene detail bundles:**
-   - If `scene_detail_bundles` exist, their IDs must be unique
+    - If `scene_detail_bundles` exist, their IDs must be unique
 
 ### `_validate_pool_entries(entries: list[PoolEntry], pool_name: str) -> list[str]`
 
@@ -154,13 +158,12 @@ Currently `list_packs()` silently skips directories without valid `pack.yaml`. A
 Errors should identify the problematic field and what's wrong. Each error identifies the pack, the field path, and the specific problem:
 
 ```
-Pack 'zombie-survival': manifest.mode must be 'dynamic' or 'static', got 'dynimic'
 Pack 'my-custom-world': scenario.npc_bonds pool entry 'saved_from_infected' references non-existent incompatible_with ID 'nonexistent_id'
 Pack 'my-custom-world': scenario.factions has duplicate IDs
 Pack 'my-custom-world': scenario.pc_situation_schema has duplicate keys
 Pack 'my-custom-world': manifest.name is empty
 Pack 'my-custom-world': unknown field 'descrition' in pack.yaml
-Pack 'my-custom-world': mode=dynamic requires scenario.yaml
+Pack 'my-custom-world': scenario.situation_archetypes pool must have at least 1 entry (has 0)
 ```
 
 ## Relationship to Other Designs
@@ -168,6 +171,8 @@ Pack 'my-custom-world': mode=dynamic requires scenario.yaml
 ### Pack Parity
 
 Pack parity's goal is that generated packs and default packs behave identically at runtime. This validation design is the **foundation** for parity: if both paths must pass the same `validate_pack()` gate, parity is enforced by construction. The parity design can then focus on content quality (are the generated pools as rich as hand-authored ones?) rather than structural correctness.
+
+**Note:** `mode` and `version` were removed from PackManifest in the pack-parity redesign (both are unused/dead fields).
 
 ### Dynamic Factions
 
@@ -184,11 +189,11 @@ User-authored packs need the same validation as auto-generated ones. This design
 - **Per-field semantic validation.** No checking that `baseline_facts` are actually true for the genre, or that `tone_tags` are valid. Those are semantic/content concerns, not structural ones.
 - **Validation during generation.** The LLM generation path should write files and let `load_pack()` + `validate_pack()` catch errors. No inline validation during generation — it's redundant and complicates the generation flow.
 - **Custom validation hooks.** No plugin system for pack authors to add custom validation. If a pack needs custom validation, the core validation should be extended.
-- **Pool emptiness.** Seed generation already validates pool emptiness via `_select_from_pool()` ValueError. No need to duplicate that check.
+- **Pool emptiness.** validate_pack() now checks that all archetype pools have at least 1 entry. Empty pools cause `_select_from_pool()` ValueError at seed time, so they're caught at pack load time instead.
 
 ## Implementation Order
 
-1. **Add undeclared fields to PackManifest.** Add `description`, `version`, `mode`, `files` to the model. Change `extra: ignore` to `extra: forbid`.
+1. **Add undeclared fields to PackManifest.** Add `description`, `files` to the model. Change `extra: ignore` to `extra: forbid`.
 2. **Write `validate_pack()` and `_validate_pool_entries()`.** All the structural checks described above.
 3. **Call `validate_pack()` at the end of `load_pack()`.** This makes validation mandatory for every pack load.
 4. **Write `scripts/validate_packs.py`.** Static validation script that loads all packs and validates them.

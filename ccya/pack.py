@@ -162,6 +162,7 @@ class ScenarioBrief(BaseModel):
     """Complete world definition for a generated pack.
 
     Sections:
+      description   — one-line pack description (parity with default packs)
       constraints   — hard numeric rules for seed generation
       world_name    — short evocative name for the world (LLM-generated)
       world_facts   — 3–8 durable facts injected into world_state at seed time
@@ -172,6 +173,7 @@ class ScenarioBrief(BaseModel):
       name_seed     — int; controls name selection randomness at generate time
       inspiration   — quality anti-pattern guidance for seed generation (no concrete examples)
     """
+    description: str = ""
     world_name: str = ""
     constraints: Constraints = Field(default_factory=Constraints)
     world_facts: list[str] = Field(default_factory=list, min_length=3, max_length=8)
@@ -244,8 +246,6 @@ class PackManifest(BaseModel):
     id: str
     name: str
     description: str = ""
-    version: int = 1
-    mode: str = "dynamic"
     tone_tags: list[str] = Field(default_factory=list)
     files: PackFiles = Field(default_factory=PackFiles)
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
@@ -368,18 +368,12 @@ def validate_pack(pack: Pack, pack_id: str | None = None) -> None:
         errors.append(f"{label}: manifest.id is empty")
     if not pack.manifest.name.strip():
         errors.append(f"{label}: manifest.name is empty")
-    if pack.manifest.mode not in ("dynamic", "static"):
-        errors.append(f"{label}: manifest.mode must be 'dynamic' or 'static', got '{pack.manifest.mode}'")
 
-    # 2. Dynamic mode requirements
-    if pack.manifest.mode == "dynamic" and pack.scenario is None:
-        errors.append(f"{label}: mode=dynamic requires scenario.yaml")
-
-    # 3. World facts minimum
+    # 2. World facts minimum
     if pack.scenario is not None and len(pack.scenario.world_facts) < 3:
         errors.append(f"{label}: scenario.world_facts must have at least 3 entries (has {len(pack.scenario.world_facts)})")
 
-    # 4. Pool entry structural integrity
+    # 3. Pool entry structural integrity
     pool_fields: list[tuple[str, list[PoolEntry]]] = [
         ("situation_archetypes", pack.scenario.situation_archetypes if pack.scenario else []),
         ("arc_categories", pack.scenario.arc_categories if pack.scenario else []),
@@ -388,13 +382,15 @@ def validate_pack(pack: Pack, pack_id: str | None = None) -> None:
         ("npc_bonds", pack.scenario.npc_bonds if pack.scenario else []),
     ]
     for pool_name, entries in pool_fields:
-        if entries:
+        if not entries:
+            errors.append(f"{label}: scenario.{pool_name} pool must have at least 1 entry (has 0)")
+        else:
             try:
                 _validate_pool_entries(entries, pool_name)
             except ValueError as ve:
                 errors.append(f"{label}: {ve}")
 
-    # 5. Faction uniqueness
+    # 4. Faction uniqueness
     if pack.scenario and pack.scenario.factions:
         seen_faction_ids: dict[str, int] = {}
         for i, faction in enumerate(pack.scenario.factions):
@@ -403,7 +399,7 @@ def validate_pack(pack: Pack, pack_id: str | None = None) -> None:
             else:
                 seen_faction_ids[faction.id] = i
 
-    # 6. PC situation schema uniqueness
+    # 5. PC situation schema uniqueness
     if pack.scenario and pack.scenario.pc_situation_schema:
         seen_keys: dict[str, int] = {}
         for i, entry in enumerate(pack.scenario.pc_situation_schema):
@@ -412,7 +408,7 @@ def validate_pack(pack: Pack, pack_id: str | None = None) -> None:
             else:
                 seen_keys[entry.key] = i
 
-    # 7. Scene detail bundles uniqueness
+    # 6. Scene detail bundles uniqueness
     if pack.scenario and pack.scenario.scene_detail_bundles:
         seen_bundles: dict[str, int] = {}
         for i, bundle in enumerate(pack.scenario.scene_detail_bundles):

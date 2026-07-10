@@ -3,8 +3,6 @@ name: "Noir — 1930s"
 description: "Detective in a Depression-era city. Every case is different."
 tone_tags: [noir, urban, procedural, moral-ambiguity]
 use_male_only_names: true
-version: 2
-mode: dynamic
 baseline_facts:
   - "The city runs on violence and money — gangsters control the docks, the unions, and the night. The police take their cut and look away. A detective who asks too many questions ends up with a bullet in the back or a frame-up that sends him to prison."
   - "Every man in the city has an angle — a cop taking payback, a gangster protecting his territory, a politician shielding his allies. Loyalty is bought and sold; a man will betray you for money and not think about it twice."

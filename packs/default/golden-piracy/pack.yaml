@@ -3,8 +3,6 @@ name: "The Golden Age — 1715–1725"
 description: "Pirate life on the edge of the world. Every port, every ship, every mutiny is different."
 tone_tags: [naval, brutal, democratic, salt-and-blood]
 use_male_only_names: true
-version: 1
-mode: dynamic
 baseline_facts:
   - "A pirate ship is a democracy with a knife at its throat — the crew votes on everything from course to cargo distribution, and the captain is elected and can be deposed if he fails. But the moment you board an enemy ship, democracy ends and violence begins."
   - "Scurvy, dysentery, and infection kill more pirates than naval guns or hanging. A ship without fresh meat and clean water becomes a death trap in weeks. Every port stop is a race against rot."
