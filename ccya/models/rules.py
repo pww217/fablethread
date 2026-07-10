@@ -40,6 +40,7 @@ class RulesOutcome(BaseModel):
     skill: str = ""
     stat_value: int = 0
     difficulty: str = "normal"
+    original_difficulty: str = ""
     stat_mod: int = 0
     diff_mod: int = 0
     dice: list[int] = Field(default_factory=list)
@@ -51,6 +52,7 @@ class RulesOutcome(BaseModel):
     intent: str = ""
     impossible: bool = False
     reason: str = ""
+    difficulty_adjustment: str = ""
 
     @property
     def roll_display(self) -> str:

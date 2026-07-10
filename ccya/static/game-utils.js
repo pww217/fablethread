@@ -294,7 +294,7 @@ function _buildOutcomeBadge(payload) {
         const hdr = document.createElement('div');
         hdr.className = 'roll-header';
         if (payload.reason) {
-            hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; <span class="has-tooltip">' + diffLabel + '<span class="tooltip-body">' + payload.reason + '</span></span>';
+            hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; <span class="has-tooltip">' + diffLabel + '<span class="tooltip-body">' + payload.reason + (payload.difficulty_adjustment ? '<br><br>' + payload.difficulty_adjustment : '') + '</span></span>';
         } else {
             hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; ' + diffLabel;
         }

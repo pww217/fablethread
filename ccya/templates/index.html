@@ -199,7 +199,7 @@
                     {% set die_val = (r.dice | default([]))[0] or 0 %}
                     {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) %}
                     <div class="roll-badge roll-badge--{{ r.band }}">
-                        <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {% if r.reason %}<span class="has-tooltip">{{ r.difficulty | default('') | lower }}<span class="tooltip-body">{{ r.reason }}</span></span>{% else %}{{ r.difficulty | default('') | lower }}{% endif %}</div>
+                        <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {% if r.reason %}<span class="has-tooltip">{{ r.difficulty | default('') | lower }}<span class="tooltip-body">{{ r.reason }}{% if r.difficulty_adjustment %}<br><br>{{ r.difficulty_adjustment }}{% endif %}</span></span>{% else %}{{ r.difficulty | default('') | lower }}{% endif %}</div>
                         <div class="roll-math">
                             {% set mods = '' %}
                             {% if r.stat_mod != 0 %}
