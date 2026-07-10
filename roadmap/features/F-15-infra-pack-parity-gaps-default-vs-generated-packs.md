@@ -7,6 +7,9 @@ created: 2026-06-16
 ticket_id: F-15
 design: docs/design/to_scope/pack-validation-design.md
 plan: plans/completed/tooling-infra/f-15-pack-validation-plan.md
+pr:
+  url: https://github.com/pww217/ccya/pull/14
+  branch: f-15-pack-validation
 labels:
   - Improvement
   - Tech Debt
