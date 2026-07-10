@@ -1,14 +1,23 @@
 ---
-title: "[Infra] Pack parity gaps — default vs generated packs"
-status: canceled
+title: "[Infra] Pack validation gate — default vs generated packs"
+status: done
 urgency: 3
 size: medium
 created: 2026-06-16
 ticket_id: F-15
+design: docs/design/to_scope/pack-validation-design.md
+plan: plans/completed/tooling-infra/f-15-pack-validation-plan.md
+pr:
+  url: https://github.com/pww217/ccya/pull/14
+  branch: f-15-pack-validation
 labels:
   - Improvement
   - Tech Debt
 ---
+
+## Note
+
+F-15 was originally a discovery ticket for pack parity gaps. It was canceled but re-purposed for this implementation. The gap analysis findings were absorbed into `pack-validation-design.md` and `pack-parity-redesign.md`. This plan implements the validation gate.
 
 ## Detail
 
