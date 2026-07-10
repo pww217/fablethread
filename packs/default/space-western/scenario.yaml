@@ -1,5 +1,10 @@
 currency_id: credits
 starting_currency_amount: 100
+world_facts:
+  - Humanity has spread across scattered colonies with no central authority and no reliable communication between systems
+  - Space travel is dangerous, expensive, and unpredictable — jump drives can misfire and supply runs take weeks
+  - Frontier worlds operate by their own rules, far from any government's reach and governed by whoever controls the resources
+
 constraints:
   # required-presence
   min_objectives_per_quest: 2

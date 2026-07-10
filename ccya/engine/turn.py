@@ -164,6 +164,11 @@ async def run_turn(
         narr_trimmed = _narrate_result.narr_trimmed
         narr_trimmed_chars = _narrate_result.narr_trimmed_chars
 
+        # Save the beat before clearing it (used by event logging/UI)
+        _saved_beat = state.meta.pending_gm_beat
+        # Clear pending_gm_beat after narration reads it (single-turn commitment)
+        state = state.set_pending_beat(None)
+
         delta = None
         actions = []
         outcome_summary: str = ""
@@ -214,9 +219,6 @@ async def run_turn(
         diff_lines = _summarize_applied(applied)
         changes = summarize_changes(state_pre_apply, state, rejected)
 
-        # === Turn increment (single source of truth: here) ===
-        state = state.set_turn(state.meta.turn + 1)
-
         if _is_cancel_requested(ctx):
             return
         yield ("phase", {"phase": "persist"})
@@ -235,7 +237,7 @@ async def run_turn(
             extraction_event, errors, trace_id, turn_no,
             config, diff_lines, changes, metrics,
             narr_metrics, rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars,
-            _persist_result,
+            _persist_result, _saved_beat,
         )
         try:
             async for _item in _persist_gen:
@@ -561,6 +563,7 @@ class PersistResult:
     result_obj: TurnResult | None = None
     final_metrics: dict[str, Any] | None = None
     final_state: WorldState | None = None
+    post_turn_pending_beat: dict[str, Any] | None = None
 
 
 async def _persist_and_async_cleanup(
@@ -577,7 +580,7 @@ async def _persist_and_async_cleanup(
     config: EngineConfig, diff_lines: list[str], changes: dict[str, Any], metrics: dict[str, Any],
     narr_metrics: dict[str, Any], rendered_narr_system: str, rendered_narr_user: str,
     narr_trimmed: bool, narr_trimmed_chars: int,
-    persist_result: PersistResult,
+    persist_result: PersistResult, saved_beat: dict[str, Any] | None,
 ) -> AsyncIterator[tuple[str, Any]]:
     """Build event, yield complete, run async cleanup (sanitize + world + save).
 
@@ -616,7 +619,6 @@ async def _persist_and_async_cleanup(
         })
 
     _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    beat_candidates = state.meta.beat_candidates or []
     # NPC updates from scene extraction (observability)
     npc_updates = ((extraction_event.get("scene") or {}).get("output") or {}).get("compendium_npc_update") or []
     event = {
@@ -641,9 +643,9 @@ async def _persist_and_async_cleanup(
             "convergence_components": pc.convergence_components if pc else {},
             "convergence_threads": pc.convergence_threads if pc else [],
         },
-        "beat_candidates": beat_candidates,
+        "beat_candidates": [],
         "npc_updates": npc_updates,
-        "post_turn_pending_beat": state.meta.pending_gm_beat,
+        "post_turn_pending_beat": saved_beat,
         "allowed_beat_types": derive_allowed_beat_types(
             state.scene.scene_phase,
             directive=pc.directive if pc else "",
@@ -734,6 +736,7 @@ async def _persist_and_async_cleanup(
         summary=pc.summary if pc else "",
         ts=_ts,
         state_snapshot=state,
+        post_turn_pending_beat=saved_beat,
     )
     yield ("complete", result_obj)
 
@@ -777,7 +780,7 @@ async def _persist_and_async_cleanup(
     world_system_text = ""
     world_user_text = ""
     world_raw_response = ""
-    beat_candidates = []
+    beat_candidates: list[dict[str, Any]] = []
     world_usage: dict[str, int] = {"tokens_in": 0, "tokens_out": 0}
     t_world = asyncio.get_event_loop().time()
     try:
@@ -809,6 +812,9 @@ async def _persist_and_async_cleanup(
         "rendered_user": world_user_text,
     })
     append_prompts(save_dir, prompts_list)
+
+    # Update beat_candidates in event from async world step output
+    event["beat_candidates"] = beat_candidates or []
 
     # Save event/state AFTER async window (with world data included)
     event["last_turn_state"] = state.to_dict()

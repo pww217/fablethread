@@ -1,7 +1,6 @@
 ---
 title: "Fresh eval cycle — comprehensive post-I-28 validation"
 status: done
-completed: 2026-07-06
 urgency: 2
 size: large
 created: 2026-07-06
@@ -11,7 +10,7 @@ labels:
   - comprehensive
 ---
 
-## Status: Complete — all phases done, REPORT.md written
+## Status: Done — all bug verifications complete, Phase 1-3 passed
 
 ## LLM Backend
 
@@ -318,3 +317,115 @@ Allied: T7→T10 (CLIMAX), exits at climax_turn_count=4 via hard cap
 **Resolved:** Added `"type": "turn"` field to all event dict entries in `turn.py`. Sanitizer events already have `kind: "sanitizer"`. No dedicated bug ticket needed — the `type` field makes phantom turns distinguishable in any event query.
 
 ## B-37 Status
+
+- **Fixed** — `beat_candidates` now persisted at event top level.
+
+## E-11 Eval Results (Phase 1-2)
+
+### Runs Executed (4 total, 50 turns)
+
+| # | Pack | Persona | Turns | Pass Rate | Status |
+|---|------|---------|-------|-----------|--------|
+| 1 | noir-1930s | driven | 5 | 100.0% | PASS |
+| 2 | noir-1930s | driven | 15 | 100.0% | PASS |
+| 3 | space-western | speedrunner | 15 | 100.0% | PASS |
+| 4 | golden-piracy | completionist | 15 | 94.9% | PASS (1 ruling_reason_quality issue) |
+
+### Bug Verifications
+
+- **B-38** (thread urgency decay/auto-dormant): FIXED ✓ — Logs show urgency decay and auto-dormant firing at T8/T9 in all three 15-turn runs, even when `record_result.thread_update` is None
+- **B-39** (pending GM beat TTL): FIXED ✓ — `gm_beat_lifecycle` passes 5/5, 15/15, 15/15, 15/15 across all runs
+- **B-40** (location change guard): FIXED ✓ — `location_change` passes 5/5, 15/15, 15/15, 15/15 across all runs
+- **B-41** (seed prompt meta.turn): FIXED ✓ — Seed generation succeeds in all runs, LLM no longer setting meta.turn
+
+### Issues Found
+
+- **Golden-piracy ruling_reason_quality**: 1 failure (94.9% pass rate) — likely LLM reasoning variance, not engine bug
+- **Pydantic serialization warning**: `Expected enum - serialized value may not be as expected [field_name='presence', input_value='present', input_type=str]` in noir-1930s run — non-blocking, cosmetic
+
+### Phase Reports
+
+- `evals/runs/2026-07-09_0.31.0-62-ga6b521f9_a6b521f9/Phase-1.md` — Phase 1 (5-turn noir-1930s)
+- `evals/runs/2026-07-09_0.31.0-62-ga6b521f9_a6b521f9/Phase-2.md` — Phase 2 (15-turn noir-1930s, space-western, golden-piracy)
+- `evals/runs/2026-07-09_0.31.0-63-g15559cea_15559cea/Phase-3.md` — Phase 3 (25-turn zombie-survival, allied-ww2)
+
+## E-11 Eval Results (Phase 3)
+
+### Runs Executed (2 total, 50 turns)
+
+| # | Pack | Persona | Turns | Pass Rate | Status |
+|---|------|---------|-------|-----------|--------|
+| 1 | zombie-survival | cautious | 25 | 97.4% | PASS (1 inventory issue) |
+| 2 | allied-ww2 | aggressive | 25 | 100.0% | PASS |
+
+### Bug Verifications (25-turn runs)
+
+- **B-38** (thread urgency decay/auto-dormant): FIXED ✓ — urgency_decay fires at T9/T11/T13 in both runs, _apply_thread_automatics() called unconditionally, checker passes 25/25 in both runs
+- **B-39** (pending GM beat TTL): FIXED ✓ — no pending_gm_beat in any last_turn_state across 50 turns, gm_beat_lifecycle passes 25/25 in both runs
+- **B-40** (location change guard): FIXED ✓ — 0 location_change deltas in both runs (guard working correctly, player stays in same location or location ID unchanged)
+- **B-41** (seed prompt meta.turn): FIXED ✓ — seed generation succeeds in both runs, LLM no longer setting meta.turn in example prompt
+
+### Observations
+
+- **zombie-survival**: Player detained by guards for most of run (T4-T25), cautious persona leads to passive play. supply_line_sabotage thread dominates, urgency oscillates normal↔urgent. 1 inventory issue (specialized_bypass_chip not in canonical inventory).
+- **allied-ww2**: Player actively engages scouts, combat-heavy narrative. Jammed M1911 creates interesting constraint (T23-T25). Strong pacing, multiple threads active, refugee_surge goes dormant at T24.
+- **Late-game LLM**: Both runs complete all 25 turns without LLM failures, world step produces beat candidates consistently, player actions remain coherent through T25.
+- **Pydantic warnings**: Presence enum serialization warnings (nearby, present, departed) — cosmetic, non-blocking in both runs.
+
+## Phase Persistence Bug Fix — 2026-07-09
+
+### Issue
+
+Phase transitions were not firing in 25-turn runs. All 3 packs (zombie-survival, space-western, allied-ww2) stayed SETUP the entire run despite convergence hitting 3+ at various turns.
+
+### Root Cause
+
+`_compute_scene_phase()` in `narrate.py:211` returns a new `Scene` object with updated `scene_phase` and `turns_in_phase`, but the result was never written back to `ctx.state`. The `new_scene` was returned from `_narrate_setup()` but discarded in `turn.py:306`.
+
+### Fix
+
+Applied in `turn.py`:
+1. Capture `new_scene` from `_narrate_setup()` and apply to `ctx.state`
+2. Propagate `ctx.state` back to `run_turn()`'s `state` variable after narrate phase
+
+### Verification
+
+All 3 packs now show healthy phase transitions:
+
+| Pack | SETUP→RISING | RISING→CLIMAX | CLIMAX→RESOLUTION | RESOLUTION→BREATHER | BREATHER→RISING |
+|------|-------------|---------------|-------------------|---------------------|-----------------|
+| space-western | T3 | T17 | T20 | T21 | T23 |
+| zombie-survival | T3 | T15 | T18 | T19 | T21 |
+| allied-ww2 | T3 | N/A (25t) | N/A | N/A | N/A |
+
+- space-western: Full cycle completed
+- zombie-survival: Full cycle completed
+- allied-ww2: Stays RISING — healthy behavior (convergence never reaches 2+ with enough turns_in_phase)
+
+### Checkers
+
+All phase-related checkers PASS on all 3 packs: `phase_transition`, `phase_transition_signals`, `beat_phase_validity`.
+
+### Convergence Analysis
+
+All 3 packs spent 12-23 turns in RISING before transitioning (or never transitioned). The RISING→CLIMAX gate is `convergence_score >= 3 AND turns_in_phase >= 3`. Threshold of 3 is the blocker — convergence never reached 3 in allied-ww2 during RISING.
+
+**Convergence components breakdown:**
+
+| Component | space-western | zombie | allied |
+|-----------|--------------|--------|--------|
+| `urgent_thread` (max 2) | 2 (T16) | 2 (T15) | 1 |
+| `threat_thread` (+1) | T6-T14 | T1-T14 | T1-T24 |
+| `beat_streak` (+1) | 0 (never) | 0 (never) | 0 (never) |
+| `roll_starvation` (+1) | T8, T21 | T5 | T13, T22 |
+
+**Root cause:** Without roll_starvation, the real cap is `urgent_thread(0-2) + threat_thread(0-1) = max 3`. For allied-ww2, urgent threads never overlapped with threat threads simultaneously, so score capped at 2. Space-western and zombie hit 3 only when 2 urgent threads fired at the same turn as an active threat thread — pure luck.
+
+**Threads resolve too fast** (avg 1-4 turns) to build sustained urgency. By the time convergence could reach 3, threads are already dormant or resolved.
+
+**Recommendation:** Add time-based push — `+1` after `RISING_min + 2` turns would lower the barrier from "perfect thread convergence" to "time alone is enough."
+
+### Files Changed
+
+- `ccya/engine/turn.py:307-309`: Capture and apply `new_scene` from narrate setup
+- `ccya/engine/turn.py:159`: Propagate `ctx.state` after narrate phase

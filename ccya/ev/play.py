@@ -283,7 +283,7 @@ def _ensure_seed_generated(
         )
         seed_dict = final_envelope.seed_state.model_dump(mode="json")
         seed_dict.setdefault("meta", {})["setting_pack"] = pack_id
-        seed_dict.setdefault("meta", {})["_pack_source"] = pack_id
+        seed_dict.setdefault("meta", {})["pack_source"] = pack_id
         if final_envelope.opening_narrative:
             seed_dict.setdefault("seed_meta", {})["opening"] = final_envelope.opening_narrative
         if final_envelope.actions or final_envelope.outcome_summary:
@@ -387,18 +387,13 @@ def _create_play_session(
 
 
 def _build_play_config(flags: dict[str, str], session_config: dict[str, Any] | None = None) -> EngineConfig:
-    from ccya.config import load_user_config
-
-    user_cfg = load_user_config()
     raw_cfg = load_config()
 
-    # Model precedence: CLI flag > session config > user config > hardcoded
+    # Model precedence: CLI flag > session config > hardcoded
     if "model" in flags:
         raw_cfg.setdefault("llm", {})["model"] = flags["model"]
     elif session_config is not None and "model" in session_config:
         raw_cfg.setdefault("llm", {})["model"] = str(session_config["model"])
-    elif user_cfg.ev.model:
-        raw_cfg.setdefault("llm", {})["model"] = user_cfg.ev.model
 
     if "temp" in flags:
         temp = float(flags["temp"])

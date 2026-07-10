@@ -96,6 +96,7 @@ def _apply_thread_updates(
             final_urgency = updates.get("urgency", getattr(thread, "urgency", "normal"))
             if final_urgency == "urgent":
                 updates["urgency"] = "background"
+                updates["urgency_set_turn"] = turn_no
 
         if updates:
             updates["last_updated_turn"] = turn_no
@@ -110,58 +111,94 @@ def _apply_thread_updates(
                 "thread_updates.applied trace_id=%d thread %s changes=%s", turn_no, update.id, updates, extra={"turn": turn_no},
             )
 
-    # Auto-dormant — fire every turn.
-    # Threads updated this turn already have last_updated_turn set to turn_no,
-    # so they won't trigger the dormant threshold. Only untouched threads age.
-    if config and remaining_threads:
-        dormant_threshold = config.thread_dormant_threshold
-        for i, t in enumerate(remaining_threads):
-            if (
-                t.last_updated_turn is not None
-                and (turn_no - t.last_updated_turn) >= dormant_threshold
-                and not t.dormant
-                and t.urgency != "urgent"
-            ):
-                updated = t.model_copy(update={
-                    "dormant": True,
-                    "urgency": "background",
-                    "last_updated_turn": turn_no,
-                })
-                remaining_threads[i] = updated
-                _log.info(
-                    "thread_updates.auto_dormant trace_id=%d thread %s — untouched for %d turns",
-                    turn_no, t.id, turn_no - t.last_updated_turn, extra={"turn": turn_no},
-                )
-
-    # Urgency decay: demote threads that have been at their urgency level for
-    # >= thread_urgency_max_age turns. Demotes stepwise: urgent → normal → background.
-    if config and remaining_threads:
-        _decay_threshold = config.thread_urgency_max_age
-        for i, t in enumerate(remaining_threads):
-            _set_turn = getattr(t, "urgency_set_turn", None)
-            if _set_turn is None or t.dormant:
-                continue  # skip threads without urgency tracking; decay only affects active threads
-            _age = turn_no - _set_turn
-            if _age >= _decay_threshold:
-                _current_urgency = getattr(t, "urgency", "background")
-                new_urgency = None
-                if _current_urgency == "urgent":
-                    new_urgency = "normal"
-                elif _current_urgency == "normal":
-                    new_urgency = "background"
-
-                if new_urgency is not None:
-                    updated_t = t.model_copy(update={"urgency": new_urgency, "urgency_set_turn": turn_no})
-                    remaining_threads[i] = updated_t
-                    mutated = True
-                    _log.info(
-                        "thread_updates.urgency_decay trace_id=%d thread %s urgency %s→%s (age=%d turns)",
-                        turn_no, t.id, _current_urgency, new_urgency, _age, extra={"turn": turn_no},
-                    )
-
     if mutated:
         return arc.model_copy(update={
             "threads": remaining_threads,
+        })
+    return None
+
+
+def _apply_thread_automatics(
+    state: WorldState,
+    config: EngineConfig | None = None,
+) -> LongTermObjective | None:
+    """Run auto-dormant and urgency decay every turn.
+
+    Auto-dormant: threads untouched for >= thread_dormant_threshold turns
+    are marked dormant with urgency=background.
+
+    Urgency decay: threads that have been at their urgency level for
+    >= thread_urgency_max_age turns are demoted stepwise:
+    urgent → normal → background.
+    """
+    if not config or not state.long_term_objective:
+        return None
+
+    arc_raw = state.long_term_objective
+    turn_no = state.meta.turn + 1
+
+    try:
+        arc = LongTermObjective.model_validate(arc_raw)
+    except Exception as exc:
+        _log.warning(
+            "thread_automatics.validation_failed trace_id=%d: %s", turn_no, exc, extra={"turn": turn_no},
+        )
+        return None
+
+    threads = list(arc.threads)
+    mutated = False
+
+    # Auto-dormant — fire every turn.
+    # Threads updated this turn already have last_updated_turn set to turn_no,
+    # so they won't trigger the dormant threshold. Only untouched threads age.
+    dormant_threshold = config.thread_dormant_threshold
+    for i, t in enumerate(threads):
+        _last_updated = t.last_updated_turn or 0
+        if (
+            (turn_no - _last_updated) >= dormant_threshold
+            and not t.dormant
+            and t.urgency != "urgent"
+        ):
+            updated = t.model_copy(update={
+                "dormant": True,
+                "urgency": "background",
+                "urgency_set_turn": turn_no,
+                "last_updated_turn": turn_no,
+            })
+            threads[i] = updated
+            mutated = True
+            _log.info(
+                "thread_automatics.auto_dormant trace_id=%d thread %s — untouched for %d turns",
+                turn_no, t.id, turn_no - _last_updated, extra={"turn": turn_no},
+            )
+
+    # Urgency decay
+    decay_threshold = config.thread_urgency_max_age
+    for i, t in enumerate(threads):
+        _set_turn = getattr(t, "urgency_set_turn", None)
+        if _set_turn is None:
+            continue
+        _age = turn_no - _set_turn
+        if _age >= decay_threshold:
+            _current_urgency = getattr(t, "urgency", "background")
+            new_urgency = None
+            if _current_urgency == "urgent":
+                new_urgency = "normal"
+            elif _current_urgency == "normal":
+                new_urgency = "background"
+
+            if new_urgency is not None:
+                updated_t = t.model_copy(update={"urgency": new_urgency, "urgency_set_turn": turn_no})
+                threads[i] = updated_t
+                mutated = True
+                _log.info(
+                    "thread_automatics.urgency_decay trace_id=%d thread %s urgency %s→%s (age=%d turns)",
+                    turn_no, t.id, _current_urgency, new_urgency, _age, extra={"turn": turn_no},
+                )
+
+    if mutated:
+        return arc.model_copy(update={
+            "threads": threads,
         })
     return None
 
@@ -502,6 +539,13 @@ def _apply_state_updates(
                         update={"arc_update": thread_delta}
                     )
 
+            # Auto-dormant and urgency decay — run every turn, independent of explicit thread updates
+            automatics_delta = _apply_thread_automatics(state, config)
+            if automatics_delta is not None:
+                state = state.model_copy(update={"long_term_objective": _merge_arc_update(state.long_term_objective, automatics_delta)})
+                if delta is not None:
+                    delta = delta.model_copy(update={"arc_update": automatics_delta})
+
             # Apply goal_update (mid-arc long_term_objective change, separate from arc_resolve)
             if record_result.goal_update:
                 state = state.model_copy(update={"long_term_objective": state.long_term_objective.model_copy(update={"long_term_objective": record_result.goal_update["long_term_objective"]})})
@@ -576,7 +620,7 @@ def _apply_state_updates(
                             turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},
                         )
 
-            # Engine culling: when >= 3 dormant threads, move oldest to completed
+            # Engine culling: when >= 4 dormant threads, move oldest to completed
             if state.long_term_objective:
                 try:
                     arc = state.long_term_objective

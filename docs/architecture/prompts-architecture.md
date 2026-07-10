@@ -37,6 +37,8 @@ Two entirely separate template systems exist — do not conflate them:
 - Replaces `storytell_system.j2` (deleted in the beat generation split). 4-section hierarchy preserved: (1) Task/role, (2) Hard rules (Output schema, Output discipline, State-presence rule), (3) Behavioral guidance (Actions, Outcome summary, Thread operations, Rules-outcome, World state rules, Latent threads), (4) Campaign arc system. **The GM Beat guidance section is gone** — beat generation moved to World (Step 2d).
 - The `gm_beat` field has been removed from the `StorytellerResult` schema; Record no longer emits beats. Thread management (update/resolve/add) and action/outcome_summary generation remain in Record.
 - **Curtain Call section retained** in record_system.j2 — instructs record to emit `thread_resolve` when curtain_call is active/forced.
+- **Thread urgency interpretation rules** (I-32): instructs Record to translate narrator portrayal into urgency labels. Escalate to urgent when threat is immediate/imminent, background thread resurfaces, or phase is CLIMAX. Demote to background when thread is faded/distant/past, associated NPC departed, or dormant 6+ turns. CLIMAX phase awareness: at least one thread MUST be urgent in CLIMAX.
+- **Matching threads to narration** (I-32): instructs Record to match narration events to thread summaries by people, places, and actions (concrete event-mappable criteria, not abstract implications).
 
 ### Record user prompt (`ccya/prompts/record_user.j2`)
 
@@ -67,8 +69,9 @@ Two entirely separate template systems exist — do not conflate them:
 ### Narrate seed system prompt (`ccya/prompts/narrate_seed_system.j2`)
 
 - Generates opening_narrative (~700 words, second person, present tense, 3 movements), actions (exactly 4, 7-10 words each), and outcome_summary (one sentence, 10-20 words)
-- Receives filtered context: pc (name, tagline, bio, stats, conditions, situation), location, arc_origin, world_locations, inventory_items, pool_selection
-- Opening narrative weaving: weave pc.situation naturally, weave arc_origin as background pressure, set scene in key location, show NPC personal ties through action/dialogue, reference compendium NPCs naturally
+- Receives filtered context: pc (name, tagline, situation), location.name only, arc_origin, arc.objective, present NPCs (name/title/bio/presence), setting_info (genre, universe rules, creative direction)
+- NOT passed: location.description, bio, stats, conditions, inventory, world_locations, pool_selection/scene_bundles, compendium.npcs beyond present NPCs
+- Opening narrative weaving: pc.situation is ground truth — weave in specific details (unit, theater, chain of command, family ties, residence, reputation) so the player feels their circumstances, not a dossier. Arc_origin as background pressure. Arc objective surfaced through observation, not announcement. Environmental details derived from situation and arc, not a catalog. Present NPCs shown through action/dialogue, not introduction.
 - Scene ideal: 1–4 present NPCs; narrative pressure for exits above that (soft guidance only, engine does NOT track or enforce NPC count at runtime — hard cap removed per Phase 01)
 - Group NPC bio: must describe individuals in the group with at least one distinguishing feature per person (appearance, demeanor, visible trait). Name stays short with quantity + type; bio carries identity. Prevents generic "Two sailors" with no distinguishing features.
 

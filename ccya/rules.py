@@ -32,8 +32,8 @@ DIFFICULTY_MOD: dict[str, int] = {
 GM_MOVES: dict[str, list[str]] = {
     "crit_fail": [
         "Something precious is lost, damaged, or turned against you.",
-        "An enemy or hazard makes an immediate hard move.",
-        "Gain a condition: wounded, bleeding, or exhausted.",
+        "A complication escalates immediately — the situation has collapsed.",
+        "You are left in a much worse position than before you acted.",
     ],
     "fail": [
         "The attempt fails outright — what you tried to do does not happen.",
@@ -47,16 +47,16 @@ GM_MOVES: dict[str, list[str]] = {
     ],
     "partial": [
         "You get what you wanted, but something is taken from you or goes wrong in the process.",
-        "You succeed but at a cost — a resource spent, a wound taken, or a complication started.",
+        "You succeed but at a cost — a resource spent, a complication started, or leverage lost.",
         "The outcome is positive but carries a real price.",
     ],
     "success": [
-        "You do what you intended. Fulfill the player's stated goal directly.",
+        "Clean success — you do what you intended.",
         "Note any minor consequence if the fiction demands it.",
     ],
     "crit_success": [
-        "You do what you intended, fully and decisively. The outcome serves as a clear turning point.",
-        "Succeed outstandingly; gain a meaningful additional benefit that advances the scene.",
+        "Best possible outcome — something unexpected goes in your favour.",
+        "You succeed outstandingly — gain an unexpected bonus beyond what was asked.",
     ],
 }
 
@@ -81,7 +81,7 @@ _DIRECTIVE_TABLE: dict[str, dict[str, str]] = {
         "social":      "You get what you asked for, but they now hold leverage over you. The cost is mandatory — name the concrete price.",
         "exploration": "You find it, but you've triggered something: a trap, a witness, a timer. The cost is mandatory and must be named concretely.",
         "movement":    "You reach your destination, but something went wrong on the way. The cost is mandatory — name what was lost or compromised.",
-        "default":     "You get what you wanted, but something is taken from you or goes wrong. The cost is mandatory and must be named concretely: a wound, a resource, leverage given, or a new complication.",
+        "default":     "You get what you wanted, but something is taken from you or goes wrong. The cost is mandatory and must be named concretely.",
     },
 }
 
