@@ -20,6 +20,31 @@ import random
 
 from ccya.models import RulesOutcome
 
+_DIFFICULTY_ORDER = ["trivial", "easy", "normal", "hard", "extreme"]
+
+
+def _adjust_difficulty(difficulty: str, stat_value: int, rng: random.Random | None = None) -> tuple[str, str]:
+    idx = _DIFFICULTY_ORDER.index(difficulty)
+    original = difficulty
+    rng_obj = rng or random
+
+    if stat_value == 4:
+        idx = max(0, idx - 1)
+        reason = f"Expertise eases the challenge — downgraded from {original} to {_DIFFICULTY_ORDER[idx]}"
+    elif stat_value == 3:
+        if rng_obj.random() < 0.33:
+            idx = max(0, idx - 1)
+            reason = f"A flicker of competence — downgraded from {original} to {_DIFFICULTY_ORDER[idx]}"
+        else:
+            reason = ""
+    elif stat_value == 1:
+        idx = min(4, idx + 1)
+        reason = f"Inexperience makes it harder — upgraded from {original} to {_DIFFICULTY_ORDER[idx]}"
+    else:
+        reason = ""
+
+    return _DIFFICULTY_ORDER[idx], reason
+
 DIFFICULTY_MOD: dict[str, int] = {
     "trivial": +2,
     "easy": +1,
@@ -161,6 +186,7 @@ def resolve_check(
 
     stat_value = int(pc_stats.get(skill, 2))
     stat_mod = stat_value - 2
+    difficulty, adjustment_reason = _adjust_difficulty(difficulty, stat_value, rng)
     diff_mod = mods[difficulty]
 
     raw_die = roll_1d12(rng)
@@ -186,4 +212,5 @@ def resolve_check(
         directive=directive,
         intent_verb=intent_verb,
         intent=intent,
+        difficulty_adjustment=adjustment_reason,
     )

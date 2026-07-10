@@ -248,6 +248,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
                 near_miss_softening=config.near_miss_softening,
             )
             outcome.reason = intent.reason
+            outcome.original_difficulty = intent.check.difficulty
         except Exception as exc:
             _log.warning(
                 "rules.resolve_check failed: %s", exc, extra={"trace_id": trace_id}
