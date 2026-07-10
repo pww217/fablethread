@@ -30,16 +30,19 @@ def _adjust_difficulty(difficulty: str, stat_value: int, rng: random.Random | No
 
     if stat_value == 4:
         idx = max(0, idx - 1)
-        reason = f"Expertise eases the challenge — downgraded from {original} to {_DIFFICULTY_ORDER[idx]}"
     elif stat_value == 3:
         if rng_obj.random() < 0.33:
             idx = max(0, idx - 1)
-            reason = f"A flicker of competence — downgraded from {original} to {_DIFFICULTY_ORDER[idx]}"
-        else:
-            reason = ""
     elif stat_value == 1:
         idx = min(4, idx + 1)
-        reason = f"Inexperience makes it harder — upgraded from {original} to {_DIFFICULTY_ORDER[idx]}"
+
+    if idx != _DIFFICULTY_ORDER.index(original):
+        if stat_value == 4:
+            reason = f"Expertise eases the challenge \u2014 downgraded from {original} to {_DIFFICULTY_ORDER[idx]}"
+        elif stat_value == 3:
+            reason = f"A flicker of competence \u2014 downgraded from {original} to {_DIFFICULTY_ORDER[idx]}"
+        else:
+            reason = f"Inexperience makes it harder \u2014 upgraded from {original} to {_DIFFICULTY_ORDER[idx]}"
     else:
         reason = ""
 
