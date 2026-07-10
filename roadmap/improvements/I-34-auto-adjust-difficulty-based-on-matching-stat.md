@@ -1,6 +1,6 @@
 ---
 title: "Auto-adjust difficulty based on matching stat"
-status: done
+status: testing
 urgency: 2
 size: small
 created: 2026-07-09
