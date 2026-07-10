@@ -20,20 +20,7 @@ Read `roadmap/README.md` for schema, lifecycles, and conventions before acting.
    ls roadmap/<type>s/ | grep -oP '(F|B|I|E)-\d+' | sort -t- -k2 -n | tail -1
    ```
    If no existing tickets of that type, start at 1.
-4. **Create frontmatter** — enforce required fields:
-   ```yaml
-   ---
-   title: "Human-readable title"
-   status: <valid-status>
-   urgency: 1|2|3|4
-   size: small|medium|large|xlarge
-   created: YYYY-MM-DD
-   ticket_id: <TYPE>-<N>
-   labels:
-     - <labels>
-   ---
-   ```
-   Optional fields: `design`, `plan`, `pr` (with `url` and `branch`).
+4. **Create frontmatter** — use the template at `roadmap/templates/<type>.md` (bug, feature, improvement, or eval). All required fields are in the template.
 5. **Place in correct directory** — use the full path including directory prefix: `roadmap/bugs/<ticket_id>-<slug>.md`, `roadmap/features/<ticket_id>-<slug>.md`, `roadmap/improvements/<ticket_id>-<slug>.md`, or `roadmap/evals/<ticket_id>-<slug>.md`. Never strip the directory prefix when constructing the path.
 6. **Run `make roadmap`** — regenerate indices.
 
@@ -78,33 +65,10 @@ If ambiguous, ask using `question` tool.
 
 ## Frontmatter schema
 
-### Required fields
+Full schema with field descriptions: `roadmap/templates/<type>.md` (bug, feature, improvement, or eval).
 
-```yaml
----
-title: "Human-readable title"      # Required — used in TOC tables
-status: new                        # Required — see status lifecycles
-urgency: 3                         # Required — 1=urgent, 2=high, 3=medium, 4=low
-size: medium                       # Required — small, medium, large, xlarge
-created: 2026-06-27                # Required — ISO date (YYYY-MM-DD)
-ticket_id: B-42                    # Required — unique ticket identifier
-labels:                            # Optional — array of strings for bucket grouping
-  - engine
-  - pacing
----
-```
-
-### Optional fields
-
-```yaml
----
-design: docs/design/pacing-fix.md  # Path to design doc
-plan: plans/pacing-fix.md          # Path to plan doc
-pr:                                # PR reference
-  url: https://github.com/.../pull/123
-  branch: ccya-pacing-fix
----
-```
+Required fields: `title`, `status`, `urgency`, `size`, `created`, `ticket_id`.
+Optional fields: `design`, `plan`, `pr` (with `url` and `branch`), `labels`.
 
 ## Status transition validation
 

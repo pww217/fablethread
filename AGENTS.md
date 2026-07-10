@@ -113,7 +113,9 @@ Every roadmap item has a unique ticket ID: `F-N` (features), `B-N` (bugs), `I-N`
 
 ### Ticket skill
 
-The `ticket` skill (`.opencode/skills/ticket/SKILL.md`) enforces frontmatter schema, status transitions, slug conventions, and type inference. All skills that touch roadmap items should call the ticket skill.
+When creating, updating, or auditing roadmap tickets, **always load the `ticket` skill**. It handles type inference, slug generation, ticket ID assignment, template loading, and status transitions. Do not manually edit ticket files or run `new-ticket.py` — use the skill instead.
+
+`new-ticket.py` is a manual CLI fallback for interactive use outside of agent sessions.
 
 ---
 

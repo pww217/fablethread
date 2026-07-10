@@ -388,3 +388,51 @@ The convergence score depends entirely on active threads. When threads are resol
 
 Phase reports at: `evals/runs/<group>/PHASE-1.md`, `PHASE-2.md`, `PHASE-3.md`
 Consolidated report: `evals/runs/<group>/REPORT.md`
+
+## Phase Persistence Bug Fix — 2026-07-09
+
+### Root Cause
+
+`_compute_scene_phase()` in `narrate.py:211` returns a new `Scene` object with updated `scene_phase` and `turns_in_phase`, but the result was never written back to `ctx.state`. The `new_scene` was returned from `_narrate_setup()` but discarded in `turn.py:306` (`_pc, narr_messages, _ = await _narrate_setup(ctx)`).
+
+Additionally, `ctx.state` was updated in `_narrate_phase()` but the `state` variable in `run_turn()` was not propagated back after the narrate phase completed.
+
+### Fix Applied
+
+1. `turn.py:307-309`: Capture `new_scene` from `_narrate_setup()` and apply it to `ctx.state`:
+   ```python
+   _pc, narr_messages, new_scene = await _narrate_setup(ctx)
+   if new_scene is not None:
+       ctx.state = ctx.state.set_scene(new_scene)
+   ```
+
+2. `turn.py:159`: Propagate `ctx.state` back to `run_turn()`'s `state` variable after narrate phase:
+   ```python
+   state = ctx.state  # propagate scene phase update from narrate
+   ```
+
+### Verification
+
+All 3 packs now show healthy phase transitions in 25-turn runs:
+
+| Pack | SETUP→RISING | RISING→CLIMAX | CLIMAX→RESOLUTION | RESOLUTION→BREATHER | BREATHER→RISING |
+|------|-------------|---------------|-------------------|---------------------|-----------------|
+| space-western | T3 | T17 | T20 | T21 | T23 |
+| zombie-survival | T3 | T15 | T18 | T19 | T21 |
+| allied-ww2 | T3 | N/A (25t) | N/A | N/A | N/A |
+
+- space-western: Full cycle completed (SETUP→RISING→CLIMAX→RESOLUTION→BREATHER→RISING)
+- zombie-survival: Full cycle completed (SETUP→RISING→CLIMAX→RESOLUTION→BREATHER→RISING)
+- allied-ww2: Stays RISING — convergence never reaches 2+ with enough turns_in_phase to trigger CLIMAX (healthy behavior)
+
+### Checkers
+
+All phase-related checkers PASS on all 3 packs:
+- `phase_transition`: PASS
+- `phase_transition_signals`: PASS
+- `beat_phase_validity`: PASS
+
+### Files Changed
+
+- `ccya/engine/turn.py:307-309`: Capture and apply `new_scene` from narrate setup
+- `ccya/engine/turn.py:159`: Propagate `ctx.state` after narrate phase
