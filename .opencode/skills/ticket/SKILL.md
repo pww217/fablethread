@@ -17,12 +17,11 @@ Read `roadmap/README.md` for schema, lifecycles, and conventions before acting.
 2. **Generate slug** — kebab-case, descriptive, no special chars. Max ~60 chars.
 3. **Assign ticket ID** — `F-N`, `B-N`, `I-N`, or `E-N`. Find the next available number for the type:
    ```bash
-   ls roadmap/<type>s/ | grep -oP '(F|B|I|E)-\d+' | sort -t- -k2 -n | tail -1
+   ls roadmap/<type>s/ | grep -oE '(F|B|I|E)-[0-9]+' | sort -t- -k2 -n | tail -1
    ```
-   If no existing tickets of that type, start at 1.
-4. **Create frontmatter** — use the template at `roadmap/templates/<type>.md` (bug, feature, improvement, or eval). All required fields are in the template.
-5. **Place in correct directory** — use the full path including directory prefix: `roadmap/bugs/<ticket_id>-<slug>.md`, `roadmap/features/<ticket_id>-<slug>.md`, `roadmap/improvements/<ticket_id>-<slug>.md`, or `roadmap/evals/<ticket_id>-<slug>.md`. Never strip the directory prefix when constructing the path.
-6. **Run `make roadmap`** — regenerate indices.
+   If no existing tickets of that type, start at 1. Always use highest number + 1 (never fill gaps).
+4. **Create ticket** — run `scripts/new-ticket.py <type> "<summary>" [--slug SLUG] [--status STATUS]`. The script handles ID generation, slug generation (if omitted), template loading, frontmatter filling, and file placement. Status defaults to template default (`new` for bug/eval, `idea` for feature/improvement).
+5. **Run `make roadmap`** — regenerate indices.
 
 ### Update tickets
 
