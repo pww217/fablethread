@@ -342,16 +342,14 @@ def _validate_pool_entries(entries: list[PoolEntry], pool_name: str) -> list[str
 
     Returns the list of IDs for caller use (e.g., faction uniqueness check).
     """
-    errors: list[str] = []
     seen_ids: dict[str, int] = {}
     for i, entry in enumerate(entries):
         if entry.id in seen_ids:
-            errors.append(f"pool '{pool_name}' has duplicate ID '{entry.id}' (first at index {seen_ids[entry.id]}, duplicate at {i})")
-        else:
-            seen_ids[entry.id] = i
+            raise ValueError(f"pool '{pool_name}' has duplicate ID '{entry.id}' (first at index {seen_ids[entry.id]}, duplicate at {i})")
+        seen_ids[entry.id] = i
         for ref in entry.incompatible_with:
             if ref not in seen_ids and ref not in {e.id for e in entries}:
-                errors.append(f"pool '{pool_name}' entry '{entry.id}' references non-existent incompatible_with ID '{ref}'")
+                raise ValueError(f"pool '{pool_name}' entry '{entry.id}' references non-existent incompatible_with ID '{ref}'")
     return list(seen_ids.keys())
 
 
@@ -391,7 +389,10 @@ def validate_pack(pack: Pack, pack_id: str | None = None) -> None:
     ]
     for pool_name, entries in pool_fields:
         if entries:
-            _validate_pool_entries(entries, pool_name)
+            try:
+                _validate_pool_entries(entries, pool_name)
+            except ValueError as ve:
+                errors.append(f"{label}: {ve}")
 
     # 5. Faction uniqueness
     if pack.scenario and pack.scenario.factions:

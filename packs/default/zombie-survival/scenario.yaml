@@ -103,13 +103,13 @@ character_dynamics:
     incompatible_with: [trusted_insider, disgraced_leader]
   - id: rising_challenger
     tags: [ambitious, disruptive, emerging_power]
-    incompatible_with: [established_authority, free_agent]
+    incompatible_with: [free_agent]
   - id: disgraced_leader
     tags: [fallen_status, redemption_needed, community_ties]
     incompatible_with: [trusted_insider, free_agent]
   - id: free_agent
     tags: [independent, unaligned, self_reliant]
-    incompatible_with: [trusted_insider, loyal_soldier, established_authority]
+    incompatible_with: [trusted_insider]
   - id: pariah
     tags: [outcast, hunted, isolated]
     incompatible_with: [trusted_insider, reluctant_outsider]
