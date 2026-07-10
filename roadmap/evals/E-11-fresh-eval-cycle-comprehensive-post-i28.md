@@ -371,3 +371,61 @@ Allied: T7→T10 (CLIMAX), exits at climax_turn_count=4 via hard cap
 - **allied-ww2**: Player actively engages scouts, combat-heavy narrative. Jammed M1911 creates interesting constraint (T23-T25). Strong pacing, multiple threads active, refugee_surge goes dormant at T24.
 - **Late-game LLM**: Both runs complete all 25 turns without LLM failures, world step produces beat candidates consistently, player actions remain coherent through T25.
 - **Pydantic warnings**: Presence enum serialization warnings (nearby, present, departed) — cosmetic, non-blocking in both runs.
+
+## Phase Persistence Bug Fix — 2026-07-09
+
+### Issue
+
+Phase transitions were not firing in 25-turn runs. All 3 packs (zombie-survival, space-western, allied-ww2) stayed SETUP the entire run despite convergence hitting 3+ at various turns.
+
+### Root Cause
+
+`_compute_scene_phase()` in `narrate.py:211` returns a new `Scene` object with updated `scene_phase` and `turns_in_phase`, but the result was never written back to `ctx.state`. The `new_scene` was returned from `_narrate_setup()` but discarded in `turn.py:306`.
+
+### Fix
+
+Applied in `turn.py`:
+1. Capture `new_scene` from `_narrate_setup()` and apply to `ctx.state`
+2. Propagate `ctx.state` back to `run_turn()`'s `state` variable after narrate phase
+
+### Verification
+
+All 3 packs now show healthy phase transitions:
+
+| Pack | SETUP→RISING | RISING→CLIMAX | CLIMAX→RESOLUTION | RESOLUTION→BREATHER | BREATHER→RISING |
+|------|-------------|---------------|-------------------|---------------------|-----------------|
+| space-western | T3 | T17 | T20 | T21 | T23 |
+| zombie-survival | T3 | T15 | T18 | T19 | T21 |
+| allied-ww2 | T3 | N/A (25t) | N/A | N/A | N/A |
+
+- space-western: Full cycle completed
+- zombie-survival: Full cycle completed
+- allied-ww2: Stays RISING — healthy behavior (convergence never reaches 2+ with enough turns_in_phase)
+
+### Checkers
+
+All phase-related checkers PASS on all 3 packs: `phase_transition`, `phase_transition_signals`, `beat_phase_validity`.
+
+### Convergence Analysis
+
+All 3 packs spent 12-23 turns in RISING before transitioning (or never transitioned). The RISING→CLIMAX gate is `convergence_score >= 3 AND turns_in_phase >= 3`. Threshold of 3 is the blocker — convergence never reached 3 in allied-ww2 during RISING.
+
+**Convergence components breakdown:**
+
+| Component | space-western | zombie | allied |
+|-----------|--------------|--------|--------|
+| `urgent_thread` (max 2) | 2 (T16) | 2 (T15) | 1 |
+| `threat_thread` (+1) | T6-T14 | T1-T14 | T1-T24 |
+| `beat_streak` (+1) | 0 (never) | 0 (never) | 0 (never) |
+| `roll_starvation` (+1) | T8, T21 | T5 | T13, T22 |
+
+**Root cause:** Without roll_starvation, the real cap is `urgent_thread(0-2) + threat_thread(0-1) = max 3`. For allied-ww2, urgent threads never overlapped with threat threads simultaneously, so score capped at 2. Space-western and zombie hit 3 only when 2 urgent threads fired at the same turn as an active threat thread — pure luck.
+
+**Threads resolve too fast** (avg 1-4 turns) to build sustained urgency. By the time convergence could reach 3, threads are already dormant or resolved.
+
+**Recommendation:** Add time-based push — `+1` after `RISING_min + 2` turns would lower the barrier from "perfect thread convergence" to "time alone is enough."
+
+### Files Changed
+
+- `ccya/engine/turn.py:307-309`: Capture and apply `new_scene` from narrate setup
+- `ccya/engine/turn.py:159`: Propagate `ctx.state` after narrate phase

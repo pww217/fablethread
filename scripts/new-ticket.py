@@ -2,17 +2,15 @@
 """Create a new roadmap ticket from a high-level summary.
 
 Prompts for ticket type (bug/feature/improvement/eval) and a single
-summary field, then generates a properly formatted ticket file with
-frontmatter and a minimal body template.
-
-The triage skill will later flesh out urgency, size, labels, and
-cross-references.
+summary field, then generates a ticket file from the matching template
+in roadmap/templates/<type>.md with frontmatter filled in.
 """
 import re
 from datetime import date
 from pathlib import Path
 
 ROADMAP_DIR = Path("roadmap")
+TEMPLATE_DIR = ROADMAP_DIR / "templates"
 TYPE_DIRS = {
     "bug": ROADMAP_DIR / "bugs",
     "feature": ROADMAP_DIR / "features",
@@ -73,6 +71,38 @@ def prompt_summary() -> str:
     return summary
 
 
+def load_template(typ: str) -> str:
+    """Load the template for the given ticket type."""
+    template_path = TEMPLATE_DIR / f"{typ}.md"
+    return template_path.read_text()
+
+
+def apply_frontmatter(template: str, title: str, status: str, created: str, ticket_id: str) -> str:
+    """Replace placeholder frontmatter values with actual values."""
+    lines = template.splitlines()
+    result = []
+    in_frontmatter = False
+    for line in lines:
+        if line == "---":
+            result.append(line)
+            in_frontmatter = not in_frontmatter
+            continue
+        if in_frontmatter:
+            if line.startswith("title:"):
+                result.append(f'title: "{title}"')
+            elif line.startswith("status:"):
+                result.append(f"status: {status}")
+            elif line.startswith("created:"):
+                result.append(f"created: {created}")
+            elif line.startswith("ticket_id:"):
+                result.append(f"ticket_id: {ticket_id}")
+            else:
+                result.append(line)
+        else:
+            result.append(line)
+    return "\n".join(result)
+
+
 def create_ticket(typ: str, summary: str) -> Path:
     """Create the ticket file and return its path."""
     ticket_id = next_id(typ)
@@ -85,24 +115,14 @@ def create_ticket(typ: str, summary: str) -> Path:
     filename = f"{full_id}-{slug}.md"
     filepath = directory / filename
 
-    # Ensure directory exists
     directory.mkdir(parents=True, exist_ok=True)
 
-    content = f"""---
-title: "{title}"
-status: new
-urgency: 3
-size: medium
-created: {created}
-ticket_id: {full_id}
-labels:
-  - other
----
+    template = load_template(typ)
 
-## Problem
+    # Determine status from template defaults
+    status = "new" if typ in ("bug", "eval") else "idea"
 
-{summary}
-"""
+    content = apply_frontmatter(template, title, status, created, full_id)
 
     filepath.write_text(content)
     return filepath

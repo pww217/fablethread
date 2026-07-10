@@ -4,24 +4,10 @@ All files in `roadmap/bugs/` and `roadmap/features/` **must** have YAML frontmat
 
 ## Required Fields
 
-```yaml
----
-title: "Human-readable title"      # Required — used in TOC tables
-status: new                        # Required — see status lifecycles below
-urgency: 3                         # Required — 1=urgent, 2=high, 3=medium, 4=low
-size: medium                       # Required — small, medium, large, xlarge
-created: 2026-06-24                # Required — ISO date (YYYY-MM-DD)
-ticket_id: B-42                    # Required — unique ticket identifier (F-N, B-N, I-N, E-N)
-design: docs/design/pacing-fix.md  # Optional — path to design doc
-plan: plans/pacing-fix.md          # Optional — path to plan doc
-pr:                                # Optional — PR reference
-  url: https://github.com/.../pull/123
-  branch: ccya-pacing-fix
-labels:                            # Optional — array of strings for bucket grouping
-  - engine
-  - seed
----
-```
+Full frontmatter schema with field descriptions: `roadmap/templates/<type>.md` (bug, feature, improvement, or eval).
+
+Required fields: `title`, `status`, `urgency`, `size`, `created`, `ticket_id`.
+Optional fields: `design`, `plan`, `pr` (with `url` and `branch`), `labels`.
 
 ## Status Lifecycles
 
