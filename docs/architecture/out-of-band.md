@@ -30,10 +30,9 @@ flowchart LR
 Packs are loaded by `load_pack()` in `ccya/pack.py`. The function resolves the pack directory (accepting `pack_id` in formats like `"flooded-world"`, `"default/flooded-world"`, or `"custom/my-world"`), reads `pack.yaml` into a `PackManifest`, and optionally reads `scenario.yaml`, `opening_scene.md`, and `style.md`.
 
 After loading, `validate_pack()` runs a structural validation gate:
-- Manifest: `id` and `name` non-empty, `mode` is `"dynamic"` or `"static"`
-- Dynamic mode: `scenario.yaml` must exist and parse
+- Manifest: `id` and `name` non-empty
 - World facts: at least 3 entries (universal canon)
-- Pool entries: unique IDs, valid `incompatible_with` references (situation_archetypes, arc_categories, character_dynamics, moral_pressures, npc_bonds)
+- Pool entries: at least 1 entry each; unique IDs; valid `incompatible_with` references (situation_archetypes, arc_categories, character_dynamics, moral_pressures, npc_bonds)
 - Factions: unique IDs (Faction is not a PoolEntry — no `incompatible_with` field)
 - PC situation schema: unique keys
 - Scene detail bundles: unique IDs

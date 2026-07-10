@@ -3,8 +3,6 @@ name: "Cordyceps: Year Twenty"
 description: "Fungal infection. Nature reclaiming. Scattered, brutal humanity. Every run is different."
 tone_tags: [horror, survival, human, fungal, nature-reclaimed]
 use_male_only_names: false
-version: 3
-mode: dynamic
 baseline_facts:
   - "**Ophiocordyceps novum** spreads through airborne spores in enclosed or still-air environments; outdoors, risk is wind-dependent; indoors without ventilation, a sealed mask is the difference between a rough twenty minutes and full host-conversion in two hours — and masks are harder to find than bullets."
   - "The infected are not mindless: **Clickers** (late-stage, echolocating, skull-bloomed) have no vision but track sound with surgical precision; **Stalkers** (mid-stage) hide, watch, and wait; **Runners** (early-stage, still partly aware) sometimes hesitate — and that hesitation is the worst thing about them; all stages are connected by a slow, underground mycelial network that takes hours to signal but can make a dormant nest active when another is disturbed kilometers away."

@@ -86,7 +86,7 @@
 - **apply_delta()** → `ccya/state/delta_builder.py` — merges extraction results into state
 - **app** → `ccya/server/__init__.py` — FastAPI instance with ~25 routes
 - **load_pack()** → `ccya/pack.py` — loads scenario.yaml packs (validates after loading)
-- **validate_pack()** → `ccya/pack.py` — structural validation gate for all packs (called by load_pack and list_packs)
+- **validate_pack()** → `ccya/pack.py` — structural validation gate for all packs (called by load_pack and list_packs); checks manifest fields, world facts minimum, pool min counts + uniqueness, faction/schema/bundle uniqueness
 - **resolve_check()** → `ccya/rules.py` — 1d12+stat_mod+diff_mod→Band (pure Python)
 - **chat()** → `ccya/llm_client.py` — non-streaming LLM call with retry
 - **chat_stream()** → `ccya/llm_client.py` — streaming tokens

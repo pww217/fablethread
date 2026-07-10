@@ -3,8 +3,6 @@ name: "The Outer Rim — After Unification"
 description: "A central empire holds the inner worlds. The Rim is dust, debt, and old loyalties — twelve years after the Browncoats lost the war."
 tone_tags: [frontier, gritty, scrap-tech, rebellion]
 use_male_only_names: false
-version: 2
-mode: dynamic
 baseline_facts:
   - "The Rim is a frontier of dust, debt, and old loyalties — twelve years after the war ended and the Coalition took the inner worlds, the outer systems are left to survive on what they can scavenge, grow, and fight for. The people here are stubborn, resourceful, and deeply suspicious of anyone who comes from the inner worlds."
   - "A ship on the Rim is everything — your home, your livelihood, your only way out. Every pilot has a vessel they love and a set of modifications that keep it flying despite parts that are older than the pilot. A broken ship on the Rim is a death sentence."

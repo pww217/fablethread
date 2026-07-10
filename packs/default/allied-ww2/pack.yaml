@@ -3,8 +3,6 @@ name: "Allied — 1940–1945"
 description: "Allied service member across any theater. Every rotation is different."
 tone_tags: [gritty, logistics, moral-weight, grounded]
 use_male_only_names: true
-version: 2
-mode: dynamic
 baseline_facts:
   - "The war is fought in mud, snow, and rubble — a tank crew in Normandy deals with the same rain and rot as an infantryman in Italy, and the weather decides more battles than any general's plan."
   - "A soldier's nearest ally is the person standing next to them — not a concept, but a reality. Men fight to keep their squad alive, not for flags or maps. That bond is what holds when everything falls apart."

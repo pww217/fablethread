@@ -11,7 +11,7 @@ import yaml
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _render
 from ccya.llm_client import chat_with_config as llm_chat
-from ccya.pack import PackManifest, ScenarioBrief
+from ccya.pack import Pack, PackFiles, PackManifest, ScenarioBrief, validate_pack
 
 _log = logging.getLogger(__name__)
 
@@ -126,6 +126,10 @@ async def generate_pack_from_brief(
             brief = ScenarioBrief(**scenario_data)
             brief = _sanitize_brief(brief)
 
+            # Validate before writing to disk
+            temp_pack = Pack(manifest=PackManifest(id=pack_id, name=brief.world_name or "Generated World"), scenario=brief)
+            validate_pack(temp_pack, pack_id=pack_id)
+
             # Write scenario.yaml
             (out_dir / "scenario.yaml").write_text(
                 yaml.dump(brief.model_dump(mode="json"), allow_unicode=True, sort_keys=False),
@@ -149,7 +153,9 @@ async def generate_pack_from_brief(
             manifest = PackManifest(
                 id=pack_id,
                 name=pack_name,
+                description=brief.description or "",
                 tone_tags=tone_tags,
+                files=PackFiles(world="world.md", scenario="scenario.yaml"),
                 name_locales=brief.name_locales,
                 use_male_only_names=False,
             )
