@@ -174,7 +174,7 @@ class ScenarioBrief(BaseModel):
     """
     world_name: str = ""
     constraints: Constraints = Field(default_factory=Constraints)
-    world_facts: list[str] = Field(default_factory=list, max_length=8)
+    world_facts: list[str] = Field(default_factory=list, min_length=3, max_length=8)
     narrator_rules: list[str] = Field(default_factory=list, max_length=12)
     world_rules: list[str] = Field(default_factory=list, max_length=5)
     factions: list[Faction] = Field(default_factory=list, max_length=6)
@@ -234,12 +234,20 @@ class PlayerOverrides(BaseModel):
         )
 
 
+class PackFiles(BaseModel):
+    world: str = ""
+    scenario: str = ""
+
+
 class PackManifest(BaseModel):
-    model_config = {"extra": "ignore"}
+    model_config = {"extra": "forbid"}
     id: str
     name: str
+    description: str = ""
+    version: int = 1
+    mode: str = "dynamic"
     tone_tags: list[str] = Field(default_factory=list)
-    baseline_facts: list[str] = Field(default_factory=list, max_length=3)
+    files: PackFiles = Field(default_factory=PackFiles)
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
     use_male_only_names: bool = False
     checkers: dict[str, Any] = Field(default_factory=dict)
@@ -319,12 +327,102 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
     if style_path.exists():
         style = style_path.read_text(encoding="utf-8")
 
-    return Pack(
+    pack = Pack(
         manifest=manifest,
         scenario=scenario,
         opening_scene=opening_scene,
         style=style,
     )
+    validate_pack(pack, pack_id)
+    return pack
+
+
+def _validate_pool_entries(entries: list[PoolEntry], pool_name: str) -> list[str]:
+    """Helper for pool validation. Checks unique IDs and valid incompatible_with references.
+
+    Returns the list of IDs for caller use (e.g., faction uniqueness check).
+    """
+    seen_ids: dict[str, int] = {}
+    for i, entry in enumerate(entries):
+        if entry.id in seen_ids:
+            raise ValueError(f"pool '{pool_name}' has duplicate ID '{entry.id}' (first at index {seen_ids[entry.id]}, duplicate at {i})")
+        seen_ids[entry.id] = i
+        for ref in entry.incompatible_with:
+            if ref not in seen_ids and ref not in {e.id for e in entries}:
+                raise ValueError(f"pool '{pool_name}' entry '{entry.id}' references non-existent incompatible_with ID '{ref}'")
+    return list(seen_ids.keys())
+
+
+def validate_pack(pack: Pack, pack_id: str | None = None) -> None:
+    """Validate a pack's structural integrity.
+
+    Called at the end of `load_pack()`. Raises `ValueError` with a single
+    aggregated message listing every problem found. Each problem identifies
+    the pack, the field path, and what's wrong.
+    """
+    label = f"Pack '{pack_id}'" if pack_id else "Pack"
+    errors: list[str] = []
+
+    # 1. Manifest structural
+    if not pack.manifest.id.strip():
+        errors.append(f"{label}: manifest.id is empty")
+    if not pack.manifest.name.strip():
+        errors.append(f"{label}: manifest.name is empty")
+    if pack.manifest.mode not in ("dynamic", "static"):
+        errors.append(f"{label}: manifest.mode must be 'dynamic' or 'static', got '{pack.manifest.mode}'")
+
+    # 2. Dynamic mode requirements
+    if pack.manifest.mode == "dynamic" and pack.scenario is None:
+        errors.append(f"{label}: mode=dynamic requires scenario.yaml")
+
+    # 3. World facts minimum
+    if pack.scenario is not None and len(pack.scenario.world_facts) < 3:
+        errors.append(f"{label}: scenario.world_facts must have at least 3 entries (has {len(pack.scenario.world_facts)})")
+
+    # 4. Pool entry structural integrity
+    pool_fields: list[tuple[str, list[PoolEntry]]] = [
+        ("situation_archetypes", pack.scenario.situation_archetypes if pack.scenario else []),
+        ("arc_categories", pack.scenario.arc_categories if pack.scenario else []),
+        ("character_dynamics", pack.scenario.character_dynamics if pack.scenario else []),
+        ("moral_pressures", pack.scenario.moral_pressures if pack.scenario else []),
+        ("npc_bonds", pack.scenario.npc_bonds if pack.scenario else []),
+    ]
+    for pool_name, entries in pool_fields:
+        if entries:
+            try:
+                _validate_pool_entries(entries, pool_name)
+            except ValueError as ve:
+                errors.append(f"{label}: {ve}")
+
+    # 5. Faction uniqueness
+    if pack.scenario and pack.scenario.factions:
+        seen_faction_ids: dict[str, int] = {}
+        for i, faction in enumerate(pack.scenario.factions):
+            if faction.id in seen_faction_ids:
+                errors.append(f"{label}: scenario.factions has duplicate ID '{faction.id}' (first at index {seen_faction_ids[faction.id]}, duplicate at {i})")
+            else:
+                seen_faction_ids[faction.id] = i
+
+    # 6. PC situation schema uniqueness
+    if pack.scenario and pack.scenario.pc_situation_schema:
+        seen_keys: dict[str, int] = {}
+        for i, entry in enumerate(pack.scenario.pc_situation_schema):
+            if entry.key in seen_keys:
+                errors.append(f"{label}: scenario.pc_situation_schema has duplicate key '{entry.key}' (first at index {seen_keys[entry.key]}, duplicate at {i})")
+            else:
+                seen_keys[entry.key] = i
+
+    # 7. Scene detail bundles uniqueness
+    if pack.scenario and pack.scenario.scene_detail_bundles:
+        seen_bundles: dict[str, int] = {}
+        for i, bundle in enumerate(pack.scenario.scene_detail_bundles):
+            if bundle.id in seen_bundles:
+                errors.append(f"{label}: scenario.scene_detail_bundles has duplicate ID '{bundle.id}' (first at index {seen_bundles[bundle.id]}, duplicate at {i})")
+            else:
+                seen_bundles[bundle.id] = i
+
+    if errors:
+        raise ValueError("; ".join(errors))
 
 
 def list_packs(packs_dir: Path) -> list[PackManifest]:
@@ -349,7 +447,12 @@ def list_packs(packs_dir: Path) -> list[PackManifest]:
                 try:
                     with open(manifest_path) as f:
                         data = yaml.safe_load(f) or {}
-                    manifests.append(PackManifest(**data))
+                    manifest = PackManifest(**data)
+                    try:
+                        validate_pack(Pack(manifest=manifest), child.name)
+                    except ValueError as ve:
+                        _log.warning("Pack '%s' failed validation: %s", child.name, ve)
+                    manifests.append(manifest)
                 except Exception as err:
                     _log.warning("Skipping invalid pack manifest at %s: %s", manifest_path, err)
 

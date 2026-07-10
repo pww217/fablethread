@@ -143,6 +143,7 @@ Only `execute` (code/prompt changes) and `review-code` (PR creation) create bran
 ## Execution rules
 
 - **For ev.py:** Always use `.venv/bin/python scripts/debug/ev.py <command> [args...]`. Never use `python3` or `source .venv/bin/activate` — neither works reliably. For `play --llm --turns N`, set bash timeout to at least `N × 60000` ms (~1 minute per turn). Use `--personality` (not `--persona`) for LLM player presets. See `scripts/debug/README.md` for full docs.
+- **For pack validation:** `.venv/bin/python scripts/validate_packs.py [packs_dir]` — loads every pack and validates structural integrity. Exits 1 if any pack fails. Useful for CI/pre-commit/manual verification.
 - **For other Python:** Use `.venv/bin/python` directly. `source .venv/bin/activate` does not work reliably in this environment.
 - Feel free to `curl` against a running server (assume it's running on `localhost:8765`) to pull rendered templates or live state.
 - When stumped by a bug: form one hypothesis, write a minimal `/tmp/` script to test it in isolation, confirm or refute, then act. Do not go in circles.
