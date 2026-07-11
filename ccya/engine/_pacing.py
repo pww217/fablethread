@@ -8,7 +8,7 @@ This module encapsulates the beat constraint table in Python so both
 from __future__ import annotations
 
 import logging
-from math import ceil
+
 from typing import Any
 
 from ccya.engine.config import EngineConfig
@@ -92,14 +92,21 @@ def compute_convergence_score(
 
     # (scene_age removed — used by narration directive, not convergence)
 
-    # Component 4: Beat streak (+1) — repaired carry-over logic
+    # Component 4: Beat streak (+1) — carry-over for null beats, 2/4 threshold
     tension_types = set(BEAT_BUCKETS["tension"])
     pressure_count = 0
     if recent_beats:
         n = len(recent_beats)
-        window = recent_beats[: min(n, 5)]
-        pressure_count = sum(1 for b in window if b.get("type") in tension_types)
-        threshold = ceil(n * 0.6) if n < 5 else 3
+        window = recent_beats[: min(n, 4)]
+        # Carry over: null beats inherit the last known non-null type
+        last_type = None
+        for b in window:
+            bt = b.get("type")
+            if bt is not None:
+                last_type = bt
+            if last_type is not None and last_type in tension_types:
+                pressure_count += 1
+        threshold = 2
         if pressure_count >= threshold:
             score += 1
         components["beat_streak"] = 1 if pressure_count >= threshold else 0

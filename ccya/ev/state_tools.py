@@ -680,9 +680,19 @@ def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tup
             scene_age_component = 1 if scene_age >= 3 else 0
 
             recent_beats = pc.get("recent_beats", [])
-            pressure_types = {"pressure", "complication", "escalation", "setback"}
-            pressure_count = sum(1 for b in recent_beats if b.get("type") in pressure_types)
-            beat_streak = 1 if pressure_count >= 3 else 0
+            tension_types = {"pressure", "complication", "escalation", "setback"}
+            pressure_count = 0
+            if recent_beats:
+                n = len(recent_beats)
+                window = recent_beats[: min(n, 4)]
+                last_type = None
+                for b in window:
+                    bt = b.get("type")
+                    if bt is not None:
+                        last_type = bt
+                    if last_type is not None and last_type in tension_types:
+                        pressure_count += 1
+            beat_streak = 1 if pressure_count >= 2 else 0
 
             roll_starvation = 0  # Would need recent_rolls data; estimated as 0 for EV display
             threat_density = 0   # Would need active threat count; estimated as 0 for EV display
