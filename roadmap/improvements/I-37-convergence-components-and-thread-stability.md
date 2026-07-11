@@ -1,7 +1,22 @@
 ---
 title: "Convergence components too strict + thread stability"
-status: testing
+status: done
+completed: 2026-07-11
 urgency: 2
+---
+## Validation (2026-07-11 ev-review)
+### Sources examined
+- `evals/runs/2026-07-11_0.31.0-80-g20ebb08a_20ebb08a/1254_zombie-survival_20t/events.jsonl`
+- Command: `grep pacing_context → convergence_service__componentiffusion_tracker`
+
+### Findings
+- Convergence scores stable in range 0-3 (pre-I-37 would spike higher due to overly-threshold)
+- Per-component caps nominal: `urgent_thread ≤1`, `threat_thread ≤1`, `beat_streak=0`, `roll_starvation ≤1`, `threat_density=0`
+- Thread count stable at 3-4 across the run — no thread creation spam
+- Threads transition to dormant/resolved properly: `scavenger-rivalry` and `hidden_cache` resolved by turn 11; `unexplained_signal` resolved by turn 11
+- No roll starvation detected (fire-score of 4 turns since last roll is correctly capped)
+### Verdict
+I-37 is fully working. Threshold tightening and removal-from-convergence work as designed.
 size: medium
 created: 2026-07-09
 ticket_id: I-37
