@@ -115,6 +115,9 @@ def apply_npc_scene_management(
             if comp_upd.presence in ("present", "nearby"):
                 if current_turn_no is not None:
                     updates["last_presence_turn"] = current_turn_no
+            if comp_upd.last_seen_location is not None and not is_new:
+                # Only update for existing NPCs when extractor explicitly sets a new location
+                updates["last_seen_location"] = comp_upd.last_seen_location
             if comp_upd.position is not None:
                 updates["position"] = comp_upd.position
 

@@ -8,7 +8,7 @@
 
 - **Game server:** `localhost:8765` — turn reviewer at `localhost:8765/turn_reviewer`
 - **LLM backend (primary):** `10.75.100.51:1234` — LMStudio, OpenAI-compatible API, `google/gemma-4-26b-a4b-it` on RTX 5070 Ti
-- **LLM backend (fallback):** `localhost:8080` — OpenAI-compatible API, Gemma 4-26B via llama-swap
+- **LLM backend (fallback):** `localhost:8000` — OpenAI-compatible API, Gemma 4-26B via llama-swap
 - **Makefile:** primary reference for build/lint/run targets
 
 Treat **8k tokens as your effective working context per session.** Do not load more than you need.

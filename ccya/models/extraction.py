@@ -29,6 +29,7 @@ class CompendiumNpcUpdate(BaseModel):
     tie: str | None = None          # durable personal history — human-readable description
     departed_reason: str | None = None     # combined: "short label — prose" describing the departure
     departed_turn: int | None = None       # set by engine on first presence:"departed"
+    last_seen_location: str | None = None  # set by extractor when NPC moves to a different location than their last known
 
 
 def _coerce_inventory_remove_item(v: Any) -> Any:
