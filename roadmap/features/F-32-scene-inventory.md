@@ -40,6 +40,6 @@ Full design doc: [docs/design/scene-inventory.md](../design/scene-inventory.md)
 
 ## Related Tickets
 
-- [F-31: Location expansion](../features/F-31-location-expansion.md) — seed-declared location details as strings, first-visit flag, narrator exposition (prerequisite — F-32's seed-declared items ARE F-31's seed-declared details; no separate model needed)
+- [F-31: Location expansion](../features/F-31-location-expansion.md) — seed-declared location opportunities (actions/narrative nodes) and first-visit flag (separate concern; F-32 is about physical items, not action opportunities)
 - [F-33: Location threads](../features/F-33-location-threads.md) — dormant seed-declared threads that activate on location arrival (independent, both build on location expansion foundation)
 - [B-12: Scene interactive inventory items](../bugs/B-12-scene-interactive-inventory-items.md) — canceled, proposed nearby_interactable_items as scene extraction concept (this ticket revisits with seed-declared string approach instead)

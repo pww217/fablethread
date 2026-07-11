@@ -1,6 +1,6 @@
 ---
 title: "Scene extractor should demote non-following NPCs on location change"
-status: new
+status: testing
 urgency: 1
 size: small
 created: 2026-07-09

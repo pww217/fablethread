@@ -164,6 +164,10 @@ async def run_turn(
         narr_trimmed = _narrate_result.narr_trimmed
         narr_trimmed_chars = _narrate_result.narr_trimmed_chars
 
+        # Apply new scene phase (computed by narration if convergence thresholds met)
+        if _narrate_result.new_scene is not None:
+            state = state.set_scene(_narrate_result.new_scene)
+
         # Save the beat before clearing it (used by event logging/UI)
         _saved_beat = state.meta.pending_gm_beat
         # Clear pending_gm_beat after narration reads it (single-turn commitment)
@@ -303,7 +307,8 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
     yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
     # Build narration context and messages (extracted phase)
-    _pc, narr_messages, _ = await _narrate_setup(ctx)
+    _pc, narr_messages, new_scene = await _narrate_setup(ctx)
+    narrate_result.new_scene = new_scene
 
     # Trim + log (stays inline for simplicity)
     rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
@@ -544,6 +549,7 @@ class NarrateResult:
     rendered_narr_user: str = ""
     narr_trimmed: bool = False
     narr_trimmed_chars: int = 0
+    new_scene: Any = None
 
 
 @dataclass

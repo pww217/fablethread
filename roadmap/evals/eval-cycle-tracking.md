@@ -1,6 +1,6 @@
 ---
 title: "Eval cycle improvements tracking"
-status: triaged
+status: canceled
 urgency: 2
 size: medium
 created: 2026-06-22

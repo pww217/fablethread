@@ -37,9 +37,9 @@ Full design doc: [docs/design/location-threads.md](../design/location-threads.md
 
 ## Deferred Until After F-31
 
-This ticket should NOT be started until F-31 (location expansion via seed-declared details) is implemented and proven effective. The seed-declared details alone should make locations feel interesting and worth visiting. If location threads are still desired after F-31 proves the foundation works, this ticket can be picked up as a separate enhancement.
+This ticket should NOT be started until F-31 (location expansion via seed-declared opportunities) is implemented and proven effective. The seed-declared opportunities alone should make locations feel interesting and worth visiting. If location threads are still desired after F-31 proves the foundation works, this ticket can be picked up as a separate enhancement.
 
-The main blocker for location threads is re-introducing thread scope, which undoes the unify-threads simplification. This should only be done if seed-declared details alone don't provide enough incentive for location exploration.
+The main blocker for location threads is re-introducing thread scope, which undoes the unify-threads simplification. This should only be done if seed-declared opportunities alone don't provide enough incentive for location exploration.
 
 ## Related Tickets
 

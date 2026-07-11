@@ -1,6 +1,6 @@
 ---
 title: "Convergence components too strict + thread stability"
-status: new
+status: up next
 urgency: 2
 size: medium
 created: 2026-07-09
