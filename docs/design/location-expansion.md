@@ -2,8 +2,8 @@
 
 > **Status:** scoping
 > **Related tickets:**
-> - [F-31: Location expansion](../../roadmap/features/F-31-location-expansion.md) — seed-declared details, narrator exposition, first-visit flag
-> - [F-32: Scene inventory](../../roadmap/features/F-32-scene-inventory.md) — seed-declared location items as strings (builds on this foundation)
+> - [F-31: Location expansion](../../roadmap/features/F-31-location-expansion.md) — seed-declared location opportunities (actions/narrative nodes), first-visit flag, NPC location pinning
+> - [F-32: Scene inventory](../../roadmap/features/F-32-scene-inventory.md) — seed-declared location items as physical objects (separate concern; F-32 is about objects that can be picked up, not action opportunities)
 > - [F-33: Location threads](../../roadmap/features/F-33-location-threads.md) — dormant seed-declared threads that activate on location arrival (deferred)
 
 ## Problem
@@ -18,13 +18,15 @@ Currently the narrator only describes the current location's seed description st
 
 ## Design Principles
 
-**Seed-declared only.** All location data is seed-declared. No runtime extraction. No LLM-generated location details at runtime. This keeps extraction pipeline unchanged and seed dimensionality manageable.
+**Seed-declared only.** All location data is seed-declared. No runtime extraction. No LLM-generated location opportunities at runtime. This keeps extraction pipeline unchanged and seed dimensionality manageable.
 
 **Current location only.** Never show all key locations in every turn's prompt. Only the current location's seed data is shown. This prevents linear context bloat as more locations are visited.
 
-**Soft consistency.** Location details exist as seed-declared facts shown every turn as context. If the narrator describes the player taking an item, the narrator should note it's gone on subsequent visits via prompt guidance — not state enforcement. Acceptable for small detail lists (3 items max).
+**Permanent context.** Location opportunities are always shown as context when at a key location. They don't expire or fade. Opportunities are a permanent piece of the world's narrative fabric at that location.
 
 **Minimal model changes.** One seed model field. One state flag. No extraction schema changes. No delta builder changes beyond one boolean flag. No ruling logic changes.
+
+**Thread-path, not thread-yet.** Opportunities preview the thread system without integrating with it directly. Record extractor should naturally recognize opportunities as potential thread content during narration. Explicit thread integration happens later if needed.
 
 ## Target State
 
@@ -32,19 +34,19 @@ Currently the narrator only describes the current location's seed description st
 
 **Seed model:** One field on `KeyLocation`:
 ```python
-scene_details: list[str] = Field(default_factory=list, max_length=3)
+location_opportunities: list[str] = Field(default_factory=list, max_length=3)
 ```
-Just strings. Not a model. Not items with IDs. Three short phrases seed-declared at seed time (e.g., "rusted key on desk", "fresh boot prints in mud", "radio crackling with static"). Each ~20-30 chars. Total ~90 tokens max.
+Just strings. Not a model. Not items with IDs. Three short phrases seed-declared at seed time (e.g., "scout from watchtower to survey terrain", "talk to the town alderman about rumors", "visit the local tavern for gossip"). Each ~20-30 chars. Total ~90 tokens max.
 
 **State model:** One field on `state.scene`:
 ```python
 first_visit_location: bool = False
 ```
-Set to `True` on location change if location ID differs from previous location's ID. Set to `False` otherwise (same location revisited). One boolean flag, set in delta builder where `turn_entered` and `location_entered_turn` are already set.
+Set to `True` on location change if location ID differs from previous location's ID. Same place where `turn_entered` and `location_entered_turn` are already set. Used as a signal to the narrator to introduce opportunities into narration.
 
 ### Seed Prompt Change
 
-Add one instruction to seed generation: "For each key location, list up to 3 concrete details a player might notice when arriving (short phrases, 20-30 chars each). These should be specific and grounded in the location's purpose and the world's theme."
+Add one instruction to seed generation: "For each key location, list up to 3 narrative opportunities a player might pursue (short phrases, 20-30 chars each). These should be concrete actions or events available at the location, grounded in the location's purpose and the world's theme. Examples: 'scout from watchtower to survey terrain', 'talk to town alderman about rumors', 'listen to tavern gossip about nearby events.'"
 
 ### Prompt Context Management
 
@@ -52,21 +54,22 @@ Add one instruction to seed generation: "For each key location, list up to 3 con
 ```
 ## This Location
 {seed description}
-Notable details:
-- detail 1
-- detail 2
-- detail 3
-{if first_visit_location: "Describe these as environmental details you notice."}
-{if not first_visit_location: "These details may have changed if the player interacted with them."}
+
+Opportunities:
+- {opportunity 1}
+- {opportunity 2}
+
+{if first_visit_location: "Weave some opportunities into narration when relevant — not a list."}
+{if not first_visit_location: "These opportunities may have changed since your arrival."}
 ```
 
-~90 tokens max (3 details × ~30 tokens each). Current location only. Never show all key locations.
+~90 tokens max (2 opportunities × ~30 chars). Current location only. Never show all key locations.
 
-**Ruling prompt:** One instruction added to ruling system prompt: "Player may interact with location details described in narration (items, objects, environmental features). These don't need to be in PC inventory for the action to be possible — ruling should only mark actions as impossible if they violate physical constraints or character capabilities, not if the required item isn't in PC inventory."
+**Ruling prompt:** No change. Location opportunities are context for exposition. Ruling already handles NPC impossibility via existing rules ("Punch X NPC — NPC is not in scene/location").
 
-### Extraction Context Change (F-32 integration)
+### Extraction Context
 
-Pass seed-declared location details as context to step2b's extraction prompt. One lookup by location ID from `state.world.locations`, shown as a short list in the extraction user prompt. This lets the LLM match narration to seed-declared items and emit `inventory_add` for location item pickups.
+No change. Location opportunities feed the seed → narrate pipeline; no runtime extraction is required. If Record naturally recognizes opportunity-related content as thread-worthy during narration, that's emergent integration handled by Record's normal behavior. Explicit extraction changes for opportunities are scoped out.
 
 ### Collision Analysis
 
@@ -74,17 +77,17 @@ Pass seed-declared location details as context to step2b's extraction prompt. On
 |--------|-----------|------------|
 | **Seed generation** | One new field on seed output | Seed already generates location data; additive, not structural |
 | **Narrator prompt** | One new section, ~90 tokens | Current location only. No change to existing sections |
-| **Ruling prompt** | One instruction | No model change. No ruling logic change |
-| **Extraction context** | One lookup + context addition | No schema change. No new extraction fields |
+| **Ruling prompt** | None | No ruling prompt change in this design |
+| ****Extraction schema** | None | No new extraction fields for opportunities. Record behavior is unchanged |
 | **Delta builder** | One boolean flag | Same place where `turn_entered` is already set |
-| **Convergence/phase** | None | No thread involvement |
+| **Convergence/phase** | None | No thread involvement in this phase |
 | **Event recording** | One boolean in event dict | Same as `post_turn_location_id` |
 
 ### Interaction with Pacing
 
-**Risk:** If location details trigger more location changes, scene age resets more often (location change resets `turn_entered` and `location_entered_turn`). This could prevent the directive from reaching "Scene Imperative" threshold (5 turns), keeping the scene in lighter directive territory.
+**Risk:** Location opportunities may trigger more location changes as players follow interesting content. This resets scene age more often (location change resets `turn_entered` and `location_entered_turn`), potentially preventing the directive from reaching "Scene Imperative" threshold (5 turns), keeping the scene in lighter directive territory.
 
-**Mitigation:** Location details should encourage exploration through interesting content, not explicit direction. No explicit "you should go to X" — only natural exposition that might suggest interesting places ("The radio crackles with a distant transmission from the eastern line..."). This is narrator guidance, not engine enforcement.
+**Mitigation:** Opportunities should encourage exploration through interesting content, not explicit direction. No explicit "you should go to X" — only natural exposition that might suggest interesting places ("The radio crackles with a distant transmission from the eastern line..."). This is narrator guidance, not engine enforcement.
 
 **Convergence:** Location expansion does NOT directly affect convergence score. Convergence is driven by thread urgency, beat streaks, roll starvation, and threat density. Location changes reset scene age but don't modify convergence directly. If location changes cause more frequent scene age resets, the directive computation may stay at lighter levels longer, which could indirectly affect beat type selection in World step. This is acceptable — lighter directive territory is fine for exploratory scenes.
 
@@ -92,57 +95,63 @@ Pass seed-declared location details as context to step2b's extraction prompt. On
 
 No change needed. Step2b already detects location changes via movement verbs and destination language. The extractor emits `location_change` as it does now. The delta builder's existing NPC presence management and timestamp resets apply as they do now. `first_visit_location` flag is set in the same delta builder code path.
 
+### NPC Location Pinning
+
+This design includes location pinning — `last_seen_location` on NPCEntry becomes the canonical anchor point after location changes. When `state.location` changes, NPCs at the old location are demoted to `nearby` with their `last_seen_location` pinned. When the extractor detects narration indicating an NPC moved to a new location, it overrides the pin.
+
+This is a behavior change, not a model change: NPCEntry already has `last_seen_location` for tracking. The pinning is just tightening the semantic meaning: `last_seen_location` is not just "where they were last mentioned" but "where they actually are, unless the extractor explicitly moves them."
+
 ### Soft Consistency Model
 
-Seed-declared details are the ground truth shown every turn as context. On first visit, narrator describes them as environmental details the player notices. On revisits, narrator should note details may have changed if the player interacted with them via prompt guidance.
+Seed-declared opportunities are the ground truth shown every turn as context. On first visit, narrator introduces them into narration. On revisits, narrator should note opportunities may have changed if the player interacted with them via prompt guidance.
 
-The seed data is shown every turn as context — if the narrator previously described taking an item, the narrator should note it's gone. If context got truncated and the narrator forgets, seed data might contradict prior narration — that's the soft part. Acceptable for small detail lists (3 items max).
+The seed data is shown every turn as context — if the narrator previously described the player walking into the alderman's office and getting new intelligence, the oppo "talk to alderman for rumors" might be different next time. The narrator should self-correct based on prior narration. Seed data is always shown as context — it won't disappear or change, but the narrator should adapt.
 
 ### Implementation Phases
 
 **Phase 1: Model + seed changes**
-- Add `scene_details: list[str]` field to `KeyLocation` (max_length=3)
-- Update seed prompt (`prepare_seed_system.j2`) to generate scene_details for each key location
+- Add `location_opportunities: list[str]` field to `KeyLocation` (max_length=2)
+- Update seed prompt (`prepare_seed_system.j2`) to generate location_opportunities for each key location
 - Add `first_visit_location: bool` to `state.scene`
 - Delta builder sets `first_visit_location` on location change (same place as `turn_entered`)
 
 **Phase 2: Prompt integration**
-- Add location context section to narrate prompt (seed-declared details + first_visit flag)
-- Narrator guidance: describe details as environmental details on first visit
-- Narrator guidance: note details may have changed on revisit
-- Add ruling prompt instruction: location details don't need to be in PC inventory for ruling impossibility check
+- Add location context section to narrate prompt (seed-declared opportunities + first_visit flag)
+- Narrator guidance: weave some opportunities naturally into narration when relevant, not a list
+- Narrator guidance: note opportunities may have changed on revisit
 
-**Phase 3: Extraction context (F-32)**
-- Pass seed-declared location details to step2b's extraction prompt (lookup by location ID from `world.locations`)
-- Update step2b extraction prompt: guidance on extracting PC pickup of location items as inventory_add
+**Phase 3: NPC location pinning**
+- Tighten `last_seen_location` semantics: canonical anchor point, authoritative but overrideable
+- Delta builder pin behavior for NPC demotion on location change
+- Extractor guidance: `last_seen_location` should only change when an NPC actually moves (not every time they're mentioned)
 
 **Phase 4: Validation + testing**
-- Checker: seed locations have scene_details populated (where appropriate)
+- Checker: seed locations have location_opportunities populated (where appropriate)
 - Checker: first_visit_location flag set correctly on location change
 - Eval: narrator exposition quality at new locations
-- Eval: ruling handles location detail interactions correctly
-- Eval: extraction correctly handles location item pickup
+- Eval: opportunities woven naturally into narration, not presented as a list
+- Eval: NPC location pinning works correctly across location changes
 
 ### Risks
 
-1. **Seed complexity:** Adding scene_details to seed generation increases seed dimensionality. Mitigation: max 3 short strings per location, seed prompt should give clear examples.
+1. **Seed complexity:** Adding `location_opportunities` to seed generation increases seed dimensionality. Mitigation: max 2 short strings per location, seed prompt should give clear examples.
 
-2. **Prompt context bloat:** One section, ~90 tokens max per turn. Mitigation: cap at 3 details, keep them concise. Measure token delta during implementation.
+2. **Prompt context bloat:** One section, ~90 tokens max per turn. Mitigation: cap at 2 opportunities, keep them concise. Measure token delta during implementation.
 
-3. **Revisit handling:** On revisit, seed details are still shown (they're seed-declared). Mitigation: narrator prompt should note "these details may have changed if the player interacted with them" — narrator should self-correct based on prior narration. Soft consistency model.
+3. **Revisit handling:** On revisit, seed opportunities are still shown (they're seed-declared). Mitigation: narrator prompt should note "these opportunities may have changed if the player interacted with them" — narrator should self-correct based on prior narration. Soft consistency model.
 
-4. **Ruling leniency:** If ruling is too lenient on location details, it might mark clearly impossible actions as possible. Mitigation: ruling instruction should say location details don't need to be in PC inventory — not that ruling should ignore impossibility entirely. Physical constraints and character capabilities still apply.
+4. **Record awareness of opportunities:** If Record doesn't naturally recognize opportunity-related narration as thread-worthy, the opportunities don't contribute to campaign narrative. Mitigation: this is an emergent integration, not enforced. The opportunities do help the narrator generate richer narration, which Record picks up without explicit thread handling. If Record misses the signal after testing, explicit integration can be added later (F-33).
 
 ### Deferred Items
 
-- **Scene inventory as structured model** (F-32): seed-declared strings are enough for now; if runtime item interaction needs more structure (item IDs, amounts, durability), that's a separate ticket
-- **Location-scoped threads** (F-33): seed-declared details alone should make locations feel alive; thread scope re-introduction should only be picked up if seed-declared details alone don't provide enough incentive for location exploration
+- **Scene inventory as structured model** (F-32): seed-declared physical items at locations (objects that can be picked up via extraction). This is a separate concern — F-31 is actions/opportunities, not objects.
+- **Location-scoped threads** (F-33): seed-declared dormant threads that activate on location arrival. Opportunities may naturally become thread content through Record extraction, but explicit thread integration should only happen if opportunities alone don't provide enough incentive for location exploration.
 - **List of visited location IDs:** boolean flag is sufficient; if visited location history is needed later, add as separate ticket
 - **UI changes:** turn viewer sidebar location panel may need updates later but not in this design
 - **Dynamic location generation:** all locations seed-declared, no lazy generation on first visit
-- **Player steering via narration:** location details should encourage exploration through interesting content, not explicit direction; if explicit steering is desired later, add as separate ticket
+- **Player steering via narration:** opportunities should encourage exploration through interesting content, not explicit direction; if explicit steering is desired later, add as separate ticket
 
 ### Dependencies on Other Designs
 
-- **Seed Two-Step Design** — seed generation pipeline that seed_details extends
-- **Seed Worldbuilding Redesign** — funnel ordering, key locations seed generation
+- **Seed Two-Step Design:** seed generation pipeline that `location_opportunities` extends
+- **Seed Worldbuilding Redesign:** funnel ordering, key locations seed generation
