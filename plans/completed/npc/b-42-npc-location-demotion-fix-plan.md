@@ -23,7 +23,7 @@ When a player changes location, non-party NPCs at the old location are demoted t
 
 ## Status
 
-`implemented`
+`completed`
 
 ---
 

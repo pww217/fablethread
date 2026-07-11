@@ -1,6 +1,6 @@
 ---
 title: "NPC presence does not decay after location change"
-status: up-next
+status: done
 urgency: 3
 size: medium
 created: 2026-07-10
