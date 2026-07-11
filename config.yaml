@@ -1,6 +1,6 @@
 llm:
   host: http://10.75.100.51:1234/v1
-  fallback_host: http://127.0.0.1:8080
+  fallback_host: http://127.0.0.1:8000/v1
   model: gemma-4-26b-a4b-it@iq3_xxs
   num_ctx: 16384
   context_window: 16384
