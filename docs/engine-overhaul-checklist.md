@@ -138,7 +138,7 @@ OpenAI-compatible API wrapper, retry logic, streaming.
 - [ ] **`chat_with_config()` / `chat_stream_with_config()`:** Per-stage parameter override
 - [ ] **Retry logic:** LLM failures retried with backoff
 - [ ] **`LlmResult` wrapper:** Frozen dataclass with `content`, `usage`, `elapsed_ms`
-- [ ] **Both backends work:** Primary (10.75.100.51:1234) and fallback (localhost:8080)
+- [ ] **Both backends work:** Primary (10.75.100.51:1234) and fallback (localhost:8000)
 - [ ] **`num_ctx` passed:** Controls server-side context window
 - [ ] **`context_window` trimming:** Client-side trim when budget exceeded
 
