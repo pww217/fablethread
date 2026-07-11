@@ -789,10 +789,11 @@ async def _persist_and_async_cleanup(
     world_user_text = ""
     world_raw_response = ""
     beat_candidates: list[dict[str, Any]] = []
+    world_state = state
     world_usage: dict[str, int] = {"tokens_in": 0, "tokens_out": 0}
     t_world = asyncio.get_event_loop().time()
     try:
-        _, beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
+        world_state, beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
             env, state, narrative, pc, config, trace_id, turn_no,
         )
     except Exception as exc:
@@ -800,7 +801,8 @@ async def _persist_and_async_cleanup(
         _log.debug("turn.world_failed trace_id=%s turn=%d error=%s", trace_id, state.meta.turn, exc)
     world_ms = (asyncio.get_event_loop().time() - t_world) * 1000
     _log.debug("turn.world_complete trace_id=%s turn=%d beats=%d world_ms=%d", trace_id, state.meta.turn, len(beat_candidates or []), round(world_ms, 1))
-    state = state.set_beat_candidates(beat_candidates or [])
+
+    state = world_state.set_beat_candidates(beat_candidates or [])
 
     # Build world extraction event and write prompts (deferred past async window)
     extraction_event["world"] = {

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from math import ceil
 from typing import Any
 
 from ccya.engine.config import EngineConfig
@@ -263,14 +262,20 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
         )
         components["threat_thread"] = 1 if any_threat else 0
 
-        # Component 4: beat_streak (+1 if >=60% tension beats in recent window)
+        # Component 4: beat_streak (+1 if >=50% of 4 tension beats, carry-over for null)
         tension_types = set(BEAT_BUCKETS["tension"])
         pressure_count = 0
         if recent_beats:
             n = len(recent_beats)
-            window = recent_beats[: min(n, 5)]
-            pressure_count = sum(1 for b in window if b.get("type") in tension_types)
-            threshold = ceil(n * 0.6) if n < 5 else 3
+            window = recent_beats[: min(n, 4)]
+            last_type = None
+            for b in window:
+                bt = b.get("type")
+                if bt is not None:
+                    last_type = bt
+                if last_type is not None and last_type in tension_types:
+                    pressure_count += 1
+            threshold = 2
             components["beat_streak"] = 1 if pressure_count >= threshold else 0
         else:
             components["beat_streak"] = 0
