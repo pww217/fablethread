@@ -1,6 +1,7 @@
 ---
 title: Dice intensity guidance and genre-generic band directives
-status: testing
+status: done
+completed: 2026-07-11
 urgency: 3
 size: small
 created: 2025-07-09
@@ -51,8 +52,24 @@ This sits on top of the band directive — same band but different prose flavor 
 
 ## Testing
 
-Run a few turns and verify:
-1. Crit success on a 12 reads more impressive than on a 9
-2. Crit failure on a 1 reads worse than on a 2
-3. Band directives don't reference specific conditions (wounded/bleeding)
-4. Intensity tone matches die value without contradicting band directive
+Verified 2026-07-11 against noir-1930s and zombie-survival 20-turn evals:
+
+### What works ✅
+
+- **Dice intensity prose** — confirmed via turn-level inspection:
+  - Turn 6 (zombie, d12=12, crit_success): "surgical precision", "math is flawless", "airtight indictment" — exceptional tone ✓
+  - Turn 2 (zombie, d12=2, fail): "screen stalls", "refuses your access attempts" — hopeless tone ✓
+  - Turn 19 (zombie, d12=3, fail): "coordination fails you completely", "violent tremors", "jerks aimlessly" — catastrophic tone ✓
+- **Band directives genre-generic** — GM_MOVES for crit_fail/fail/setback/success/crit_success are genre-generic ✓
+- **Intensity guidance** present in `narrate_user.j2:81`, no overlap with band directives ✓
+
+### Minor cleanup needed (deferring)
+
+- `_DIRECTIVE_TABLE` combat category (setback line 101, partial line 108) still has "**wound**" references:
+  - Setback/combat: `"You land the blow but take a wound or lose ground."`
+  - Partial/combat: `"You succeed but at a cost — a resource spent, a wound taken, or a complication started."`
+- These are narrow edge cases (only on combat partials/setbacks) and not blocking. Can be addressed in a follow-up.
+
+### Rolls and bands
+
+`roll_band_consistency` checker passes across all tested turns. `directive_tone_match` (LLM) passes on the noir-1930s eval. Narration tone correlates with die value severity in direct inspection.

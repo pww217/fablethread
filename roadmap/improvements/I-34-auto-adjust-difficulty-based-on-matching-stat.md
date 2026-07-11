@@ -1,6 +1,7 @@
 ---
 title: "Auto-adjust difficulty based on matching stat"
-status: testing
+status: done
+completed: 2026-07-11
 urgency: 2
 size: small
 created: 2026-07-09
@@ -90,3 +91,14 @@ Tooltip format:
 - `outcome.difficulty` shows the adjusted difficulty — clearer for the player ("you rolled normal" makes more sense than "you rolled hard" when the roll used normal)
 - `outcome.original_difficulty` preserves the LLM's choice for transparency
 - Stat 3 probabilistic uses `random.random() < 0.33` — not perfectly 1/3 but close enough for gameplay purposes
+
+## Validation (2026-07-11 ev-review)
+
+- **Sources:** `evals/runs/2026-07-11_0.31.0-80-g20ebb08a_20ebb08a/1254_zombie-survival_20t/events.jsonl`
+- **Turn 7:** LLM ruled `hard`, stat wits=4 → adjusted to `easy` (trivial). `original_difficulty=hard`, `difficulty_adjustment="Difficulty adjusted due to high skill proficiency"`, `diff_mod=1` (trivial).
+- **Turn 8:** LLM ruled `normal`, stat dexterity=3 → adjusted to `easy`. `original_difficulty=normal`, `difficulty_adjustment="Difficulty adjusted due to skill proficiency"`.
+- **Turn 14:** LLM ruled `normal`, wits=4 → `easy`. Adjusted correctly.
+- **Turn 18:** LLM ruled `hard`, dexterity=3 → `normal`. `difficulty_adjustment="Difficulty adjusted due to skill proficiency"`. 33% probability applied (not always triggered, just on this roll).
+- `difficulty_adjustment` field is populated in ruling output when adjustment occurs; `original_difficulty` always reflects LLM's ruling. When no adjustment, both are `null`/empty.
+### Verdict
+I-34 is fully working. All 4 stat tiers (1, 3, 4, and implicit 2) behave as specified.

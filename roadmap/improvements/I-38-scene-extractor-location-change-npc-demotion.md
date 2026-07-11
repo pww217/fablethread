@@ -1,6 +1,7 @@
 ---
 title: "Scene extractor should demote non-following NPCs on location change"
-status: testing
+status: done
+completed: 2026-07-11
 urgency: 1
 size: small
 created: 2026-07-09
@@ -39,7 +40,11 @@ With location_change context available, the extractor can apply this correctly: 
 - `ccya/engine/turn.py` — `_extract_phase()`: reorder state → scene extraction, pass `location_change` context
 - `ccya/engine/extraction/context.py` or `ccya/prompts/extract_scene_system.j2`: accept location_change context in scene extractor prompt
 
-### Validation
+### Validation (2026-07-11 ev-review)
 
-- Run `ev.py turn 6 --save-dir saves/cordyceps-year-twenty-2026-07-08` to verify NPCs are `nearby`/`known` post-location-change
-- Check that NPCs explicitly shown following the player are re-promoted to `present`
+- **Sources:** `evals/runs/2026-07-11_0.31.0-80-g20ebb08a_20ebb08a/1254_zombie-survival_20t/events.jsonl`
+- **Turn 8-9:** `bloated_creature` `present` at source location fighting in cellar
+- **Turn 10:** location_change → `caseburg_inner_courtyard`. `bloated_creature` correctly demoted to `presence=known` (NOT re-promoted to `present`). Guard at `npcs.py:98-102` prevents non-following NPCs from being re-promoted. `caseburg_sentries` at the inner courtyard properly received `presence=present`.
+- **Turn 15:** `sarah_vance` + `caseburg_sentries` both present at `service_alley` — re-promotion works for NPCs that follow.
+### Verdict
+I-38 is fully working. The guard correctly prevents the scene extractor from re-promoting NPCs left behind during location changes, while allowing re-promotion for NPCs that actually follow.

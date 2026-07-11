@@ -256,7 +256,7 @@ Every ticket must have:
 ---
 title: "..."
 status: <valid-status>
-urgency: 1|2|3|4
+urgency: 2
 size: small|medium|large|xlarge
 created: YYYY-MM-DD
 ticket_id: <TYPE>-<N>

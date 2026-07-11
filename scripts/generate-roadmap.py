@@ -337,7 +337,7 @@ def main():
     active_entries.sort(key=lambda e: (
         BUCKET_ORDER.index(get_bucket(e["labels"])) if get_bucket(e["labels"]) in BUCKET_ORDER else len(BUCKET_ORDER),
         e["urgency"],
-        e["created"],
+        str(e["created"]),
     ))
 
     # Generate files
@@ -352,7 +352,7 @@ def main():
     archived = load_entries(ARCHIVE_DIR, seen=set(), is_archive=True)
     archived.sort(key=lambda e: (
         BUCKET_ORDER.index(get_bucket(e["labels"])) if get_bucket(e["labels"]) in BUCKET_ORDER else len(BUCKET_ORDER),
-        e["created"],
+        str(e["created"]),
     ))
     n_archive = write_sections(ARCHIVE_INDEX_FILE, archived, show_size=False)
     total += n_archive
