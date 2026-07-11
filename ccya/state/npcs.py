@@ -6,7 +6,7 @@ import logging
 import re
 from typing import Any
 
-from ccya.models import NPCEntry, SceneExtractResult, WorldState
+from ccya.models import NPCEntry, NpcPresence, SceneExtractResult, WorldState
 from ccya.state.inventory import normalize_inventory_id
 
 _log = logging.getLogger(__name__)
@@ -95,10 +95,15 @@ def apply_npc_scene_management(
             if comp_upd.tie is not None:
                 updates["tie"] = comp_upd.tie
             if comp_upd.presence is not None:
-                updates["presence"] = comp_upd.presence
-                if comp_upd.presence == "present":
+                # Guard: don't let extractor override demotion for NPCs at old locations
+                if comp_upd.presence == "present" and not is_new and entry.last_seen_location and entry.last_seen_location != state.location.name:
+                    upd_pres = NpcPresence.NEARBY
+                else:
+                    upd_pres = NpcPresence(comp_upd.presence)
+                updates["presence"] = upd_pres
+                if upd_pres == "present":
                     state = touch_compendium_order(state, resolved_id)
-                elif comp_upd.presence == "known":
+                elif upd_pres == "known":
                     updates["position"] = None
             if comp_upd.presence == "departed":
                 if comp_upd.departed_reason is not None:
