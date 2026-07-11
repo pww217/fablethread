@@ -18,7 +18,7 @@ Scan narration for every proper name. For each:
 
 ```json
 {
-   "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "motivation": "...", "fear": "...", "leverage": "...", "tie": "...", "presence": "present|nearby|known|departed", "position": "..."}]
+   "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "motivation": "...", "fear": "...", "leverage": "...", "tie": "...", "presence": "present|nearby|known|departed", "position": "...", "last_seen_location": "optional location name"}]
 }
 ```
 
@@ -36,6 +36,7 @@ Scan narration for every proper name. For each:
 - `tie`: durable personal history — to the PC, or between two NPCs (name both parties).
 - `presence`: present|nearby|known|departed. REQUIRED for every NPC update — never omit it.
 - `position`: Where the NPC is in the scene and what they are doing. One short phrase. Include spatial barriers and visibility constraints (e.g., 'behind a door, not visible', 'across the bar, watching', 'standing in the doorway blocking exit', 'at the player's elbow, whispering'). Update when narration changes the NPC's position or stance.
+- `last_seen_location`: Only set when the narration explicitly places the NPC in a location different from their last. Omit if the NPC is at their last known location — the engine will handle location tracking. This field is how indicate an NPC followed you to a new scene (e.g., "goes with the player to", "follows the player to", "is at the new scene with").
 - `departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. Examples: "killed in battle — Caught in the crossfire defending the village gates.", "sailed away — Booked passage on the evening tide, destination unknown."
 
 ### How to use compendium_npc_update

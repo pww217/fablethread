@@ -521,13 +521,15 @@ def _apply_state_updates(
                 new_entry = NPCEntry(
                     name=cu.id.replace("_", " ").title(),
                     presence=NpcPresence.NEARBY,
+                    last_seen_location=location.name or "",
+                    last_presence_turn=turn_no,
                 )
                 state = state.add_npc(cu.id, new_entry)
-            state = state.update_npc(
-                cu.id,
-                last_presence_turn=turn_no,
-                last_seen_location=location.name or "",
-            )
+            else:
+                state = state.update_npc(
+                    cu.id,
+                    last_presence_turn=turn_no,
+                )
 
         # Arc director: process thread updates and arc resolution
         if record_result and (state.long_term_objective or record_result.thread_add):
