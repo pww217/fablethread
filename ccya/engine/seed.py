@@ -13,6 +13,7 @@ import re
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _render
 from ccya.engine.names import generate_name_pool, generate_npc_names
+from ccya.engine.npc_roster import generate_npc_color, generate_pc_color, generate_item_color
 from ccya.llm_client import chat_with_config as llm_chat, strip_thinking, trim_messages
 from ccya.models import InventoryItem, WorldStateFact
 from ccya.pack import Pack, PlayerOverrides, SeedStateEnvelope, SeedState
@@ -57,9 +58,14 @@ def _sanitize_seed_state(seed_state: SeedState) -> SeedState:
         if npc_data.presence is None or npc_data.presence == "":
             npc_data.presence = "present"
         if not npc_data.color:
-            h = sha256(npc_id.encode()).hexdigest()
-            idx = int(h[:8], 16) % 12
-            npc_data.color = _NPC_PALETTE[idx]
+            npc_data.color = generate_npc_color(npc_id)
+
+    if not seed_state.pc.color:
+        seed_state.pc.color = generate_pc_color()
+
+    for item in seed_state.inventory:
+        if not item.color:
+            item.color = generate_item_color(item.id)
 
     # Safety net: ensure at least 1 NPC has presence="present"
     has_present = any(

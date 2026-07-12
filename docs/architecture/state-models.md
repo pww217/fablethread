@@ -69,7 +69,8 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 - **ArcThread**: `id`, `summary`, `dormant`, `type`, `urgency`, `major_updates: list[ProgressEntry]`, `resolution_state`, `outcome`, `resolved_turn`, `last_updated_turn`, `added_turn`, `urgency_set_turn`
 - **LongTermObjective**: `long_term_objective`, `threads: list[ArcThread]`, `completed_threads: list[ArcThread]`, `resolution`, `resolved_turn`, `last_thread_created_turn`, `started_turn`
 - **Condition**: `id`, `label`, `description`, `added_turn`, `turns_remaining: int | Literal["permanent"]` (0 = sentinel, replaced by engine default TTL in apply_delta)
-- **InventoryItem**: `id`, `name`, `notes`, `amount`, `aliases: [str]`
+- **PC**: `name`, `tagline`, `bio`, `stats`, `conditions`, `allegiance`, `situation`, `directives`, `actions`, `color: str | None`
+- **InventoryItem**: `id`, `name`, `notes`, `amount`, `color: str | None`, `aliases: [str]`
 - **NpcPresence**: enum — `present`, `nearby`, `known`, `departed`, `archived`
 - **ProgressEntry**: `kind: Literal["advancement", "setback"]`, `text`
 - **ThreadResolution**: `id`, `resolution_state: Literal["resolved", "failed", "abandoned"]`, `outcome: str`, `resolved_turn: int | None`, `world_state_candidate: str | None`
@@ -141,7 +142,8 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 - Reason persisted to `state.meta.last_condition_change_reason` for debugging
 
 ### CompendiumEntry
-- Has explicit `motivation`/`fear`/`leverage`/`tie`/`tie_label`/`personality` optional string fields alongside existing `name`/`title`/`bio`/`presence`/`position`; runtime code uses `tie` (CompendiumNpcUpdate.tie in `extraction.py`); seed-time model uses `bond` (CompendiumEntry.bond in `pack.py`)
+- Has explicit `motivation`/`fear`/`leverage`/`tie`/`tie_label`/`personality`/`color` optional string fields alongside existing `name`/`title`/`bio`/`presence`/`position`; runtime code uses `tie` (CompendiumNpcUpdate.tie in `extraction.py`); seed-time model uses `bond` (CompendiumEntry.bond in `pack.py`)
+- **`color`**: deterministic entity color assigned by engine via `generate_npc_color()` from `ccya.engine.npc_roster`; uses SHA256(npc_id) into 48-color NPC palette; persisted to state.yaml; JS fallback uses same djb2 hash algorithm with entity-specific palette offset
 - **bond→tie rename:** Runtime code (`CompendiumNpcUpdate.tie` in `extraction.py`) uses `tie`; seed-time model (`CompendiumEntry.bond` in `pack.py`) still uses `bond`. The scenario model field is `npc_bonds`. Most templates and prompts use `tie`.
 - Seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings
 - Seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only)

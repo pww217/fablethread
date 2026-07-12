@@ -1007,10 +1007,9 @@ function initTurnLogUi() {
     });
 }
 
-function _renderNpcListItem(npc) {
+function _renderNpcListItem(npc, showPosition) {
     const name = npc.display_name || npc.name || npc.id || '?';
     const title = npc.title || '';
-    const position = npc.position || '';
     const bio = npc.bio || '';
     const pl = npc.personality_label || '';
     const pt = npc.personality_traits || '';
@@ -1020,7 +1019,7 @@ function _renderNpcListItem(npc) {
     const color = npc.color || _npcColor(npc.id || name);
     const borderColor = npc.presence === 'nearby' ? 'var(--border-subtle)' : color;
     const nameHtml = title ? `${_escapeHtml(name)}<span class="npc-title"> — ${_escapeHtml(title)}</span>` : _escapeHtml(name);
-    const posHtml = position ? `<span class="npc-position-inline">${_escapeHtml(position)}</span>` : '';
+    const posHtml = (showPosition && npc.position) ? `<span class="npc-position-inline">${_escapeHtml(npc.position)}</span>` : '';
     let tipHtml = '';
     if (hasTooltip) {
         if (bio) tipHtml += `<p>${bio}</p>`;

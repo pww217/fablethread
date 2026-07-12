@@ -27,6 +27,7 @@ class SeedPC(BaseModel):
     conditions: list[str] = Field(default_factory=list)
     drive: str = ""
     situation: dict[str, str] = Field(default_factory=dict)
+    color: str | None = None
 
 
 class SeedLocation(BaseModel):

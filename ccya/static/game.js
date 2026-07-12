@@ -952,7 +952,7 @@ function game() {
                         present.sort((a, b) => (a.display_name || a.name || '').localeCompare(b.display_name || b.name || ''));
                         const listEl = sceneCard.querySelector('.npc-list');
                         if (listEl && present.length > 0) {
-                            listEl.innerHTML = present.map(n => _renderNpcListItem(n)).join('');
+                            listEl.innerHTML = present.map(n => _renderNpcListItem(n, true)).join('');
                         } else if (listEl) {
                             listEl.innerHTML = '<span class="empty-state">No one else is around.</span>';
                         }
@@ -998,6 +998,34 @@ function game() {
                             div.innerHTML = conds.map(c => _renderConditionPill(c)).join('');
                             playerCard.appendChild(div);
                         }
+                    }
+                } else if (data.panel === 'compendium' && data.data) {
+                    const compCard = document.getElementById('card-compendium');
+                    if (compCard) {
+                        const npcs = data.data.npcs || {};
+                        const allNpcs = Object.values(npcs).filter(n => n);
+                        const compList = compCard.querySelector('.compendium-list');
+                        if (compList && allNpcs.length > 0) {
+                            const present = allNpcs.filter(n => n.presence === 'present');
+                            const nearby = allNpcs.filter(n => n.presence === 'nearby');
+                            let html = '';
+                            if (present.length > 0) {
+                                html += '<div class="npc-list">';
+                                html += present.map(n => _renderNpcListItem(n, false)).join('');
+                                html += '</div>';
+                            }
+                            if (nearby.length > 0) {
+                                html += '<hr class="npc-divider">';
+                                html += '<div class="npc-list nearby-list">';
+                                html += nearby.map(n => _renderNpcListItem(n, false)).join('');
+                                html += '</div>';
+                            }
+                            compList.innerHTML = html;
+                        } else if (compList) {
+                            compList.innerHTML = '<span class="empty-state">No characters logged yet.</span>';
+                        }
+                        const countEl = compCard.querySelector('.card-count');
+                        if (countEl) countEl.textContent = allNpcs.length;
                     }
                 } else if (data.panel === 'arc' && data.data) {
                     // Arc data synced via HTMX re-fetch at turn_complete. No early re-render needed.

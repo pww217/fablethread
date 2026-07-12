@@ -52,6 +52,7 @@ class PC(BaseModel):
     situation: dict[str, Any] = Field(default_factory=dict)
     directives: str = ""
     actions: list[str] = Field(default_factory=list)
+    color: str | None = None
 
 
 class Scene(BaseModel):
@@ -365,6 +366,7 @@ class InventoryItem(BaseModel):
     name: str
     notes: str = ""
     amount: int = Field(default=1, ge=1)
+    color: str | None = None
     aliases: list[str] = Field(default_factory=list)
 
 
