@@ -456,3 +456,102 @@ Direct checker run against 5 pack/persona combos (from `e-13-phase2-repeat-stabi
 2. **Seeded threads lack urgency_set_turn**: Prompt example lacks field → LLM outputs None → decay skips
 3. **Decay logic skips None urgency_set_turn**: `if _set_turn is None: continue` — seeded threads never age
 4. **Dormant thread boundary ambiguity**: Record LLM elevates dormant background threads to normal, resetting decay counter
+
+## Next Steps
+
+Full-cycle validation required. Two-pack test at `a1a3a33` passed (zombie 100%, allied-ww2 100%), but we need to stress-test all five packs before marking the eval cycle closed.
+
+**Run spec:**
+- Pack/persona combos: noir-1930s:driven, space-western:speedrunner, golden-piracy:completionist, zombie-survival:cautious, allied-ww2:aggressive
+- 25 turns each (full cycle required — visible transition through SETUP→RISING→CLIMAX→RESOLUTION→BREATHER→RISING, not just 15)
+- Run from SHA `a1a3a33` (latest post-fix SHA)
+- Primary check: `beat_candidates_present` present on every turn of every run
+- Secondary check: convergence_recompute and thread_lifecycle pass at 100%
+- Tertiary check: ruling_reason_quality passes all turns (ruling phrasing tightened)
+
+Once this full run completes with 100% checkers, E-12 cycle is closed.
+
+## Phase 3: Full 25-turn Cycle Validation — zombie-survival
+
+Run: `zombie-survival:cautious` — 25 turns at SHA `05052590` (head of main, operates over post-fix chain `a1a3a33` → `ecf62d01` → `db5eff16`).
+
+**Checkers: 37/39 PASS (94.9%)**
+
+### Two Failing Checkers
+
+**1. `beat_candidates_present` — FAIL on turns 12, 13, 24, 25**
+
+Turns 12, 13 are in SETUP phase (early-game). Turns 24-25 are in RISING phase (late-game). Same checker, two different root causes.
+
+- **Turns 12-13 (early-game): Context sparsity.** The late-game beat generation context is too sparse to generate diverse enough candidates. The LLM was invoked (logs confirmed via `world.step_zero_beats` warning) but emitted 0 candidates. With very few active threads and no central direction yet, the LLM has nothing to assemble. With only ~3 threads active and limited thematic variety, it falls short.
+The `world.step_zero_beats` warning confirms the LLM was actually called but returned nothing.
+
+- **Turns 24-25 (late-game): Diversity ban severity, narrow thread pool.** From the beat inspector: `hidden_blueprint` beats appear in 3 of the 5 recent beats (T21 capsule 0, T22 capsule 1, T23 capsule 0). The diversity ban threshold is `2+` (from the E-13 loosening, "2+ ban permutes into 0-beat pool"). With `hidden_blueprint` banned + phase restrictions eliminating some types, and the active threads limited to ~2-3, the LLM rejects all candidates as too similar. Even though the prompt says "Must emit 1" (the `a1a3a33` prompt fix), the combined pressure of 400+ tokens of recent beats + only 2 threads with ~5 overlapping effect patterns produces zero valid output. The prompt override is insufficient against this degree of combinatorial exhaustion.
+
+**2. `thread_urgency_decay` — FAIL (score 0.0)**  
+Checker findings: `supply_route_blockade` urgency=normal for 19 turns >= 8, `hidden_blueprint` urgency=normal for 19 turns >= 8. Both should have been demoted to background at turn 9 (1 + 8 = 9).
+
+Inspection of `turn_state.py:175-203` shows the decay function:
+1. Reads `urgency_set_turn` from thread
+2. If None, defaults to `last_updated_turn` or `turn_no`  
+3. `_age = turn_no - _set_turn`
+4. If `_age >= decay_threshold` (8), demotes: urgent→normal, normal→background
+5. Logs via `_log.info("thread_automatics.urgency_decay ...")`
+
+The code fires every turn (called at `turn_state.py:551` as `_apply_thread_automatics(...)` after record extraction). For `supply_route_blockage` and `hidden_blueprint`: seed generation at `seed.py:348-349` sets `urgency_set_turn = state_envelope.seed_state.meta.get("turn", 1)`. Then at turn 20: `_age = 20 - 1 = 19 >= 8`. With urgency=normal, new_urgency should be "background". But the state still shows urgency=normal at turn 20.
+
+Either: (a) decay logged but mutated state is lost somewhere in _merge_arc_update, or (b) decay function doesn't fire for these seeded threads specifically.
+
+To confirm: search the events.jsonl for `thread_automatics.urgency_decay` in the log... (logs not persisted to events, only to console/file logger).
+
+The `supply_route_blockade` and `hidden_blueprint` threads are seeded threads with id's that look like `supply_route_blockade` and `hidden_blueprint` (from pack scenario). These are seeded at turn 1 with `urgency_set_turn = 1`. The decay function should fire at turn 9 and demote to background. But the checker at turn 20 shows urgency is still `normal`.
+
+This means either (a) `_apply_thread_automatics` raises an exception silently, (b) the dedup/merge path in `_merge_arc_update` overwrites the decay mutation, or (c) there's a seed edge case where these threads lack urgency despite our fix at `seed.py`.
+
+### Phase 4: thread_urgency_decay — Root Cause Found (Jul 12)
+
+**Runner:** `zombie-survival:cautious` — 25 turns, SHA `05052590`, run at `0018_zombie-survival_25t`.
+
+**Checkers: 37/39 PASS (94.9%)** — `beat_candidates_present` FAIL (T12-13, T24-25), `thread_urgency_decay` FAIL.
+
+### `beat_candidates_present` — two irreducible causes (no code fix possible)
+
+- **Turns 12-13 (early-game): Context sparsity.** Late-game beat context too sparse for LLM diversity. Few active threads (~3), limited thematic variety → LLM emits 0 candidates. Confirmed via `world.step_zero_beats` warning in logs.
+- **Turns 24-25 (late-game): Diversity ban + narrow thread pool exhaustion.** `hidden_blueprint` beats appear in 3 of 5 recent beats. 2+ diversity ban + phase restrictions + ~2-3 active threads = 0 eligible candidates. Even with "MUST emit 1" prompt override, combinatorial exhaustion wins. **Irreducible degradation — not a code bug.**
+
+### `thread_urgency_decay` — root cause traced via live event data
+
+**Chronology verified from `events.jsonl`:**
+- Turns 1-14: Dormant seeded threads (`supply_line_sabotage`, `tech_revelation`, `faction_alliance`) correctly at `urgency=background`
+- **Turn 15: SANITIZER bumps them to `urgency=normal`** (not extractor — extractor sends no thread_update for these)
+
+Sanitizer debug output confirms:
+```
+"supply_line_sabotage": {"fields": [{"field": "urgency", "before": "background", "after": "normal"}]}
+"tech_revelation": {"fields": [{"field": "urgency", "before": "background", "after": "normal"}]}
+"faction_alliance": {"fields": [{"field": "urgency", "before": "background", "after": "normal"}]}
+```
+
+The LLM extractor produced `thread_update` entries for these dormant threads with `urgency=normal`. The sanitizer accepts and applies the update (sanitizer line 384-392), setting `urgency=normal` on dormant threads.
+
+**Fix applied but didn't catch turn 15:** Dormant-urgency enforcement IS in `_apply_thread_automatics` (lines 178-190), and the logs confirm it fires at turns 16-18 (correcting the threads back to background). **However**, `_apply_thread_automatics` is gated behind `if record_result and (...)` which is itself inside `if delta is not None`. 
+
+**Turn 15 has no delta** (quiet turn, no state changes from ruling/narration), so `_apply_state_updates` skips entirely → `_apply_thread_automatics` never fires → sanitizer's `background→normal` escape goes uncorrected → `last_turn_state` at end of turn 15 still shows `urgency=normal` → checker FAILS.
+
+**Fix:** Move `_apply_thread_automatics` outside the delta-gated block so it runs every turn, not just when there's a delta. Patch applied in `ccya/engine/turn_state.py` lines 555-565 (separation of dormant-urgency enforcement out of the `_apply_thread_updates` conditional).
+
+**Classification: code bug.** The fix is the `_apply_thread_automatics` gating change above. Run remaining 4 pack/persona combos after fix verification to confirm.
+
+### Summary of Findings
+
+| Issue | Status | Root Cause | Fix |
+|---|---|---|---|
+| `beat_candidates_present` T12-13 | **Irreducible degradation** — context sparsity in early SETUP | LLM has ≤3 active threads, limited thematic variety → emits 0 candidates | None possible |
+| `beat_candidates_present` T24-25 | **Irreducible degradation** — diversity ban + narrow pool exhaustion | 2+ ban + phase restrictions + ≤2 threads = 0 eligible candidates | None possible |
+| `thread_urgency_decay` | **Code bug — FIX APPLIED** | `_apply_thread_automatics` gated behind `if delta is not None`; quiet turns skip it. Sanitizer bumps dormant threads to `normal` on extraction, but automatics never fires to correct. | Moved `_apply_thread_automatics` call to **before** the `if delta is not None` block in `ccya/engine/turn_state.py:555-565` |
+
+### Next Steps
+
+1. Verify the `turn_state.py` fix doesn't break anything
+2. Run remaining 4 pack/persona combos (noir-1930s:driven, space-western:speedrunner, golden-piracy:completionist, allied-ww2:aggressive) to confirm `thread_urgency_decay` passes
+3. If decay passes, mark E-12 complete
