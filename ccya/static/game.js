@@ -880,6 +880,8 @@ function game() {
             es.addEventListener('phase', (e) => {
                 const payload = JSON.parse(e.data);
                 if (payload && payload.phase === 'narrate_done') {
+                    var strip = document.querySelector('.progress-strip');
+                    if (strip) strip.style.display = 'none';
                     _stopDisplayDrain();
                     drainState.displayBuf   += drainState.pendingQueue;
                     drainState.pendingQueue  = '';
@@ -890,13 +892,13 @@ function game() {
                     if (stateScript) {
                         try { _highlightEntities(textDiv, JSON.parse(stateScript.textContent)); } catch (e) { /* skip */ }
                     }
-                    var narrationCard = document.querySelector('.progress-card--narration');
+                    var narrationCard = document.querySelector('.extraction-bar--narration');
                     if (narrationCard) _fadeOutCard(narrationCard);
                     _showExtractionRow({
                         scene_expected_ms: payload.scene_expected_ms || 0,
                         state_expected_ms: payload.state_expected_ms || 0,
                         record_expected_ms: payload.record_expected_ms || 0,
-                    });
+                    }, block);
                 }
                 if (payload && payload.phase === 'extract_stream_done' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
                     if (payload.stream === 'record') {
@@ -930,15 +932,19 @@ function game() {
                     return;
                 }
                 if (payload && payload.phase === 'ruling_start') {
+                    var strip = document.querySelector('.progress-strip');
+                    if (strip) strip.style.display = 'none';
                     if (!rulingCard) {
-                        rulingCard = _showProgressCard('ruling', payload.expected_ms || 0);
+                        rulingCard = _showProgressCard('ruling', payload.expected_ms || 0, block);
                     }
                 } else if (payload && payload.phase === 'narrate_start') {
                     if (rulingCard) {
                         _fadeOutCard(rulingCard);
                         rulingCard = null;
                     }
-                    narrationCard = _showProgressCard('narration', payload.expected_ms || 0);
+                    narrationCard = _showProgressCard('narration', payload.expected_ms || 0, block);
+                } else if (payload && payload.phase === 'extract_stream_start') {
+                    _activateExtractionBar(payload.stream || '');
                 }
             });
 
