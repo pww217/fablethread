@@ -474,6 +474,49 @@ function _createProgressCardHTML(phaseName, expectedMs) {
         + '</div>';
 }
 
+// ---------- Ruling card display ----------
+
+function _showRulingCard(expectedMs) {
+    var card = document.createElement('div');
+    card.className = 'extraction-bar extraction-bar--ruling';
+    card.setAttribute('data-phase', 'ruling');
+
+    var heading = '<span class="progress-heading slot-left">Ruling</span>';
+    var metas = '<span class="progress-metas"><span class="progress-eta"></span><span class="progress-elapsed">0.0s</span></span>';
+    var barHtml = '<div class="progress-bar"><div class="progress-bar-fill"></div></div>';
+    card.innerHTML = heading + metas + barHtml;
+
+    var block = document.querySelector('.narrative-block');
+    if (block) {
+        block.insertBefore(card, block.firstChild);
+    }
+
+    card._phaseStart = Date.now();
+    var etaEl = card.querySelector('.progress-eta');
+    var elapsedEl = card.querySelector('.progress-elapsed');
+
+    if (etaEl && expectedMs > 0) {
+        etaEl.textContent = '~' + (expectedMs / 1000).toFixed(0) + 's avg';
+    } else if (etaEl) {
+        etaEl.textContent = '';
+    }
+
+    card._tick = setInterval(function() {
+        if (!elapsedEl) return;
+        var elapsed = Date.now() - card._phaseStart;
+        var s = elapsed / 1000;
+        elapsedEl.textContent = (s < 10 ? s.toFixed(1) : s.toFixed(0)) + 's';
+
+        var fill = card.querySelector('.progress-bar-fill');
+        if (fill && expectedMs > 0) {
+            var pct = Math.min(100, (elapsed / expectedMs) * 100);
+            fill.style.width = pct + '%';
+        }
+    }, 250);
+
+    return card;
+}
+
 function _showProgressCard(phase, expectedMs) {
     var card = document.createElement('div');
     card.innerHTML = _createProgressCardHTML(phase, expectedMs);

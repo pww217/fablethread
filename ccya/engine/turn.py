@@ -357,7 +357,15 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
 
     if _is_cancel_requested(ctx):
         return
-    yield ("phase", {"phase": "narrate_done"})
+    scene_exp = _avg_event_ms(save_dir, "scene.total_ms")
+    state_exp = _avg_event_ms(save_dir, "state.total_ms")
+    record_exp = _avg_event_ms(save_dir, "record.total_ms")
+    yield ("phase", {
+        "phase": "narrate_done",
+        "scene_expected_ms": scene_exp,
+        "state_expected_ms": state_exp,
+        "record_expected_ms": record_exp,
+    })
     _log.info(
         "turn.narrate_complete trace_id=%s turn=%d narr_ms=%d narr_tokens_in=%d narr_tokens_out=%d",
         trace_id, turn_no, narr_ms, narr_metrics.get("tokens_in", 0), narr_metrics.get("tokens_out", 0),

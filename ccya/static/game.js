@@ -931,7 +931,7 @@ function game() {
                 }
                 if (payload && payload.phase === 'ruling_start') {
                     if (!rulingCard) {
-                        rulingCard = _showProgressCard('ruling', payload.expected_ms || 0);
+                        rulingCard = _showRulingCard(payload.expected_ms || 0);
                     }
                 } else if (payload && payload.phase === 'narrate_start') {
                     if (rulingCard) {
