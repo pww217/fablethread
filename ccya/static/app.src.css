@@ -4739,6 +4739,27 @@ body {
   font-family: var(--font-mono);
   color: var(--text-secondary);
 }
+.extraction-bar .progress-heading {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+.extraction-bar .progress-bar {
+  height: 8px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--stage-scene);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.extraction-bar .progress-bar-fill {
+  height: 100%;
+  width: 0;
+  transition: width 0.5s ease-out;
+}
 .extraction-bar[data-complete="true"] .progress-bar-fill {
   width: 100% !important;
 }
@@ -4753,6 +4774,10 @@ body {
 .extraction-bar--record { background: color-mix(in srgb, var(--stage-storytell) 15%, transparent); }
 .extraction-bar--record .progress-bar { border-color: var(--stage-storytell); }
 .extraction-bar--record .progress-bar-fill { background: var(--stage-storytell); }
+
+.extraction-bar--ruling { background: color-mix(in srgb, var(--stage-ruling) 12%, transparent); }
+.extraction-bar--ruling .progress-bar { border-color: var(--stage-ruling); }
+.extraction-bar--ruling .progress-bar-fill { background: var(--stage-ruling); }
 
 @keyframes fadeOutCard {
   from { opacity: 1; transform: translateY(-8px); }
