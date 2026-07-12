@@ -116,12 +116,17 @@ async def _run_extraction_stream(
     if not extraction_event.get("skipped", True):
         _preview = variant.preview_builder(state, result)
 
+    _panel_data = variant.panel_builder(_preview)
     yield ("panel_update", {
         "panel": variant.name,
-        "data": variant.panel_builder(_preview),
+        "data": _panel_data,
     })
 
     if variant.name == "scene":
+        yield ("panel_update", {
+            "panel": "compendium",
+            "data": {"npcs": _panel_data.get("npcs", {})},
+        })
         container.scene_result = (result, extraction_event)
     elif variant.name == "state":
         container.state_result = (result, extraction_event)

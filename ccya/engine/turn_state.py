@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from ccya.engine.config import EngineConfig
+from ccya.engine.npc_roster import generate_npc_color
 from ccya.models import ArcThread, LongTermObjective, NPCEntry, NpcPresence, ProgressEntry, RecordResult, StateMerge, WorldState
 from ccya.state import resolve_inventory_remove_target
 from ccya.state.delta_builder import _merge_arc_update
@@ -544,6 +545,7 @@ def _apply_state_updates(
                     presence=NpcPresence.NEARBY,
                     last_seen_location=location.name or "",
                     last_presence_turn=turn_no,
+                    color=generate_npc_color(cu.id),
                 )
                 state = state.add_npc(cu.id, new_entry)
             else:

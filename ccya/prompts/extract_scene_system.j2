@@ -35,7 +35,7 @@ Scan narration for every proper name. For each:
 - `leverage`: what this NPC can offer, threaten, or withhold.
 - `tie`: durable personal history — to the PC, or between two NPCs (name both parties).
 - `presence`: present|nearby|known|departed. REQUIRED for every NPC update — never omit it.
-- `position`: Where the NPC is in the scene and what they are doing. One short phrase. Include spatial barriers and visibility constraints (e.g., 'behind a door, not visible', 'across the bar, watching', 'standing in the doorway blocking exit', 'at the player's elbow, whispering'). Update when narration changes the NPC's position or stance.
+- `position`: Where the NPC is spatially in the scene. 5-7 words max. Only spatial location — not what they're doing. Include spatial barriers and visibility constraints (e.g., 'behind a door, not visible', 'across the bar', 'standing in doorway blocking exit', 'at player's elbow'). Update when narration changes the NPC's spatial location.
 - `last_seen_location`: Only set when the narration explicitly places the NPC in a location different from their last. Omit if the NPC is at their last known location — the engine will handle location tracking. This field is how indicate an NPC followed you to a new scene (e.g., "goes with the player to", "follows the player to", "is at the new scene with").
 - `departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. Examples: "killed in battle — Caught in the crossfire defending the village gates.", "sailed away — Booked passage on the evening tide, destination unknown."
 
@@ -50,7 +50,7 @@ Presence levels:
 Decision rule: spatially proximate → `nearby`; physically left → `known`; can never return → `departed`.
 
 - **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory), and optionally `title`. For known NPCs, only set `presence`/`position`.
-- **NPC behavior changes:** Update `position` with a brief situational cue reflecting their current stance toward the player.
+- **NPC behavior changes:** Update `position` only when the NPC's spatial location changes.
 - **Durable identity updates:** Update `name`, `title`, `bio`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes. **EXCEPTION:** If an NPC was previously absent or known and the narration now places them in the scene or nearby, you MUST emit an update even if their other fields haven't changed.
 - **Re-promotion:** If an NPC was demoted to `nearby` by a location change but narration shows they followed, set `presence: "present"` — do NOT create a new compendium entry.
@@ -98,7 +98,7 @@ When there are zero or one present NPCs in the scene and the location is a publi
 
 ## Examples
 
-- **Enters:** "A red-haired man in boiled leather steps through the door and locks eyes with you." → `{"id": "red_haired_man", "name": "Red-Haired Man", "presence": "present", "position": "standing in doorway, locking eyes", "bio": "..."}`
+- **Enters:** "A red-haired man in boiled leather steps through the door and locks eyes with you." → `{"id": "red_haired_man", "name": "Red-Haired Man", "presence": "present", "position": "standing in the doorway", "bio": "..."}`
 - **Exits:** "Caron spits on the floor and shoves through the crowd, disappearing into the street." → `{"id": "caron", "presence": "known"}`
 - **Moves:** "Caron slides into the seat across from you." → `{"id": "caron", "position": "seated across from Mira Sovak"}`
 - **Mentioned not interacting:** "Elara has enough grace to make a captain forget his heading." → `{"id": "elara_vance", "presence": "nearby", "position": "in the corner by the lamp", "bio": "...", "title": "Lounge Worker"}`

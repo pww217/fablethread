@@ -65,7 +65,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs — SeedEnvelope"]
-        O1["seed_state: GameState<br>  pc (name, tagline, bio, stats)<br>  location (id, name, description)<br>  scene (world_state: list[WorldStateFact])<br>  compendium.npcs: dict[id] CompendiumEntry<br>    (presence='present' for in-scene NPCs,<br>     presence='known' otherwise)<br>  meta (model, setting_pack, turn=0,<br>       recent_beats: list[dict])"]:::outNode
+        O1["seed_state: GameState<br>  pc (name, tagline, bio, stats, color)<br>  location (id, name, description)<br>  scene (world_state: list[WorldStateFact])<br>  compendium.npcs: dict[id] CompendiumEntry<br>    (presence='present' for in-scene NPCs,<br>     presence='known' otherwise)<br>  inventory: list[InventoryItem] (with color)<br>  meta (model, setting_pack, turn=0,<br>       recent_beats: list[dict])"]:::outNode
         O2["arc: LongTermObjective<br>  long_term_objective,<br>  threads[] (unified, with dormant flag),<br>  completed_threads[]"]:::outNode
         O3["opening_narrative: str<br>(prose intro shown before turn 1)"]:::outNode
         O4["actions: list[str]<br>(4 distinct, character-shaped,<br>scene-grounded choices)"]:::outNode
@@ -82,6 +82,7 @@ After the LLM generates the SeedStateEnvelope, `prepare_seed()` in `seed.py` run
 - Clears engine-managed `compendium_touch_order` from seeded compendium NPCs
 - **Injects pack currency**: if `scenario.currency_id` is set and no inventory item with that ID exists, appends an `InventoryItem` with the pack's `starting_currency_amount`
 - **Assigns NPC personalities**: iterates over all NPCs in `state_envelope.seed_state.compendium.npcs`; for any without a `personality` attribute, calls `ccya.personality.assign_personality()` using the NPC's `motivation` and `fear` fields; validates any LLM-provided personality ids via `validate_and_resolve()`; unknown ids fall back to `assign_personality()`
+- **Assigns deterministic colors**: uses `generate_npc_color()`, `generate_pc_color()`, `generate_item_color()` from `ccya.engine.npc_roster` to assign entity-specific colors (48-color NPC palette, green PC palette, blue item palette); preserves existing colors if already set
 
 ### Seed emotional framing contract
 
