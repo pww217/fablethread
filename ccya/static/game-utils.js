@@ -485,7 +485,6 @@ function _showProgressCard(phase, expectedMs) {
     card.innerHTML = _createProgressCardHTML(phase, expectedMs);
     card = card.firstChild;
 
-    // Find where to insert: after the progress strip in the narrative block
     var strip = document.querySelector('.progress-strip');
     var block = document.querySelector('.narrative-block');
 
