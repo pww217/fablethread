@@ -27,20 +27,20 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
 
 ## Schema
 
-The output must be a JSON object with this structure:
+The output must be a JSON object with this structure. Generate each field below — the engine will set meta.model, meta.turn, and meta.compendium_touch_order.
 
 ```json
 {
   "seed_state": {
-    "meta": {"model": "mlx-community/Qwen3-32B", "setting_pack": "expanse", "session_name": "The Last Crossing"},
-    "pc": {"name": "[PC name]", "tagline": "Structural engineer, nine months sober", "bio": "Built bridges in the outer districts before the collapse.", "stats": {"strength": 3, "dexterity": 4, "wits": 3, "charisma": 2}, "conditions": [], "situation": {"key": "evacuated"}},
-    "location": {"id": "district_checkpoints", "name": "Outer District Checkpoint", "description": "Faction-controlled barrier with armed guards and scanning equipment."},
-    "inventory": [{"id": "steel_water_bottle", "name": "Steel Water Bottle", "notes": "dented, in pack", "amount": 1}],
-    "scene": {"tags": ["checkpoint", "tension"], "world_state": [{"id": "border_closures", "text": "Travel between districts requires a valid faction pass.", "tier": "global", "permanent": true, "valence": "threat", "expires_turn": null}]},
-    "compendium": {"npcs": {"guard_captain": {"name": "Hale Voss", "title": "Checkpoint Captain", "bio": "Veteran of the border wars, now manning this post.", "presence": "present", "tie": "befriends [PC name]", "motivation": "Keep the checkpoint running without incident", "fear": "Being held responsible for a breach", "leverage": "Can grant or deny passage"}}},
-    "long_term_objective": {"long_term_objective": "Reach the inner districts and find the person who can help with the crisis.", "threads": [{"id": "border_closures", "summary": "Faction-controlled checkpoints block all inter-district travel without passes.", "type": "threat", "dormant": false, "urgency": "normal", "urgency_set_turn": 0}], "completed_threads": [], "started_turn": 0},
-    "arc_origin": "The border walls were erected after the refugee crisis.",
-    "world": {"locations": [{"id": "district_checkpoints", "name": "Outer District Checkpoints", "description": "Faction-controlled barriers between districts.", "status": "active", "tags": ["checkpoint", "controlled"]}, {"id": "inner_district", "name": "Inner District", "description": "The fortified core where faction leadership resides.", "status": "restricted", "tags": ["forbidden", "target"]}]}
+    "meta": {"session_name": "A short evocative title for this session (3-6 words).", "pack_source": "the pack slug, e.g. expanse", "setting_pack": "the pack slug"},
+    "pc": {"name": "PC full name (first + last).", "tagline": "Short role-describing phrase.", "bio": "Full bio in 2-4 sentences.", "stats": {"strength": 1, "dexterity": 1, "wits": 1, "charisma": 1}, "conditions": [], "drive": "What drives this character forward.", "situation": {"key": "value"}}},
+    "location": {"id": "snake_case_id", "name": "Display name", "description": "Full description sentence."},
+    "inventory": [{"id": "snake_case_item_id", "name": "Proper item name", "notes": "Brief context", "amount": 1}],
+    "scene": {"tags": ["tag1", "tag2"], "world_state": [{"id": "global_fact_id", "text": "One sentence global fact.", "tier": "global", "valence": "threat", "permanent": true, "expires_turn": null}]},
+    "compendium": {"npcs": {"npc_id": {"name": "Full name", "title": "Role or title", "bio": "Biographical sketch.", "presence": "present|nearby|known", "tie": "How they connect to the PC.", "motivation": "What they fundamentally want.", "fear": "What they dread.", "leverage": "What leverage they hold."}}},
+    "long_term_objective": {"long_term_objective": "One sentence multi-stage objective.", "threads": [{"id": "thread_bucket", "summary": "Current state description (one sentence).", "type": "threat|opportunity|complication|revelation", "dormant": false, "urgency": "normal|urgent", "urgency_set_turn": 1}], "completed_threads": []},
+    "arc_origin": "One sentence world-level event in past tense.",
+    "world": {"locations": [{"id": "location_slug", "name": "Display name", "description": "Full description.", "status": "active|abandoned|restricted", "tags": ["tag"]}]}}
   }
 }
 ```

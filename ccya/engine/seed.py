@@ -420,6 +420,12 @@ async def prepare_seed(
                     "Seed must include at least 1 NPC with presence='present' in opening scene"
                 )
 
+        # Engine-set metadata: these must come from config, not LLM output
+        seed_meta = state_envelope.seed_state.meta
+        seed_meta["model"] = config.model
+        seed_meta.setdefault("pack_source", pack.manifest.id)
+        seed_meta.setdefault("setting_pack", pack.manifest.id)
+        seed_meta.setdefault("turn", state_envelope.seed_state.long_term_objective.started_turn if state_envelope.seed_state.long_term_objective else 1)
         _log.info(
             "prepare_seed complete pack=%s pool_selection=%s",
             pack.manifest.id, bool(pool_selection),
