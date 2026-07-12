@@ -4696,7 +4696,8 @@ body {
 }
 .progress-card .progress-bar {
   height: 4px;
-  width: 60px;
+  flex: 1;
+  min-width: 100px;
   background: transparent;
   border: 1px solid var(--stage-ruling);
   border-radius: 2px;
@@ -4753,6 +4754,14 @@ body {
 .extraction-bar--record { background: color-mix(in srgb, var(--stage-storytell) 15%, transparent); }
 .extraction-bar--record .progress-bar { border-color: var(--stage-storytell); }
 .extraction-bar--record .progress-bar-fill { background: var(--stage-storytell); }
+
+.extraction-bar--ruling { background: color-mix(in srgb, var(--stage-ruling) 15%, transparent); }
+.extraction-bar--ruling .progress-bar { border-color: var(--stage-ruling); }
+.extraction-bar--ruling .progress-bar-fill { background: var(--stage-ruling); }
+
+.extraction-bar--narration { background: color-mix(in srgb, var(--stage-narrate) 15%, transparent); }
+.extraction-bar--narration .progress-bar { border-color: var(--stage-narrate); }
+.extraction-bar--narration .progress-bar-fill { background: var(--stage-narrate); }
 
 @keyframes fadeOutCard {
   from { opacity: 1; transform: translateY(-8px); }
