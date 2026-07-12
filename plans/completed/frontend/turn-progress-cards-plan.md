@@ -424,3 +424,5 @@ Add new entries in the "fast prompt testing" section for progress card behavior.
 - `AGENTS.md` — Update `Fast prompt testing` section to reference progress card behavior for first-turn expectedMs fallback estimates
 - `docs/design/turn-progress-cards-design.md` — Update "Open Questions" with closed decisions
 - `roadmap/features/F-35-turn-progress-cards.md` — Update `plan` field with link to this plan
+
+## Status: completed

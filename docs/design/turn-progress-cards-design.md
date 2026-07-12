@@ -1,6 +1,6 @@
 # Turn Progress Stacked Cards — Design Document
 
-> **Status:** scoping
+> **Status:** implemented
 > **Related tickets:**
 > - [F-35: Stacked turn progress-bar UI with per-phase cards](../../roadmap/features/F-35-turn-progress-cards.md)
 
