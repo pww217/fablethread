@@ -62,7 +62,7 @@ The current turn progress indicator (`<div class="progress-strip" data-phase="..
     </div>
 
     <!-- Phase 2: Narration (appears, fills, fades at narrate_done) -->
-    <div class="progress-card progress-card--narrate" data-phase="narrate">
+    <div class="progress-card progress-card--narration" data-phase="narration">
       <span class="progress-spinner"></span>
       <span class="progress-label">Composing narrative…</span>
       <progress class="progress-bar" value="0.5" max="1"></progress>
