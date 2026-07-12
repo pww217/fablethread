@@ -288,7 +288,6 @@ function _activateExtractionBar(streamName) {
         if (fill) {
             fill.style.setProperty('width', pct + '%', 'important');
             fill.style.width = pct + '%';
-            if (elapsed < 1000) console.log('_activateExtractionBar tick: stream=' + streamName + ' pct=' + pct.toFixed(1) + ' fill.width=' + window.getComputedStyle(fill).width);
         }
         var elapsedEl = info.bar.querySelector('.progress-elapsed');
         if (elapsedEl) {
@@ -539,7 +538,6 @@ function _showProgressCard(phase, expectedMs, block) {
     // Find where to insert: after the progress strip in the narrative block
     var strip = document.querySelector('.progress-strip');
 
-    console.log('_showProgressCard: phase=' + phase + ' expectedMs=' + expectedMs + ' card.className=' + card.className + ' cardHTML=' + card.outerHTML.substring(0, 200));
 
     if (strip && block) {
         block.insertBefore(card, strip.nextSibling);
@@ -570,7 +568,6 @@ function _showProgressCard(phase, expectedMs, block) {
         var useMs = expectedMs || 5000;
         var pct = Math.min(100, (elapsed / useMs) * 100);
         fill.style.width = Math.round(pct) + '%';
-        if (elapsed < 1000) console.log('_showProgressCard tick: phase=' + phase + ' pct=' + pct.toFixed(1) + ' fill.width=' + window.getComputedStyle(fill).width);
     }, 250);
 
     if (strip) strip.setAttribute('data-phase', '');
