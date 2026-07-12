@@ -11,7 +11,7 @@ design:
 plan:
   url: ../../plans/completed/frontend/turn-progress-cards-plan.md
 pr:
-  url:
+  url: https://github.com/pww217/ccya/pull/15
   branch: turn-progress-cards
 ---
 
