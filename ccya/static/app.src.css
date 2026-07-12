@@ -4696,8 +4696,7 @@ body {
 }
 .progress-card .progress-bar {
   height: 4px;
-  flex: 1;
-  min-width: 100px;
+  width: 60px;
   background: transparent;
   border: 1px solid var(--stage-ruling);
   border-radius: 2px;
@@ -4738,18 +4737,7 @@ body {
   border-radius: 4px;
   font-size: 0.79rem;
   font-family: var(--font-mono);
-  color: var(--text-secondary);
-}
-.extraction-bar .progress-bar {
-  width: 100%;
-  height: 4px;
-  background: transparent;
-  border-radius: 2px;
-}
-.extraction-bar .progress-bar-fill {
-  height: 100%;
-  width: 0;
-  transition: width 0.5s ease-out;
+   color: var(--text-secondary);
 }
 .extraction-bar[data-complete="true"] .progress-bar-fill {
   width: 100% !important;
@@ -4765,14 +4753,6 @@ body {
 .extraction-bar--record { background: color-mix(in srgb, var(--stage-storytell) 15%, transparent); }
 .extraction-bar--record .progress-bar { border-color: var(--stage-storytell); }
 .extraction-bar--record .progress-bar-fill { background: var(--stage-storytell); }
-
-.extraction-bar--ruling { background: color-mix(in srgb, var(--stage-ruling) 15%, transparent); }
-.extraction-bar--ruling .progress-bar { border-color: var(--stage-ruling); }
-.extraction-bar--ruling .progress-bar-fill { background: var(--stage-ruling); }
-
-.extraction-bar--narration { background: color-mix(in srgb, var(--stage-narrate) 15%, transparent); }
-.extraction-bar--narration .progress-bar { border-color: var(--stage-narrate); }
-.extraction-bar--narration .progress-bar-fill { background: var(--stage-narrate); }
 
 @keyframes fadeOutCard {
   from { opacity: 1; transform: translateY(-8px); }
