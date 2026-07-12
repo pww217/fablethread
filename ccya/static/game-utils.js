@@ -878,19 +878,27 @@ function _renderConditionPill(cond) {
 }
 
 function toggleNpcParty(npcId) {
+    const toggle = document.querySelector(`.npc-party-toggle[data-npc-id="${npcId}"]`);
+    if (!toggle) return;
+    toggle.classList.add('toggling');
+    toggle.style.pointerEvents = 'none';
     fetch('/api/npc/' + npcId + '/toggle-party', {method: 'POST'})
         .then(r => r.json())
         .then(data => {
-            const toggle = document.querySelector(`.npc-party-toggle[data-npc-id="${npcId}"]`);
-            if (toggle) {
+            const current = document.querySelector(`.npc-party-toggle[data-npc-id="${npcId}"]`);
+            if (current) {
                 const isParty = data.party;
-                toggle.setAttribute('data-party', String(isParty));
-                toggle.classList.toggle('active', isParty);
-                toggle.style.color = isParty ? 'var(--accent-blue)' : '';
+                current.classList.remove('toggling');
+                current.style.pointerEvents = '';
+                current.setAttribute('data-party', String(isParty));
+                current.classList.toggle('active', isParty);
+                current.style.color = isParty ? 'var(--accent-blue)' : '';
             }
         })
         .catch(err => {
             console.error('toggleNpcParty failed:', err);
+            toggle.classList.remove('toggling');
+            toggle.style.pointerEvents = '';
         });
 }
 

@@ -3,11 +3,11 @@
 {% set _present = namespace(items=[], nearby_items=[]) %}
 {% if comp %}{% for _k, _v in comp.items() %}{% set _presence = _v.presence.value if _v.presence else "known" %}{% if _presence == "present" %}{% set _present.items = _present.items + [_v] %}{% elif _presence == "nearby" %}{% set _present.nearby_items = _present.nearby_items + [_v] %}{% endif %}{% endfor %}{% endif %}
 {% set present_npcs = (_present.items | sort(attribute="name")) if _present.items else [] %}
-{% if (state.scene.tags or []) or present_npcs %}
+{% set nearby_npcs = (_present.nearby_items | sort(attribute="name")) if _present.nearby_items else [] %}
+{% if present_npcs or nearby_npcs %}
 <details class="sidebar-card" id="card-scene" data-card="scene" open>
     <summary>Scene</summary>
     <div class="sidebar-card-body">
-        {% if present_npcs %}
         <div class="npc-list">
             {% for _k, npc in comp.items() %}{% if npc in present_npcs %}
             {% set npc_name = npc.name or _k %}
@@ -38,11 +38,9 @@
             </div>
             {% endif %}{% endfor %}
         </div>
+        {% else %}
+        <span class="empty-state">No one else is around.</span>
         {% endif %}
-        {% if present_npcs %}
-        {% set _nearby = namespace(items=[]) %}
-        {% if comp %}{% for _k, _v in comp.items() %}{% set _presence = _v.presence.value if _v.presence else "known" %}{% if _presence == "nearby" %}{% set _nearby.items = _nearby.items + [_v] %}{% endif %}{% endfor %}{% endif %}
-        {% set nearby_npcs = (_nearby.items | sort(attribute="name")) if _nearby.items else [] %}
         {% if nearby_npcs %}
         <hr class="npc-divider">
         <div class="npc-list nearby-list">
@@ -74,7 +72,6 @@
             </div>
             {% endif %}{% endfor %}
         </div>
-        {% endif %}
         {% endif %}
     </div>
 </details>
@@ -179,7 +176,7 @@
             {% set bio = entry.bio %}
             {% set last_presence = entry.last_presence_turn %}
             {% set last_loc = entry.last_seen_location %}
-            {% set is_departed = entry.presence.value == 'departed' if entry.presence else False %}
+            {% set is_departed = entry.departed_reason is not none %}
             {% set npc_tie = entry.tie %}
             {% set _mot = entry.motivation %}
             {% set _color = entry.color | default(nid | npc_color) %}
