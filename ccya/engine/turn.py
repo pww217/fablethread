@@ -435,6 +435,7 @@ async def _extract_phase(
             turn_no=turn_no,
             recent_turns=recent_turns,
             packing=ctx.packing,
+            save_dir=ctx.save_dir,
         ):
             if isinstance(_evt, tuple) and len(_evt) == 2:
                 _log.debug("turn.extraction_evt trace_id=%s evt_type=%s", trace_id, type(_evt[0]).__name__, extra={"event_preview": str(_evt)[:500]})
@@ -662,6 +663,9 @@ async def _persist_and_async_cleanup(
         "scene_phase": state.scene.scene_phase,
         "curtain_call": state.scene.curtain_call,
         "narrate": {**narr_metrics, "prose": narrative},
+        "scene": {"total_ms": round(extraction_event.get("scene", {}).get("ms", 0), 1)},
+        "state": {"total_ms": round(extraction_event.get("state", {}).get("ms", 0), 1)},
+        "record": {"total_ms": round(extraction_event.get("record", {}).get("ms", 0), 1)},
         "extract": ext_metrics,
         "extraction": extraction_event,
         "changes": changes,

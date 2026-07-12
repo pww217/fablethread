@@ -311,6 +311,113 @@ body {
 }
 .progress-strip[data-phase="extract_retry"] { border-color: var(--accent-error); }
 
+/* Progress cards */
+.progress-card {
+  margin-top: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  border-left-width: 2px;
+  background: var(--bg-elevated);
+}
+.progress-card .progress-card-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+.progress-card .progress-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
+}
+.progress-card .progress-metas {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.79rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.progress-card .progress-elapsed {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.progress-card .progress-bar-wrapper {
+  padding: 0 12px 8px 24px;
+}
+.progress-card .progress-bar {
+  height: 4px;
+  width: 60px;
+  background: transparent;
+  border: 1px solid var(--stage-ruling);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-card .progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--stage-ruling);
+  transition: width 0.5s ease-out;
+}
+
+.progress-card--ruling { border-left-color: var(--stage-ruling); }
+.progress-card--ruling .progress-bar { border-color: var(--stage-ruling); }
+.progress-card--ruling .progress-bar-fill { background: var(--stage-ruling); }
+
+.progress-card--narration { border-left-color: var(--stage-narrate); }
+.progress-card--narration .progress-bar { border-color: var(--stage-narrate); }
+.progress-card--narration .progress-bar-fill { background: var(--stage-narrate); }
+
+/* Extraction row */
+.extraction-row {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.extraction-bar {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 0.79rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+.extraction-bar[data-complete="true"] .progress-bar-fill {
+  width: 100% !important;
+}
+.extraction-bar--scene { background: color-mix(in srgb, var(--stage-scene) 15%, transparent); }
+.extraction-bar--scene .progress-bar { border-color: var(--stage-scene); }
+.extraction-bar--scene .progress-bar-fill { background: var(--stage-scene); }
+
+.extraction-bar--state { background: color-mix(in srgb, var(--stage-state) 15%, transparent); }
+.extraction-bar--state .progress-bar { border-color: var(--stage-state); }
+.extraction-bar--state .progress-bar-fill { background: var(--stage-state); }
+
+.extraction-bar--record { background: color-mix(in srgb, var(--stage-storytell) 15%, transparent); }
+.extraction-bar--record .progress-bar { border-color: var(--stage-storytell); }
+.extraction-bar--record .progress-bar-fill { background: var(--stage-storytell); }
+
+@keyframes fadeOutCard {
+  from { opacity: 1; transform: translateY(-8px); }
+  to   { opacity: 0; transform: translateY(-12px); }
+}
+
 /* =========================================================
    ACTION PILLS ROW
    ========================================================= */

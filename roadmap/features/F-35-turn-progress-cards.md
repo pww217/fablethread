@@ -1,6 +1,6 @@
 ---
 title: "Stacked turn progress-bar UI with per-phase cards"
-status: up-next
+status: done
 urgency: 3
 size: medium
 created: 2026-07-11
@@ -9,10 +9,10 @@ labels: [frontend, UI, turn-pipeline]
 design:
   url: ../../docs/design/turn-progress-cards-design.md
 plan:
-  url: ../../plans/turn-progress-cards-plan.md
+  url: ../../plans/completed/frontend/turn-progress-cards-plan.md
 pr:
   url:
-  branch:
+  branch: turn-progress-cards
 ---
 
 ## Description
