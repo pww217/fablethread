@@ -175,6 +175,21 @@ def _apply_thread_automatics(
     # Urgency decay
     decay_threshold = config.thread_urgency_max_age
     for i, t in enumerate(threads):
+        # Enforce invariant: dormant threads must have urgency=background.
+        # Overrides any extractor update that sets dormant threads to normal/urgent.
+        if t.dormant and t.urgency != "background":
+            updated_dormant = t.model_copy(update={
+                "urgency": "background",
+                "urgency_set_turn": turn_no,
+            })
+            threads[i] = updated_dormant
+            mutated = True
+            _log.info(
+                "thread_automatics.dormant_urgency_enforcement trace_id=%d thread %s urgency %s→background (dormant override)",
+                turn_no, t.id, t.urgency, extra={"turn": turn_no},
+            )
+
+        # Standard urgency decay (only for non-dormant threads)
         _set_turn = getattr(t, "urgency_set_turn", None)
         if _set_turn is None:
             # Seed threads and new threads may lack urgency_set_turn; default to last_updated_turn for decay tracking
@@ -537,22 +552,22 @@ def _apply_state_updates(
                     last_presence_turn=turn_no,
                 )
 
-        # Arc director: process thread updates and arc resolution
+        # Auto-dormant / urgency decay — run every turn, independent of whether there's
+        # a delta. This ensures the dormant-urgency-invariant (dormant→background) fires
+        # even on quiet turns where the extractor/sanitizer may have bumped urgency.
+        automatics_delta = _apply_thread_automatics(state, config)
+        if automatics_delta is not None:
+            state = state.model_copy(update={"long_term_objective": _merge_arc_update(state.long_term_objective, automatics_delta)})
+            if delta is not None:
+                delta = delta.model_copy(update={"arc_update": automatics_delta})
+
+        # Arc director: explicitly apply threadUpdates and resolve threads
         if record_result and (state.long_term_objective or record_result.thread_add):
             thread_delta = _apply_thread_updates(state, record_result, config, dedup_rejections=thread_dedup_rejections)
             if thread_delta is not None:
                 state = state.model_copy(update={"long_term_objective": _merge_arc_update(state.long_term_objective, thread_delta)})
                 if delta is not None:
-                    delta = delta.model_copy(
-                        update={"arc_update": thread_delta}
-                    )
-
-            # Auto-dormant and urgency decay — run every turn, independent of explicit thread updates
-            automatics_delta = _apply_thread_automatics(state, config)
-            if automatics_delta is not None:
-                state = state.model_copy(update={"long_term_objective": _merge_arc_update(state.long_term_objective, automatics_delta)})
-                if delta is not None:
-                    delta = delta.model_copy(update={"arc_update": automatics_delta})
+                    delta = delta.model_copy(update={"arc_update": thread_delta})
 
             # Apply goal_update (mid-arc long_term_objective change, separate from arc_resolve)
             if record_result.goal_update:
