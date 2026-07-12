@@ -898,7 +898,8 @@ function game() {
                 }
                 if (payload && payload.phase === 'world_done') {
                     self.asyncRunning = false;
-                    // Re-fetch state panels now that async window (sanitize + world) has completed
+                    // Re-fetch right panel, now that async window (sanitize + world) has completed.
+                    // Left panel was already re-fetched at turn_complete with post-extraction state.
                     if (typeof htmx !== 'undefined') {
                         htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
                     }
@@ -979,7 +980,7 @@ function game() {
                         }
                     }
                 } else if (data.panel === 'arc' && data.data) {
-                    htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
+                    // Arc data synced via HTMX re-fetch at turn_complete. No early re-render needed.
                 }
             });
 
@@ -1070,6 +1071,15 @@ function game() {
                 _prependTurnLogTurn(result.turn, result.change_lines || [], result.ruling);
 
                 this.submitting = false;
+
+                // Re-render left panel now that state.yaml has post-extraction state
+                // (compendium with NPC presence, location, objective, compendium).
+                // This syncs scene NPCs (issue 1: left panel never updated),
+                // objective threads (from record extraction), compendium, and the
+                // NPC lifecycle decay that runs after extraction (issue 3).
+                if (typeof htmx !== 'undefined') {
+                    htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
+                }
 
                 if (result.game_over) {
                     _showGameOver(this);

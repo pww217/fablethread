@@ -45,9 +45,11 @@ Beat priority order (highest to lowest):
 
 **Phase alignment:** `type` MUST be from `allowed_beat_types` (provided in user prompt). Drop candidates whose type violates the phase constraint.
 
-**Quantity:** Emit 2-3 candidates. Zero is acceptable if no good beat fits.
+**Quantity:** Emit 2-3 candidates. MUST emit at least 1 candidate — never emit an empty list. If diversity constraints make it hard to find 2-3 good candidates, emit 1 imperfect candidate rather than 0.
 
 ## Diversity
+
+**Priority:** The "must emit at least 1" requirement OVERRIDES all diversity constraints. If diversity filters would leave you with 0 candidates, relax the repetition rules and emit 1 candidate.
 
 - You have a 5-beat sliding window in `recent_beats`. Avoid excessive repetition:
   - **Beat type:** If a type appears 3 or more of a 5 entries, it should be avoided if possible.
