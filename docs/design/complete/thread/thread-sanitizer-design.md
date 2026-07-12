@@ -434,7 +434,7 @@ if (t.row_kind === 'seed' || t.row_kind === 'sanitizer') return true;
 | 5 full turns + up to 20 summary bullets | `load_last_narration(save_dir, 5)` + `state.meta.prior_history` (max 20) | Matches existing pipeline memory patterns |
 | Thread-first ordering | Arc/thread state BEFORE narration in user prompt | Sanitizer's job is thread assessment; narration is evidence to validate against |
 | Reuses `tv-compaction-*` CSS | No new CSS classes | Already in `app.src.css:2563-2611` from old compactor |
-| SSE phase shape matches old compactor | `{"phase": "sanitize_start", "expected_ms": 0}` / `{"phase": "sanitize_done", "ms": ...}` | UI handler follows same pattern; minimal branch in `_setProgressFromPhase()` |
+| SSE phase shape matches old compactor | `{"phase": "sanitize_start", "expected_ms": 0}` / `{"phase": "sanitize_done", "ms": ...}` | UI handler ignores these phases; no progress UI is shown for async steps |
 | _checklist rubric in prompt | Mandatory checklist output forces LLM to acknowledge every category | Borrowed from old `compact_system.j2` — prevents silent skipping |
 | Reuses `_thread_list.j2` | Existing shared template renders threads with id/scope/urgency/active/summary/progress | No duplication of rendering logic; template vars are compatible |
 
@@ -515,7 +515,7 @@ No new Pydantic models. Internal contract only:
 | `ccya/prompts/sections/_thread_list.j2` | Thread rendering template (id/scope/urgency/active/summary/progress) | Reuse in sanitizer user prompt |
 | `ccya/server/tv.py:370-400` area | Turn viewer row building | Add sanitizer row_kind handler; mirror old compaction handler at `be8113f1^:tv.py:376-392` |
 | `ccya/templates/_turn_viewer.html:47-71` | Turn viewer template — seed block + catch-all | Add sanitizer row block between them; mirror old compaction block at `be8113f1^:_turn_viewer.html:71-130` |
-| `ccya/templates/index.html:745-779` | Phase label handler `_setProgressFromPhase()` | Add `sanitize_start`/`sanitize_done` branches; mirror old compact phase at `be8113f1^:index.html:546-550` |
+| `ccya/templates/index.html:745-779` | SSE phase handler | Add `sanitize_start`/`sanitize_done` branches if progress UI is later restored; currently these phases are ignored |
 | `git show be8113f1^:ccya/engine/compactor.py` | Old compactor | Reference: trigger check, event record shape, LLM call pattern, apply pattern |
 | `git show be8113f1^:ccya/prompts/compact_system.j2` | Old compactor system prompt | Reference: _checklist rubric, output format, confidence guidelines |
 | `git show be8113f1^:ccya/templates/_turn_viewer.html` (lines 40-130) | Old turn viewer with compaction row | Reference: row template structure, filter checkbox, card toggle |

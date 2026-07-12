@@ -73,10 +73,9 @@ Replace the single horizontal progress strip (`<div class="progress-strip" data-
 
 ### Implementation notes
 
-- Functions live in `ccya/static/game-utils.js`: `_showProgressCard`, `_fadeOutCard`, `_showExtractionRow`, `_activateExtractionBar`, `_completeExtractionBar`, `_dismissExtractionRow`.
-- Cards via `_createProgressCardHTML` generate `.extraction-bar` single-row HTML.
+- Functions live in `ccya/static/game-utils.js`: `_showExtractionRow`, `_activateExtractionBar`, `_completeExtractionBar`, `_dismissExtractionRow`.
 - Extraction bars via `_showExtractionRow` generate `.extraction-row` → `.extraction-bar` → `.progress-bar` → `.progress-bar-fill`.
-- Cards use `<progress>`-less CSS bars (no native `<progress>` element).
-- Each card manages its own `setInterval` elapsed timer independently.
-- When no server-side history exists (first turn), use fallback estimates: ruling 3s, narration 8s, scene 3s, state 3s, record 6s. `_avg_event_ms()` from server takes over after first turns.
+- Bars use `<progress>`-less CSS bars (no native `<progress>` element).
+- Each bar manages its own `setInterval` elapsed timer independently.
+- When no server-side history exists (first turn), use fallback estimates: scene 3s, state 3s, record 6s. `_avg_event_ms()` from server takes over after first turns.
 - After turn completes, all progress indicators are gone. What remains: narration text, outcome summary, and band summary.
