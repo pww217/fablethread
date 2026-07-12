@@ -830,7 +830,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "model": st.meta.model or "",
                 "seed_json": _json.dumps(seed_state, indent=2, default=str),
             }
-            rows.insert(0, seed_row)
+            rows.append(seed_row)
     except Exception as exc:
         _log.warning("Failed to load state for turn_viewer seed display", extra={"error": str(exc)})
 
