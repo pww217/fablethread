@@ -2,12 +2,12 @@ Generate a SeedState JSON for a new playthrough. Wrap your entire response in a 
 
 ## Absolute rules
 - World Bible facts are non-negotiable canon. Never contradict them.
-- Player overrides are authoritative for PC identity and strongly preferred for arc direction, NPCs, and location. Honor them unless they directly contradict world facts.
+- Your overrides are authoritative for the character's identity and strongly preferred for arc direction, NPCs, and location. Honor them unless they directly contradict world facts.
 - Inspiration prose is quality guidance, not a menu. Don't borrow its phrasing or take its first suggestion.
 - Avoid the obvious scenario. Specific and mundane beats generic and dramatic.
 - ALL names must use only ASCII/Latin characters (a-z, A-Z, 0-9, spaces, hyphens, apostrophes). No exceptions.
 - Names: pick from the name pool provided; favor fit over prominence — prefer the second or third most plausible option for variance across runs (use `name_seed` to guide selection).
-- Established facts must teach the player something they could not infer from the setting alone.
+- Established facts must teach them something they could not infer from the setting alone.
 - **MANDATORY: You MUST include at least 1 NPC in the compendium with presence="present".** The engine will reject your seed if the compendium is empty or has no present NPCs. This is a hard constraint — do not emit a seed without NPCs.
 
 ## JSON output rules
@@ -19,9 +19,9 @@ Generate a SeedState JSON for a new playthrough. Wrap your entire response in a 
 ## Seeded context
 Four independently selected narrative dimensions. They are NOT a menu — weave them into something coherent. Tension between them is expected.
 
-- **SITUATION ARCHETYPE** (`{{ pool_selection.situation.id }}`): The pressure or tension the player walks into.
+- **SITUATION ARCHETYPE** (`{{ pool_selection.situation.id }}`): The pressure or tension they walk into.
 - **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Longer-term narrative direction. The long_term_objective builds on this pattern over multiple turns — not resolved in one action.
-- **CHARACTER DYNAMIC** (`{{ pool_selection.character_dynamic.id }}`): The PC's position relative to power structures. PC bio must be consistent with this (trusted_insider → show community ties; free_agent → show independence).
+- **CHARACTER DYNAMIC** (`{{ pool_selection.character_dynamic.id }}`): {pc.name}'s position relative to power structures. Their bio must be consistent with this (trusted_insider → show community ties; free_agent → show independence).
 - **MORAL PRESSURE** (`{{ pool_selection.moral_pressure.id }}`): The ethical dilemma driving immediate personal stakes.
 {% endif %}
 
@@ -33,11 +33,11 @@ The output must be a JSON object with this structure:
 {
   "seed_state": {
     "meta": {"model": "mlx-community/Qwen3-32B", "setting_pack": "expanse", "session_name": "The Last Crossing"},
-    "pc": {"name": "Mira Sovak", "tagline": "Structural engineer, nine months sober", "bio": "Built bridges in the outer districts before the collapse.", "stats": {"strength": 3, "dexterity": 4, "wits": 3, "charisma": 2}, "conditions": [], "situation": {"key": "evacuated"}},
+    "pc": {"name": "[PC name]", "tagline": "Structural engineer, nine months sober", "bio": "Built bridges in the outer districts before the collapse.", "stats": {"strength": 3, "dexterity": 4, "wits": 3, "charisma": 2}, "conditions": [], "situation": {"key": "evacuated"}},
     "location": {"id": "district_checkpoints", "name": "Outer District Checkpoint", "description": "Faction-controlled barrier with armed guards and scanning equipment."},
     "inventory": [{"id": "steel_water_bottle", "name": "Steel Water Bottle", "notes": "dented, in pack", "amount": 1}],
     "scene": {"tags": ["checkpoint", "tension"], "world_state": [{"id": "border_closures", "text": "Travel between districts requires a valid faction pass.", "tier": "global", "permanent": true, "valence": "threat", "expires_turn": null}]},
-    "compendium": {"npcs": {"guard_captain": {"name": "Hale Voss", "title": "Checkpoint Captain", "bio": "Veteran of the border wars, now manning this post.", "presence": "present", "tie": "controls PC's passage", "motivation": "Keep the checkpoint running without incident", "fear": "Being held responsible for a breach", "leverage": "Can grant or deny passage"}}},
+    "compendium": {"npcs": {"guard_captain": {"name": "Hale Voss", "title": "Checkpoint Captain", "bio": "Veteran of the border wars, now manning this post.", "presence": "present", "tie": "befriends [PC name]", "motivation": "Keep the checkpoint running without incident", "fear": "Being held responsible for a breach", "leverage": "Can grant or deny passage"}}},
     "long_term_objective": {"long_term_objective": "Reach the inner districts and find the person who can help with the crisis.", "threads": [{"id": "border_closures", "summary": "Faction-controlled checkpoints block all inter-district travel without passes.", "type": "threat", "dormant": false, "urgency": "normal", "urgency_set_turn": 0}], "completed_threads": [], "started_turn": 0},
     "arc_origin": "The border walls were erected after the refugee crisis.",
     "world": {"locations": [{"id": "district_checkpoints", "name": "Outer District Checkpoints", "description": "Faction-controlled barriers between districts.", "status": "active", "tags": ["checkpoint", "controlled"]}, {"id": "inner_district", "name": "Inner District", "description": "The fortified core where faction leadership resides.", "status": "restricted", "tags": ["forbidden", "target"]}]}
@@ -60,21 +60,21 @@ The output must be a JSON object with this structure:
 Build in this order, using everything already established before generating what comes next:
 
 1. **World facts (global tier)** — 3–5 immutable hard constraints that directly affect gameplay choices now (border closures, martial law, banned technologies, faction blockades). No historical backstory older than one generation unless it's an active constraint today. No flavor lore. Fewer high-quality facts beats many generic ones. Each fact must have `"tier": "global"`, `"permanent": true`, and a `"valence"` from: "threat", "complication", "neutral", "boon".
-2. **World facts (local tier)** — 2–3 facts specific to the PC's immediate area or situation. Each fact must have `"tier": "local"`, `"permanent": false`, and a `"valence"` from: "threat", "complication", "neutral", "boon".
-3. **Key locations** — 4–5 named places that exist in the world at game start. Ordered from most accessible to least known. Include 1–2 breadcrumb locations (places the PC has heard of but not visited). Each has `id`, `name`, `description`, `status`, and `tags`.
-4. **Arc origin** — 2–3 sentences in past tense describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference the PC's personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to the PC will be established through arc threads later. Seed-time field only, never regenerated.
-5. **PC situation** — structured situational facts about the PC's current circumstances{% if scenario and scenario.pc_situation_schema %} ({% for s in scenario.pc_situation_schema %}{{ s.key }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Defined by `pc_situation_schema` in the pack.
-6. **Campaign arc** — informed by PC, world state, situation archetype, and character dynamic:
+2. **World facts (local tier)** — 2–3 facts specific to {pc.name}'s immediate area or situation. Each fact must have `"tier": "local"`, `"permanent": false`, and a `"valence"` from: "threat", "complication", "neutral", "boon".
+3. **Key locations** — 4–5 named places that exist in the world at game start. Ordered from most accessible to least known. Include 1–2 breadcrumb locations (places {pc.name} has heard of but not visited). Each has `id`, `name`, `description`, `status`, and `tags`.
+4. **Arc origin** — 2–3 sentences in past tense describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference {pc.name}'s personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to {pc.name} will be established through arc threads later. Seed-time field only, never regenerated.
+5. **Situation** — structured situational facts about their current circumstances{% if scenario and scenario.pc_situation_schema %} ({% for s in scenario.pc_situation_schema %}{{ s.key }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Defined by `pc_situation_schema` in the pack.
+6. **Campaign arc** — informed by their background, world state, situation archetype, and character dynamic:
     - `long_term_objective` (multi-stage objective): What happens after the first step succeeds? After it fails?
     - `threads` (see Thread rules below):
 7. **Opening scene + NPCs** — instantiates the situation archetype concretely.
    7a. Generate scene NPCs (at least 1 present in opening scene).
    7b. For every person named in `pc_situation`, create a compendium entry with presence set appropriately. These are REQUIRED — do not skip.
-8. **Inventory** — appropriate to scene and PC concept.
+8. **Inventory** — appropriate to scene and their concept.
 
 **Cross-field consistency (mandatory):**
 - `world_state` facts must establish pressures consistent with `arc_category`. No "all factions cooperate peacefully" in a power_struggle arc.
-- PC bio must reflect `character_dynamic` positioning.
+- Their bio must reflect `character_dynamic` positioning.
 {% endif %}
 
 {% if scenario and scenario.factions %}
@@ -84,8 +84,8 @@ Build in this order, using everything already established before generating what
 ## NPC field requirements
 
 - **At least 1 NPC must have `"presence": "present"`.** This is mandatory — the opening scene must include at least one NPC that is physically present. If you cannot generate an NPC with presence="present", you must generate one. This is not optional.
-- `presence` is required for all NPCs: set to `"present"` for NPCs in the opening scene, `"nearby"` for those nearby but not in the scene, `"known"` for those the PC knows but aren't nearby. All seed NPCs that appear in the opening narrative must have `"presence": "present"`.
-- NPCs have 4 behavioral fields: `motivation`, `fear`, `leverage`, `tie`.
+- `presence` is required for all NPCs: set to `"present"` for NPCs in the opening scene, `"nearby"` for those nearby but not in the scene, `"known"` for those they know but aren't nearby. All seed NPCs that appear in the opening narrative must have `"presence": "present"`.
+- NPCs have 4 behavioral fields (`motivation`, `fear`, `leverage`) and 1 relationship field (`tie`).
 How many depends on the NPC's role:
 
 - **Unnamed NPCs (name does not look like a proper name — fewer than 2 words, or first/last not both capitalized):**
@@ -99,14 +99,14 @@ How many depends on the NPC's role:
 - **Keep scenes to 6-8 NPCs total. Confrontational scenes should have at most 3.**
 
 Do NOT add `relation` or `notes` to compendium entries — engine-managed at runtime.
-**NPC generation from pc_situation (mandatory):** For every person named in `pc_situation` values, create a compendium entry with the full name from `pc_situation`. Give them a `bio`, presence (known/nearby/present), and all 4 behavioral fields. Scene NPCs come from the opening scene — pc_situation NPCs are in addition to scene NPCs.
-## PC field rules
-- `pc.name` (given name + family name): e.g. "Mira Sovak". No single-word names.
+**NPC generation from pc_situation (mandatory):** For every person named in `pc_situation` values, create a compendium entry with the full name from `pc_situation`. Give them a `bio`, presence (known/nearby/present), and the appropriate fields as described above. Scene NPCs come from the opening scene — pc_situation NPCs are in addition to scene NPCs.
+## Character field rules
+- `pc.name` (given name + family name): Use a real name like "Mira Sovak", not a placeholder. No single-word names.
 - `pc.tagline` (5–10 words): role + defining trait (e.g. "Structural engineer, nine months sober").
 - `pc.bio` (2–4 sentences): pre-event history, what shaped this person, what they want now.
 - `pc.stats`: four integers, range per hard constraints, total per hard constraints.
 ## Arc origin
-- `arc_origin` (2–3 sentences in past tense): describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference the PC's personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to the PC will be established through arc threads later. Seed-time field only, never regenerated.
+- `arc_origin` (2–3 sentences in past tense): describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference {pc.name}'s personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to {pc.name} will be established through arc threads later. Seed-time field only, never regenerated.
 ## Session name
 - `meta.session_name` (short, evocative title): A short, evocative title for this game session (3-6 words). Should capture the campaign's tone and setting without describing a specific scene or character. This name defines the entire playthrough.
 ## World state rules
@@ -118,34 +118,34 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 ## Key locations
 - 4–5 named places that exist in the world at game start.
 - Ordered from most accessible to least known.
-- Include 1–2 breadcrumb locations (places the PC has heard of but not visited).
+- Include 1–2 breadcrumb locations (places {pc.name} has heard of but not visited).
 - Each has: `id` (snake_case), `name`, `description`, `status` (e.g. "active", "abandoned", "restricted"), `tags` (list of descriptive tags).
-## PC situation
-- Structured situational facts about the PC's current circumstances.
+## Situation
+- Structured situational facts about their current circumstances.
 {% if scenario and scenario.pc_situation_schema %}{% for s in scenario.pc_situation_schema %}
 - `{{ s.key }}` — {{ s.description }}{% endfor %}
 {% else %}- Keys are defined by `pc_situation_schema` in the pack (3–5 keys maximum, all `"required": false`).
-{% endif %}- Values are short strings describing the PC's current situation for each key.
-- Values may include names of people or places. Names in `pc_situation` are the source of truth for NPC generation.
-- **When mentioning family members, always include a full name** (given + PC's family name). BAD: "Wife Clara in Morganstead." GOOD: "Wife Clara Vance in Morganstead."
-- **All keys marked `"persist": true` MUST always have a value.** Never omit them. If there is no relevant fact, use a placeholder like "None" or "The PC has no [key]."
+{% endif %}- Values are short strings describing their current situation for each key.
+- Values may include names of people or places. If a person name appears there, use that exact full name for compendium entries.
+- **When mentioning family members, always include a full name** (given + {pc.name}'s family name). BAD: "Wife Clara in Morganstead." GOOD: "Wife Clara Vance in Morganstead."
+- **All keys marked `"persist": true` MUST always have a value.** Never omit them. If there is no relevant fact, use a placeholder like "None" or "They have no [key]."
 - All other keys (not persist) may be omitted if there is no relevant fact.
 - **DO NOT generate any fields beyond those in pc_situation_schema. Never add 'opening', 'description', 'narrative', or other keys to pc.situation.**
 ## Inventory rules
-- 3–6 items appropriate to the opening scene and PC concept.
+- 3–6 items appropriate to the opening scene and their concept.
 - Every item has a specific, proper name — not "standard issue rifle" or "random book." Names should hint at why the item matters.
 - Firearms always come paired with an ammo item at a realistic starting count. Never put loaded counts in weapon `notes`.
 - EVERY consumable has `amount` in individual units (`"pistol_rounds": 30`, `"bandage": 2`). No clips/magazines/boxes for ammo. Melee/thrown exempt.
-- No exotic or legendary weapons at start. No items for skills the PC hasn't invested in.
+- No exotic or legendary weapons at start. No items for skills they haven't invested in.
 - Inventory item names start with a capital letter.
 ## Thread rules
 **Thread IDs are 2–4 word broad conceptual buckets.** No proper nouns. `council_conspiracy` ✓ — `the_missing_ledger` ✗ (one object), `moss_confrontation` ✗ (one NPC).
 **Summaries: one sentence (8–15 words), describing a SITUATION, not an objective.** "A rival crew is closing in on the same salvage coordinates" ✓ — "Find the salvage before the rival crew" ✗.
 **Thread type (required):** Assign each thread a `type` from: `"threat"`, `"opportunity"`, `"complication"`, `"revelation"`.
-- `"threat"`: An active danger or hostile force pressing on the PC.
-- `"opportunity"`: A chance the PC can exploit — advantage, resource, ally.
+- `"threat"`: An active danger or hostile force pressing on them.
+- `"opportunity"`: A chance they can exploit — advantage, resource, ally.
 - `"complication"`: An entanglement that complicates existing goals without being purely positive or negative.
-- `"revelation"`: Information or discovery that changes the PC's understanding of the world.
+- `"revelation"`: Information or discovery that changes their understanding of the world.
 - At least one thread must have `type == "threat"`. At least one thread must have `type != "threat"`.
 - **CRITICAL:** Every thread MUST have a `type` field in the JSON. Omitting `type` will cause the seed to be rejected with a retry request.
 **Thread count (hard limits at game start):**
