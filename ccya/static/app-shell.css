@@ -272,29 +272,7 @@ body {
   padding-left: 8px;
 }
 
-/* In-turn progress: narrative vs extract (SSE phase events) */
-.progress-strip {
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  font-size: 0.86rem;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-}
-.progress-strip .progress-spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--border-strong);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  flex-shrink: 0;
-  animation: spin 0.8s linear infinite;
-}
+/* In-turn progress: shared label/metas reused by cards and extraction bars */
 .progress-label { flex: 1; min-width: 0; }
 .progress-metas {
   margin-left: auto;
@@ -309,72 +287,10 @@ body {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.progress-strip[data-phase="extract_retry"] { border-color: var(--accent-error); }
 
-/* Progress cards */
-.progress-card {
-  margin-top: 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
-  border-left-width: 2px;
-  background: var(--bg-elevated);
-}
-.progress-card .progress-card-inner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  font-family: var(--font-mono);
-  font-size: 0.86rem;
-  color: var(--text-secondary);
-}
-.progress-card .progress-spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--border-strong);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  flex-shrink: 0;
-  animation: spin 0.8s linear infinite;
-}
-.progress-card .progress-metas {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.79rem;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-.progress-card .progress-elapsed {
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.progress-card .progress-bar-wrapper {
-  padding: 0 12px 8px 24px;
-}
-.progress-card .progress-bar {
-  height: 4px;
-  width: 60px;
-  background: transparent;
-  border: 1px solid var(--stage-ruling);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.progress-card .progress-bar-fill {
-  height: 100%;
-  width: 0%;
-  background: var(--stage-ruling);
-  transition: width 0.5s ease-out;
-}
-
-.progress-card--ruling { border-left-color: var(--stage-ruling); }
-.progress-card--ruling .progress-bar { border-color: var(--stage-ruling); }
-.progress-card--ruling .progress-bar-fill { background: var(--stage-ruling); }
-
-.progress-card--narration { border-left-color: var(--stage-narrate); }
-.progress-card--narration .progress-bar { border-color: var(--stage-narrate); }
-.progress-card--narration .progress-bar-fill { background: var(--stage-narrate); }
+/* =========================================================
+   EXTRACTION ROW
+   ========================================================= */
 
 /* Extraction row */
 .extraction-row {
@@ -397,6 +313,19 @@ body {
   font-size: 0.79rem;
   font-family: var(--font-mono);
   color: var(--text-secondary);
+}
+.extraction-bar .progress-bar {
+  flex: 1;
+  height: 8px;
+  background: transparent;
+  border: 1px solid;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.extraction-bar .progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 0.25s linear;
 }
 .extraction-bar[data-complete="true"] .progress-bar-fill {
   width: 100% !important;
@@ -1728,9 +1657,6 @@ body {
   .game-input {
     min-height: 32px;
     font-size: 16px; }
-
-  /* ── Progress strip wrapping ── */
-  .progress-strip { flex-wrap: wrap; gap: 4px; }
 
   /* ── Modals: fullscreen ── */
   .pack-picker-modal {

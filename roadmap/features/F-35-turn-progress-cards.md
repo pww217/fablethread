@@ -17,26 +17,26 @@ pr:
 
 ## Description
 
-Replace the single horizontal progress strip (`<div class="progress-strip" data-phase="...">`) with a stack of per-phase cards, each showing its own progress bar and filled as that phase completes.
+Replace the single horizontal progress strip (`<div class="progress-strip" data-phase="...">`) with a post-narration extraction row showing three colored progress bars (scene, state, record). Ruling and narration phases run without dedicated progress UI.
 
 ### Desired behavior
 
-**Phase 1 — Pre-narration (one card at a time):**
-- Ruling card (violet, `--stage-ruling`): appears on `ruling_start`, fills, fades at `narrate_start`.
-- Narration card (blue, `--stage-narrate`): appears on `narrate_start`, fills, fades at `narrate_done`.
-- Each card has its own progress bar, spinner, and elapsed timer. Fills at `elapsed / expectedMs`.
+**Pre-narration:**
+- No progress UI for ruling or narration. Narrative text streams normally during narration.
 
-**Phase 2 — Post-narration (extraction row):**
+**Post-narration (extraction row):**
 - All three extraction bars (scene, state, record) appear together in a single row when `narrate_done` fires.
 - Three bars, each with its own color: scene (green), state (amber), record (pink).
 - All three remain visible throughout while bars fill sequentially.
 - When record fills, the entire row fades and outcome summary appears.
 
-### Remaining issues (2026-07-12)
+### Resolved (2026-07-12)
 
-- **Bar height**: Progress bars are ~4px tall, need ~8px for visibility.
-- **Timing accuracy**: Extraction bars do not reliably use per-phase expected_ms from server events — some fall back to hardcoded values. Ruling/narration cards also need validation that they use server-provided timing correctly.
-- **Ruling card format**: Still uses `_showProgressCard` / `_createProgressCardHTML` machinery instead of the cleaner `.extraction-bar` single-row layout used by extraction bars.
+- **Bar height**: Raised to 8px; extraction bars use a flex-filled track.
+- **Timing accuracy**: Extraction bars activate on `extract_stream_start` and tick every 250ms using server-provided `expected_ms` (with fallback estimates for first turn).
+- **Old strip shadowing**: Removed the legacy `.progress-strip` creation from `submitTurn()` and deleted dead strip helper code.
+- **Color tokens**: Verified scene (green `--stage-scene`), state (amber `--stage-state`), and record (pink `--stage-storytell`) map to the turn-viewer palette.
+- **Ruling/narration cards**: Removed after testing showed these phases complete too quickly to be useful; only the extraction row remains.
 
 ### Color tokens
 
