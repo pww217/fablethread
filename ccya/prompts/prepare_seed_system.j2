@@ -37,7 +37,7 @@ The output must be a JSON object with this structure. Generate each field below 
     "location": {"id": "snake_case_id", "name": "Display name", "description": "Full description sentence."},
     "inventory": [{"id": "snake_case_item_id", "name": "Proper item name", "notes": "Brief context", "amount": 1}],
     "scene": {"tags": ["tag1", "tag2"], "world_state": [{"id": "global_fact_id", "text": "One sentence global fact.", "tier": "global", "valence": "threat", "permanent": true, "expires_turn": null}]},
-    "compendium": {"npcs": {"npc_id": {"name": "Full name", "title": "Role or title", "bio": "Biographical sketch.", "presence": "present|nearby|known", "tie": "How they connect to the PC.", "motivation": "What they fundamentally want.", "fear": "What they dread.", "leverage": "What leverage they hold."}}},
+    "compendium": {"npcs": {"npc_snake_case_id": {"name": "Full display name (what other characters call them).", "title": "Role or title.", "bio": "Biographical sketch.", "presence": "present|nearby|known", "tie": "How they connect to the PC.", "motivation": "What they fundamentally want.", "fear": "What they dread.", "leverage": "What leverage they hold."}}},
     "long_term_objective": {"long_term_objective": "One sentence multi-stage objective.", "threads": [{"id": "thread_bucket", "summary": "Current state description (one sentence).", "type": "threat|opportunity|complication|revelation", "dormant": false, "urgency": "normal|urgent", "urgency_set_turn": 1}], "completed_threads": []},
     "arc_origin": "One sentence world-level event in past tense.",
     "world": {"locations": [{"id": "location_slug", "name": "Display name", "description": "Full description.", "status": "active|abandoned|restricted", "tags": ["tag"]}]}}
@@ -99,7 +99,8 @@ How many depends on the NPC's role:
 - **Keep scenes to 6-8 NPCs total. Confrontational scenes should have at most 3.**
 
 Do NOT add `relation` or `notes` to compendium entries — engine-managed at runtime.
-**NPC generation from pc_situation (mandatory):** For every person named in `pc_situation` values, create a compendium entry with the full name from `pc_situation`. Give them a `bio`, presence (known/nearby/present), and the appropriate fields as described above. Scene NPCs come from the opening scene — pc_situation NPCs are in addition to scene NPCs.
+**NPC compendium key naming:** The **key** in the `compendium.npcs` dictionary must be a **snake_case ID** derived from the NPC's display name using only lowercase letters, numbers, and underscores. Example: `"Joshua Davidson"` → key `"joshua_davidson"`, name `"Joshua Davidson"`. Never use display names as dictionary keys — always use snake_case IDs.
+**NPC generation from pc_situation (mandatory):** For every person named in `pc_situation` values, create a compendium entry. Use the full name for the `name` field, and derive the dictionary key as snake_case from that name. Give them a `bio`, presence (known/nearby/present), and the appropriate fields as described above. Scene NPCs come from the opening scene — pc_situation NPCs are in addition to scene NPCs.
 ## Character field rules
 - `pc.name` (given name + family name): Use a real name like "Mira Sovak", not a placeholder. No single-word names.
 - `pc.tagline` (5–10 words): role + defining trait (e.g. "Structural engineer, nine months sober").
