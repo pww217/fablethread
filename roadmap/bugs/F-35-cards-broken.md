@@ -1,6 +1,6 @@
 ---
 title: "F-35 turn progress extraction row — resolved"
-status: resolved
+status: done
 urgency: 1
 size: medium
 created: 2026-07-12
