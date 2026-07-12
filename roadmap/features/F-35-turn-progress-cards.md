@@ -1,6 +1,6 @@
 ---
 title: "Stacked turn progress-bar UI with per-phase cards"
-status: in-progress
+status: done
 urgency: 3
 size: medium
 created: 2026-07-11
