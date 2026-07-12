@@ -315,7 +315,9 @@ None (tests removed during refactor).
 
 **File:** `ccya/templates/index.html`
 
-**What:** After line 779 (closing `}` of the `persist` handler), before line 780 (blank line before `function _clearProgressStrip`), insert:
+**What:** After line 779 (closing `}` of the `persist` handler), before the next helper function, insert:
+
+> **Note (2026-07-12):** `_clearProgressStrip` and the old progress-strip helpers were removed as part of F-35. `sanitize_start`/`sanitize_done` are currently ignored by the frontend progress UI.
 
 ```javascript
     } else if (p === 'sanitize_start') {

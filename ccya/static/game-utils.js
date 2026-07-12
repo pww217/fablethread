@@ -395,9 +395,9 @@ function _showExtractionRow(payload, block) {
     }
 }
 
-function _getFallbackExpectedMs(phase) {
-    var fallbacks = { ruling: 3000, narration: 8000, scene: 3000, state: 3000, record: 6000 };
-    return fallbacks[phase] || 3000;
+function _getFallbackExpectedMs(streamName) {
+    var fallbacks = { scene: 3000, state: 3000, record: 6000 };
+    return fallbacks[streamName] || 3000;
 }
 
 function _activateExtractionBar(streamName) {

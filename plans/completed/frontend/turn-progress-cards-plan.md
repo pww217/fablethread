@@ -1,5 +1,7 @@
 # Plan: F-35 — Turn progress stacked cards
 
+> **Note (2026-07-12):** Implementation diverged from this plan. Ruling and narration cards were removed after testing showed they complete too quickly to be useful. The shipped UI is a post-narration extraction row only.
+
 ## Design Reference
 
 - Design: `docs/design/turn-progress-cards-design.md`

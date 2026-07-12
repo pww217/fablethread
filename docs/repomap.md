@@ -74,7 +74,7 @@
 | `ccya/static/app-shell.css` | Main game UI — shell layout, header, narrative column, sidebars, modals, responsive rules |
 | `ccya/static/chronicle.css` | Chronicle overlay — turn log shell, panel, scrollbar |
 | `ccya/static/turn-viewer.css` | Standalone full-page debug turn viewer |
-| `ccya/static/game-utils.js` | Pure utility functions — markdown, entities, tooltips, display drain, pills, progress card lifecycle (`_createProgressCardHTML()`, `_showProgressCard()`, `_fadeOutCard()`, `_showExtractionRow()`, `_completeExtractionBar()`, `_dismissExtractionRow()`) |
+| `ccya/static/game-utils.js` | Pure utility functions — markdown, entities, tooltips, display drain, pills, extraction row lifecycle (`_showExtractionRow()`, `_activateExtractionBar()`, `_completeExtractionBar()`, `_dismissExtractionRow()`) |
 | `ccya/static/game.js` | Alpine components — `charCreation()`, `worldBuilder()`, `game()` |
 | `ccya/static/app-init.js` | DOM initialization — `DOMContentLoaded` handlers, HTMX wiring, pills layout |
 
