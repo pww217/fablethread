@@ -287,6 +287,7 @@ function _activateExtractionBar(streamName) {
         var fill = info.bar.querySelector('.progress-bar-fill');
         if (fill) {
             fill.style.setProperty('width', pct + '%', 'important');
+            fill.style.width = pct + '%';
             if (elapsed < 1000) console.log('_activateExtractionBar tick: stream=' + streamName + ' pct=' + pct.toFixed(1) + ' fill.width=' + window.getComputedStyle(fill).width);
         }
         var elapsedEl = info.bar.querySelector('.progress-elapsed');
@@ -568,7 +569,7 @@ function _showProgressCard(phase, expectedMs, block) {
         if (!fill) return;
         var useMs = expectedMs || 5000;
         var pct = Math.min(100, (elapsed / useMs) * 100);
-        fill.style.setProperty('width', pct + '%', 'important');
+        fill.style.width = Math.round(pct) + '%';
         if (elapsed < 1000) console.log('_showProgressCard tick: phase=' + phase + ' pct=' + pct.toFixed(1) + ' fill.width=' + window.getComputedStyle(fill).width);
     }, 250);
 
