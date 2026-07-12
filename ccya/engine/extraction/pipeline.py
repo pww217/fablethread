@@ -7,6 +7,7 @@ import logging
 import re
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment
@@ -16,7 +17,7 @@ from ccya.engine.extraction.context import _PostDeltaContext, _build_post_delta_
 from ccya.engine.extraction.scene import _extract_scene_messages
 from ccya.engine.extraction.state import _extract_state_messages
 from ccya.engine.extraction.record import _record_messages
-from ccya.engine.extraction.utils import _call_stream, _capitalize_inventory_names, _context_meta, _dedup_compendium_update
+from ccya.engine.extraction.utils import _avg_event_ms, _call_stream, _capitalize_inventory_names, _context_meta, _dedup_compendium_update
 from ccya.state import apply_delta
 from ccya.errors import ErrorKind, LlmcTimeout
 from ccya.llm_client import trim_messages
@@ -61,6 +62,7 @@ async def _run_extraction_stream(
     trace_id: str,
     turn_no: int,
     container: _ExtractionAccumulator,
+    save_dir: Path = Path("."),
 ) -> AsyncIterator[tuple[str, Any]]:
     yield ("phase", {"phase": "extract_stream_start", "stream": variant.name})
     t_stream = asyncio.get_event_loop().time()
@@ -107,18 +109,24 @@ async def _run_extraction_stream(
         variant.name, trace_id, type(result).__name__,
         usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0),
     )
-    yield ("phase", {"phase": "extract_stream_done", "stream": variant.name})
+    exp_ms = _avg_event_ms(save_dir, f"{variant.name}.total_ms")
+    yield ("phase", {"phase": "extract_stream_done", "stream": variant.name, "expected_ms": exp_ms})
 
     _preview = state.model_copy()
     if not extraction_event.get("skipped", True):
         _preview = variant.preview_builder(state, result)
 
+    _panel_data = variant.panel_builder(_preview)
     yield ("panel_update", {
         "panel": variant.name,
-        "data": variant.panel_builder(_preview),
+        "data": _panel_data,
     })
 
     if variant.name == "scene":
+        yield ("panel_update", {
+            "panel": "compendium",
+            "data": {"npcs": _panel_data.get("npcs", {})},
+        })
         container.scene_result = (result, extraction_event)
     elif variant.name == "state":
         container.state_result = (result, extraction_event)
@@ -139,6 +147,7 @@ async def _run_extraction_pipeline(
     band: str = "",
     recent_turns: list[dict[str, Any]] | None = None,
     packing: dict[str, Any] | None = None,
+    save_dir: Path = Path("."),
 ) -> "AsyncIterator[tuple[str, Any] | tuple['StateMerge', list[str], str, dict[str, Any], 'RecordResult', 'SceneExtractResult', '_PostDeltaContext']]":
     _log.debug("extraction.pipeline.start trace_id=%s turn_no=%d", trace_id, turn_no)
     """Run the three extraction streams in sequence.
@@ -164,12 +173,12 @@ async def _run_extraction_pipeline(
     container = _ExtractionAccumulator()
 
     # --- Stream 1: Scene ---
-    async for event in _scene_stream(state, env, narration, turn_no, config, trace_id, container):
+    async for event in _scene_stream(state, env, narration, turn_no, config, trace_id, container, save_dir):
         yield event
     scene_result, extraction_event["scene"] = container.scene_result if container.scene_result else (SceneExtractResult(), _SKIPPED)
 
     # --- Stream 2: State ---
-    async for event in _state_stream(state, env, narration, intent, turn_no, packing, config, trace_id, container):
+    async for event in _state_stream(state, env, narration, intent, turn_no, packing, config, trace_id, container, save_dir):
         yield event
     state_result, extraction_event["state"] = container.state_result if container.state_result else (StateExtractResult(), _SKIPPED)
 
@@ -178,7 +187,7 @@ async def _run_extraction_pipeline(
     # "backward-looking scribe" — it's not critical for state. If it fails, the
     # turn still completes with scene+state deltas. Beat candidates are generated
     # from narration (world step), not from record.
-    async for event in _record_stream(state, env, narration, scene_result, state_result, turn_no, config, trace_id, band, recent_turns, container):
+    async for event in _record_stream(state, env, narration, scene_result, state_result, turn_no, config, trace_id, band, recent_turns, container, save_dir):
         yield event
     record_result, extraction_event["record"] = container.record_result if container.record_result else (RecordResult(), _SKIPPED)
 
@@ -253,7 +262,7 @@ async def _run_extraction_pipeline(
 async def _scene_stream(
     state: WorldState, env: "Environment", narration: str,
     turn_no: int, config: EngineConfig, trace_id: str,
-    container: _ExtractionAccumulator,
+    container: _ExtractionAccumulator, save_dir: Path = Path("."),
 ) -> AsyncIterator[tuple[str, Any]]:
     variant = _ExtractionStreamConfig(
         name="scene",
@@ -269,7 +278,7 @@ async def _scene_stream(
         fatal=True,
         call_name="extract_scene",
     )
-    async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no, container):
+    async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no, container, save_dir):
         yield event
 
 
@@ -277,7 +286,7 @@ async def _state_stream(
     state: WorldState, env: "Environment", narration: str,
     intent: "IntentEnvelope | None", turn_no: int, packing: dict[str, Any] | None,
     config: EngineConfig, trace_id: str,
-    container: _ExtractionAccumulator,
+    container: _ExtractionAccumulator, save_dir: Path = Path("."),
 ) -> AsyncIterator[tuple[str, Any]]:
     variant = _ExtractionStreamConfig(
         name="state",
@@ -301,7 +310,7 @@ async def _state_stream(
             "location": s.location.model_dump(),
         },
     )
-    async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no, container):
+    async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no, container, save_dir):
         yield event
 
 
@@ -310,7 +319,7 @@ async def _record_stream(
     scene_result: SceneExtractResult, state_result: StateExtractResult,
     turn_no: int, config: EngineConfig, trace_id: str,
     band: str, recent_turns: list[dict[str, Any]] | None,
-    container: _ExtractionAccumulator,
+    container: _ExtractionAccumulator, save_dir: Path = Path("."),
 ) -> AsyncIterator[tuple[str, Any]]:
     container.extraction_ctx = _build_post_delta_context(state, scene_result, state_result)
     variant = _ExtractionStreamConfig(
@@ -326,7 +335,7 @@ async def _record_stream(
             "meta": s.meta.model_dump(),
         },
     )
-    async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no, container):
+    async for event in _run_extraction_stream(state, variant, config, trace_id, turn_no, container, save_dir):
         yield event
     record_result, extraction_event = container.record_result if container.record_result else (RecordResult(), {"skipped": True, "tokens_in": 0, "tokens_out": 0, "ms": 0, "attempts": 0, "retry_errors": []})
     if record_result and not record_result.actions:

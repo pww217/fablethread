@@ -785,6 +785,8 @@ function game() {
             // and is replaced each render in `_drainRenderFn`.
             const cursor = document.createElement('span');
             const strip = document.createElement('div');
+            var rulingCard = null;
+            var narrationCard = null;
             strip.className = 'progress-strip';
             strip.setAttribute('data-phase', 'ruling');
             strip.innerHTML = _progressStripHTML();
@@ -888,6 +890,13 @@ function game() {
                     if (stateScript) {
                         try { _highlightEntities(textDiv, JSON.parse(stateScript.textContent)); } catch (e) { /* skip */ }
                     }
+                    var narrationCard = document.querySelector('.progress-card--narration');
+                    if (narrationCard) _fadeOutCard(narrationCard);
+                    _showExtractionRow({
+                        scene_expected_ms: payload.scene_expected_ms || 0,
+                        state_expected_ms: payload.state_expected_ms || 0,
+                        record_expected_ms: payload.record_expected_ms || 0,
+                    });
                 }
                 if (payload && payload.phase === 'extract_stream_done' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
                     if (payload.stream === 'record') {
@@ -895,6 +904,7 @@ function game() {
                         self.submitting = false;
                         document.getElementById('player-input')?.removeAttribute('disabled');
                     }
+                    _completeExtractionBar(payload.stream);
                 }
                 if (payload && payload.phase === 'world_done') {
                     self.asyncRunning = false;
@@ -916,9 +926,19 @@ function game() {
                     }
                 }
                 if (payload && (payload.phase === 'sanitize_start' || payload.phase === 'world_start')) {
-                    _setProgressFromPhase(strip, { phase: '', reason: '' });
-                } else {
-                    _setProgressFromPhase(strip, payload);
+                    // No card update for these phases
+                    return;
+                }
+                if (payload && payload.phase === 'ruling_start') {
+                    if (!rulingCard) {
+                        rulingCard = _showProgressCard('ruling', payload.expected_ms || 0);
+                    }
+                } else if (payload && payload.phase === 'narrate_start') {
+                    if (rulingCard) {
+                        _fadeOutCard(rulingCard);
+                        rulingCard = null;
+                    }
+                    narrationCard = _showProgressCard('narration', payload.expected_ms || 0);
                 }
             });
 
@@ -932,7 +952,7 @@ function game() {
                         present.sort((a, b) => (a.display_name || a.name || '').localeCompare(b.display_name || b.name || ''));
                         const listEl = sceneCard.querySelector('.npc-list');
                         if (listEl && present.length > 0) {
-                            listEl.innerHTML = present.map(n => _renderNpcListItem(n)).join('');
+                            listEl.innerHTML = present.map(n => _renderNpcListItem(n, true)).join('');
                         } else if (listEl) {
                             listEl.innerHTML = '<span class="empty-state">No one else is around.</span>';
                         }
@@ -979,6 +999,34 @@ function game() {
                             playerCard.appendChild(div);
                         }
                     }
+                } else if (data.panel === 'compendium' && data.data) {
+                    const compCard = document.getElementById('card-compendium');
+                    if (compCard) {
+                        const npcs = data.data.npcs || {};
+                        const allNpcs = Object.values(npcs).filter(n => n);
+                        const compList = compCard.querySelector('.compendium-list');
+                        if (compList && allNpcs.length > 0) {
+                            const present = allNpcs.filter(n => n.presence === 'present');
+                            const nearby = allNpcs.filter(n => n.presence === 'nearby');
+                            let html = '';
+                            if (present.length > 0) {
+                                html += '<div class="npc-list">';
+                                html += present.map(n => _renderNpcListItem(n, false)).join('');
+                                html += '</div>';
+                            }
+                            if (nearby.length > 0) {
+                                html += '<hr class="npc-divider">';
+                                html += '<div class="npc-list nearby-list">';
+                                html += nearby.map(n => _renderNpcListItem(n, false)).join('');
+                                html += '</div>';
+                            }
+                            compList.innerHTML = html;
+                        } else if (compList) {
+                            compList.innerHTML = '<span class="empty-state">No characters logged yet.</span>';
+                        }
+                        const countEl = compCard.querySelector('.card-count');
+                        if (countEl) countEl.textContent = allNpcs.length;
+                    }
                 } else if (data.panel === 'arc' && data.data) {
                     // Arc data synced via HTMX re-fetch at turn_complete. No early re-render needed.
                 }
@@ -987,6 +1035,7 @@ function game() {
             es.addEventListener('turn_complete', (e) => {
                 const result = JSON.parse(e.data);
                 this.turnNum = result.turn || this.turnNum;
+                _dismissExtractionRow();
                 _clearProgressStrip(strip);
 
                 const tagline = result.state ? _headerTaglineFromState(result.state) : null;

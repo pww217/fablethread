@@ -11,8 +11,17 @@ from ccya.models import NpcPresence
 
 _log = logging.getLogger(__name__)
 
-# Palette of 12 muted, distinguishable colors for dark backgrounds
+# Palette of 48 muted, distinguishable colors for dark backgrounds
 _NPC_PALETTE = [
+    "#e06c75", "#c67b40", "#e5c07b", "#7eb8da",
+    "#56b6c2", "#61afef", "#bb85f0", "#be5046",
+    "#d19a66", "#7eb8da", "#528bff", "#c678dd",
+    "#e06c75", "#c67b40", "#e5c07b", "#7eb8da",
+    "#56b6c2", "#61afef", "#bb85f0", "#be5046",
+    "#d19a66", "#7eb8da", "#528bff", "#c678dd",
+    "#e06c75", "#c67b40", "#e5c07b", "#7eb8da",
+    "#56b6c2", "#61afef", "#bb85f0", "#be5046",
+    "#d19a66", "#7eb8da", "#528bff", "#c678dd",
     "#e06c75", "#c67b40", "#e5c07b", "#7eb8da",
     "#56b6c2", "#61afef", "#bb85f0", "#be5046",
     "#d19a66", "#7eb8da", "#528bff", "#c678dd",
@@ -28,6 +37,39 @@ def generate_npc_color(npc_id: str) -> str:
 
 # Backward compat alias
 _generate_npc_color = generate_npc_color
+
+# PC and item color generators — entity-specific palettes, never collide with NPC palette
+_PC_PALETTE = [
+    "#98c379", "#a3d87a", "#8bc34a", "#7cb342",
+    "#689f38", "#558b2f", "#4caf50", "#388e3c",
+    "#43a047", "#2e7d32", "#66bb6a", "#1b5e20",
+]
+
+_ITEM_PALETTE = [
+    "#61afef", "#54a5f3", "#4a9bd9", "#3d8bd4",
+    "#2e7dd4", "#2970c7", "#3a86c7", "#1e6fc4",
+    "#2d7ac4", "#1c5db3", "#3d8fd4", "#1565c0",
+]
+
+
+def generate_pc_color() -> str:
+    """Generate a deterministic PC color (always the same value)."""
+    h = hashlib.sha256(("pc" + "pc").encode()).hexdigest()
+    idx = int(h[:8], 16) % len(_PC_PALETTE)
+    return _PC_PALETTE[idx]
+
+
+_generate_pc_color = generate_pc_color
+
+
+def generate_item_color(item_id: str) -> str:
+    """Generate a deterministic color for an item based on its ID."""
+    h = hashlib.sha256(("item" + item_id).encode()).hexdigest()
+    idx = int(h[:8], 16) % len(_ITEM_PALETTE)
+    return _ITEM_PALETTE[idx]
+
+
+_generate_item_color = generate_item_color
 
 
 def _is_named(name: str) -> bool:
