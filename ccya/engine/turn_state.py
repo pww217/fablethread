@@ -177,7 +177,13 @@ def _apply_thread_automatics(
     for i, t in enumerate(threads):
         _set_turn = getattr(t, "urgency_set_turn", None)
         if _set_turn is None:
-            continue
+            # Seed threads and new threads may lack urgency_set_turn; default to last_updated_turn for decay tracking
+            _last_updated = t.last_updated_turn or 0
+            if _last_updated == 0:
+                # Never updated — treat as just-seeded
+                _set_turn = turn_no
+            else:
+                _set_turn = _last_updated
         _age = turn_no - _set_turn
         if _age >= decay_threshold:
             _current_urgency = getattr(t, "urgency", "background")

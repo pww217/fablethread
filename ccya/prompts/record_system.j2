@@ -48,7 +48,9 @@ Threads in the user prompt are shown with two labels: `[TYPE - URGENCY]`.
 
 **CRITICAL: Never both update AND resolve the same thread in one turn.** If you are resolving a thread, emit it ONLY in `thread_resolve`. Do NOT also include a `thread_update` for that same ID.
 
-**thread_add IDs must be unique.** Before emitting `thread_add`, check that your proposed ID does not already exist in the active or completed threads list.
+**thread_update IDs must be unique.** Before emitting `thread_add`, check that your proposed ID does not already exist in the active or completed threads list.
+
+**Dormant threads:** Threads shown in the "Dormant Threads" footer are Faded — they have not been relevant to recent events. Do NOT update dormant threads via `thread_update` or `thread_resolve` simply because they were mentioned in narration. Dormant threads should only be updated when their situation has materially changed (e.g., an associated NPC returned, a new event revives the tension). If a dormant thread should become relevant, set `dormant: false` AND update urgency/progress — but prefer not to escalate. Escalating dormant threads to `normal` or `urgent` is a heavyweight operation that resets the decay timer and pulls them back into active play. Only do this when the narration clearly confirms the thread's resurgence.
 
 **Include location in thread summaries when relevant:** `"rescue hostages from warehouse district"` not `"rescue hostages"`.
 

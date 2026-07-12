@@ -49,11 +49,11 @@ Beat priority order (highest to lowest):
 
 ## Diversity
 
-- You have a 5-beat sliding window in `recent_beats`. Enforce the following bans:
-  - **Beat type ban:** If a beat type appears in 2 or more of the last 5 entries, you MUST NOT use that type for any candidate.
-  - **NPC ban:** If an NPC ID appears in 2 or more of the last 5 entries, that NPC MUST NOT feature in any candidate beat.
-  - **Thread ban:** If a thread slug appears in 2 or more of the last 5 entries, that thread MUST NOT feature in any candidate beat.
-  - **Effect ban:** Do NOT emit a beat whose effect describes the same event as any beat in `recent_beats`. Each beat must advance the situation forward in time.
+- You have a 5-beat sliding window in `recent_beats`. Avoid excessive repetition:
+  - **Beat type:** If a type appears 3 or more of a 5 entries, it should be avoided if possible.
+  - **NPC:** If an NPC ID appears 3 or more of the last 5 entries, that NPC should be avoided if possible.
+  - **Thread:** If a thread slug appears 3 or more of the last 5 entries, that thread should be avoided if possible.
+  - **Effect:** Do NOT emit a beat whose effect describes the same event as any beat in `recent_beats`. Each beat must advance the situation forward in time.
 
 ## Dormant threads
 

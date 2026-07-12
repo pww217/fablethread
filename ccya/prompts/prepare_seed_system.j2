@@ -38,7 +38,7 @@ The output must be a JSON object with this structure:
     "inventory": [{"id": "steel_water_bottle", "name": "Steel Water Bottle", "notes": "dented, in pack", "amount": 1}],
     "scene": {"tags": ["checkpoint", "tension"], "world_state": [{"id": "border_closures", "text": "Travel between districts requires a valid faction pass.", "tier": "global", "permanent": true, "valence": "threat", "expires_turn": null}]},
     "compendium": {"npcs": {"guard_captain": {"name": "Hale Voss", "title": "Checkpoint Captain", "bio": "Veteran of the border wars, now manning this post.", "presence": "present", "tie": "controls PC's passage", "motivation": "Keep the checkpoint running without incident", "fear": "Being held responsible for a breach", "leverage": "Can grant or deny passage"}}},
-    "long_term_objective": {"long_term_objective": "Reach the inner districts and find the person who can help with the crisis.", "threads": [{"id": "border_closures", "summary": "Faction-controlled checkpoints block all inter-district travel without passes.", "type": "threat", "dormant": false, "urgency": "normal"}], "completed_threads": [], "started_turn": 0},
+    "long_term_objective": {"long_term_objective": "Reach the inner districts and find the person who can help with the crisis.", "threads": [{"id": "border_closures", "summary": "Faction-controlled checkpoints block all inter-district travel without passes.", "type": "threat", "dormant": false, "urgency": "normal", "urgency_set_turn": 0}], "completed_threads": [], "started_turn": 0},
     "arc_origin": "The border walls were erected after the refugee crisis.",
     "world": {"locations": [{"id": "district_checkpoints", "name": "Outer District Checkpoints", "description": "Faction-controlled barriers between districts.", "status": "active", "tags": ["checkpoint", "controlled"]}, {"id": "inner_district", "name": "Inner District", "description": "The fortified core where faction leadership resides.", "status": "restricted", "tags": ["forbidden", "target"]}]}
   }
@@ -165,7 +165,8 @@ Bad summary: "Go to Saint Mercy Hospital and find the ledger."
   "summary": "Sailors are meeting in secret to discuss seizing the ship.",
   "type": "threat",
   "dormant": false,
-  "urgency": "normal"
+  "urgency": "normal",
+  "urgency_set_turn": 0
 }
 ```
 **Dormant threads:** Dormant threads represent tensions that have faded from immediate relevance but can be reactivated — hidden secrets, foreshadowing, latent opportunities. They should have `"urgency": "background"` and `"dormant": true`.

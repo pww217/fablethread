@@ -198,7 +198,10 @@ async def _run_world_step(
             max_size=config.recent_beats_max,
         )
 
-    _log.debug("world.step_complete trace_id=%s turn=%d valid_beats=%d", trace_id, turn_no, len(valid_beats))
+    if valid_beats:
+        _log.debug("world.step_complete trace_id=%s turn=%d valid_beats=%d", trace_id, turn_no, len(valid_beats))
+    else:
+        _log.warning("world.step_zero_beats trace_id=%s turn=%d — no valid beats generated", trace_id, turn_no, extra={"turn": turn_no})
     return state, valid_beats, system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}
 
 
