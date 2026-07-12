@@ -446,6 +446,181 @@ function _bindProgressTimer(strip) {
     }, 250);
 }
 
+function _createProgressCardHTML(phaseName, expectedMs) {
+    var label = '';
+    switch (phaseName) {
+        case 'ruling': label = 'Determining outcome…'; break;
+        case 'narration': label = 'Composing narrative…'; break;
+        case 'scene': label = 'Refreshing scene…'; break;
+        case 'state': label = 'Updating state…'; break;
+        case 'record': label = 'Recording outcome…'; break;
+        default: label = phaseName.charAt(0).toUpperCase() + phaseName.slice(1);
+    }
+    var etaText = (expectedMs > 0) ? '~' + (expectedMs / 1000).toFixed(0) + 's avg' : '';
+    return '<div class="progress-card progress-card--' + phaseName + '">'
+        + '<div class="progress-card-inner">'
+        + '<span class="progress-spinner"></span>'
+        + '<span class="progress-label">' + label + '</span>'
+        + '<span class="progress-metas">'
+        + '<span class="progress-eta">' + etaText + '</span>'
+        + '<span class="progress-elapsed">0.0s</span>'
+        + '</span>'
+        + '</div>'
+        + '<div class="progress-bar-wrapper">'
+        + '<div class="progress-bar progress-bar--' + phaseName + '">'
+        + '<div class="progress-bar-fill"></div>'
+        + '</div>'
+        + '</div>'
+        + '</div>';
+}
+
+function _showProgressCard(phase, expectedMs) {
+    var card = document.createElement('div');
+    card.innerHTML = _createProgressCardHTML(phase, expectedMs);
+    card = card.firstChild;
+
+    // Find where to insert: after the progress strip in the narrative block
+    var strip = document.querySelector('.progress-strip');
+    var block = document.querySelector('.narrative-block');
+
+    if (strip && block) {
+        block.insertBefore(card, strip.nextSibling);
+    } else if (block) {
+        block.appendChild(card);
+    }
+
+    card._phaseStart = Date.now();
+    var etaEl = card.querySelector('.progress-eta');
+    var elapsedEl = card.querySelector('.progress-elapsed');
+
+    if (etaEl && expectedMs > 0) {
+        etaEl.textContent = '~' + (expectedMs / 1000).toFixed(0) + 's avg';
+    } else if (etaEl) {
+        etaEl.textContent = '';
+    }
+
+    card._tick = setInterval(function() {
+        if (!elapsedEl) return;
+        var elapsed = Date.now() - card._phaseStart;
+        var s = elapsed / 1000;
+        elapsedEl.textContent = (s < 10 ? s.toFixed(1) : s.toFixed(0)) + 's';
+
+        var fill = card.querySelector('.progress-bar-fill');
+        if (fill && expectedMs > 0) {
+            var pct = Math.min(100, (elapsed / expectedMs) * 100);
+            fill.style.width = pct + '%';
+        }
+    }, 250);
+
+    if (strip) strip.setAttribute('data-phase', '');
+    return card;
+}
+
+function _fadeOutCard(cardElement) {
+    if (!cardElement) return;
+    if (cardElement._tick) clearInterval(cardElement._tick);
+    cardElement.style.animation = 'fadeOutCard 0.3s ease-out forwards';
+    setTimeout(function() {
+        if (cardElement.parentNode) cardElement.parentNode.removeChild(cardElement);
+    }, 300);
+}
+
+function _showExtractionRow(payload) {
+    var row = document.createElement('div');
+    row.className = 'extraction-row';
+    row.setAttribute('data-complete', 'false');
+
+    var streams = ['scene', 'state', 'record'];
+    var streamLabels = { scene: 'Refreshing scene…', state: 'Updating state…', record: 'Recording outcome…' };
+
+    for (var i = 0; i < streams.length; i++) {
+        var streamName = streams[i];
+        var expMs = 0;
+        if (payload) {
+            var exp = payload[streamName + '_expected_ms'];
+            if (exp && exp > 0) expMs = exp;
+            else { expMs = _getFallbackExpectedMs(streamName); }
+        } else {
+            expMs = _getFallbackExpectedMs(streamName);
+        }
+
+        var bar = document.createElement('div');
+        bar.className = 'extraction-bar extraction-bar--' + streamName;
+        bar.setAttribute('data-complete', 'false');
+        bar.setAttribute('data-stream', streamName);
+
+        var label = '<span class="progress-label">' + (streamLabels[streamName] || streamName) + '</span>';
+        var etaText = expMs > 0 ? '~' + (expMs / 1000).toFixed(0) + 's avg' : '';
+        var metas = '<span class="progress-metas"><span class="progress-eta">' + etaText + '</span><span class="progress-elapsed">0.0s</span></span>';
+        var barHtml = '<div class="progress-bar progress-bar--' + streamName + '"><div class="progress-bar-fill"></div></div>';
+        bar.innerHTML = label + metas + barHtml;
+
+        bar._phaseStart = Date.now();
+        bar._expectedMs = expMs;
+        row.appendChild(bar);
+    }
+
+    var strip = document.querySelector('.progress-strip');
+    var block = document.querySelector('.narrative-block');
+    if (strip && block) {
+        block.insertBefore(row, strip.nextSibling);
+    } else if (block) {
+        block.appendChild(row);
+    }
+}
+
+function _getFallbackExpectedMs(streamName) {
+    var fallbacks = { scene: 3000, state: 3000, record: 6000 };
+    return fallbacks[streamName] || 3000;
+}
+
+function _completeExtractionBar(streamName) {
+    var row = document.querySelector('.extraction-row');
+    if (!row) return;
+    var bar = row.querySelector('.extraction-bar--' + streamName);
+    if (!bar) return;
+
+    var fill = bar.querySelector('.progress-bar-fill');
+    if (fill) fill.style.width = '100%';
+    bar.setAttribute('data-complete', 'true');
+
+    var label = bar.querySelector('.progress-label');
+    if (label) label.textContent = 'Complete';
+
+    var expected = bar._expectedMs || 0;
+    var elapsed = Date.now() - bar._phaseStart;
+    if (expected > 0 && elapsed > expected) {
+        // Bar should already be full
+    } else if (expected > 0) {
+        // Fill rapidly if phase just completed
+        var remaining = Math.max(0, expected - elapsed);
+        fill.style.transition = 'width ' + Math.min(remaining, 500) + 'ms ease-out';
+        fill.style.width = '100%';
+    }
+
+    // Check if all bars are complete
+    var allComplete = true;
+    var bars = row.querySelectorAll('.extraction-bar');
+    for (var i = 0; i < bars.length; i++) {
+        if (bars[i].getAttribute('data-complete') !== 'true') {
+            allComplete = false;
+            break;
+        }
+    }
+    if (allComplete) {
+        row.setAttribute('data-complete', 'true');
+    }
+}
+
+function _dismissExtractionRow() {
+    var row = document.querySelector('.extraction-row');
+    if (!row) return;
+    row.style.animation = 'fadeOutCard 0.3s ease-out forwards';
+    setTimeout(function() {
+        if (row.parentNode) row.parentNode.removeChild(row);
+    }, 300);
+}
+
 function applyCardOpenStateFromStorage() {
     document.querySelectorAll('aside.sidebar details.sidebar-card[data-card]').forEach((d) => {
         const v = localStorage.getItem(CCYA_CARD_KEY(d.dataset.card));
@@ -832,10 +1007,9 @@ function initTurnLogUi() {
     });
 }
 
-function _renderNpcListItem(npc) {
+function _renderNpcListItem(npc, showPosition) {
     const name = npc.display_name || npc.name || npc.id || '?';
     const title = npc.title || '';
-    const position = npc.position || '';
     const bio = npc.bio || '';
     const pl = npc.personality_label || '';
     const pt = npc.personality_traits || '';
@@ -845,7 +1019,7 @@ function _renderNpcListItem(npc) {
     const color = npc.color || _npcColor(npc.id || name);
     const borderColor = npc.presence === 'nearby' ? 'var(--border-subtle)' : color;
     const nameHtml = title ? `${_escapeHtml(name)}<span class="npc-title"> — ${_escapeHtml(title)}</span>` : _escapeHtml(name);
-    const posHtml = position ? `<span class="npc-position-inline">${_escapeHtml(position)}</span>` : '';
+    const posHtml = (showPosition && npc.position) ? `<span class="npc-position-inline">${_escapeHtml(npc.position)}</span>` : '';
     let tipHtml = '';
     if (hasTooltip) {
         if (bio) tipHtml += `<p>${bio}</p>`;

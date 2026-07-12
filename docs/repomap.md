@@ -10,7 +10,7 @@
 | `ccya/errors.py` | ErrorKind constants + LlmcError exception hierarchy |
 | `ccya/engine/__init__.py` | Re-exports public APIs; LLM client re-exports; turn lock helpers |
 | `ccya/engine/config.py` | EngineConfig dataclass (fields: convergence_alpha, convergence_enter_threshold, convergence_exit_threshold, RISING_min, CLIMAX_min, BREATHER_min, climax_turn_limit, extension_max, roll_starvation_threshold, threat_density_threshold, prepare_seed_temperature=0.4, prepare_seed_top_p=0.95, etc.); CheckerConfig threshold fields; turn lock management; Jinja env setup |
-| `ccya/engine/turn.py` | `run_turn()` orchestrator (~210 lines, down from 667); extracted subroutines: `_narrate_phase()` (narration streaming), `_extract_phase()` (extraction pipeline + metrics), `_apply_phase()` (delta application + rejection), `_persist_and_async_cleanup()` (event building, prompt logging, async sanitize/world, save); pipeline (rules→narrate→extract→apply→persist); end-of-turn async phases (Sanitize + World) after yield("complete"); deferred atomic write block with last_turn_state capture |
+| `ccya/engine/turn.py` | `run_turn()` orchestrator (~210 lines, down from 667); extracted subroutines: `_narrate_phase()` (narration streaming), `_extract_phase()` (extraction pipeline + metrics), `_apply_phase()` (delta application + rejection), `_persist_and_async_cleanup()` (event building, prompt logging, async sanitize/world, save); pipeline (rules→narrate→extract→apply→persist); end-of-turn async phases (Sanitize + World) after yield("complete"); deferred atomic write block with last_turn_state capture; events.jsonl includes `scene.total_ms`, `state.total_ms`, `record.total_ms` top-level fields for per-sub-stream duration tracking |
 | `ccya/engine/turn_context.py` | TurnContext + PacingContext dataclasses |
 | `ccya/engine/turn_state.py` | State delta application: thread updates, arc resolution, thread resolutions, validation, NPC lifecycle decay, TTL condition expiration (_expire_conditions); LongTermObjective.started_turn on arc resolve; location-change NPC demotion: `last_seen_location` stamping guard (new NPCs get location stamped, existing NPCs keep tracked location); compendium update handler with `last_presence_turn` tracking |
 | `ccya/engine/_pacing.py` | Beat constraints (BEAT_BUCKETS: tension/discovery/respite, no hazard), convergence score (urgent_thread 0-2 count-capped), hysteresis + min_turns phase transitions; `compute_convergence_score(scene_phase, active_threads, recent_beats, config, turn_no, recent_rolls) -> tuple[int, dict[str, int]]`; `_compute_scene_phase(state, ages, config, smoothed_convergence, turn_no)` |
@@ -19,7 +19,7 @@
 | `ccya/engine/pack_gen.py` | LLM-generated ScenarioBrief → packs/custom/ |
 | `ccya/engine/names.py` | Name pool generation via Faker |
 | `ccya/engine/ruling.py` | Ruling prompts + LLM call with retry; `_filter_pc_situation()` filters pc.situation to persist=true keys from `state.pc_situation_schema`; index-based beat selection from `state.meta.beat_candidates`; validates selected beat type against `allowed_beat_types` (phase constraint); passes npcs through to pending_gm_beat; sets/pops `state.meta.pending_gm_beat` and `state.meta.beat_candidates` per turn |
-| `ccya/engine/extraction/` | Scene/state/record extraction pipeline (3 streams); `gm_beat` field removed from `StorytellerResult`; `candidate_npcs` removed from `SceneExtractResult`; `pacing_context` removed from pipeline signature (World reads directly from turn.py); `rules_outcome` replaced with `band` parameter |
+| `ccya/engine/extraction/` | Scene/state/record extraction pipeline (3 streams); `_run_extraction_pipeline` threads `save_dir` through streams; `extract_stream_done` events include `expected_ms`; `gm_beat` field removed from `StorytellerResult`; `candidate_npcs` removed from `SceneExtractResult`; `pacing_context` removed from pipeline signature (World reads directly from turn.py); `rules_outcome` replaced with `band` parameter |
 | `ccya/engine/narrate.py` | Narrate prompt building; `_filter_pc_situation()` filters pc.situation to persist=true keys from `state.pc_situation_schema`; narrate_user.j2 includes `pc_situation` section (previously only ruling had it) |
 | `ccya/engine/hints.py` | Hint generation for ruling context (pc.situation) |
 | `ccya/engine/thread_sanitizer.py` | Batch arc/thread cleanup every N turns; atomic world_state swap |
@@ -74,7 +74,7 @@
 | `ccya/static/app-shell.css` | Main game UI — shell layout, header, narrative column, sidebars, modals, responsive rules |
 | `ccya/static/chronicle.css` | Chronicle overlay — turn log shell, panel, scrollbar |
 | `ccya/static/turn-viewer.css` | Standalone full-page debug turn viewer |
-| `ccya/static/game-utils.js` | Pure utility functions — markdown, entities, tooltips, display drain, pills |
+| `ccya/static/game-utils.js` | Pure utility functions — markdown, entities, tooltips, display drain, pills, progress card lifecycle (`_createProgressCardHTML()`, `_showProgressCard()`, `_fadeOutCard()`, `_showExtractionRow()`, `_completeExtractionBar()`, `_dismissExtractionRow()`) |
 | `ccya/static/game.js` | Alpine components — `charCreation()`, `worldBuilder()`, `game()` |
 | `ccya/static/app-init.js` | DOM initialization — `DOMContentLoaded` handlers, HTMX wiring, pills layout |
 

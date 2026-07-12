@@ -70,7 +70,7 @@ flowchart TD
 2. Opens `EventSource` to `GET /turn?input=<text>` — SSE endpoint in `routes.py:238`
 3. Server streams events as the 5-stage pipeline (`run_turn()`) executes:
    - `narrative_token` — token chunks streamed as they arrive from LLM
-    - `phase` — pipeline phase progress (ruling_start, narrate_start, narrate_first_token, narrate_done, extract_start, extract_done, sanitize_start, sanitize_done, persist)
+    - `phase` — pipeline phase progress (ruling_start, narrate_start, narrate_first_token, narrate_done, extract_stream_start, extract_stream_done, extract_start, extract_done, sanitize_start, sanitize_done, persist); ruling_start/narrate_start include `expected_ms`; extract_stream_done includes `expected_ms` and `stream`
    - `turn_complete` — final result
    - `turn_error` — error payload
 4. Client `_startDisplayDrain()`: reveals 6 characters per animation frame for smooth streaming
