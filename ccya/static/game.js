@@ -780,23 +780,11 @@ function game() {
             textDiv.className = 'narrative-text';
             textDiv.innerHTML = '<span class="streaming-cursor"></span>';
             textDiv.classList.add('streaming');
-            // Detached element cleanup
-            // that call `cursor.remove()`. The live cursor span lives inside textDiv
-            // and is replaced each render in `_drainRenderFn`.
-            const cursor = document.createElement('span');
-            const strip = document.createElement('div');
-            var rulingCard = null;
-            var narrationCard = null;
-            strip.className = 'progress-strip';
-            strip.setAttribute('data-phase', 'ruling');
-            strip.innerHTML = _progressStripHTML();
-            _bindProgressTimer(strip);
             block.appendChild(echo);
             block.appendChild(textDiv);
-            block.appendChild(strip);
             np.appendChild(block);
 
-            // One-time scroll to bottom so "determining outcome" state is visible.
+            // One-time scroll so the fresh turn block starts in view.
             np.scrollTo({ top: np.scrollHeight, behavior: 'instant' });
 
             const self = this;
@@ -809,8 +797,6 @@ function game() {
                 }
                 self._turnEs = null;
                 self._turnCancel = null;
-                _clearProgressStrip(strip);
-                if (cursor.parentNode) cursor.remove();
                 if (textDiv) {
                     textDiv.classList.remove('streaming');
                     textDiv.innerHTML = '';
@@ -890,13 +876,14 @@ function game() {
                     if (stateScript) {
                         try { _highlightEntities(textDiv, JSON.parse(stateScript.textContent)); } catch (e) { /* skip */ }
                     }
-                    var narrationCard = document.querySelector('.progress-card--narration');
-                    if (narrationCard) _fadeOutCard(narrationCard);
                     _showExtractionRow({
                         scene_expected_ms: payload.scene_expected_ms || 0,
                         state_expected_ms: payload.state_expected_ms || 0,
                         record_expected_ms: payload.record_expected_ms || 0,
-                    });
+                    }, block);
+                }
+                if (payload && payload.phase === 'extract_stream_start' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
+                    _activateExtractionBar(payload.stream);
                 }
                 if (payload && payload.phase === 'extract_stream_done' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
                     if (payload.stream === 'record') {
@@ -925,20 +912,9 @@ function game() {
                         setTimeout(() => document.getElementById('player-input')?.focus(), 100);
                     }
                 }
-                if (payload && (payload.phase === 'sanitize_start' || payload.phase === 'world_start')) {
-                    // No card update for these phases
+                if (payload && (payload.phase === 'sanitize_start' || payload.phase === 'world_start' || payload.phase === 'ruling_start' || payload.phase === 'narrate_start')) {
+                    // No progress UI for these phases; extraction row is shown at narrate_done.
                     return;
-                }
-                if (payload && payload.phase === 'ruling_start') {
-                    if (!rulingCard) {
-                        rulingCard = _showRulingCard(payload.expected_ms || 0);
-                    }
-                } else if (payload && payload.phase === 'narrate_start') {
-                    if (rulingCard) {
-                        _fadeOutCard(rulingCard);
-                        rulingCard = null;
-                    }
-                    narrationCard = _showProgressCard('narration', payload.expected_ms || 0);
                 }
             });
 
@@ -1036,14 +1012,12 @@ function game() {
                 const result = JSON.parse(e.data);
                 this.turnNum = result.turn || this.turnNum;
                 _dismissExtractionRow();
-                _clearProgressStrip(strip);
 
                 const tagline = result.state ? _headerTaglineFromState(result.state) : null;
                 const hl = document.getElementById('header-logo');
                 if (hl && tagline) hl.innerHTML = _renderMarkdownInline(tagline);
                 if (tagline) document.title = 'CCYA: ' + tagline.replace(/\*\*?([^*]+)\*\*?/g, '$1').trim();
 
-                if (cursor.parentNode) cursor.remove();
                 textDiv.classList.remove('streaming');
                 textDiv.innerHTML = _renderMarkdown(_capitalizeFirst(result.narrative || ''));
                 if (result.state) _highlightEntities(textDiv, result.state);
@@ -1133,8 +1107,7 @@ function game() {
                 es.close();
                 self._turnEs = null;
                 self._turnCancel = null;
-                _clearProgressStrip(strip);
-                if (cursor.parentNode) cursor.remove();
+                _dismissExtractionRow();
                 const data = JSON.parse(e.data);
                 textDiv.innerHTML =
                     `<span style="color:var(--accent-error)">${_escapeHtml(data.error || 'Unknown error')}</span>`;
@@ -1149,8 +1122,7 @@ function game() {
                 self._turnEs = null;
                 self._turnCancel = null;
                 if (this.submitting) {
-                _clearProgressStrip(strip);
-                if (cursor.parentNode) cursor.remove();
+                    _dismissExtractionRow();
                     textDiv.insertAdjacentHTML('beforeend',
                         '<span style="color:var(--accent-error)"> [connection\u00a0lost\u00a0\u2014 try again]</span>');
                     document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = false; });
