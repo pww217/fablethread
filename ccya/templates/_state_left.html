@@ -3,76 +3,74 @@
 {% set _present = namespace(items=[], nearby_items=[]) %}
 {% if comp %}{% for _k, _v in comp.items() %}{% set _presence = _v.presence.value if _v.presence else "known" %}{% if _presence == "present" %}{% set _present.items = _present.items + [_v] %}{% elif _presence == "nearby" %}{% set _present.nearby_items = _present.nearby_items + [_v] %}{% endif %}{% endfor %}{% endif %}
 {% set present_npcs = (_present.items | sort(attribute="name")) if _present.items else [] %}
-{% set nearby_npcs = (_present.nearby_items | sort(attribute="name")) if _present.nearby_items else [] %}
 {% if present_npcs or nearby_npcs %}
-<details class="sidebar-card" id="card-scene" data-card="scene" open>
-    <summary>Scene</summary>
+<details class="sidebar-card" id="card-characters" data-card="characters" open>
+    <summary><span>Characters</span></summary>
     <div class="sidebar-card-body">
         <div class="npc-list">
-            {% for _k, npc in comp.items() %}{% if npc in present_npcs %}
-            {% set npc_name = npc.name or _k %}
-            {% set npc_title = npc.title %}
-            {% set npc_position = npc.position %}
-            {% set npc_bio = npc.bio %}
-            {% set _mot = npc.motivation %}
-            {% set npc_tie = npc.tie %}
-            {% set _has_tt = npc_bio or _mot or npc_tie %}
-            {% set _color = npc.color | default(_k | npc_color) %}
-            <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}" style="border-left-color:{{ _color }}" data-npc-id="{{ _k }}">
-                <span class="npc-name-row">
-                    <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
-                    <span class="npc-party-toggle{{ ' active' if npc.party else '' }}" data-npc-id="{{ _k }}" data-party="{{ 'true' if npc.party else 'false' }}" onclick="toggleNpcParty('{{ _k }}')">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </span>
-                </span>
-                {% if npc_position %}
-                <span class="npc-position-inline">{{ npc_position }}</span>
-                {% endif %}
-                {% if _has_tt %}
-                <div class="tooltip-body" data-md-compendium>
-                    {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
-                    {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% endif %}
-                    {% if npc_tie %}<p><strong>Tie:</strong> {{ npc_tie }}</p>{% endif %}
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}{% endfor %}
-        </div>
-        {% else %}
-        <span class="empty-state">No one else is around.</span>
-        {% endif %}
-        {% if nearby_npcs %}
-        <hr class="npc-divider">
-        <div class="npc-list nearby-list">
-            {% for _k, npc in comp.items() %}{% if npc in nearby_npcs %}
-            {% set npc_name = npc.name or _k %}
-            {% set npc_title = npc.title %}
-            {% set npc_position = npc.position %}
-            {% set npc_bio = npc.bio %}
-            {% set _mot = npc.motivation %}
-            {% set npc_tie = npc.tie %}
-            {% set _has_tt = npc_bio or _mot or npc_tie %}
-            <div class="npc-item nearby-item{% if _has_tt %} has-tooltip{% endif %}" data-npc-id="{{ _k }}">
-                <span class="npc-name-row">
-                    <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
-                    <span class="npc-party-toggle{{ ' active' if npc.party else '' }}" data-npc-id="{{ _k }}" data-party="{{ 'true' if npc.party else 'false' }}" onclick="toggleNpcParty('{{ _k }}')">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </span>
-                </span>
-                {% if npc_position %}
-                <span class="npc-position-inline">{{ npc_position }}</span>
-                {% endif %}
-                {% if _has_tt %}
-                <div class="tooltip-body" data-md-compendium>
-                    {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
-                    {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% endif %}
-                    {% if npc_tie %}<p><strong>Tie:</strong> {{ npc_tie }}</p>{% endif %}
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}{% endfor %}
-        </div>
-        {% endif %}
+{% for _k, npc in comp.items() %}{% if npc in present_npcs %}
+{% set npc_name = npc.name or _k %}
+{% set npc_title = npc.title %}
+{% set npc_position = npc.position %}
+{% set npc_bio = npc.bio %}
+{% set _mot = npc.motivation %}
+{% set npc_tie = npc.tie %}
+{% set _has_tt = npc_bio or _mot or npc_tie %}
+{% set _color = npc.color | default(_k | npc_color) %}
+<div class="npc-item{% if _has_tt %} has-tooltip{% endif %}" style="border-left-color:{{ _color }}" data-npc-id="{{ _k }}">
+    <span class="npc-name-row">
+        <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
+        <span class="npc-party-toggle{{ ' active' if npc.party else '' }}" data-npc-id="{{ _k }}" data-party="{{ 'true' if npc.party else 'false' }}" onclick="toggleNpcParty('{{ _k }}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+    </span>
+{% if npc_position %}
+<span class="npc-position-inline">{{ npc_position }}</span>
+{% endif %}
+{% if _has_tt %}
+<div class="tooltip-body" data-md-compendium>
+    {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
+    {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% endif %}
+    {% if npc_tie %}<p><strong>Tie:</strong> {{ npc_tie }}</p>{% endif %}
+</div>
+{% endif %}
+</div>
+{% endif %}{% endfor %}
+{% if not present_npcs and not nearby_npcs %}
+<span class="empty-state">No one else is around.</span>
+{% endif %}
+{% if nearby_npcs %}
+<hr class="npc-divider">
+<div class="npc-list nearby-list">
+{% for _k, npc in comp.items() %}{% if npc in nearby_npcs %}
+{% set npc_name = npc.name or _k %}
+{% set npc_title = npc.title %}
+{% set npc_position = npc.position %}
+{% set npc_bio = npc.bio %}
+{% set _mot = npc.motivation %}
+{% set npc_tie = npc.tie %}
+{% set _has_tt = npc_bio or _mot or npc_tie %}
+<div class="npc-item nearby-item{% if _has_tt %} has-tooltip{% endif %}" data-npc-id="{{ _k }}">
+    <span class="npc-name-row">
+        <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
+        <span class="npc-party-toggle{{ ' active' if npc.party else '' }}" data-npc-id="{{ _k }}" data-party="{{ 'true' if npc.party else 'false' }}" onclick="toggleNpcParty('{{ _k }}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </span>
+    </span>
+{% if npc_position %}
+<span class="npc-position-inline">{{ npc_position }}</span>
+{% endif %}
+{% if _has_tt %}
+<div class="tooltip-body" data-md-compendium>
+    {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
+    {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% endif %}
+    {% if npc_tie %}<p><strong>Tie:</strong> {{ npc_tie }}</p>{% endif %}
+</div>
+{% endif %}
+</div>
+{% endif %}{% endfor %}
+</div>
+{% endif %}
     </div>
 </details>
 {% endif %}

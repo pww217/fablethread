@@ -899,7 +899,7 @@ function game() {
                 if (payload && payload.phase === 'world_done') {
                     self.asyncRunning = false;
                     // Re-fetch right panel, now that async window (sanitize + world) has completed.
-                    // Left panel was already re-fetched at turn_complete with post-extraction state.
+                    // Left panel updates via panel_update SSE events during extraction.
                     if (typeof htmx !== 'undefined') {
                         htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
                     }
@@ -925,7 +925,7 @@ function game() {
             es.addEventListener('panel_update', (e) => {
                 const data = JSON.parse(e.data);
                 if (data.panel === 'scene' && data.data) {
-                    const sceneCard = document.getElementById('card-scene');
+                    const sceneCard = document.getElementById('card-characters');
                     if (sceneCard) {
                         const npcs = data.data.npcs || {};
                         const present = Object.values(npcs).filter(n => n && n.presence === 'present');
@@ -1071,15 +1071,6 @@ function game() {
                 _prependTurnLogTurn(result.turn, result.change_lines || [], result.ruling);
 
                 this.submitting = false;
-
-                // Re-render left panel now that state.yaml has post-extraction state
-                // (compendium with NPC presence, location, objective, compendium).
-                // This syncs scene NPCs (issue 1: left panel never updated),
-                // objective threads (from record extraction), compendium, and the
-                // NPC lifecycle decay that runs after extraction (issue 3).
-                if (typeof htmx !== 'undefined') {
-                    htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
-                }
 
                 if (result.game_over) {
                     _showGameOver(this);
