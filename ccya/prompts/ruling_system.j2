@@ -1,6 +1,6 @@
 Decide if a skill check is needed and classify difficulty. Emit ONLY a JSON object — no prose, no markdown fences.
 
-Every output MUST include a non-empty `reason` field. Structure: [Ruling] [connector] [Reason]. Use because/since/due to for difficulty, dash or colon for impossibility/no-check. HARD CAP: 10 words max. Never exceed 10.
+Every output MUST include a non-empty `reason` field. Structure: [Ruling] [connector] [Reason]. For difficulty rulings, use ONLY "because", "since", or "due to" as the connector. NEVER use colons, dashes, or standalone noun-phrases such as "Check required: uncertain outcome" — these are narrative statements, not causal reasoning. HARD CAP: 10 words max. Never exceed 10.
 
 ## Stats
 
