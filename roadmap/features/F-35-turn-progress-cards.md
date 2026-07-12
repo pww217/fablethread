@@ -24,19 +24,13 @@ Replace the single horizontal progress strip (`<div class="progress-strip" data-
 **Phase 1 — Pre-narration (one card at a time):**
 - Ruling card (violet, `--stage-ruling`): appears on `ruling_start`, fills, fades at `narrate_start`.
 - Narration card (blue, `--stage-narrate`): appears on `narrate_start`, fills, fades at `narrate_done`.
-- Each card has its own progress bar, spinner, and elapsed timer. Fills at `elapsed / expectedMs`.
+- Each card has its own progress bar, elapsed timer. Fills at `elapsed / expectedMs`.
 
 **Phase 2 — Post-narration (extraction row):**
 - All three extraction bars (scene, state, record) appear together in a single row when `narrate_done` fires.
 - Three bars, each with its own color: scene (green), state (amber), record (pink).
 - All three remain visible throughout while bars fill sequentially.
 - When record fills, the entire row fades and outcome summary appears.
-
-### Remaining issues (2026-07-12)
-
-- **Bar height**: Progress bars are ~4px tall, need ~8px for visibility.
-- **Timing accuracy**: Extraction bars do not reliably use per-phase expected_ms from server events — some fall back to hardcoded values. Ruling/narration cards also need validation that they use server-provided timing correctly.
-- **Ruling card format**: Still uses `_showProgressCard` / `_createProgressCardHTML` machinery instead of the cleaner `.extraction-bar` single-row layout used by extraction bars.
 
 ### Color tokens
 
@@ -73,10 +67,12 @@ Replace the single horizontal progress strip (`<div class="progress-strip" data-
 
 ### Implementation notes
 
-- Functions live in `ccya/static/game-utils.js`: `_showProgressCard`, `_fadeOutCard`, `_showExtractionRow`, `_activateExtractionBar`, `_completeExtractionBar`, `_dismissExtractionRow`.
-- Cards via `_createProgressCardHTML` generate `.extraction-bar` single-row HTML.
-- Extraction bars via `_showExtractionRow` generate `.extraction-row` → `.extraction-bar` → `.progress-bar` → `.progress-bar-fill`.
+- Functions live in `ccya/static/game-utils.js`: `_showRulingCard`, `_showNarrationCard`, `_showExtractionRow`, `_activateExtractionBar`,
+  `_completeExtractionBar`, `_dismissExtractionRow`.
+- Ruling card via `_showRulingCard()` generates `.extraction-bar extraction-bar--ruling` HTML matching extraction row format (flat slot-row layout).
+- Narration card via `_showNarrationCard()` generates `.extraction-bar extraction-bar--narration` HTML.
+- Extraction bars via `_showExtractionRow()` generate `.extraction-row` → `.extraction-bar` → `.progress-bar` → `.progress-bar-fill`.
 - Cards use `<progress>`-less CSS bars (no native `<progress>` element).
 - Each card manages its own `setInterval` elapsed timer independently.
-- When no server-side history exists (first turn), use fallback estimates: ruling 3s, narration 8s, scene 3s, state 3s, record 6s. `_avg_event_ms()` from server takes over after first turns.
+- Server sends `expected_ms` for ruling/narration (`ruling_start` / `narrate_start`), and per-phase `expected_ms` (`scene/state/record`) in `narrate_done` and `extract_stream_done`.
 - After turn completes, all progress indicators are gone. What remains: narration text, outcome summary, and band summary.
