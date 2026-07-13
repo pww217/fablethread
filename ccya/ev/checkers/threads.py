@@ -164,7 +164,8 @@ def thread_urgency_decay(events: list[dict[str, Any]], *, config: Any = None) ->
                     all_passed = False
 
             # Threads at same urgency >= 8 turns should be demoted stepwise
-            if urgency_set_turn is not None:
+            # Dormant threads are exempt — the engine enforces urgency=background for them
+            if urgency_set_turn is not None and not dormant:
                 turns_at_urgency = current_turn - urgency_set_turn
                 if turns_at_urgency >= cfg.thread_urgency_max_age:
                     # Should be demoted: urgent→normal, normal→background

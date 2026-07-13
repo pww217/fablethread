@@ -1,6 +1,6 @@
 ---
 title: "Sidebar bugs: departed reason, scene panel, and party toggle race condition"
-status: testing
+status: done
 urgency: 3
 size: small
 created: 2026-07-12

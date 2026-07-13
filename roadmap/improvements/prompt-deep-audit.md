@@ -1,6 +1,6 @@
 ---
 title: "Prompt audit — architecture alignment, variables, schema, edge cases"
-status: implemented
+status: done
 type: improvement
 urgency: 3
 size: large
