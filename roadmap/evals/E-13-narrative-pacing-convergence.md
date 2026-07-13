@@ -413,6 +413,34 @@ When beat_candidates are non-empty (Scene Pressure at T7 with beats=["pressure",
 
 | Checker | Status | Notes |
 |---------|--------|-------|
-| `beat_candidates_present` | FIXED (skeleton) + ENGINE ISSUE | Checker fixed: now checks top-level AND last_turn_state for `post_turn_pending_beat`. Passes for piracy (19/19) and space (39/39). Noir still fails T12-T14: World step returns empty because dedup filters beats. Four fixes decided: (1) broaden CLIMAX beat types to include discovery beats, (2) remove engine dedup entirely (structurally broken — 5-word checks structural tokens not semantic params, 150-char prefix only catches exact matches), (3) reduce `recent_beats_max` from 5 to 4 (aligns prompt diversity window with convergence calculation), (4) lower beat_streak threshold from 60% to 50% (2-of-4 quorum instead of 3-of-5) — convergence `beat_streak` uses `recent_beats[:min(n,5)]` (unaffected by `recent_beats_max`) so it stays at 5-entry window for wider view while World prompt LLM operates on 4-entry window. Prompt diversity guidance sufficient. |
+| `beat_candidates_present` | ENGINE FIX APPLIED — pending Phase 4 test | Checker fixed: now checks top-level AND last_turn_state for `post_turn_pending_beat`. Passes for piracy (19/19) and space (39/39). Noir T12-T15 fix built via: (1) CLIMAX +3 discovery beat types, (2) engine dedup removed entirely, (3) `recent_beats_max` 5→4, (4) World prompt diversity guidance updated to 4-entry window. Pending Phase 4 noir 15-turn run to verify fix. |
 | `thread_urgency_decay` | AUTO-FIXED | Was passing checker on current code. Likely `last_turn_state.meta.turn` was fixed in recent commits. No action needed. |
 | `location_change` | AUTO-FIXED | Was passing checker on current code. Delta builder no longer emits `applied.location_change` when ID is unchanged. No action needed. |
+
+### Engine Fixes Applied
+
+Four engine changes resolving Noir T12-T15 `beat_candidates=[]` dead end (running `Phase 4` to verify):
+
+**Fix 1 — Broaden CLIMAX beat types** (`ccya/engine/_pacing.py:30`)
+- `BEAT_PHASE_MAP["CLIMAX"]`: `["pressure", "escalation", "complication"]` → `["pressure", "escalation", "complication", "revelation", "callback", "twist"]`
+- 3 tension : 3 discovery ratio
+- Discovery beats produce `[reveal: ]` / `[twist:]` syntax that breaks the `[blend:]/[highlight:]/[thread:]` pattern, giving LLM fresh mechanism structures
+- Commit: mentioned in earlier commits
+
+**Fix 2 — Remove engine dedup entirely** (`ccya/engine/world.py:145-152`)
+- Removed 5-word structural token dedup, 150-char prefix dedup, and batch dedup (37 lines deleted from `_run_world_step`)
+- Root cause: 5-word check compares fixed template tokens (`"[blend:", "motivation", "vs", "fear]", "[thread:"`) not semantic content. Tested against 8 real LLM beats → filtered 4/8 (50%) of semantically distinct beats just because they shared prompt template tokens
+- 150-char prefix did zero filtering (beats are 85-120 chars, so only catches exact strings)
+- Prompt internal diversity guidance (4-entry window, effect uniqueness) is the correct mechanism
+- Commit: `d62d3cca`
+
+**Fix 3 — Reduce `recent_beats_max` from 5 to 4** (`ccya/engine/config.py:73`)
+- Config `recent_beats_max: int = 4`
+- Aligns World step `recent_beats` history with World prompt diversity guidance (4-entry window)
+- Convergence `beat_streak` uses `recent_beats[:min(n, 5)]` (hardcoded 5, unchanged — intentional wider view)
+- Commit: `d62d3cca`
+
+**Fix 4 — Update World prompt to match `recent_beats_max=4`** (`ccya/prompts/world_system.j2:54-57`)
+- "5-beat sliding window" → "4-beat sliding window"
+- "3 or more of 5 entries" → "2 or more of 4 entries" (maintains 50% threshold vs 60% for type/NPC/thread avoidance)
+- Commit: `ce5e3088`
