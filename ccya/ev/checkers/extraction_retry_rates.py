@@ -13,6 +13,7 @@ _log = logging.getLogger(__name__)
     "extraction_retry_rates", "deterministic",
     requires_fields=["extraction"],
     description="Track retry rates across all extraction steps (scene, state, record)",
+    requires_all_events=True,
 )
 def extraction_retry_rates(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []

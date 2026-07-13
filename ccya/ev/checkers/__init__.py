@@ -32,6 +32,7 @@ class CheckerMeta(TypedDict):
     description: str
     needs_non_turn_events: bool
     needs_state: bool
+    requires_all_events: bool
 
 
 _checker_registry: dict[str, Callable[..., Any]] = {}
@@ -44,6 +45,7 @@ def register_checker(
     description: str,
     needs_non_turn_events: bool = False,
     needs_state: bool = False,
+    requires_all_events: bool = False,
 ) -> Callable[..., Any]:
     def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         setattr(fn, CHECKER_META, CheckerMeta(
@@ -53,6 +55,7 @@ def register_checker(
             description=description,
             needs_non_turn_events=needs_non_turn_events,
             needs_state=needs_state,
+            requires_all_events=requires_all_events,
         ))
         _checker_registry[id] = fn
         return fn
