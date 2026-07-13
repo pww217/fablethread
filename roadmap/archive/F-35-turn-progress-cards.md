@@ -4,12 +4,13 @@ status: done
 urgency: 3
 size: medium
 created: 2026-07-11
+completed: 2026-07-12
 ticket_id: F-35
 labels: [frontend, UI, turn-pipeline]
 design:
-  url: ../../docs/design/turn-progress-cards-design.md
+  url: ../../../docs/design/turn-progress-cards-design.md
 plan:
-  url: ../../plans/completed/frontend/turn-progress-cards-plan.md
+  url: ../../../plans/completed/frontend/turn-progress-cards-plan.md
 pr:
   url:
   branch: turn-progress-cards
