@@ -1,6 +1,6 @@
 ---
 title: "Eval — I-28 beat recipe + complete E-8 Phase 2 (3x15 persona runs)"
-status: scoping
+status: archived
 urgency: 2
 size: medium
 created: 2026-07-05
@@ -51,6 +51,23 @@ The scene extractor (`scene.py:20`) already does `.model_dump()` correctly, whic
 - `ev/prompt_context.py` — added `record` stream case (template exists but context builder was missing)
 
 **Template fix:** `narrate_user.j2` — added `## Characters` header before `{% include "sections/_npc_roster.j2" %}` to match the system prompt's reference to "## Characters list."
+
+### 25-turn noir-1930s:driven run (2026-07-13, SHA c9623276)
+
+**Run:** `1252_noir-1930s_25t` — 25 turns, noir-1930s pack
+
+**Results:** 38/39 checkers PASS (97.4%)
+- `ruling_reason_quality`: FAIL — 1 issue (T9 reason lacks causal keyword: "Negotiating for sensitive info is a major narrative pivot.")
+- `extraction_retry_rates`: PASS — 0 retries across 25 turns (B-45 fix verified)
+- All other checkers: PASS
+
+**Check per-turn behavior:**
+- All 6 streams active every turn (ruling, narrate, scene, state, record, world)
+- 0 extraction retries — B-45 fix verified: session-level checker correctly hidden from per-turn mode, correctly shown in full-session mode
+- Avg turn time: 14.2s (range 9.9-19.3s)
+- 4 dormant threads culled across the run (expected for ~25 turns with many thread updates)
+- Inventory canonicalization resolved without issues
+- One ruling parse warning on T5 (null `target` in IntentEnvelope, handled by retry)
 
 ## Prompt rendering verification (turn 4, golden-piracy)
 
