@@ -51,10 +51,10 @@ Beat priority order (highest to lowest):
 
 **Priority:** The "must emit at least 1" requirement OVERRIDES all diversity constraints. If diversity filters would leave you with 0 candidates, relax the repetition rules and emit 1 candidate.
 
-- You have a 5-beat sliding window in `recent_beats`. Avoid excessive repetition:
-  - **Beat type:** If a type appears 3 or more of a 5 entries, it should be avoided if possible.
-  - **NPC:** If an NPC ID appears 3 or more of the last 5 entries, that NPC should be avoided if possible.
-  - **Thread:** If a thread slug appears 3 or more of the last 5 entries, that thread should be avoided if possible.
+- You have a 4-beat sliding window in `recent_beats`. Avoid excessive repetition:
+  - **Beat type:** If a type appears 2 or more in the last 4 entries, it should be avoided if possible.
+  - **NPC:** If an NPC ID appears 2 or more in the last 4 entries, that NPC should be avoided if possible.
+  - **Thread:** If a thread slug appears 2 or more in the last 4 entries, that thread should be avoided if possible.
   - **Effect:** Do NOT emit a beat whose effect describes the same event as any beat in `recent_beats`. Each beat must advance the situation forward in time.
 
 ## Dormant threads
