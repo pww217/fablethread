@@ -471,7 +471,7 @@ If Phase 4 passes, the Noir T12-T15 dead end is resolved. The next step would be
 
 **Fallback:** `http://127.0.0.1:8000/v1` (llama-swap, MacBook) — used when primary is down. Note: llama-swap loads either `mlx-community--gemma-4-26B-A4B-it-OptiQ-4bit` or `mlx-community--Qwen3.6-35B-A3B-OptiQ-4bit` depending on system resources.
 
-**Command:** `.venv/bin/python scripts/debug/ev.py play noir-1930s:driven --turns 15 --personality driven --pack noir-1930s --eval`
+**Command:** `.venv/bin/python scripts/debug/ev.py play --llm --turns 15 --pack noir-1930s --eval`
 
 **Config:** `config.yaml` specifies `llm.host`, `llm.fallback_host`, `llm.model: gemma-4-26b-a4b-it@iq3_xxs`, `game.recent_beats_max: 5` (config default overridden by engine defaults to `recent_beats_max: 4`).
 
