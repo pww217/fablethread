@@ -27,7 +27,7 @@ BEAT_BUCKETS: dict[str, list[str]] = {
 BEAT_PHASE_MAP: dict[str, list[str]] = {
     "SETUP":       ["pressure", "complication", "escalation", "revelation", "twist", "opportunity", "callback", "breathing_room"],
     "RISING":      ["pressure", "complication", "escalation", "revelation", "twist"],
-    "CLIMAX":      ["pressure", "escalation", "complication"],
+    "CLIMAX":      ["pressure", "escalation", "complication", "revelation", "callback", "twist"],
     "RESOLUTION":  ["breathing_room", "callback", "revelation"],
     "BREATHER":    ["opportunity", "revelation", "callback", "breathing_room"],
 }

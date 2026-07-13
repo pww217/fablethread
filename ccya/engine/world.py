@@ -133,7 +133,6 @@ async def _run_world_step(
         return state, [], system_text, user_text, raw, {"tokens_in": tokens_in, "tokens_out": tokens_out}
 
     valid_beats: list[dict[str, Any]] = []
-    seen_effects: set[str] = set()
     for entry in candidates_raw:
         if not isinstance(entry, dict):
             continue
@@ -150,42 +149,6 @@ async def _run_world_step(
                 extra={"trace_id": trace_id, "turn": turn_no},
             )
             continue
-        # Filter out beats that duplicate recent beats (semantic similarity)
-        effect_lower = beat.effect.lower().strip()
-        is_duplicate = False
-        for rb in recent_beats:
-            rb_effect = (rb.get("effect") or "").lower().strip()
-            if rb_effect and (effect_lower == rb_effect or effect_lower[:150] == rb_effect[:150]):
-                is_duplicate = True
-                _log.debug(
-                    "world.beat_dedup type=%s turn=%d effect=%s",
-                    beat.type, turn_no, beat.effect[:60],
-                    extra={"trace_id": trace_id},
-                )
-                break
-            # Also catch beats sharing first 5 words (semantic duplicate)
-            if not is_duplicate and rb_effect:
-                rb_words = rb_effect.split()[:5]
-                eff_words = effect_lower.split()[:5]
-                if rb_words and rb_words == eff_words and len(rb_words) == 5:
-                    is_duplicate = True
-                    _log.debug(
-                        "world.beat_dedup_words type=%s turn=%d effect=%s words=%s",
-                        beat.type, turn_no, beat.effect[:60], rb_words,
-                        extra={"trace_id": trace_id},
-                    )
-                    break
-        # Also filter out beats that duplicate other candidates in this batch
-        if not is_duplicate and effect_lower in seen_effects:
-            is_duplicate = True
-            _log.debug(
-                "world.beat_dedup_batch type=%s turn=%d effect=%s",
-                beat.type, turn_no, beat.effect[:60],
-                extra={"trace_id": trace_id},
-            )
-        if is_duplicate:
-            continue
-        seen_effects.add(effect_lower)
         valid_beats.append({"type": beat.type, "effect": beat.effect, "npcs": entry.get("npcs", [])})
         if len(valid_beats) >= 3:
             break
