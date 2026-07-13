@@ -1,9 +1,10 @@
 ---
 title: "Stacked turn progress-bar UI with per-phase cards"
-status: in-progress
+status: done
 urgency: 3
 size: medium
 created: 2026-07-11
+completed: 2026-07-12
 ticket_id: F-35
 labels: [frontend, UI, turn-pipeline]
 design:
@@ -11,7 +12,7 @@ design:
 plan:
   url: ../../plans/completed/frontend/turn-progress-cards-plan.md
 pr:
-  url:
+  url: https://github.com/pww217/ccya/pull/15
   branch: turn-progress-cards
 ---
 
