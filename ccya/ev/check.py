@@ -20,6 +20,17 @@ _CHECKER_DOMAINS: dict[str, list[str]] = {
     "Ruling": ["ruling_reason_quality", "ruling_band_distribution", "ruling_intent_match"],
 }
 
+_REQUIRES_ALL_EVENTS: set[str] = set()
+
+
+def _requires_all_events() -> set[str]:
+    global _REQUIRES_ALL_EVENTS
+    if not _REQUIRES_ALL_EVENTS:
+        _REQUIRES_ALL_EVENTS = {
+            m["id"] for m in list_checkers() if m.get("requires_all_events", False)
+        }
+    return _REQUIRES_ALL_EVENTS
+
 def _get_domain(checker_id: str) -> str:
     for domain, ids in _CHECKER_DOMAINS.items():
         if checker_id in ids:
@@ -46,12 +57,18 @@ def cmd_check(
     if checker_ids:
         checker_list = checker_ids
     elif all_checkers:
-        checker_list = [m["id"] for m in list_checkers(checker_type="deterministic")]
+        all_meta = list_checkers(checker_type="deterministic")
         if include_llm:
-            checker_list.extend(m["id"] for m in list_checkers(checker_type="llm"))
+            all_meta.extend(list_checkers(checker_type="llm"))
+        checker_list = [m["id"] for m in all_meta]
     else:
         print("Error: specify checkers or --all", file=sys.stderr)
         sys.exit(1)
+
+    # Filter out session-level checkers when checking a specific turn
+    # (they're always the same regardless of turn: they run against the full event list)
+    if turn is not None and checker_ids is None:
+        checker_list = [cid for cid in checker_list if cid not in _requires_all_events()]
 
     # Load checker model if running LLM checkers
     if include_llm:
