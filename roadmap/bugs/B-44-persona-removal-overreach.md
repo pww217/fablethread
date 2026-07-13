@@ -1,11 +1,12 @@
 ---
 title: "EV persona presets removed in I-24 but only NPC personality removal was intended"
-status: new
+status: testing
 urgency: 3
 size: medium
 created: 2026-07-13
 ticket_id: B-44
-labels: []
+labels:
+  - eval
 design:
 plan:
 pr:
@@ -14,6 +15,10 @@ pr:
 ---
 
 ## Description
+
+### What happened
+
+### **CORRECTION — 2026-07-13:** The `--personality` flag is NOT supported. `ev.py play --help` shows no such option. This ticket IS valid — persona presets were removed, status moved to `testing`. NPC personality field removal (NPCEntry archetype labels) remains correct.
 
 ### What happened
 

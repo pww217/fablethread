@@ -36,3 +36,9 @@ Added `requires_all_events` flag to checker metadata (`ccya/ev/checkers/__init__
 - Checked T21 with `--all`: 38 checkers shown (extraction_retry_rates hidden), all PASS
 - Checked full session with `--all` (no turn): 39 checkers shown, extraction_retry_rates appears correctly
 - Listed checkers: `ev.py check --list` includes `requires_all_events` metadata
+
+### Live verification (B-45)
+
+- Noir-1930s 5-turn run: per-turn `--all` shows 38 checkers, extraction_retry_rates hidden ✓
+- Full session `--all` shows 39 checkers, extraction_retry_rates shown and PASS ✓
+- No extraction retries in this run (38/39 PASS except ruling_band_distribution, expected for 5 turns)
