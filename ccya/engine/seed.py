@@ -325,9 +325,9 @@ async def prepare_seed(
         # Enforce hard limits on non-dormant threads and urgency (reads from seed_state.long_term_objective directly)
         arc = state_envelope.seed_state.long_term_objective
         if arc:
-            # Set started_turn to the current turn (usually 1 at seed time)
+             # Set started_turn to the first player turn (always 1)
             if getattr(arc, "started_turn") is None:
-                object.__setattr__(arc, "started_turn", state_envelope.seed_state.meta.get("turn", 1))
+                object.__setattr__(arc, "started_turn", 1)
             # Enforce hard limits on non-dormant threads and urgency
             non_dormant_threads = [t for t in (arc.threads or []) if not t.dormant]
             dormant_threads = [t for t in (arc.threads or []) if t.dormant]
@@ -341,9 +341,9 @@ async def prepare_seed(
                 object.__setattr__(t, "urgency", "background")
                 # Ensure urgency_set_turn is set so urgency decay can track this thread's age
                 if getattr(t, "urgency_set_turn") is None:
-                    object.__setattr__(t, "urgency_set_turn", state_envelope.seed_state.meta.get("turn", 1))
+                    object.__setattr__(t, "urgency_set_turn", 0)
                 if getattr(t, "added_turn") is None:
-                    object.__setattr__(t, "added_turn", state_envelope.seed_state.meta.get("turn", 1))
+                    object.__setattr__(t, "added_turn", 0)
 
             # Force all dormant threads to background urgency (never urgent)
             for t in dormant_threads + excess_non_dormant:
@@ -352,9 +352,9 @@ async def prepare_seed(
                     object.__setattr__(t, "urgency", "background")
                 # Ensure turn tracking is set so decay/expiration passes can age this thread correctly
                 if getattr(t, "urgency_set_turn") is None:
-                    object.__setattr__(t, "urgency_set_turn", state_envelope.seed_state.meta.get("turn", 1))
+                    object.__setattr__(t, "urgency_set_turn", 0)
                 if getattr(t, "added_turn") is None:
-                    object.__setattr__(t, "added_turn", state_envelope.seed_state.meta.get("turn", 1))
+                    object.__setattr__(t, "added_turn", 0)
 
             _log.info(
                 "enforce_thread_limits non_dormant=%d dormant=%d excess_capped=%d pack=%s",
@@ -431,7 +431,7 @@ async def prepare_seed(
         seed_meta["model"] = config.model
         seed_meta.setdefault("pack_source", pack.manifest.id)
         seed_meta.setdefault("setting_pack", pack.manifest.id)
-        seed_meta.setdefault("turn", state_envelope.seed_state.long_term_objective.started_turn if state_envelope.seed_state.long_term_objective else 1)
+        seed_meta["turn"] = 0
         _log.info(
             "prepare_seed complete pack=%s pool_selection=%s",
             pack.manifest.id, bool(pool_selection),
