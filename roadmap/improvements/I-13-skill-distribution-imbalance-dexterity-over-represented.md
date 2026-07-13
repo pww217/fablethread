@@ -198,3 +198,15 @@ All three new runs (noir-1930s, space-western, golden-piracy) have very few dice
 **Conclusion:** Cannot assess skill distribution imbalance from these short runs. Need longer runs (20+ turns) with more dice rolls. The ruling LLM is very aggressive about "no check required" — only 2-6 rolls per 9 turns. This is a ruling prompt issue (too many actions deemed routine), not a skill mapping issue.
 
 **Note:** The turns that DO have rolls are ALL charisma (noir, western) or charisma-heavy (piracy). This is consistent with earlier Phase 6 data showing low dexterity usage (3-4 rolls per 25 turns in post-fix runs). The skill distribution may be more balanced than earlier Phase 4 data (68% dexterity) but the sample is too small to confirm.
+
+## Closure
+
+Mapping changes applied in `ruling_system.j2`: narrowed dexterity definition, added intent_verb → skill mapping, added "Critical" instruction against defaulting to dexterity.
+
+**Outcome (E-8 Phase 4, 32 rolls, 4 runs):**
+| Skill | Dexterity | Charisma | Wits | Strength |
+|-------|-----------|----------|------|----------|
+| Pre-fix (Phase 4) | 68% | 12% | 4% | 16% |
+| Post-fix (E-8 P4) | 37.5% | 31.3% | 21.9% | 9.4% |
+
+**Result:** Dexterity nearly halved. Charisma tripled. Wits near target. Strength at 9.4% — still below 25% but the intent_verb mapping in `ruling_system.j2` is as far as the mapping-driven fix can go. Strength under-representation is now primarily a pack-design / world-step issue, not a prompt issue. Defer structural strength-increase work to a future ticket.
