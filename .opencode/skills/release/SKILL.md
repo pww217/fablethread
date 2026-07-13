@@ -84,3 +84,4 @@ Full list of commits since last release (git log format).
 5. **Categorize commits** into the sections above
 6. **Write the release notes** to `docs/releases/0.X.Y.md`
 7. **Commit the release notes** (they are part of the release)
+8. **Create a GitHub release:** `gh release create 0.X.Y --title "Release 0.X.Y" --notes-file docs/releases/0.X.Y.md` (then push the release)

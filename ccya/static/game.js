@@ -885,18 +885,21 @@ function game() {
                 if (payload && payload.phase === 'extract_stream_start' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
                     _activateExtractionBar(payload.stream);
                 }
-                if (payload && payload.phase === 'extract_stream_done' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
+                 if (payload && payload.phase === 'extract_stream_done' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
                     if (payload.stream === 'record') {
                         self.asyncRunning = true;
                         self.submitting = false;
                         document.getElementById('player-input')?.removeAttribute('disabled');
+                        if (typeof htmx !== 'undefined') {
+                            htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
+                        }
                     }
                     _completeExtractionBar(payload.stream);
                 }
                 if (payload && payload.phase === 'world_done') {
                     self.asyncRunning = false;
                     // Re-fetch right panel, now that async window (sanitize + world) has completed.
-                    // Left panel updates via panel_update SSE events during extraction.
+                    // Left panel re-fetch already done at extract_stream_done (record).
                     if (typeof htmx !== 'undefined') {
                         htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
                     }
@@ -1003,8 +1006,6 @@ function game() {
                         const countEl = compCard.querySelector('.card-count');
                         if (countEl) countEl.textContent = allNpcs.length;
                     }
-                } else if (data.panel === 'arc' && data.data) {
-                    // Arc data synced via HTMX re-fetch at turn_complete. No early re-render needed.
                 }
             });
 
