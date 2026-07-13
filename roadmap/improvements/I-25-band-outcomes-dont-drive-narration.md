@@ -1,6 +1,6 @@
 ---
 title: "Band outcomes don't drive narration — beats override success/fail results"
-status: implemented
+status: done
 urgency: 2
 size: large
 created: 2026-07-04

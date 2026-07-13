@@ -270,7 +270,9 @@ def beat_candidates_present(events: list[dict[str, Any]], *, config: Any = None)
         meta = snap.get("meta") or {}
         beat_candidates = meta.get("beat_candidates") or []
 
-        if not beat_candidates:
+        # Allow empty beat_candidates when a pending GM beat replaces them
+        post_beat = ev.get("post_turn_pending_beat") or snap.get("post_turn_pending_beat")
+        if not beat_candidates and not post_beat:
             findings.append({
                 "turn": turn_no,
                 "check": "beat_candidates_present",

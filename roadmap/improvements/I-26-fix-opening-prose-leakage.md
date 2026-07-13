@@ -1,6 +1,6 @@
 ---
 title: "Fix opening prose leakage in prepare_seed output"
-status: implemented
+status: done
 urgency: 2
 size: small
 created: 2026-07-04
