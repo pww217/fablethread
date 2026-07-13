@@ -444,3 +444,35 @@ Four engine changes resolving Noir T12-T15 `beat_candidates=[]` dead end (runnin
 - "5-beat sliding window" → "4-beat sliding window"
 - "3 or more of 5 entries" → "2 or more of 4 entries" (maintains 50% threshold vs 60% for type/NPC/thread avoidance)
 - Commit: `ce5e3088`
+
+---
+**DIVIDER: All data below is pre-engine-fix. Phase 4 (post-fix) runs go after this line.**
+
+### Phase 4
+
+**Goal:** Verify Noir T12-T15 `beat_candidates=[]` dead end is resolved.
+
+**Run:** `noir-1930s:driven`, 15 turns (single run, sufficient for targeted fix validation)
+
+**What to check:**
+1. `beat_candidates_present` — should PASS 15/15. Noir T12-T15 must have non-empty beat_candidates.
+2. Beat diversity — CLIMAX turns should now include discovery beats (revelation, callback, twist), not only pressure/escalation/complication.
+3. World step produces beats consistently — no consecutive 0-beat turns in late CLIMAX.
+4. Pacing convergence still works — score computation, phase transitions unchanged.
+5. Stable — no crashes, no game-breaking convergence bugs.
+
+If Phase 4 passes, the Noir T12-T15 dead end is resolved. The next step would be a full Phase 3 run (all 5 personas, scenarios, 15-25 turns) to verify there are no regressions in other scenarios.
+
+### Phase 4 Run Configuration
+
+**Endpoint:** `http://10.75.100.51:1234/v1` (LMStudio on internal network — `curl -s http://10.75.100.51:1234/v1/models` returns 3 models: `gemma-4-26b-a4b-it`, `qwen/qwen3.6-35b-a3b`, `text-embedding-nomic-embed-text-v1.5`)
+
+**Model:** `gemma-4-26b-a4b-it` (loaded in LMStudio; LMStudio accepts both `gemma-4-26b-a4b-it` and `gemma-4-26b-a4b-it@iq3_xxs` suffixes)
+
+**Fallback:** `http://127.0.0.1:8000/v1` (llama-swap, MacBook) — used when primary is down. Note: llama-swap loads either `mlx-community--gemma-4-26B-A4B-it-OptiQ-4bit` or `mlx-community--Qwen3.6-35B-A3B-OptiQ-4bit` depending on system resources.
+
+**Command:** `.venv/bin/python scripts/debug/ev.py play noir-1930s:driven --turns 15 --personality driven --pack noir-1930s --eval`
+
+**Config:** `config.yaml` specifies `llm.host`, `llm.fallback_host`, `llm.model: gemma-4-26b-a4b-it@iq3_xxs`, `game.recent_beats_max: 5` (config default overridden by engine defaults to `recent_beats_max: 4`).
+
+**Note:** If primary LLM returns "No models loaded", load a model in LMStudio UI before running.
