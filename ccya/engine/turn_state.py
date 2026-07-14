@@ -645,12 +645,12 @@ def _apply_state_updates(
                             turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},
                         )
 
-            # Engine culling: when >= 4 dormant threads, move oldest to completed
+            # Engine culling: when >= 3 dormant threads, move oldest to completed
             if state.long_term_objective:
                 try:
                     arc = state.long_term_objective
                     dormant_threads = [t for t in arc.threads if t.dormant]
-                    if len(dormant_threads) >= 4:
+                    if len(dormant_threads) >= 3:
                         to_cull = min(dormant_threads, key=lambda t: t.last_updated_turn or 0)
                         culled = to_cull.model_copy(update={
                             "resolution_state": "abandoned",
