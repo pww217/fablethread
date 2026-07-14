@@ -103,8 +103,8 @@ def main() -> None:
         args = args[:-1]
     elif cmd not in ("play", "prompt-eval", "init", "eval", "status", "check") and "save-dir" in flags:
         turn_file = Path(str(flags["save-dir"])) / "events.jsonl"
-    elif cmd in ("play", "prompt-eval", "init", "eval", "status"):
-        # play writes events; prompt-eval renders/calls; eval subcommands load events themselves; init creates new sessions; status reads state directly
+    elif cmd in ("play", "prompt-eval", "init", "eval", "status", "personas"):
+        # play writes events; prompt-eval renders/calls; eval subcommands load events themselves; init creates new sessions; status reads state directly; personas needs no events
         pass
     elif cmd == "check":
         # check loads events from --save-dir if provided
@@ -125,7 +125,7 @@ def main() -> None:
         sys.exit(1)
 
     # Skip loading events for commands that don't need them
-    skip_events = cmd in ("play", "init", "status", "help", "prompt-eval", "eval")
+    skip_events = cmd in ("play", "init", "status", "help", "prompt-eval", "eval", "personas")
     # Also skip for check --list (checker list doesn't need data)
     if cmd == "check" and "list" in flags:
         skip_events = True
