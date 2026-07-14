@@ -428,7 +428,7 @@ T6:  normal climax rhythm continues
 | `breather_enforcement` | `ccya/ev/checkers/breather_enforcement.py` | breather auto-transitions to RISING after breather_max_turns |
 | `roll_band_consistency` | `ccya/ev/checkers/roll_band_consistency.py` | band matches dice roll using rules engine, skill/difficulty valid |
 
-> **EV checker `gm_beat_lifecycle` is deferred cleanup** — it reads `extraction.storytell.gm_beat` which no longer exists (beat generation moved to World). Tracked in `roadmap/bugs/ev-side-cleanup-storytell-gm-beat-rename.md`. Until that's done, this checker produces vacuous output but does not crash. `beat_phase_validity` has been fixed and reads from `state.meta.beat_candidates` correctly.
+> **EV checker `gm_beat_lifecycle` is deferred cleanup** — it reads `extraction.record.gm_beat` which no longer exists (beat generation moved to World). Tracked in `roadmap/bugs/ev-side-cleanup-storytell-gm-beat-rename.md`. Until that's done, this checker produces vacuous output but does not crash. `beat_phase_validity` has been fixed and reads from `state.meta.beat_candidates` correctly.
 
 ### Prompt rendering
 

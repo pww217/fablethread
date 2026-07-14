@@ -1,7 +1,7 @@
 """Pressure score system for thread and arc hint generation.
 
 Pure functions: state in, hint context out, no side effects.
-Shared by both narrator and storyteller paths.
+Shared by both narrator and record paths.
 
 Design spec (see docs/design/01-primitives.md):
 - Duration weight: table-based cumulative (0/1/3/6/10)

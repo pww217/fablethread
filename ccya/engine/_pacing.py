@@ -258,7 +258,7 @@ def _compute_scene_phase(
     elif phase == "CLIMAX":
         climax_turn_count += 1
         # Early exit — evaluated EVERY CLIMAX turn (not just at the limit).
-        # Signal sourced from state (end-of-prior-turn), not in-flight storyteller_result.
+        # Signal sourced from state (end-of-prior-turn), not in-flight record result.
         thread_resolved_prev_turn = any(
             ct for ct in state.long_term_objective.completed_threads
             if ct.resolved_turn == turn_no - 1

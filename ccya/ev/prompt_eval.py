@@ -79,7 +79,7 @@ def cmd_prompt_eval_dump(
         print(f"Error: turn {turn} not found", file=sys.stderr)
         sys.exit(1)
 
-    streams = ["ruling", "narrate", "scene", "state", "storytell"] if all_streams else [stream]
+    streams = ["ruling", "narrate", "scene", "state", "record"] if all_streams else [stream]
 
     for s in streams:
         if all_streams:
@@ -432,7 +432,7 @@ def cmd_prompt_eval(flags: dict[str, str], args: list[str]) -> None:
         print()
         print("    Flags:")
         print("      --turn N          Turn number to render")
-        print("      --stream STREAM   Stream name: ruling, narrate, scene, state, storytell")
+        print("      --stream STREAM   Stream name: ruling, narrate, scene, state, record")
         print("      --from-events     Render from events.jsonl (no LLM call)")
         print("      --all             Render all streams")
         print("      --user-only       Show only user prompts")

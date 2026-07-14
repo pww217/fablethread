@@ -89,7 +89,7 @@ def build_prompt_context(
     allowed_beat_types).
 
     Known limitations:
-    - conditions/inventory reflect post-storytell state (close to pre-storytell)
+    - conditions/inventory reflect post-record state (close to pre-record)
     - resolved_arcs not populated (needs arc_memory_ttl config)
     """
     turn_ev = find_turn(events, turn_no)
@@ -127,7 +127,7 @@ def build_prompt_context(
     if stream == "record":
         arc = prev_snap.get("arc") or {}
         pc = prev_snap.get("pc") or {}
-        # Format thread progress like _storytell_messages does
+        # Format thread progress like record context building does
         all_threads = []
         for t in (arc.get("threads") or []):
             if isinstance(t, dict):
@@ -148,73 +148,6 @@ def build_prompt_context(
             "prior_history": list((prev_meta.get("prior_history") or [])[:-1]),
             "narration": narration,
             "turn_no": turn_no,
-        }
-
-    if stream == "storytell":
-        arc = prev_snap.get("arc") or {}
-        scene = prev_snap.get("scene") or {}
-        meta = prev_snap.get("meta") or {}
-        pc = prev_snap.get("pc") or {}
-        # Format thread progress like _storytell_messages does
-        all_threads = []
-        for t in (arc.get("threads") or []):
-            if isinstance(t, dict):
-                entry = dict(t)
-                entry.setdefault("last_updated_turn", None)
-                from ccya.prompts.context import _fmt_progress
-                entry["progress"] = _fmt_progress(entry.get("major_updates"))
-                all_threads.append(entry)
-            else:
-                all_threads.append({"id": "", "summary": ""})
-        # Build NPC roster from compendium
-        comp = prev_snap.get("compendium", {}).get("npcs", {})
-        npc_roster = _build_npc_roster(comp)
-        # Compute curtain_call like the engine does
-        curtain_call = ""
-        scene_phase = turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP")
-        if scene_phase == "CLIMAX":
-            climax_turn_count = turn_ev.get("pacing_context", {}).get("climax_turn_count", 0)
-            climax_turn_limit = next_scene.get("climax_turn_limit", 4)
-            if climax_turn_count >= climax_turn_limit - 1:
-                curtain_call = "forced"
-            elif climax_turn_count == 1:
-                curtain_call = "active"
-        # Build recent_turns from previous turn narrations
-        recent_turns = []
-        for ev in reversed(events):
-            if isinstance(ev.get("turn"), int) and ev["turn"] < turn_no:
-                narr = (ev.get("narrate") or {}).get("prose", "")
-                if narr:
-                    recent_turns.append({"turn": ev["turn"], "narrative": narr})
-                if len(recent_turns) >= 10:
-                    break
-        recent_turns = list(reversed(recent_turns))
-        return {
-            "narration": narration,
-            "npc_roster": npc_roster,
-            "location": prev_snap.get("location") or {},
-            "inventory": prev_snap.get("inventory") or [],
-            "conditions": list(pc.get("conditions") or []),
-            "current_objective": arc,
-            "all_threads": all_threads,
-            "world_state": list(scene.get("world_state") or []),
-            "resolved_arcs": [],
-            "intent": intent if isinstance(intent, dict) else None,
-            "pacing_context": turn_ev.get("pacing_context") or {},
-            "recent_turns": recent_turns,
-            "prior_history": list((meta.get("prior_history") or [])[:-1]),
-            # Use previous turn's pending_beat (pre-turn) not current (post-turn)
-            "pending_beat": prev_meta.get("pending_gm_beat"),
-            # Use previous turn's recent_beats (pre-turn, excludes current turn's beat)
-            "recent_beats": list(prev_meta.get("recent_beats") or []),
-            "turn_no": turn_no,
-            # Read band from current turn's ruling outcome
-            "band": (turn_ev.get("ruling") or {}).get("band", ""),
-            "scene_phase": scene_phase,
-            "curtain_call": curtain_call,
-            "allowed_beat_types": turn_ev.get("allowed_beat_types") or [],
-            "state": prev_snap,
-            "pc_name": pc.get("name", "Unnamed"),
         }
 
     if stream == "ruling":

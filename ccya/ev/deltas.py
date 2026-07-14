@@ -34,7 +34,7 @@ def _extract_connectors(ev: dict[str, Any]) -> list[dict[str, Any]]:
         "narrate": ["ruling"],
         "scene": ["ruling", "narrate"],
         "state": ["ruling", "narrate", "scene"],
-        "storytell": ["ruling", "narrate", "scene", "state"],
+        "record": ["ruling", "narrate", "scene", "state"],
     }
     is_text = {"narrate": True}
 
@@ -223,7 +223,7 @@ def cmd_mechanics(
     print(json.dumps(intent, indent=2) if intent else "(none)")
     print()
 
-    storytell_event = extract_prompt(ev, "storytell")["user"]
+    record_event = extract_prompt(ev, "record")["user"]
     narrate_user = extract_prompt(ev, "narrate")["user"]
 
     print("--- GM Beat ---")
@@ -232,11 +232,11 @@ def cmd_mechanics(
         print(f"  Pending (to narrate): {pending_beat_match.group(1)}")
     else:
         print("  Pending (to narrate): (none)")
-    storytell_output_raw = extract_prompt(ev, "storytell")["output"]
+    record_output_raw = extract_prompt(ev, "record")["output"]
     generated_beat = None
-    if storytell_output_raw:
+    if record_output_raw:
         try:
-            so = json.loads(storytell_output_raw)
+            so = json.loads(record_output_raw)
             generated_beat = so.get("gm_beat")
         except (json.JSONDecodeError, TypeError):
             pass
@@ -247,7 +247,7 @@ def cmd_mechanics(
     print()
 
     print("--- Rules Outcome ---")
-    rules = extract_section_by_pattern(storytell_event, "rules_outcome", "pacing_context", "last_turn_narration", "player_intent", "current_narration")
+    rules = extract_section_by_pattern(record_event, "rules_outcome", "pacing_context", "last_turn_narration", "player_intent", "current_narration")
     if not rules:
         band_match = re.search(r"\*\*Band:\*\*\s*(.+?)(?:\s*" + ARROW + r"|$)", narrate_user) if narrate_user else None
         if band_match:
@@ -256,12 +256,12 @@ def cmd_mechanics(
     print()
 
     print("--- Pacing Context ---")
-    pacing = extract_section_by_pattern(storytell_event, "pacing_context", "last_turn_narration", "player_intent", "current_narration")
+    pacing = extract_section_by_pattern(record_event, "pacing_context", "last_turn_narration", "player_intent", "current_narration")
     print(pacing if pacing else "(empty)")
     print()
 
-    print("--- Active Threads (from storytell) ---")
-    threads = extract_section_by_pattern(storytell_event, "threads", "recent_events", "inventory", "rules_outcome", "pacing_context", "last_turn_narration", "player_intent", "current_narration")
+    print("--- Active Threads (from record) ---")
+    threads = extract_section_by_pattern(record_event, "threads", "recent_events", "inventory", "rules_outcome", "pacing_context", "last_turn_narration", "player_intent", "current_narration")
     if threads:
         for line in threads.splitlines():
             print(f"  {line.strip()}")

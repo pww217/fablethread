@@ -327,7 +327,7 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
     """Show turn-by-turn beat type + effect status + scene_phase."""
     if not include_compaction:
         events = [ev for ev in events if not is_compaction_event(ev)]
-    # Gather beat data from storytell extraction and pacing_context
+    # Gather beat data from record extraction and pacing_context
     beat_data: list[dict[str, Any]] = []
     recent_beats_history: dict[int, list[dict[str, Any]]] = {}
 
@@ -388,7 +388,7 @@ def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) ->
         if isinstance(recent, list) and recent:
             recent_beats_history[t] = recent
 
-    # Deduplicate by turn — keep the entry with more data (prefer storytell gm_beat)
+    # Deduplicate by turn — keep the entry with more data (prefer record gm_beat)
     seen_turns: dict[int, dict[str, Any]] = {}
     for bd in beat_data:
         t = bd["turn"]

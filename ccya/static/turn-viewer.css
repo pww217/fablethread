@@ -388,7 +388,7 @@
 .tv-wf-segment.tv-stage-narrate { background: var(--stage-narrate); }
 .tv-wf-segment.tv-stage-scene   { background: var(--stage-scene); }
 .tv-wf-segment.tv-stage-state   { background: var(--stage-state); }
-.tv-wf-segment.tv-stage-storytell{ background: var(--stage-storytell); }
+.tv-wf-segment.tv-stage-record{ background: var(--stage-record); }
 .tv-wf-segment.tv-stage-world { background: var(--stage-world); }
 .tv-inputs-row {
   display: flex;
@@ -867,7 +867,7 @@
 .tv-stage-narrate .tv-stage-accent { background: var(--stage-narrate); }
 .tv-stage-scene .tv-stage-accent { background: var(--stage-scene); }
 .tv-stage-state .tv-stage-accent { background: var(--stage-state); }
-.tv-stage-storytell .tv-stage-accent { background: var(--stage-storytell); }
+.tv-stage-record .tv-stage-accent { background: var(--stage-record); }
 .tv-stage-world .tv-stage-accent { background: var(--stage-world); }
 .tv-stage-name {
   font-size: 0.79rem;
