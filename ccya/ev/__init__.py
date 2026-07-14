@@ -303,7 +303,11 @@ def main() -> None:
             from ccya.ev.warnings import cmd_warnings
             cmd_warnings(events)
         case "personas":
-            print("User personas are not configured")
+            from ccya.ev.persona import PERSONA_PROMPTS
+            print("Available personas:")
+            for name, prompt in PERSONA_PROMPTS.items():
+                print(f"\n  {name}:")
+                print(f"    {prompt[:100]}...")
         case "prompt-sizes":
             from ccya.ev.prompt_sizes import cmd_prompt_sizes
             cmd_prompt_sizes(events, include_compaction="include-compaction" in flags)

@@ -25,7 +25,7 @@ Every session directory can contain an `ev.yaml`. Resolution: CLI flags > `ev.ya
 | `model` | Default LLM model |
 | `temp` | Default temperature |
 | `no_sanitize` | Skip thread sanitizer |
-| `player.personality` | Preset: `aggressive`, `cautious`, `absurd`, `explorer`, `driven`, `custom` |
+| `player.persona`     | Preset: `aggressive`, `cautious`, `absurd`, `explorer`, `driven`, `opportunist`, `completionist`, `speedrunner`, `custom` |
 
 ---
 
@@ -80,8 +80,8 @@ All tabular commands filter compaction events by default. Use `--include-compact
 | `--model NAME` | Override LLM model |
 | `--temp N` | Override temperature |
 | `--pack NAME` | Start with a pack (required for new sessions) |
-| `--personality NAME` | Preset: aggressive, cautious, absurd, explorer, driven, custom |
-| `--custom-persona TEXT` | Custom persona text (use with `--personality custom`) |
+| `--persona NAME`     | Preset: aggressive, cautious, absurd, explorer, driven, opportunist, completionist, speedrunner (or `custom`) |
+| `--custom-persona TEXT` | Custom persona text (use with `--persona custom`) |
 | `--resume` | Resume latest or `--save-dir` session |
 | `--until-error` | Stop LLM mode on first error |
 | `--turns N` | Max turns for `--llm` mode (default 20) |
@@ -93,13 +93,13 @@ ev.py play "I search the room." --pack noir-1930s
 ev.py play "My action." --no-sanitize --save-dir evals/runs/latest
 ev.py play --interactive --pack zombie-survival
 ev.py play --llm --turns 10 --pack zombie-survival
-ev.py play --llm --personality aggressive --pack noir-1930s --eval
+ev.py play --llm --persona aggressive --pack noir-1930s --eval
 ```
 
 ## Session management
 
 ```bash
-ev.py init --pack noir-1930s --personality cautious
+ev.py init --pack noir-1930s --persona cautious
 ev.py status --save-dir evals/runs/latest
 ```
 

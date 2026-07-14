@@ -11,12 +11,13 @@ from typing import Any
 def cmd_init(flags: dict[str, str], args: list[str]) -> None:
     """Create a new session: save dir + ev.yaml."""
     if "help" in flags:
-        print("Usage: ev.py init [--pack PACK] [--model MODEL] [--temp N] [--save-dir DIR]")
+        print("Usage: ev.py init [--pack PACK] [--persona NAME] [--model MODEL] [--temp N] [--save-dir DIR]")
         print()
         print("Create a new session directory with ev.yaml config.")
         print()
         print("Flags:")
         print("  --pack NAME           Start with a pack (generates state.yaml)")
+        print("  --persona NAME        Preset: aggressive, cautious, absurd, explorer, driven, opportunist, completionist, speedrunner, custom")
         print("  --model NAME          Default LLM model")
         print("  --temp N              Default temperature")
         print("  --save-dir DIR        Custom save directory path")
@@ -26,6 +27,7 @@ def cmd_init(flags: dict[str, str], args: list[str]) -> None:
     import yaml
 
     pack = flags.get("pack")
+    persona = flags.get("persona")
     model = flags.get("model")
     temp = flags.get("temp")
     save_dir_str = flags.get("save-dir")
@@ -49,6 +51,9 @@ def cmd_init(flags: dict[str, str], args: list[str]) -> None:
     ev_config: dict[str, Any] = {}
     if pack:
         ev_config["pack"] = pack
+    if persona:
+        ev_config.setdefault("player", {})
+        ev_config["player"]["persona"] = persona
     if model:
         ev_config["model"] = model
     if temp:

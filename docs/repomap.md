@@ -47,7 +47,7 @@
 | `ccya/ev/deltas.py` | Deltas and mechanics commands |
 | `ccya/ev/state_tools.py` | State commands: state, diff, trace, search, threads, beats |
 | `ccya/ev/play.py` | Play command: single-turn/interactive/LLM modes |
-| `ccya/ev/personality.py` | 8 personality presets + custom |
+| `ccya/ev/persona.py` | 8 persona presets + custom |
 | `ccya/ev/session_config.py` | Session config: ev.yaml loading, flag resolution |
 | `ccya/ev/init.py` | Creates save dir + ev.yaml |
 | `ccya/ev/status.py` | Session dashboard from state.yaml + ev.yaml |
