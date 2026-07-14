@@ -1,6 +1,7 @@
 ---
 title: "EV persona presets removed in I-24 but only NPC personality removal was intended"
-status: testing
+status: done
+completed: 2026-07-13
 urgency: 3
 size: medium
 created: 2026-07-13

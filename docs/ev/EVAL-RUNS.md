@@ -56,11 +56,11 @@ run:
 ```bash
 # New session with all metadata
 .venv/bin/python scripts/debug/ev.py play --llm --turns 10 \
-    --pack noir-1930s --personality aggressive
+    --pack noir-1930s --persona aggressive
 
 # Different persona
 .venv/bin/python scripts/debug/ev.py play --llm --turns 10 \
-    --pack noir-1930s --personality cautious
+    --pack noir-1930s --persona cautious
 ```
 
 ## Running checkers
@@ -109,7 +109,7 @@ Reports are rendered from `evals/ev-tooling/templates/report.md.j2`. The templat
 for pack in noir-1930s zombie-survival fantasy-quest; do
   for persona in aggressive cautious explorer; do
     .venv/bin/python scripts/debug/ev.py play --llm --turns 10 \
-      --pack "$pack" --personality "$persona"
+      --pack "$pack" --persona "$persona"
     .venv/bin/python scripts/debug/ev.py check --all \
       --save-dir evals/runs/latest
   done

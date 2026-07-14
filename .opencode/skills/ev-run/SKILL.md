@@ -32,7 +32,7 @@ Purpose: Execute an iterative, phase-gated evaluation with graduated scope. Each
 | `zombie-survival` | `cautious` |
 | `allied-ww2` | `aggressive` |
 
-Available personas: `aggressive`, `cautious`, `absurd`, `explorer`, `driven`, `opportunist`, `completionist`, `speedrunner`, `custom`. Defined in `ccya/ev/personality.py`.
+Available personas: `aggressive`, `cautious`, `absurd`, `explorer`, `driven`, `opportunist`, `completionist`, `speedrunner`, `custom`. Defined in `ccya/ev/persona.py`.
 
 ## Graduated Scope
 
@@ -61,7 +61,7 @@ Start small, expand as stability increases. Phase 2 is the most important — th
 ```bash
 # Start with noir:driven (balanced pair). If critical issues found, run 2-3 more pairs to confirm pattern.
 .venv/bin/python scripts/debug/ev.py play --llm --turns 5 \
-  --pack noir-1930s --personality driven --auto-report
+   --pack noir-1930s --persona driven --auto-report
 ```
 
 **Analysis:**
@@ -82,7 +82,7 @@ for pair in $pairs; do
   pack=${pair%:*}
   persona=${pair#*:}
   .venv/bin/python scripts/debug/ev.py play --llm --turns 15 \
-    --pack "$pack" --personality "$persona" --auto-report
+    --pack "$pack" --persona "$persona" --auto-report
 done
 ```
 
@@ -105,7 +105,7 @@ for pair in $pairs; do
   pack=${pair%:*}
   persona=${pair#*:}
   .venv/bin/python scripts/debug/ev.py play --llm --turns 25 \
-    --pack "$pack" --personality "$persona" --auto-report
+    --pack "$pack" --persona "$persona" --auto-report
 done
 ```
 

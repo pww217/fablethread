@@ -16,6 +16,7 @@ from ccya.models import TurnResult, WorldState, load_config
 from ccya.pack import load_pack, list_packs
 from ccya.state.io import default_world_state, init_save_dir, load_state
 
+from ccya.ev.persona import resolve_persona
 from ccya.ev.session_config import load_session_config, resolve_auto_report
 
 _log = logging.getLogger(__name__)
@@ -496,6 +497,8 @@ def _llm_session(
     save_dir: Path | None = None,
     auto_report: bool = False,
     llm_checkers: bool = False,
+    persona: str | None = None,
+    custom_persona: str | None = None,
 ) -> None:
     _, name_locales, narrator_rules, world_rules, factions, _, style = _load_pack_params(pack)
 
@@ -510,10 +513,12 @@ def _llm_session(
     trace_ids: list[str] = []
 
     arc_goal = state.long_term_objective.long_term_objective
-    system_prompt = "You are roleplaying as a character in a text adventure game.\n\n"
-    if arc_goal:
-        system_prompt += "Goal: " + arc_goal + "\n\n"
-    system_prompt += "Decide what to do next. Respond with a short, natural language action.\nDo not narrate. Do not use meta-language. Just say what your character does."
+    persona_text = persona
+    if persona_text is None:
+        sc = load_session_config(save_dir) if save_dir else None
+        if sc:
+            persona_text = sc.get("player", {}).get("persona")
+    system_prompt = resolve_persona(persona_text or "", custom_persona or "", arc_goal)
 
     # Store recent turns for context (turn input + narrative)
     recent_turns: list[dict[str, str]] = []
@@ -704,7 +709,7 @@ def _print_missing_pack_error(flags: dict[str, str]) -> None:
 def cmd_play(flags: dict[str, str], args: list[str]) -> None:
     if "help" in flags:
         print("Usage: ev.py play <input> [--save-dir DIR] [--no-sanitize] [--model MODEL] [--temp TEMP] [--pack PACK]")
-        print("       ev.py play --llm [--turns N] [--pack PACK]")
+        print("       ev.py play --llm [--persona NAME] [--custom-persona TEXT] [--turns N] [--pack PACK]")
         print("       ev.py play --interactive [--pack PACK]")
         print("       ev.py play --resume [--save-dir DIR]")
         print()
@@ -714,6 +719,8 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
         print("  --model NAME            Override LLM model")
         print("  --temp N                Override temperature")
         print("  --pack NAME             Start with a pack (required for new sessions)")
+        print("  --persona NAME          Preset: aggressive, cautious, absurd, explorer, driven, opportunist, completionist, speedrunner, custom")
+        print("  --custom-persona TEXT   Custom persona text (use with --persona custom)")
         print("  --resume                Resume latest or --save-dir session")
         print("  --until-error           Stop LLM mode on first error")
         print("  --turns N               Max turns for --llm mode (default 20)")
@@ -781,6 +788,8 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
             save_dir=save_dir if "resume" in flags else None,
             auto_report=auto_report,
             llm_checkers="llm-checkers" in flags,
+            persona=flags.get("persona"),
+            custom_persona=flags.get("custom-persona"),
         )
         sys.exit(0)
 
