@@ -115,7 +115,7 @@ Narration of following turn:
 
 @register_checker(
     "beat_narrative_chain", "llm",
-    requires_fields=["last_turn_state.meta.pending_gm_beat", "narrate"],
+    requires_fields=["post_turn_pending_beat", "narrate"],
     description="Does the GM beat produce observable narrative consequence?",
 )
 def beat_narrative_chain(events: list[dict[str, Any]], *, config: EngineConfig | None = None) -> CheckerResult:
@@ -126,11 +126,16 @@ def beat_narrative_chain(events: list[dict[str, Any]], *, config: EngineConfig |
         )
 
     ev = events[0]
-    last_turn_state = extract_field(ev, "last_turn_state") or {}
-    meta = last_turn_state.get("meta", {})
-    pending_beat = meta.get("pending_gm_beat") or {}
+    pending_beat = ev.get("post_turn_pending_beat") or {}
     beat_type = pending_beat.get("type", "")
     effect = pending_beat.get("effect", "")
+    
+    # Skip turns with no GM beat — pass by default
+    if not beat_type:
+        return CheckerResult(
+            checker_id="beat_narrative_chain", passed=True, score=1.0,
+            detail="No GM beat to evaluate (post_turn_pending_beat is None/empty)",
+        )
     narrate = extract_field(ev, "narrate.prose") or ""
 
     # Look for next turn's narration if available

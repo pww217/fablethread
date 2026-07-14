@@ -244,4 +244,4 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any, Any]:
         curtain_call=_curtain_call,
     )
 
-    return _pc, narr_messages, new_scene
+    return _pc, narr_messages, new_scene, smoothed_convergence
