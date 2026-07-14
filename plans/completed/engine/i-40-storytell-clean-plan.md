@@ -29,7 +29,7 @@ The extraction stream was renamed from `storytell` → `record` via B-7, but sev
 
 ## Status
 
-`scoping`
+`completed`
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "Stale storytell→record stream name cruft across ev.py, static assets, and CSS"
-status: up-next
+status: done
 urgency: 2
 size: medium
 created: 2026-07-12

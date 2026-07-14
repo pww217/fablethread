@@ -162,7 +162,7 @@ function _formatMetricsRow(metrics) {
     if (sc && !sc.skipped) parts.push('Scn ' + fmtStep(sc.ms, sc.tokens_in, sc.tokens_out));
     const st = streams.state;
     if (st && !st.skipped) parts.push('Ste ' + fmtStep(st.ms, st.tokens_in, st.tokens_out));
-    const pg = streams.storytell;
+    const pg = streams.record;
     if (pg && !pg.skipped) parts.push('Rec ' + fmtStep(pg.ms, pg.tokens_in, pg.tokens_out));
     const san = metrics.sanitize;
     if (san) parts.push('San ' + fmtStep(san.ms, null, null));

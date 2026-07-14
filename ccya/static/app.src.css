@@ -40,7 +40,7 @@
   --stage-narrate:   #3b82f6;
   --stage-scene:     #10b981;
   --stage-state:     #f59e0b;
-  --stage-storytell: #ec4899;
+  --stage-record: #ec4899;
 
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
@@ -3136,7 +3136,7 @@ body {
 .tv-wf-segment.tv-stage-narrate { background: var(--stage-narrate); }
 .tv-wf-segment.tv-stage-scene   { background: var(--stage-scene); }
 .tv-wf-segment.tv-stage-state   { background: var(--stage-state); }
-.tv-wf-segment.tv-stage-storytell{ background: var(--stage-storytell); }
+.tv-wf-segment.tv-stage-record{ background: var(--stage-record); }
 .tv-inputs-row {
   display: flex;
   gap: 8px;
@@ -3605,7 +3605,7 @@ body {
 .tv-stage-narrate .tv-stage-accent { background: var(--stage-narrate); }
 .tv-stage-scene .tv-stage-accent { background: var(--stage-scene); }
 .tv-stage-state .tv-stage-accent { background: var(--stage-state); }
-.tv-stage-storytell .tv-stage-accent { background: var(--stage-storytell); }
+.tv-stage-record .tv-stage-accent { background: var(--stage-record); }
 .tv-stage-name {
   font-size: 0.79rem;
   font-weight: 700;
@@ -4673,9 +4673,9 @@ body {
 .extraction-bar--state .progress-bar { border-color: var(--stage-state); }
 .extraction-bar--state .progress-bar-fill { background: var(--stage-state); }
 
-.extraction-bar--record { background: color-mix(in srgb, var(--stage-storytell) 15%, transparent); }
-.extraction-bar--record .progress-bar { border-color: var(--stage-storytell); }
-.extraction-bar--record .progress-bar-fill { background: var(--stage-storytell); }
+.extraction-bar--record { background: color-mix(in srgb, var(--stage-record) 15%, transparent); }
+.extraction-bar--record .progress-bar { border-color: var(--stage-record); }
+.extraction-bar--record .progress-bar-fill { background: var(--stage-record); }
 
 @keyframes fadeOutCard {
   from { opacity: 1; transform: translateY(-8px); }

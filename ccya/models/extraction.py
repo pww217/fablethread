@@ -270,6 +270,6 @@ class RecordResult(BaseModel):
     def _warn_empty_actions(self) -> "RecordResult":
         if not self.actions:
             _log.debug(
-                "storytell.actions is empty — LLM omitted field or returned []",
+                "record.actions is empty — LLM omitted field or returned []",
             )
         return self

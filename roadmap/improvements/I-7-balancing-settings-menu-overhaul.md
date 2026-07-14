@@ -20,7 +20,7 @@ Settings are currently inaccessible and confusing. A proper settings menu would 
 
 ## Scope
 
-* **In scope:** Redesign settings menu, improve parameter accessibility, add descriptions
+* **In scope:** Redesign settings menu, improve parameter accessibility, add descriptions, quick-model swapper (replace current fallback model scheme)
 * **Out of scope:** New parameters, backend changes
 
 ## Systems Affected

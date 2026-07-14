@@ -237,7 +237,7 @@ def _build_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
                 "value": val[:120], "rejected": False, "from_stream": "ruling",
             })
 
-    for stream_key, path in [("scene", "extraction.scene"), ("state", "extraction.state"), ("storytell", "extraction.storytell")]:
+    for stream_key, path in [("scene", "extraction.scene"), ("state", "extraction.state"), ("record", "extraction.record")]:
         blob = _get_nested(ev, path) or {}
         if not isinstance(blob, dict):
             continue
