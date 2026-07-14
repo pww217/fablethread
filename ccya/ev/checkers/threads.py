@@ -260,6 +260,9 @@ def thread_culling(events: list[dict[str, Any]], *, config: Any = None) -> Check
     all_passed = True
     filtered = filter_turn_events(events)
 
+    # Track dormant count across turns to detect when culling should fire
+    prev_dormant_count = 0
+
     for ev in filtered:
         snap = extract_field(ev, "last_turn_state") or {}
         arc = snap.get("arc") or snap.get("long_term_objective") or {}
@@ -268,24 +271,38 @@ def thread_culling(events: list[dict[str, Any]], *, config: Any = None) -> Check
         threads = _get_active_threads(arc)
         completed = _get_completed_threads(arc)
 
-        # Count dormant threads
+        # Count current dormant threads
         dormant_threads = [t for t in threads if t.get("dormant", False)]
         dormant_count = len(dormant_threads)
 
-        if dormant_count >= 3:
-            # Check if oldest dormant threads appear in completed_threads with abandoned
-            # At least some dormant threads should be in completed with abandoned
-            abandoned_ids = {ct.get("id") for ct in completed if ct.get("resolution_state") == "abandoned"}
+        # Culling fires at >=3 dormant threads, moving oldest to completed with abandoned
+        # Dormant threads can't be added during culling phase, so max should be
+        # threshold + potential new dormant from some edge case. Safe cap is ~threshold+1.
+        # Flag if dormant count exceeds threshold+1 (culling didn't fire properly)
+        if dormant_count > 4:
+            findings.append({
+                "turn": turn_no,
+                "check": "max_dormant",
+                "detail": f"{dormant_count} dormant threads exceeds expected maximum of ~4",
+            })
+            all_passed = False
 
-            # We can't enforce this strictly without knowing the culling logic,
-            # but we can flag if there are many dormant threads with no culling
-            if dormant_count >= 5:
+        # Detect cross-turn culling: if prev turn had >=3 dormant, culling should have
+        # fired during this turn. Check that abandoned threads appeared in completed.
+        if prev_dormant_count >= 3 and dormant_count < prev_dormant_count:
+            # Culling fired — check some old dormant threads moved to completed with abandoned
+            abandoned_ids = {ct.get("id") for ct in completed if ct.get("resolution_state") == "abandoned"}
+            # If there were abandoned threads but they all seem to be from other causes,
+            # that's fine. We just need abandoned threads to exist when culling happened.
+            if not abandoned_ids:
                 findings.append({
                     "turn": turn_no,
-                    "check": "dormant_culling",
-                    "detail": f"{dormant_count} dormant threads, only {len(abandoned_ids)} abandoned in completed_threads",
+                    "check": "culling_moved_to_completed",
+                    "detail": f"culling should have fired (prev={prev_dormant_count}, now={dormant_count}) but no abandoned threads in completed",
                 })
                 all_passed = False
+
+        prev_dormant_count = dormant_count
 
     if not all_passed:
         return CheckerResult(

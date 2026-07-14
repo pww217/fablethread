@@ -7,7 +7,7 @@ Purpose: Execute an iterative, phase-gated evaluation with graduated scope. Each
 
 **The eval is your track.** Eval tickets serve as long-term memory across compactions — record what's been done, what's next, what evidence exists. Create ONE `E-` ticket per eval session (not per bug). Include eval group path, phase report links, all findings, and reproduction context in the ticket body.
 
-**Sequential work:** One phase at a time. One issue at a time when investigating bugs. Do not pull multiple phases or issues into context simultaneously. Work through rubric sections one at a time, writing findings to the report file as long-term memory after each section.
+**Sequential work:** One phase at a time. One issue at a time when investigating bugs. Do not pull multiple phases or issues into context simultaneously. Work through rubric sections one at a time, writing findings to the report file as long-term memory after each section. **No parallel runs:** Never run multiple `ev.py play` instances in parallel — each game reads/writes shared directories (save dirs, events, reports). Running two turns simultaneously from the same game can corrupt state or produce ambiguous checker output. Always run game pairs sequentially, even within a phase that tests multiple pack/persona combinations.
 
 **Critical constraints:**
 1. Write findings into the report as you discover them — do not buffer findings until the end.
