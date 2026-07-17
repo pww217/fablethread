@@ -1,10 +1,11 @@
 llm:
-  host: http://127.0.0.1:8000/v1
+  host: http://10.75.100.51:1234/v1
+  fallback_host: http://127.0.0.1:8000/v1
   model: mlx-community--gemma-4-26B-A4B-it-OptiQ-4bit
   num_ctx: 16384
   context_window: 16384
   request_timeout_s: 120
-  fallback_cooldown_s: 1800
+  fallback_cooldown_s: 300
 
   ruling:
     temperature: 0.2

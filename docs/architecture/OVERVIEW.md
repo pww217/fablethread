@@ -123,7 +123,7 @@ The engine uses an OpenAI-compatible chat API (`/v1/chat/completions`). The clie
 | Backend | Host | Model | Hardware | Speed |
 |---|---|---|---|---|
 | **Primary (preferred)** | `10.75.100.51:1234` (LMStudio, OpenAI compat) | `google/gemma-4-26b-a4b-it` | RTX 5070 Ti | Fast |
-| Fallback | `127.0.0.1:8080` (llama-swap, OpenAI compat) | Gemma 4-26B | MacBook (MLX) | Slower |
+| Fallback | `127.0.0.1:8000` (OpenAI compat) | Gemma 4-26B | MacBook (MLX) | Slower |
 
 Configured in `config.yaml` under `llm.host`, `llm.model`, `llm.num_ctx`, and `llm.context_window`. The client (`ccya/llm_client.py`) uses a single OpenAI-compatible path for both backends. `num_ctx` is passed to control the server-side input context window. `context_window` controls client-side trimming via `trim_messages()` — must be ≤ `num_ctx` to avoid sending more tokens than the server can handle.
 

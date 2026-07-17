@@ -18,19 +18,7 @@ A choose-your-own-adventure game backed by a local **mlx-lm** model served over 
     ```
     The model loads once and stays resident; ccya talks to `http://127.0.0.1:8080/v1` (OpenAI shape).
 
-    **Recommended:** use [llama-swap](https://github.com/mostlygeek/llama-swap) as a model-routing proxy so multiple tools can share `:8080` without restarting anything:
-    ```bash
-    brew tap mostlygeek/llama-swap && brew install llama-swap
-    mkdir -p ~/.llm/logs && mv ~/mlx-env ~/.llm/mlx_env
-    # config lives at ~/.llm/llama-swap.yaml
-    make llama-swap   # or just: make run (starts it automatically)
-    ```
-3. **Install ccya dependencies**:
-    ```bash
-    make install
-    ```
-
-To pick a different model, edit `llm.model` in `config.yaml` — the value must match a key in `~/.llm/llama-swap.yaml`.
+To pick a different model, edit `llm.model` in `config.yaml`.
 
 ## Run
 
@@ -144,10 +132,6 @@ Edit `config.yaml` to change the model, port, or other settings. Key sections:
 - `game` — save slot, setting pack, turn window size
 - `server` — bind address and port
 - `debug` — toggle debug panel
-
-**Notes on the Ollama → mlx-lm migration:**
-- The config block was renamed from `ollama:` → `llm:`.
-- `keep_alive`, `num_ctx`, and any `enforce_extract_schema`/grammar flags are gone — `mlx_lm.server` keeps the model resident on its own and does not expose JSON-grammar enforcement. The extract pipeline relies on prompt discipline + a single retry instead.
 
 ## Debugging
 
