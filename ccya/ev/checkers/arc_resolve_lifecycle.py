@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ccya.engine.config import EngineConfig
 from ccya.ev.checkers import CheckerResult, register_checker
 from ccya.ev.events import extract_field, filter_turn_events
 
@@ -50,8 +49,6 @@ def arc_resolve_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -
         cur_arc = snap.get("long_term_objective") or snap.get("arc") or {}
         old_goal = cur_arc.get("long_term_objective", "")
         old_threads = cur_arc.get("threads") or []
-        old_completed = cur_arc.get("completed_threads") or []
-        cur_resolved_arcs = (snap.get("resolved_arcs")) or []
         meta = snap.get("meta") or {}
         cur_last_arc_resolve_turn = meta.get("last_arc_resolve_turn")
 
@@ -71,10 +68,13 @@ def arc_resolve_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -
         successor_completed = cur_arc.get("completed_threads") or []
 
         if successor_goal != next_goal:
+            old_goal_str = old_goal[:60] if old_goal else None
+            next_goal_str = next_goal[:60] if next_goal else None
+            successor_str = successor_goal[:60] if successor_goal else None
             findings.append({
                 "turn": turn_no,
                 "check": "successor_goal",
-                "detail": f"arc_resolve with next_goal='{next_goal[:60]}' (old_goal='{old_goal[:60]}'), but current arc goal='{successor_goal[:60]}'",
+                "detail": f"arc_resolve with next_goal={next_goal_str!r} (old_goal={old_goal_str}), but current arc goal={successor_str!r}",
             })
             all_passed = False
 
@@ -88,7 +88,7 @@ def arc_resolve_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -
             findings.append({
                 "turn": turn_no,
                 "check": "threads_carried",
-                "detail": f"arc_resolve: {len(missing)} old threads not carried to new arc: {sorted(missing)[:10]}",
+                "detail": f"arc_resolve: {len(missing)} old threads not carried to new arc: {sorted([t for t in missing if t is not None], key=str)[:10]}",
             })
             all_passed = False
 

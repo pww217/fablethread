@@ -125,7 +125,7 @@ async def _run_extraction_stream(
     if variant.name == "scene":
         yield ("panel_update", {
             "panel": "compendium",
-            "data": {"npcs": _panel_data.get("npcs", {})},
+            "data": {"npcs": {nid: entry.model_dump() for nid, entry in state.compendium.npcs.items()}},
         })
         container.scene_result = (result, extraction_event)
     elif variant.name == "state":
@@ -237,6 +237,7 @@ async def _run_extraction_pipeline(
         compendium_npc_update=scene_result.compendium_npc_update,
         location_change=state_result.location_change,
         location_description=state_result.location_description,
+        location_change_reason=state_result.location_change_reason or "",
         inventory_change_reason=state_result.inventory_change_reason,
         condition_change_reason=state_result.condition_change_reason,
         inventory_add=state_result.inventory_add,
@@ -301,6 +302,7 @@ async def _state_stream(
             pc_condition_add=r.pc_condition_add or [],
             pc_condition_remove=r.pc_condition_remove or [],
             location_change=r.location_change,
+            location_change_reason=r.location_change_reason or "",
             inventory_change_reason=r.inventory_change_reason or "",
             condition_change_reason=r.condition_change_reason or "",
         ), trace_id=trace_id),

@@ -67,7 +67,7 @@ class EngineConfig:
     max_llm_retries: int = 1
     context_window: int = 32768
     fallback_host: str = ""
-    fallback_cooldown_s: int = 300
+    fallback_cooldown_s: int = 30
 
     # Max entries in recent_beats history list
     recent_beats_max: int = 4

@@ -599,3 +599,15 @@ Both runs show `ruling.selected_beat: 0` on every turn (except T1 where it's nul
 2. **P1: Ruling reason quality heuristic** — Refine the checker keyword system to accept substantive causal phrasing, not just "because/since/due to/as".
 3. **P2: Beat selection diversity** — Investigate why ruling always picks index 0. If ruling is supposed to evaluate beats, it's not currently evaluating.
 4. **P3: Post-serialization of `pending_gm_beat`** — Verify the field is being logged to events for debugging.
+
+### 2026-07-14 Follow-up: Location Change Extraction
+
+**Purpose:** Validate location change extraction fix (new `location_change_reason` field, dedicated detection section in prompt).
+
+**Runs:**
+- `1234_noir-1930s_25t` — 50 turns, all `location_change_reason: "none"` — noir-1930s game stayed in single location (precinct office) for all 25 turns. **No extraction false positives.**
+- `1245_space-western_25t` — 50 turns, 4 distinct locations detected: `docking_bay_4_junction` (2x), `utility_chamber` (2x), `service_hatch` (2x), `ventilation_shaft` (2x). Reasons consistently follow pattern "Player left X and entered Y". 46 turns correctly returned `"none"`.
+
+**Verdict:** Extraction fix works. Space-western confirms 4 distinct multi-location transitions detected correctly with proper reasons. Noir confirms no spurious detections in single-location scenario.
+
+**Open concern:** Noir-1930s 25 turns in a single location is notable. The noir pack generates 1 starting location from world map data (no hardcoded locations), and the game contained no scenes/arc prompting location transitions. This is a separate **narration/pacing** issue, not an extraction issue. The extractor correctly reports `"none"` when the narrator never describes the player leaving a place. Whether this should be normalized via pacing guidance or scene-scoped starting locations is for a future evaluation to investigate.

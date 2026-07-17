@@ -885,24 +885,21 @@ function game() {
                 if (payload && payload.phase === 'extract_stream_start' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
                     _activateExtractionBar(payload.stream);
                 }
-                 if (payload && payload.phase === 'extract_stream_done' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
-                    if (payload.stream === 'record') {
-                        self.asyncRunning = true;
-                        self.submitting = false;
-                        document.getElementById('player-input')?.removeAttribute('disabled');
-                        if (typeof htmx !== 'undefined') {
-                            htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
-                        }
-                    }
-                    _completeExtractionBar(payload.stream);
-                }
-                if (payload && payload.phase === 'world_done') {
-                    self.asyncRunning = false;
-                    // Re-fetch right panel, now that async window (sanitize + world) has completed.
-                    // Left panel re-fetch already done at extract_stream_done (record).
-                    if (typeof htmx !== 'undefined') {
-                        htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
-                    }
+                  if (payload && payload.phase === 'extract_stream_done' && (payload.stream === 'record' || payload.stream === 'state' || payload.stream === 'scene')) {
+                     if (payload.stream === 'record') {
+                         self.asyncRunning = true;
+                         self.submitting = false;
+                         document.getElementById('player-input')?.removeAttribute('disabled');
+                     }
+                     _completeExtractionBar(payload.stream);
+                 }
+                 if (payload && payload.phase === 'world_done') {
+                     self.asyncRunning = false;
+                     // Re-fetch both panels, now that async window (sanitize + world + save) has completed.
+                     if (typeof htmx !== 'undefined') {
+                         htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
+                         htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
+                     }
                     // Update metrics display with async step timings
                     if (payload.metrics) {
                         const met = document.querySelector('.turn-metrics');

@@ -20,7 +20,7 @@ Generate a SeedState JSON for a new playthrough. Wrap your entire response in a 
 Four independently selected narrative dimensions. They are NOT a menu — weave them into something coherent. Tension between them is expected.
 
 - **SITUATION ARCHETYPE** (`{{ pool_selection.situation.id }}`): The pressure or tension they walk into.
-- **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Longer-term narrative direction. The long_term_objective builds on this pattern over multiple turns — not resolved in one action.
+- **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Longer-term narrative direction. Scaffold the `long_term_objective` around this category's pattern — shape its stakes, escalation mechanism, and resolution structure to match. Not a label; a structural constraint. The objective should be unrecognizable if you swapped it for a different arc_category.
 - **CHARACTER DYNAMIC** (`{{ pool_selection.character_dynamic.id }}`): {pc.name}'s position relative to power structures. Their bio must be consistent with this (trusted_insider → show community ties; free_agent → show independence).
 - **MORAL PRESSURE** (`{{ pool_selection.moral_pressure.id }}`): The ethical dilemma driving immediate personal stakes.
 {% endif %}
@@ -64,8 +64,8 @@ Build in this order, using everything already established before generating what
 3. **Key locations** — 4–5 named places that exist in the world at game start. Ordered from most accessible to least known. Include 1–2 breadcrumb locations (places {pc.name} has heard of but not visited). Each has `id`, `name`, `description`, `status`, and `tags`.
 4. **Arc origin** — 2–3 sentences in past tense describing a world-level event or condition that shapes the current situation. This is independent lore — do NOT reference {pc.name}'s personal history here. Examples: "The border walls were erected after the refugee crisis." "The guild purged its dissenters three winters ago." The connection to {pc.name} will be established through arc threads later. Seed-time field only, never regenerated.
 5. **Situation** — structured situational facts about their current circumstances{% if scenario and scenario.pc_situation_schema %} ({% for s in scenario.pc_situation_schema %}{{ s.key }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}. Defined by `pc_situation_schema` in the pack.
-6. **Campaign arc** — informed by their background, world state, situation archetype, and character dynamic:
-    - `long_term_objective` (multi-stage objective): What happens after the first step succeeds? After it fails?
+6. **Campaign arc** — scaffolded by background, world state, situation archetype, character dynamic, and arc category ({{ pool_selection.arc.id }} — tags: {{ pool_selection.arc.tags | join(", ") }}):
+    - `long_term_objective` (multi-stage objective): Build around this arc category's pattern — set stakes, escalation mechanism, and resolution structure to match. Must be multi-stage with visible stages of progress/decline.
     - `threads` (see Thread rules below):
 7. **Opening scene + NPCs** — instantiates the situation archetype concretely.
    7a. Generate scene NPCs (at least 1 present in opening scene).

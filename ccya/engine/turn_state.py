@@ -266,13 +266,15 @@ def _apply_arc_resolve(
     )
 
     # Create new successor arc with all threads carried forward.
-    # completed_threads=[] intentionally — clean slate at arc boundary.
-    # Completed threads from the resolved arc are stored in resolved_arcs
-    # above; the new arc starts fresh with only active threads.
+    # Preserve historical thread completions from resolved arc: they remain
+    # visible for checkers and async sanitizer validation. Arc resolution
+    # stores the resolution in resolved_arcs; completed_threads tracks
+    # individual thread resolution state (abandoned/resolved/failed).
+    existing_completed = list(old_arc.completed_threads) if old_arc.completed_threads else []
     new_arc = LongTermObjective(
         long_term_objective=resolution.long_term_objective,
         threads=list(old_arc.threads),
-        completed_threads=[],
+        completed_threads=existing_completed,
         last_thread_created_turn=turn_no,
         started_turn=turn_no,
     )
@@ -674,6 +676,43 @@ def _apply_state_updates(
                         "thread_cull.failed trace_id=%s: %s",
                         trace_id, exc, extra={"trace_id": trace_id, "turn": turn_no},
                     )
+
+        # Engine culling: when >= 3 dormant threads, moves oldest to completed.
+        # Runs every turn regardless of delta. Auto-dormant (inside the delta block)
+        # may mark threads dormant; culling then removes threads until dormant < 3.
+        if state.long_term_objective:
+            try:
+                arc = state.long_term_objective
+                changed = True
+                while changed:
+                    dormant_threads = [t for t in arc.threads if t.dormant]
+                    changed = False
+                    if len(dormant_threads) >= 3:
+                        to_cull = min(dormant_threads, key=lambda t: t.last_updated_turn or 0)
+                        culled = to_cull.model_copy(update={
+                            "resolution_state": "abandoned",
+                            "outcome": f"Thread faded from relevance — no narrative activity in {turn_no - (to_cull.last_updated_turn or 0)} turns.",
+                            "resolved_turn": turn_no,
+                        })
+                        remaining = [t for t in arc.threads if t.id != to_cull.id]
+                        arc = arc.model_copy(update={
+                            "threads": remaining,
+                            "completed_threads": list(arc.completed_threads) + [culled],
+                        })
+                        changed = True
+                        _log.info(
+                            "thread_cull trace_id=%s culled=%s dormant_count=%d",
+                            trace_id, to_cull.id, len(dormant_threads), extra={"trace_id": trace_id, "turn": turn_no},
+                        )
+                if changed:
+                    state = state.model_copy(update={"long_term_objective": arc})
+                    if delta is not None:
+                        delta = delta.model_copy(update={"arc_update": arc})
+            except Exception as exc:
+                _log.warning(
+                    "thread_cull.failed trace_id=%s: %s",
+                    trace_id, exc, extra={"trace_id": trace_id, "turn": turn_no},
+                )
 
     # --- NPC lifecycle: nearby decay and departed archive ---
     nearby_ttl = config.nearby_decay_ttl if config else 2

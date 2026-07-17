@@ -140,13 +140,13 @@ def _get_resolved_arcs(state: WorldState, turn_no: int, *, ttl: int = 3) -> list
     return result
 
 
-async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any, Any]:
-    """Build narration context and messages. Returns (pacing_ctx, narr_messages, new_scene)."""
+async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any, Any, float]:
+    """Build narration context and messages. Returns (pacing_ctx, narr_messages, new_scene, smoothed_convergence)."""
     state = ctx.state
     config = ctx.config
 
     if _is_cancel_requested(ctx):
-        return None, None, None
+        return None, None, None, 0.0
 
     turn_no = state.meta.turn + 1
 
