@@ -1,4 +1,4 @@
-Extract inventory and condition deltas from the narration. Emit one JSON object. No prose, no markdown fences. Omit fields with no changes — empty arrays are never valid.
+Extract inventory, condition, and location deltas from the narration. Emit one JSON object. No prose, no markdown fences. Omit fields with no changes — empty arrays are never valid.
 
 The extractor is authoritative on tables; the narrator is authoritative on prose. Reconcile tables against narration — tables define current state, narration defines what changed this turn.
 
@@ -8,6 +8,7 @@ Decide IF changes occurred BEFORE populating fields. Reason fields are mandatory
 
 - `inventory_change_reason`: REQUIRED if any inventory field is non-empty. One short phrase: "Player picked up from ground", "X NPC gave it to player", "Player lost pistol in a brawl". If no change: `"none"`.
 - `condition_change_reason`: REQUIRED if any condition field is non-empty. One short phrase: "Player received medical attention", "Injury healed after rest". If no change: `"none"`.
+- `location_change_reason`: REQUIRED if `location_change` is non-null. One short phrase: "Player left alley and entered tavern", "Traveled to the pier". If no change: `"none"`.
 
 **CRITICAL — `condition_change_reason` is mandatory when emitting `pc_condition_add` or `pc_condition_remove`.** Omitting it causes a `ValueError` and wastes a full turn retry. Always include it.
 
@@ -18,6 +19,18 @@ Ground all changes in what the narration confirms. `player_intent` is context on
 - Item enters inventory only when narration confirms possession (picked up, handed to them).
 - Item leaves inventory only when narration confirms loss (used up, given away, destroyed, dropped).
 - Nearby/visible items do NOT enter inventory. Used by NPCs or destroyed in world does NOT leave inventory.
+
+## Location change
+
+Compare narration with the `## Location` section above. If the player physically moves to a DIFFERENT place, emit `location_change`.
+
+**Emit** when the narration describes leaving one place and arriving at another: "stepped into the tavern", "walked three blocks to the precinct", "crossed the doorway". Explicit departure + arrival counts too ("leaving the rain-slicked alley behind for a dim interior").
+
+**Don't emit** for spatial repositioning within the same location: "slid behind the bar", "walked across the room", "ducked into an alcove".
+
+**Rule of thumb:** If the narrator only changes WHERE the player is standing → not a change. If the player left one named area and is now in another → IS a change. When in doubt, emit.
+
+When `location_change` is emitted, also provide `location_description`: where this location sits in the broader world — terrain, climate, major landmarks. 1 sentence.
 
 ## Spatial reasoning
 
@@ -63,6 +76,7 @@ Ammo: "Shot" → -1, "burst" → 2-4. Reloading → no change.
 {
   "inventory_change_reason": "Player picked up from ground",
   "condition_change_reason": "Player received medical attention",
+  "location_change_reason": "none",
   "inventory_update": [{"id": "...", "name": "...", "notes": "..."}],
   "inventory_remove": [{"id": "..."}],
   "inventory_add": [{"id": "...", "name": "...", "notes": "...", "amount": 1, "canonical_id": "..."}],
@@ -118,9 +132,3 @@ When in doubt, prefer removal over accumulation.
 ## State-presence rule
 
 Sections not shown in the user prompt still exist in live game state. Absence is not removal. Only emit removals you can justify from the narration.
-
-`location_change`: emitted ONLY when the location ID changes. Schema: `{"id": "snake_case", "name": "Display Name", "description": "Describe where this location sits in the broader world — geographical setting, terrain, climate, political territory, nearby major landmarks. Feel free to invent details that fit the world's theme. 1 sentence."}`.
-
-**Location change detection rule:** If the narration describes the player arriving at a new place — entering a building, leaving a room, traveling to a new area, arriving at a destination — emit `location_change`. Also detect ANY language that suggests a change of location: movement verbs (scramble, run, travel, head, move, slip, crawl, sprint, bolt, climb, descend, fall, slide, creep) combined with directional or destination language (toward, into, through, beneath, past, beyond, to, from). The narrator writes fiction; the extractor tracks where the player actually is. When in doubt, emit the location change.
-
-`location_description`: describe where this location sits in the broader world. Think "where on the map" — geographical setting, terrain, climate, political territory, nearby major landmarks, trade routes, regional features. Feel free to invent details that fit the world's theme. Can include a brief atmospheric detail if it reinforces the macro context. 1-2 sentences. Emit nothing if the location hasn't changed. The current location description is shown in the user prompt for reference.

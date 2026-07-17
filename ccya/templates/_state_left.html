@@ -3,7 +3,7 @@
 {% set _present = namespace(items=[], nearby_items=[]) %}
 {% if comp %}{% for _k, _v in comp.items() %}{% set _presence = _v.presence.value if _v.presence else "known" %}{% if _presence == "present" %}{% set _present.items = _present.items + [_v] %}{% elif _presence == "nearby" %}{% set _present.nearby_items = _present.nearby_items + [_v] %}{% endif %}{% endfor %}{% endif %}
 {% set present_npcs = (_present.items | sort(attribute="name")) if _present.items else [] %}
-{% if present_npcs or nearby_npcs %}
+{% if present_npcs or _present.nearby_items %}
 <details class="sidebar-card" id="card-characters" data-card="characters" open>
     <summary><span>Characters</span></summary>
     <div class="sidebar-card-body">
@@ -36,13 +36,13 @@
 {% endif %}
 </div>
 {% endif %}{% endfor %}
-{% if not present_npcs and not nearby_npcs %}
+{% if not present_npcs and not _present.nearby_items %}
 <span class="empty-state">No one else is around.</span>
 {% endif %}
-{% if nearby_npcs %}
+{% if _present.nearby_items %}
 <hr class="npc-divider">
 <div class="npc-list nearby-list">
-{% for _k, npc in comp.items() %}{% if npc in nearby_npcs %}
+{% for _k, npc in comp.items() %}{% if npc in _present.nearby_items %}
 {% set npc_name = npc.name or _k %}
 {% set npc_title = npc.title %}
 {% set npc_position = npc.position %}

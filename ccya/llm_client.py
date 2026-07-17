@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, MutableMapping
 
-from openai import AsyncOpenAI
+from openai import APIConnectionError, AsyncOpenAI
 
 import httpx
 
@@ -34,7 +34,8 @@ _client: dict[str, AsyncOpenAI] | None = None
 
 # Fallback state — module-level singleton for all callers
 # Initialize to far future so fallback doesn't trigger on first call
-_last_fallback_time: float = float("inf")
+# Health check cache per host: {host: (last_check_time, healthy_bool)}
+_health_cache: dict[str, tuple[float, bool]] = {}
 
 
 @dataclass(frozen=True)
@@ -142,6 +143,8 @@ def _is_retryable(exc: BaseException) -> bool:
         return True
     if isinstance(exc, httpx.HTTPError):
         return True
+    if isinstance(exc, APIConnectionError):
+        return True
     return False
 
 
@@ -159,6 +162,30 @@ def _record_fallback() -> None:
     """Mark that we've fallen back to the secondary host."""
     global _last_fallback_time
     _last_fallback_time = time.monotonic()
+
+
+async def _check_health(host: str) -> bool:
+    """Check if LLM host is healthy via /health endpoint. Results cached for 30s."""
+    now = time.monotonic()
+    if host in _health_cache:
+        last_time, healthy = _health_cache[host]
+        if now - last_time < 30.0:
+            return healthy
+    try:
+        url = host.rstrip("/")
+        if url.endswith("/v1"):
+            url = url[:-3]
+        elif url.endswith("/v1/"):
+            url = url[:-4]
+        timeout = httpx.Timeout(connect=2.0, read=3.0, write=5.0, pool=10.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(f"{url}/health")
+        healthy = resp.status_code == 200
+        _health_cache[host] = (now, healthy)
+        return healthy
+    except Exception:
+        _health_cache[host] = (now, False)
+        return False
 
 
 async def _chat_with_fallback(
@@ -186,11 +213,11 @@ async def _chat_with_fallback(
     """
     t0 = time.monotonic()
 
-    # Try primary (up to 2 attempts with 2s gap to confirm it's truly down)
+    # Try primary (up to 2 attempts with 1s gap to confirm it's truly down)
     for attempt in range(2):
         if attempt > 0:
-            _log.debug("Primary retry after 2s delay (attempt %d/2)", attempt + 1)
-            await asyncio.sleep(2.0)
+            _log.debug("Primary retry after 1s delay (attempt %d/2)", attempt + 1)
+            await asyncio.sleep(1.0)
         try:
             return await _try_host(
                 host, model, messages, t0,
@@ -229,8 +256,16 @@ async def _chat_with_fallback(
             )
             raise
 
-    # Still in cooldown — use primary anyway (might be back up)
+    # Still in cooldown — check primary health before trying inference
     try:
+        if not await _check_health(host):
+            _log.debug("Primary /health check failed, using fallback %s", fallback_host)
+            return await _try_host(
+                fallback_host, model, messages, t0,
+                temperature=temperature, max_tokens=max_tokens,
+                timeout=timeout, top_p=top_p,
+                frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+            )
         return await _try_host(
             host, model, messages, t0,
             temperature=temperature, max_tokens=max_tokens,
@@ -238,7 +273,7 @@ async def _chat_with_fallback(
             frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
         )
     except Exception as exc:
-        # Primary failed again during cooldown, try fallback anyway
+        # Primary inference failed during cooldown, try fallback
         if fallback_host:
             _log.warning(
                 "Primary failed during cooldown, attempting fallback %s: %s",
@@ -279,11 +314,11 @@ async def _chat_stream_with_fallback(
 
     Same retry/fallback logic as _chat_with_fallback but for streaming.
     """
-    # Try primary (up to 2 attempts with 2s gap)
+    # Try primary (up to 2 attempts with 1s gap)
     for attempt in range(2):
         if attempt > 0:
-            _log.debug("Primary stream retry after 2s delay (attempt %d/2)", attempt + 1)
-            await asyncio.sleep(2.0)
+            _log.debug("Primary stream retry after 1s delay (attempt %d/2)", attempt + 1)
+            await asyncio.sleep(1.0)
         try:
             async for chunk in _try_host_stream(
                 host, model, messages,
@@ -327,8 +362,18 @@ async def _chat_stream_with_fallback(
             )
             raise
 
-    # Still in cooldown — try primary again
+    # Still in cooldown — check primary health before trying stream
     try:
+        if not await _check_health(host):
+            _log.debug("Primary /health check failed, using fallback %s", fallback_host)
+            async for chunk in _try_host_stream(
+                fallback_host, model, messages,
+                temperature=temperature, timeout=timeout,
+                stream_stats=stream_stats, top_p=top_p,
+                frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+            ):
+                yield chunk
+            return
         async for chunk in _try_host_stream(
             host, model, messages,
             temperature=temperature, timeout=timeout,
@@ -382,7 +427,7 @@ def _get_client(base_url: str) -> AsyncOpenAI:
 def _make_httpx(read_timeout: float | None) -> httpx.AsyncClient:
     """Create an httpx.AsyncClient with standard connection pool config."""
     return httpx.AsyncClient(
-        timeout=httpx.Timeout(connect=10.0, read=read_timeout, write=10.0, pool=10.0),
+        timeout=httpx.Timeout(connect=3.0, read=read_timeout, write=10.0, pool=10.0),
         limits=httpx.Limits(
             max_keepalive_connections=20,
             max_connections=50,

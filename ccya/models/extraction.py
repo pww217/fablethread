@@ -84,6 +84,7 @@ def _coerce_condition_remove_item(v: Any) -> Any:
 class StateMerge(BaseModel):
     inventory_change_reason: str = ""
     condition_change_reason: str = ""
+    location_change_reason: str = ""
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
     inventory_remove: list[InventoryRemove] = Field(default_factory=list)
     inventory_update: list[InventoryUpdate] = Field(default_factory=list, max_length=6)
@@ -124,6 +125,7 @@ class SceneExtractResult(BaseModel):
 class StateExtractResult(BaseModel):
     condition_change_reason: str = ""
     inventory_change_reason: str = ""
+    location_change_reason: str = ""
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
     inventory_remove: list[InventoryRemove] = Field(default_factory=list)
     inventory_update: list[InventoryUpdate] = Field(default_factory=list, max_length=6)
@@ -138,6 +140,12 @@ class StateExtractResult(BaseModel):
     def _validate_condition_reason(self) -> "StateExtractResult":
         if (self.pc_condition_add or self.pc_condition_remove) and not self.condition_change_reason:
             raise ValueError("condition_change_reason is required when condition changes are present")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_location_reason(self) -> "StateExtractResult":
+        if self.location_change and not self.location_change_reason:
+            raise ValueError("location_change_reason is required when location_change is emitted")
         return self
 
     @model_validator(mode="after")

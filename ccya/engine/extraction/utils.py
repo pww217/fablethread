@@ -143,9 +143,11 @@ def _coerce_scene_json(j: dict[str, Any]) -> dict[str, Any]:
         if not required.issubset(j["thread_add"].keys()):
             del j["thread_add"]
 
-    # Coerce empty arc_resolve (LLM often emits {} instead of omitting)
-    if isinstance(j.get("arc_resolve"), dict) and not j["arc_resolve"]:
-        del j["arc_resolve"]
+    # Coerce empty arc_resolve (LLM often emits {} or {resolution: null} instead of omitting)
+    if isinstance(j.get("arc_resolve"), dict):
+        arc_res = j["arc_resolve"]
+        if not arc_res or "resolution" not in arc_res or arc_res.get("resolution") is None:
+            del j["arc_resolve"]
 
     return j
 
@@ -210,6 +212,10 @@ async def _call_stream(
                     _retry_hint += " You omitted the required 'condition_change_reason' field — add a one-phrase reason for why conditions changed and re-emit."
                 if "inventory_change_reason" in parse_error and "required" in parse_error:
                     _retry_hint += " You omitted the required 'inventory_change_reason' field — add a one-phrase reason for why inventory changed and re-emit."
+                if "location_change_reason" in parse_error and "required" in parse_error:
+                    _retry_hint += " You omitted the required 'location_change_reason' field — add a one-phrase reason for the location change, or omit location_change entirely."
+                if "arc_resolve" in parse_error and "resolution" in parse_error:
+                    _retry_hint += " If you want to resolve the arc, provide a non-empty 'resolution' string; otherwise omit 'arc_resolve' entirely."
                 messages.append({
                     "role": "user",
                     "content": (

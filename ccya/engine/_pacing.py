@@ -201,7 +201,7 @@ def _compute_ages(state: WorldState) -> dict[str, int]:
     """Compute age/staleness counters for narration directives."""
     current_turn = state.meta.turn
 
-    scene_entered = state.scene.turn_entered
+    scene_entered = state.scene.location_entered_turn
     scene_age = current_turn - scene_entered
 
     return {
