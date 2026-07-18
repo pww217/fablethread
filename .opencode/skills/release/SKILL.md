@@ -22,7 +22,7 @@ Write release notes to `docs/releases/0.X.Y.md` (create the directory if needed)
 **Structure:**
 
 ```markdown
-# Release 0.X.Y
+# 0.X.Y
 
 Released: YYYY-MM-DD
 
@@ -79,9 +79,9 @@ Full list of commits since last release (git log format).
 
 1. **Find the last tag:** `git tag --sort=-v:refname | head -1`
 2. **Determine next version** per the bump rules above
-3. **Tag it:** `git tag -a 0.X.Y -m "Release 0.X.Y"` (then push)
+3. **Tag it:** `git tag -a 0.X.Y -m "0.X.Y"` (then push)
 4. **Get the log:** `git log --oneline <last_tag>..HEAD`
 5. **Categorize commits** into the sections above
 6. **Write the release notes** to `docs/releases/0.X.Y.md`
 7. **Commit the release notes** (they are part of the release)
-8. **Create a GitHub release:** `gh release create 0.X.Y --title "Release 0.X.Y" --notes-file docs/releases/0.X.Y.md` (then push the release)
+8. **Create a GitHub release:** `gh release create 0.X.Y --title "0.X.Y" --notes-file docs/releases/0.X.Y.md` (then push the release)

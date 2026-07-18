@@ -234,6 +234,8 @@ async def _chat_with_fallback(
             _log.debug("Health check failed, trying primary anyway")
 
     # Single attempt to primary
+    primary_failed = False
+    primary_exc: Exception | None = None
     try:
         return await _try_host(
             host, model, messages, t0,
@@ -242,30 +244,32 @@ async def _chat_with_fallback(
             frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
         )
     except Exception as exc:
+        primary_failed = True
+        primary_exc = exc
         if not _is_retryable(exc):
-            _log.debug("Non-retryable error, not retrying: %s", exc)
-            raise
+            _log.debug("Non-retryable error from primary: %s", exc)
+
+    # Attempt fallback when primary fails (retryable or non-retryable)
+    if primary_failed:
         _log.warning(
             "Primary LLM host %s failed, falling back to %s: %s",
-            host, fallback_host, exc,
+            host, fallback_host, primary_exc,
         )
-
-    # Attempt fallback
-    if _should_fallback(fallback_host, fallback_cooldown_s):
-        _record_fallback()
-        try:
-            return await _try_host(
-                fallback_host, model, messages, t0,
-                temperature=temperature, max_tokens=max_tokens,
-                timeout=timeout, top_p=top_p,
-                frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
-            )
-        except Exception as exc:
-            _log.warning(
-                "Fallback LLM host %s also failed, re-raising primary error: %s",
-                fallback_host, exc,
-            )
-            raise
+        if _should_fallback(fallback_host, fallback_cooldown_s):
+            _record_fallback()
+            try:
+                return await _try_host(
+                    fallback_host, model, messages, t0,
+                    temperature=temperature, max_tokens=max_tokens,
+                    timeout=timeout, top_p=top_p,
+                    frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                )
+            except Exception as exc:
+                _log.warning(
+                    "Fallback LLM host %s also failed, re-raising primary error: %s",
+                    fallback_host, exc,
+                )
+                raise
 
     # Still in cooldown — check primary health before trying inference
     try:
@@ -321,70 +325,13 @@ async def _chat_stream_with_fallback(
     seed: int | None = None,
     num_ctx: int | None = None,
 ) -> AsyncIterator[str]:
-    """Stream LLM response with retry on primary and fallback to secondary.
+    """Stream LLM response with single attempt on primary and fallback to secondary.
 
     Same retry/fallback logic as _chat_with_fallback but for streaming.
     """
-    # Try primary (up to 2 attempts with 1s gap)
-    for attempt in range(2):
-        if attempt > 0:
-            _log.debug("Primary stream retry after 1s delay (attempt %d/2)", attempt + 1)
-            await asyncio.sleep(1.0)
-        try:
-            async for chunk in _try_host_stream(
-                host, model, messages,
-                temperature=temperature, timeout=timeout,
-                stream_stats=stream_stats, top_p=top_p,
-                frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
-            ):
-                yield chunk
-            return
-        except Exception as exc:
-            if not _is_retryable(exc):
-                _log.debug("Non-retryable error, not retrying stream: %s", exc)
-                raise
-            if attempt < 1:
-                _log.debug("Primary stream attempt %d failed (retryable), retrying: %s", attempt + 1, exc)
-                continue
-            _log.warning(
-                "Primary LLM host %s stream failed after 2 attempts, falling back to %s: %s",
-                host, fallback_host, exc,
-            )
-            break
-    else:
-        raise
-
-    # Attempt fallback
-    if _should_fallback(fallback_host, fallback_cooldown_s):
-        _record_fallback()
-        try:
-            async for chunk in _try_host_stream(
-                fallback_host, model, messages,
-                temperature=temperature, timeout=timeout,
-                stream_stats=stream_stats, top_p=top_p,
-                frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
-            ):
-                yield chunk
-            return
-        except Exception as exc:
-            _log.warning(
-                "Fallback LLM host %s stream also failed, re-raising primary error: %s",
-                fallback_host, exc,
-            )
-            raise
-
-    # Still in cooldown — check primary health before trying stream
+    primary_failed = False
+    primary_exc: Exception | None = None
     try:
-        if not await _check_health(host):
-            _log.debug("Primary /health check failed, using fallback %s", fallback_host)
-            async for chunk in _try_host_stream(
-                fallback_host, model, messages,
-                temperature=temperature, timeout=timeout,
-                stream_stats=stream_stats, top_p=top_p,
-                frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
-            ):
-                yield chunk
-            return
         async for chunk in _try_host_stream(
             host, model, messages,
             temperature=temperature, timeout=timeout,
@@ -394,11 +341,18 @@ async def _chat_stream_with_fallback(
             yield chunk
         return
     except Exception as exc:
-        if fallback_host:
-            _log.warning(
-                "Primary stream failed during cooldown, attempting fallback %s: %s",
-                fallback_host, exc,
-            )
+        primary_failed = True
+        primary_exc = exc
+        if not _is_retryable(exc):
+            _log.debug("Non-retryable error from primary stream: %s", exc)
+
+    if primary_failed:
+        _log.warning(
+            "Primary LLM host %s stream failed, falling back to %s: %s",
+            host, fallback_host, primary_exc,
+        )
+        if _should_fallback(fallback_host, fallback_cooldown_s):
+            _record_fallback()
             try:
                 async for chunk in _try_host_stream(
                     fallback_host, model, messages,
@@ -408,12 +362,54 @@ async def _chat_stream_with_fallback(
                 ):
                     yield chunk
                 return
-            except Exception as fallback_exc:
+            except Exception as exc:
                 _log.warning(
-                    "Fallback stream also failed during cooldown, re-raising primary error: %s",
-                    fallback_exc,
+                    "Fallback LLM host %s stream also failed, re-raising primary error: %s",
+                    fallback_host, exc,
                 )
                 raise
+
+        # Still in cooldown — check primary health before trying stream
+        try:
+            if not await _check_health(host):
+                _log.debug("Primary /health check failed, using fallback %s", fallback_host)
+                async for chunk in _try_host_stream(
+                    fallback_host, model, messages,
+                    temperature=temperature, timeout=timeout,
+                    stream_stats=stream_stats, top_p=top_p,
+                    frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                ):
+                    yield chunk
+                return
+            async for chunk in _try_host_stream(
+                host, model, messages,
+                temperature=temperature, timeout=timeout,
+                stream_stats=stream_stats, top_p=top_p,
+                frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+            ):
+                yield chunk
+            return
+        except Exception as exc:
+            if fallback_host:
+                _log.warning(
+                    "Primary stream failed during cooldown, attempting fallback %s: %s",
+                    fallback_host, exc,
+                )
+                try:
+                    async for chunk in _try_host_stream(
+                        fallback_host, model, messages,
+                        temperature=temperature, timeout=timeout,
+                        stream_stats=stream_stats, top_p=top_p,
+                        frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                    ):
+                        yield chunk
+                    return
+                except Exception as fallback_exc:
+                    _log.warning(
+                        "Fallback stream also failed during cooldown, re-raising primary error: %s",
+                        fallback_exc,
+                    )
+                    raise
         raise
 
 
