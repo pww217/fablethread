@@ -34,6 +34,7 @@ _client: dict[str, AsyncOpenAI] | None = None
 
 # Fallback state — module-level singleton for all callers
 # Initialize to far future so fallback doesn't trigger on first call
+_last_fallback_time: float = float("inf")
 # Health check cache per host: {host: (last_check_time, healthy_bool)}
 _health_cache: dict[str, tuple[float, bool]] = {}
 
@@ -93,7 +94,7 @@ async def _try_host_stream(
         "stream_options": {"include_usage": True},
     }
     if timeout is not None:
-        kwargs["timeout"] = timeout
+        kwargs["timeout"] = httpx.Timeout(connect=5.0, read=timeout, write=10.0, pool=10.0)
     kwargs.update(_build_chat_kwargs(
         temperature=temperature, top_p=top_p,
         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -203,41 +204,51 @@ async def _chat_with_fallback(
     seed: int | None = None,
     num_ctx: int | None = None,
 ) -> LLMResult:
-    """Call LLM with retry on primary and fallback to secondary if primary is down.
+    """Call LLM with single attempt on primary and fallback to secondary if primary is down.
 
     Per-request flow:
     1. Try primary → success: use it, reset cooldown timer
-    2. Try primary → failure → wait 2s → retry primary once (confirms truly down)
-    3. Both primary attempts fail → fall back to secondary, log warning, set cooldown
-    4. Cooldown: once fallen back, keep using secondary for cooldown_s seconds
+    2. Try primary → failure → immediately fall back to secondary
+    3. Cooldown: once fallen back, keep using secondary for cooldown_s seconds
     """
     t0 = time.monotonic()
 
-    # Try primary (up to 2 attempts with 1s gap to confirm it's truly down)
-    for attempt in range(2):
-        if attempt > 0:
-            _log.debug("Primary retry after 1s delay (attempt %d/2)", attempt + 1)
-            await asyncio.sleep(1.0)
+    # Health check primary before attempting inference
+    if host and not fallback_host:
+        pass
+    elif host:
         try:
-            return await _try_host(
-                host, model, messages, t0,
-                temperature=temperature, max_tokens=max_tokens,
-                timeout=timeout, top_p=top_p,
-                frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
-            )
-        except Exception as exc:
-            if not _is_retryable(exc):
-                _log.debug("Non-retryable error, not retrying: %s", exc)
-                raise
-            if attempt < 1:
-                _log.debug("Primary attempt %d failed (retryable), retrying: %s", attempt + 1, exc)
-                continue
-            # Both primary attempts failed
-            _log.warning(
-                "Primary LLM host %s failed after 2 attempts, falling back to %s: %s",
-                host, fallback_host, exc,
-            )
-            break
+            if await _check_health(host):
+                _log.debug("Primary health OK, attempting inference")
+            else:
+                _log.warning("Primary /health check failed, using fallback")
+                if _should_fallback(fallback_host, fallback_cooldown_s):
+                    _record_fallback()
+                    return await _try_host(
+                        fallback_host, model, messages, t0,
+                        temperature=temperature, max_tokens=max_tokens,
+                        timeout=timeout, top_p=top_p,
+                        frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                    )
+        except Exception:
+            _log.debug("Health check failed, trying primary anyway")
+
+    # Single attempt to primary
+    try:
+        return await _try_host(
+            host, model, messages, t0,
+            temperature=temperature, max_tokens=max_tokens,
+            timeout=timeout, top_p=top_p,
+            frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+        )
+    except Exception as exc:
+        if not _is_retryable(exc):
+            _log.debug("Non-retryable error, not retrying: %s", exc)
+            raise
+        _log.warning(
+            "Primary LLM host %s failed, falling back to %s: %s",
+            host, fallback_host, exc,
+        )
 
     # Attempt fallback
     if _should_fallback(fallback_host, fallback_cooldown_s):
@@ -613,7 +624,7 @@ async def _chat_openai_compat(
         "messages": messages,
     }
     if timeout is not None:
-        kwargs["timeout"] = timeout
+        kwargs["timeout"] = httpx.Timeout(connect=5.0, read=timeout, write=10.0, pool=10.0)
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
     kwargs.update(_build_chat_kwargs(
