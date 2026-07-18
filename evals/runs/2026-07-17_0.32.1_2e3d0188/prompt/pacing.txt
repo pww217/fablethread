@@ -1,0 +1,73 @@
+Load the ev-review skill. This is a focused deep-dive, not a checker pass.
+
+---
+
+## Your Assignment
+
+You are reviewing **Pacing**. Write your report to:
+`evals/runs/2026-07-17_0.32.1_2e3d0188/pacing.md`
+
+Review these mechanics in order:
+1. pacing_directives
+2. phase_transition
+3. phase_transition_signals
+4. climax_turn_counting
+5. breather_enforcement
+6. curtain_call
+7. convergence_ema
+8. convergence_recompute
+9. convergence_threshold_context
+
+---
+
+## Scope & Method
+
+- **Runs:** All 6 Phase 3 runs in `evals/runs/2026-07-17_0.32.1_2e3d0188/`:
+  - noir-1930s:driven (25t)
+  - space-western:speedrunner (25t)
+  - space-western:explorer (25t)
+  - golden-piracy:completionist (25t)
+  - zombie-survival:cautious (25t)
+  - allied-ww2:aggressive (25t)
+
+- **For each mechanic:** Find turns where it was actually engaged. Do not review every turn — focus on turns where the mechanic matters. Be thorough, especially on complicated mechanics.
+
+- **Work sequentially:** One mechanic at a time, in the order listed above. Write to your report after each mechanic you examine and constantly update it.
+
+- **Use ev.py commands:** `turn`, `mechanics`, `threads`, `trace`, `check` as appropriate per mechanic.
+
+- **Be concise and get to the point.**
+
+---
+
+## Report Template
+
+### 1. Mechanic Overview
+Brief description of what the mechanic does and why it matters.
+
+### 2. Runs Examined + Turns Sampled
+List all 6 runs. For each mechanic, note which turns you examined and why (e.g., "turns 3, 7, 12, 18, 23 — early/mid/late spread, plus turns with location changes or extraction retries").
+
+### 3. Findings
+For each mechanic, document what you observed across turns. Include:
+- Pass/fail per turn examined
+- Specific examples (quote relevant JSON/JSONL if useful)
+- Edge cases or surprising behavior
+
+### 4. Cross-Run Patterns
+What issues appear consistently across runs? What's isolated to specific runs? Note any interaction between mechanics.
+
+### 5. Root Causes
+Why are the issues happening? Focus on mechanics, not implementation bugs (those are separate).
+
+### 6. Recommendations
+Actionable suggestions for improvement. Include a ballpark effort level: trivial, small, medium, large, or complex — with justification.
+
+### 7. Meta Improvements
+EV tool and eval process improvements. Note any broken commands, bad/too much/too little info, wrong signposts, or anything that made your job harder. Any improvement to the EV review process itself.
+
+---
+
+## Done Condition
+
+You're done when your report file is complete. Do not write to any other file.

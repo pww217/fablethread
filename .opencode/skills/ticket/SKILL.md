@@ -92,6 +92,14 @@ All skills that touch roadmap items should call the ticket skill:
 - `ev-run`: Call ticket skill to create ONE `E-` ticket per eval session, include eval group path, phase report links, and all findings
 - `ev-review`: Call ticket skill to update testing items, create ONE `E-` ticket per session if new issues warrant tracking, report lives within the eval ticket
 
+## Ev-run ticket discipline
+
+When the ticket skill is used by `ev-run`, the following rules apply:
+
+1. **Fill the ticket completely before starting.** The entire plan — scope, phases, expectations, and initial state — must be written into the ticket body before the eval session begins. Do not leave the ticket as a skeleton.
+2. **Record progress after every phase.** After each phase completes, append a timestamped progress entry to the ticket body summarizing what was observed, what changed, and what the next phase will target. This is mandatory, not optional.
+3. **The ticket is long-term memory between compactions.** Treat it as such. Write with intention: include specific observations, turn numbers, mechanical details, and reasoning. Future sessions that load this ticket will rely on it as their primary context. Vague notes are as bad as no notes.
+
 ## Done when
 
 Ticket created/updated/audited with valid frontmatter, correct type, valid status, unique ticket ID, and proper directory placement. Indices regenerated via `make roadmap`.
