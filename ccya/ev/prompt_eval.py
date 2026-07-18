@@ -19,7 +19,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ccya.engine.config import EngineConfig, _build_jinja_env, _render
+from ccya.engine.config import build_engine_config, _build_jinja_env, _render
+from ccya.models import load_config
 from ccya.pack import load_pack
 from ccya.ev.checkers import CheckerResult
 from ccya.ev.events import find_turn, load_events, load_prompts
@@ -165,7 +166,8 @@ def cmd_prompt_eval_seed(
     temp: float | None = None,
 ) -> None:
     """Render seed prompt, call LLM, check JSON output."""
-    config = EngineConfig()
+    raw_cfg = load_config()
+    config = build_engine_config(raw_cfg)
     model = model or config.model
     temp = temp if temp is not None else config.prepare_seed_temperature
 
@@ -247,7 +249,8 @@ def cmd_prompt_eval_call(
         rendered_user = _render(env, user_template, ctx)
 
     # Call LLM
-    config = EngineConfig()
+    raw_cfg = load_config()
+    config = build_engine_config(raw_cfg)
     temp = scenario.temp if scenario.temp is not None else 0.7
 
     from ccya.llm_client import chat_with_config as llm_chat
