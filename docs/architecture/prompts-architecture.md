@@ -36,7 +36,7 @@ Two entirely separate template systems exist — do not conflate them:
 
 - Replaces `storytell_system.j2` (deleted in the beat generation split). 4-section hierarchy preserved: (1) Task/role, (2) Hard rules (Output schema, Output discipline, State-presence rule), (3) Behavioral guidance (Actions, Outcome summary, Thread operations, Rules-outcome, World state rules, Latent threads), (4) Campaign arc system. **The GM Beat guidance section is gone** — beat generation moved to World (Step 2d).
 - The `gm_beat` field has been removed from the `StorytellerResult` schema; Record no longer emits beats. Thread management (update/resolve/add) and action/outcome_summary generation remain in Record.
-- **Curtain Call section retained** in record_system.j2 — instructs record to emit `thread_resolve` when curtain_call is active/forced.
+- No curtain call logic — thread resolution driven by thread urgency and phase context only.
 - **Thread urgency interpretation rules** (I-32): instructs Record to translate narrator portrayal into urgency labels. Escalate to urgent when threat is immediate/imminent, background thread resurfaces, or phase is CLIMAX. Demote to background when thread is faded/distant/past, associated NPC departed, or dormant 6+ turns. CLIMAX phase awareness: at least one thread MUST be urgent in CLIMAX.
 - **Matching threads to narration** (I-32): instructs Record to match narration events to thread summaries by people, places, and actions (concrete event-mappable criteria, not abstract implications).
 
@@ -48,8 +48,8 @@ Two entirely separate template systems exist — do not conflate them:
   - ~~`allowed_beat_types`~~ — moved to World
   - ~~`pending_beat` / `recent_beats`~~ — moved to World
   - ~~`player_intent`~~ — not needed for backward-looking analysis
-- Sections retained from original: `scene_phase` and `curtain_call` (still passed from record.py:93-94)
-- Sections reordered for record's backward-looking scope: arc/threads → world_state → band → scene_phase → curtain_call → prior_history → recent_turns → CURRENT TURN NARRATION
+- Sections retained from original: `scene_phase` (still passed from record.py:93)
+- Sections reordered for record's backward-looking scope: arc/threads → world_state → band → scene_phase → prior_history → recent_turns → CURRENT TURN NARRATION
 
 ### World system prompt (`ccya/prompts/world_system.j2`)
 

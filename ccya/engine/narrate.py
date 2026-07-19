@@ -46,7 +46,6 @@ def _narrate_messages(
     npc_roster: list[dict[str, Any]] | None = None,
     arc_ttl: int = 3,
     thread_ttl: int = 3,
-    curtain_call: str = "",
 ) -> list[dict[str, str]]:
     if npc_roster is None:
         npc_roster = build_npc_roster({nid: entry.model_dump() for nid, entry in (state.compendium.npcs or {}).items()}, turn_no=turn_no)
@@ -105,7 +104,6 @@ def _narrate_messages(
         "current_objective": current_objective_ctx,
         "arc_pressure_score": arc_pressure_score,
         "arc_hint_text": arc_hint_text,
-        "curtain_call": curtain_call,
         "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
         "inventory": [it.model_dump() for it in state.inventory],
         "location": state.location.model_dump(),
@@ -228,9 +226,6 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any, Any, float]:
     _pc.convergence_components = _convergence_components
     _pc.convergence_threads = _raw_thread_dicts
 
-    # Curtain Call signal for CLIMAX phase
-    _curtain_call = state.scene.curtain_call
-
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
         recent_turns=ctx.recent_turns[-1:],
@@ -241,7 +236,6 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any, Any, float]:
         world_factions=_world_factions,
         npc_roster=[n for n in build_npc_roster({nid: entry.model_dump() for nid, entry in (state.compendium.npcs or {}).items()}, turn_no=turn_no) if n.get("presence") == "present"],
         arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
-        curtain_call=_curtain_call,
     )
 
     return _pc, narr_messages, new_scene, smoothed_convergence

@@ -48,15 +48,6 @@
 {% if state and state.scene and state.scene.scene_phase %}
 ## Scene phase: {{ state.scene.scene_phase }}
 {% endif %}
-{% if curtain_call and curtain_call != "" %}
-## Curtain Call: {{ curtain_call | upper }}
-{% if curtain_call == "active" %}
-Bias toward resolving the main pressure thread if the narration warrants it.
-{% elif curtain_call == "forced" %}
-Resolve the main pressure thread this turn.
-{% endif %}
-{% endif %}
-
 ## Prior History
 {% if prior_history and prior_history | length > 0 -%}
 {% for b in prior_history %}{{ b }}

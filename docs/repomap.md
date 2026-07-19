@@ -61,7 +61,7 @@
 | `ccya/ev/checkers/` | Checker framework: @register_checker, 28 deterministic + 3 LLM checkers |
 | `ccya/ev/checkers/ruling.py` | Ruling checkers: `ruling_reason_quality`, `ruling_band_distribution`, `ruling_intent_match` |
 | `ccya/ev/checkers/convergence.py` | Convergence checker: `convergence_components` |
-| `ccya/ev/checkers/pacing_convergence.py` | Phase transition signals, convergence recomputation (6 components, no stall_floor), curtain_call, directive-beat alignment |
+| `ccya/ev/checkers/pacing_convergence.py` | Phase transition signals, convergence recomputation (6 components, no stall_floor), directive-beat alignment |
 | `ccya/ev/checkers/state.py` | State checkers: `location_description_consistency`, `world_state_facts` |
 | `ccya/personality.py` | NpcPersonality dataclass; 12 archetype registry; assign_personality() |
 | `ccya/pack.py` | SeedStateEnvelope (wraps SeedState without narrative min_length), SeedEnvelope, load_pack(), list_packs(), validate_pack(), _validate_pool_entries() — validates pack has seed or scenario; PackManifest.checkers for pack-level checker overrides |

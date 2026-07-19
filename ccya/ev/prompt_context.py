@@ -144,7 +144,6 @@ def build_prompt_context(
             "world_state": list(prev_snap.get("scene", {}).get("world_state") or []),
             "band": (turn_ev.get("ruling") or {}).get("band", ""),
             "scene_phase": turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP"),
-            "curtain_call": turn_ev.get("pacing_context", {}).get("curtain_call", ""),
             "prior_history": list((prev_meta.get("prior_history") or [])[:-1]),
             "narration": narration,
             "turn_no": turn_no,
@@ -203,15 +202,6 @@ def build_prompt_context(
                 ],
                 "completed_threads": [],
             }
-        curtain_call = ""
-        scene_phase = turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP")
-        if scene_phase == "CLIMAX":
-            climax_turn_count = turn_ev.get("pacing_context", {}).get("climax_turn_count", 0)
-            climax_turn_limit = next_scene.get("climax_turn_limit", 4)
-            if climax_turn_count >= climax_turn_limit - 1:
-                curtain_call = "forced"
-            elif climax_turn_count == 1:
-                curtain_call = "active"
         return {
             "state": state_with_scene,
             "pc": pc,
@@ -230,7 +220,6 @@ def build_prompt_context(
             "world_factions": [],
             "npc_roster": npc_roster,
             "current_objective": current_objective_ctx,
-            "curtain_call": curtain_call,
             "resolved_arcs": [],
             "location": prev_snap.get("location") or {},
             "inventory": prev_snap.get("inventory") or [],
@@ -253,7 +242,6 @@ def build_prompt_context(
     if stream == "world":
         arc = prev_snap.get("arc") or {}
         meta = prev_snap.get("meta") or {}
-        scene_phase = turn_ev.get("pacing_context", {}).get("scene_phase", "SETUP")
         # Build NPC roster from compendium
         comp = prev_snap.get("compendium", {}).get("npcs", {})
         npc_roster = _build_npc_roster(comp)

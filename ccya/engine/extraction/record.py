@@ -91,7 +91,6 @@ def _record_messages(
             "band": band,
             "pc_name": state.pc.name or "Unnamed",
             "scene_phase": scene.scene_phase,
-            "curtain_call": scene.curtain_call,
         },
     )
     msgs = [

@@ -199,10 +199,10 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 **Includes:** `_pc_header.j2`, `_conditions.j2`, `_inventory.j2`, `_location.j2`, `_npc_roster.j2`, `_world_state.j2`, `_thread_list.j2`, `_recent_turns.j2`, `_arc.j2`
 
 #### B.1 Architecture alignment
-- System prompt correctly implements: prose narration, player input priority, inventory constraints, NPC counts, no repetition, fail-band outcomes, NPC behavior drivers (motivation/fear/leverage/personality/bond), style rules, pacing, curtain call, campaign arc steering, markdown rules, genre/world rules, banned words
+- System prompt correctly implements: prose narration, player input priority, inventory constraints, NPC counts, no repetition, fail-band outcomes, NPC behavior drivers (motivation/fear/leverage/personality/bond), style rules, pacing, campaign arc steering, markdown rules, genre/world rules, banned words
 - User prompt provides: PC header, conditions, inventory, location, npc_roster, world state, factions/name pool, scene context (threads, phase), prior history, recent turns, arc, rules outcome, player input, pending beat, pacing context — matches architecture doc inputs
 - `pending_beat` comes from `pending_gm_beat` in state — correct
-- `curtain_call` passed to template — correct
+- `curtain_call` removed from template (I-42.4)
 - `arc_hint_text` passed in user_ctx (narrate.py:107) but never used in narrate_user.j2 — dead field
 - `arc_pressure_score` passed in user_ctx (narrate.py:106) but never used in template — dead field
 - `ages` declared in `NarratorBoundary` (context.py:255) but never used in template — dead field
@@ -266,7 +266,7 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 #### B.7 User prompt completeness
 - **User prompt is 84 lines:** Reasonable for narration context.
 - **Missing `turn_no` direct usage:** `turn_no` is in `NarratorBoundary` and passed to template, but `narrate_user.j2` doesn't use it directly — only used in includes. This is fine.
-- **Missing `curtain_call` usage:** `curtain_call` is passed in `narrate.py:253` and `narrate.py:108` but never rendered in `narrate_user.j2`. System prompt references `curtain_call` (line 78: "When `curtain_call` is active..."). This is a gap — user prompt should render curtain_call for the system prompt to use.
+- **Missing `curtain_call` usage:** ~~`curtain_call` was passed in `narrate.py:253` and `narrate.py:108` but never rendered in `narrate_user.j2`. System prompt referenced `curtain_call` (line 78: "When `curtain_call` is active..."). This was a gap — user prompt should render curtain_call for the system prompt to use.~~ **RESOLVED (I-42.4): curtain_call removed entirely.**
 - **Missing `arc_hint_text` usage:** `arc_hint_text` is passed in `narrate.py:107` but never rendered. System prompt doesn't reference it either — dead variable.
 - **Missing `arc_pressure_score` usage:** `arc_pressure_score` is passed in `narrate.py:106` but never rendered. System prompt doesn't reference it — dead variable.
 - **Missing `ages` usage:** `ages` is in `NarratorBoundary` and passed in `narrate.py:249` but never rendered. System prompt doesn't reference it — dead variable.
@@ -277,7 +277,7 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 #### B.8 Findings:
 - [ ] **Dead fields in `NarratorBoundary`:** `ages`, `resolved_arcs` — never used in template. Remove. **VALIDATED: confirmed.**
 - [ ] **Dead render variables:** `arc_hint_text`, `arc_pressure_score` passed in `narrate.py:106-107` but never used in template. Remove. **VALIDATED: confirmed.**
-- [ ] **`curtain_call` not rendered in user prompt:** System prompt references `curtain_call` (line 78) but user prompt never renders it. Add to `narrate_user.j2`. **INVALIDATED: `curtain_call` IS rendered at `narrate_user.j2:48-55`. Not dead.**
+- [ ] **`curtain_call` not rendered in user prompt:** System prompt references `curtain_call` (line 78) but user prompt never renders it. Add to `narrate_user.j2`. **RESOLVED (I-42.4): curtain_call removed entirely.**
 - [ ] **Tense ambiguity:** Line 1 says "Default past tense" but genre tone can override. Unclear if genre tone overrides past tense or if past tense applies to second person. Clarify. **VALIDATED: confirmed.**
 - [ ] **Inventory constraint stated 3 times:** Lines 9, 17, 19. All within the same Inventory section — more about internal consolidation than cross-section redundancy. **PARTIALLY VALIDATED: confirmed, but all in one section so less impactful than originally noted.**
 - [ ] **"Every sentence must advance" / "Each beat must advance":** Lines 58 and 72. Consolidate. **VALIDATED: confirmed.**
@@ -447,16 +447,16 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 **Includes:** `_arc.j2`, `_thread_list.j2`, `_recent_turns.j2`
 
 #### E.1 Architecture alignment
-- System prompt correctly implements thread operations, arc resolution, curtain call, outcome summary, actions
+- System prompt correctly implements thread operations, arc resolution, outcome summary, actions
 - User prompt provides narration, current_objective, all_threads, world_state, resolved_arcs, recent_turns, prior_history, turn_no, band, pc_name — matches architecture doc inputs
 - Architecture doc describes backward-looking scribe step — correct
 - `thread_creation_cooldown` mentioned in arch doc as engine gate, not rendered in prompt — correct (engine-enforced)
 
 #### E.2 Variable completeness & rendering
-- `StorytellerBoundary` declares: `narration`, `npc_roster`, `location`, `conditions`, `inventory`, `current_objective`, `all_threads`, `world_state`, `intent`, `pacing_context`, `recent_turns`, `prior_history`, `turn_no`, `band`, `scene_phase`, `curtain_call`, `allowed_beat_types`, `pending_beat`, `recent_beats`, `resolved_arcs`
+- `StorytellerBoundary` declares: `narration`, `npc_roster`, `location`, `conditions`, `inventory`, `current_objective`, `all_threads`, `world_state`, `intent`, `pacing_context`, `recent_turns`, `prior_history`, `turn_no`, `band`, `scene_phase`, `allowed_beat_types`, `pending_beat`, `recent_beats`, `resolved_arcs`
 - Engine passes: `narration`, `current_objective`, `all_threads`, `world_state`, `resolved_arcs`, `recent_turns`, `prior_history`, `turn_no`, `band`, `pc_name`
 - **Missing from `StorytellerBoundary`:** `pc_name` — used in `record_user.j2:1`. Add to boundary model.
-- **Dead fields in `StorytellerBoundary`:** `npc_roster`, `location`, `conditions`, `inventory`, `intent`, `pacing_context`, `scene_phase`, `curtain_call`, `allowed_beat_types`, `pending_beat`, `recent_beats` — none passed by record engine. Remove.
+- **Dead fields in `StorytellerBoundary`:** `npc_roster`, `location`, `conditions`, `inventory`, `intent`, `pacing_context`, `scene_phase`, `allowed_beat_types`, `pending_beat`, `recent_beats` — none passed by record engine. Remove.
 - `resolved_arcs` is NOT dead — passed in `record.py:67`, used in `_arc.j2:14-18` for "Recently Resolved Arcs" display. Correct.
 
 #### E.3 Schema/output discipline
@@ -471,10 +471,10 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - `goal_update` example shows `long_term_objective` — correct.
 
 #### E.4 Internal consistency
-- **Urgency escalation (3+ turns unaddressed → escalate) vs engine auto-dormant (8 turns):** Different thresholds. Prompt's 3-turn escalation would trigger much earlier than engine's 8-turn dormancy. **UPDATED (2026-07-07):** These rules should be removed from Record entirely. The Record is a log-keeper, not a decision-maker. Thread lifecycle rules (urgency escalation, scene phase thread guidance, curtain call forcing) belong in the Narrator prompt. The Record should only log what the Narrator did.
+- **Urgency escalation (3+ turns unaddressed → escalate) vs engine auto-dormant (8 turns):** Different thresholds. Prompt's 3-turn escalation would trigger much earlier than engine's 8-turn dormancy. **UPDATED (2026-07-07):** These rules should be removed from Record entirely. The Record is a log-keeper, not a decision-maker. Thread lifecycle rules (urgency escalation, scene phase thread guidance) belong in the Narrator prompt. The Record should only log what the Narrator did.
 - **`thread_creation_cooldown` in arch doc vs no cooldown in prompt:** Handled by engine, not prompt. Document this separation.
-- **Curtain call guidance for CLIMAX phase:** **UPDATED (2026-07-07):** Should be removed from Record prompt. The Narrator writes the prose and decides when threads are resolved. The Record should only log the Narrator's decisions, not force them.
-- **No curtain call guidance for other phases:** Correct (not applicable).
+- **Curtain call guidance for CLIMAX phase:** **RESOLVED (I-42.4):** Curtain call removed entirely. No curtain call logic in Record prompt.
+- **No curtain call guidance for other phases:** N/A (curtain call removed I-42.4).
 - **Outcome summary: "one sentence" — clear.**
 - **Actions: "exactly 4 choices" — clear.**
 - **Actions grounding rules: "at least one NPC by name" and "at least one inventory item or location feature" — clear.**
@@ -508,7 +508,7 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 
 #### E.8 Findings:
 - [x] **Missing from `StorytellerBoundary`:** `pc_name` — used in `record_user.j2:1`. **RESOLVED: added to boundary model.**
-- [x] **Dead fields in `StorytellerBoundary`:** ~~`npc_roster`~~, ~~`location`~~, ~~`conditions`~~, ~~`inventory`~~, ~~`intent`~~, ~~`pacing_context`~~, ~~`scene_phase`~~, ~~`curtain_call`~~, ~~`allowed_beat_types`~~, ~~`pending_beat`~~, ~~`recent_beats`~~ — none passed by record engine. **RESOLVED: removed dead fields, added `pc_name`.**
+- [x] **Dead fields in `StorytellerBoundary`:** ~~`npc_roster`~~, ~~`location`~~, ~~`conditions`~~, ~~`inventory`~~, ~~`intent`~~, ~~`pacing_context`~~, ~~`scene_phase`~~, ~~`allowed_beat_types`~~, ~~`pending_beat`~~, ~~`recent_beats`~~ — none passed by record engine. **RESOLVED: removed dead fields, added `pc_name`.**
 - [x] **Schema example `thread_update` has `reason` field:** Not in field rules. **RESOLVED: `reason` is in field rules (line 12 of schema, used for thread_update).**
 - [x] **`thread_resolve.world_state_candidate` not explained:** Field rules don't explain when to use it. **LEFT AS-IS: low priority, can be added later.**
 - [x] **Urgency escalation vs auto-dormant threshold:** Prompt says 3+ turns, engine auto-dormant at 8. **UPDATED (2026-07-07): These rules should be removed from Record entirely. The Record is a log-keeper, not a decision-maker. Thread lifecycle rules belong in the Narrator prompt.**
@@ -713,11 +713,11 @@ Stream names: `ruling`, `narrate`, `scene`, `state`, `record`, `world`, `storyte
 - `NPCRosterEntryBlock` (context.py:201-218) only declares `id`, `name`, `title`, `bio`, `presence`, `motivation`, `fear`, `leverage`, `notes`, `last_presence_turn`, `last_seen_location`
 - `_npc_roster.j2` uses all 5 fields
 
-### Cross-cutting finding 3: `curtain_call` never rendered in user templates
-- Referenced in `narrate_system.j2:78` and `record_system.j2:73,75` (system prompts)
-- Passed by engines (narrate.py:108, StorytellerBoundary:313)
-- Never rendered in any user template
-- Narrator/storyteller knows about curtain_call from system prompt but never sees its actual value
+### Cross-cutting finding 3: `curtain_call` — RESOLVED (I-42.4)
+- ~~Referenced in `narrate_system.j2:78` and `record_system.j2:73,75` (system prompts)~~ Removed
+- ~~Passed by engines (narrate.py:108, StorytellerBoundary:313)~~ Removed
+- ~~Never rendered in any user template~~ Was rendered in `narrate_user.j2:51-58` (now removed)
+- ~~Narrator/storyteller knows about curtain_call from system prompt but never sees its actual value~~ Resolved by removal
 
 ### Cross-cutting finding 4: `pc_name` missing from 2 boundary models
 - `StateExtractBoundary` (context.py:274-286): missing `pc_name`, but `extract_state_user.j2:1` uses `{{ pc_name }}`. Engine passes it (state.py:38).
@@ -777,7 +777,7 @@ Stream names: `ruling`, `narrate`, `scene`, `state`, `record`, `world`, `storyte
 - `world_system.j2:23` — **REMAINING**, prose example says "bond she shares" instead of "tie she shares"
 
 ### Cross-cutting finding 13: Dead fields in `StorytellerBoundary`
-- `npc_roster`, `location`, `conditions`, `inventory`, `intent`, `pacing_context`, `scene_phase`, `curtain_call`, `allowed_beat_types`, `pending_beat`, `recent_beats` — 11 fields not passed by record engine
+- `npc_roster`, `location`, `conditions`, `inventory`, `intent`, `pacing_context`, `scene_phase`, `allowed_beat_types`, `pending_beat`, `recent_beats` — 10 fields not passed by record engine
 - **Note:** Engine passes these via the `state` dict to the template, so they're not truly dead in the rendered prompt. The boundary model is just wrong about what it declares.
 
 ### Cross-cutting finding 14: Missing from boundary models

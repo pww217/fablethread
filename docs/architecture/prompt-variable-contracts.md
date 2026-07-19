@@ -29,7 +29,7 @@ Cross-reference mapping every user template to its section includes and context 
 
 ### `_narrate_messages()` → `narrate_user.j2`
 
-**Context vars passed:** `state`, `pc`, `pc_situation` (filtered: persist=true only from `state.pc_situation_schema`), `prior_history`, `recent_turns`, `rules_outcome`, `npc_name_pool`, `user_input`, `pending_beat`, `pacing_context`, `turn_no`, `meta`, `scene`, `ages`, `pc_allegiance`, `world_factions`, `npc_roster`, `current_objective`, `arc_pressure_score`, `arc_hint_text`, `curtain_call`, `resolved_arcs`, `inventory`, `location`, `conditions`
+**Context vars passed:** `state`, `pc`, `pc_situation` (filtered: persist=true only from `state.pc_situation_schema`), `prior_history`, `recent_turns`, `rules_outcome`, `npc_name_pool`, `user_input`, `pending_beat`, `pacing_context`, `turn_no`, `meta`, `scene`, `ages`, `pc_allegiance`, `world_factions`, `npc_roster`, `current_objective`, `arc_pressure_score`, `arc_hint_text`, `resolved_arcs`, `inventory`, `location`, `conditions`
 
 **Section includes:** `_pc_header.j2`, `_conditions.j2`, `_inventory.j2`, `_location.j2`, `_npc_roster.j2`, `_thread_list.j2`, `_recent_turns.j2`, `_arc.j2`, `_world_state.j2`
 
@@ -53,13 +53,13 @@ Cross-reference mapping every user template to its section includes and context 
 
 ### `_record_messages()` → `record_user.j2`
 
-**Context vars passed:** `narration`, `current_objective` (arc), `all_threads`, `world_state`, `resolved_arcs`, `recent_turns`, `prior_history`, `turn_no`, `band`, `pc_name`, `scene_phase`, `curtain_call`
+**Context vars passed:** `narration`, `current_objective` (arc), `all_threads`, `world_state`, `resolved_arcs`, `recent_turns`, `prior_history`, `turn_no`, `band`, `pc_name`, `scene_phase`
 
 **Section includes:** `_arc.j2`, `_thread_list.j2`, `_recent_turns.j2`
 
-**Inline (not section):** Threads section, world_state block, rules_outcome (band), scene_phase, curtain_call, prior_history, narration block
+**Inline (not section):** Threads section, world_state block, rules_outcome (band), scene_phase, prior_history, narration block
 
-**Note:** This contract replaces the old `_storytell_messages()` → `storytell_user.j2` contract. The forward-looking inputs (`candidate_npcs`, `pacing_context`, `intent`, `pending_beat`, `recent_beats`, `allowed_beat_types`, `comp_this_turn`) are no longer passed to Record; they moved to World (Step 2d) and Ruling (Step 0). `scene_phase` and `curtain_call` are still passed to Record.
+**Note:** This contract replaces the old `_storytell_messages()` → `storytell_user.j2` contract. The forward-looking inputs (`candidate_npcs`, `pacing_context`, `intent`, `pending_beat`, `recent_beats`, `allowed_beat_types`, `comp_this_turn`) are no longer passed to Record; they moved to World (Step 2d) and Ruling (Step 0). `scene_phase` is still passed to Record.
 
 ### `_run_world_step()` → `world_user.j2`
 

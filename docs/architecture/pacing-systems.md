@@ -58,19 +58,6 @@ Note: `scene_age` was removed from convergence — it is now used only by the na
 
 The raw score is smoothed using exponential moving average (EMA) each turn: `smoothed = alpha * raw + (1 - alpha) * prev_smoothed`. **Phase transitions use the raw score.** The smoothed score is used for the outcome_hint convergence hard gate in `_compute_pacing_context()`. First turn uses `prev_smoothed=0`, so smoothed = 0.4 * raw.
 
-## 2.5. Curtain Call — CLIMAX phase soft close
-
-Two-tier soft close guides the record toward thread resolution in CLIMAX:
-
-| Tier | Trigger | User prompt signal | System prompt guidance |
-|------|---------|--------------------|------------------------|
-| Active | Turn 1 of CLIMAX | `curtain_call: "active"` | "MUST resolve the active thread this scene. Include at least one `thread_resolve` entry." |
-| Forced | Turn ≥ climax_turn_limit - 1 | `curtain_call: "forced"` | "This thread MUST resolve now. The engine will force a transition if you don't." |
-
-Hard cutoff at `climax_turn_limit` unchanged (phase machine handles it). For default limit=4: turn 1→active, turn 2→none, turn 3→forced, turn 4→forced.
-
-**Assessment:** Curtain call is unnecessary complexity. It adds code overhead with few advantages. Eval runs should be checked to verify if curtain calls are actually being honored or having any meaningful impact. If they're not being honored or adding value, consider removing.
-
 ## 3. GM Beats
 
 ### Definition
@@ -342,9 +329,9 @@ T6:  normal rhythm continues
 ### Pattern 2: Climax resolution
 
 ```
-T1:  phase=CLIMAX, climax_turn_count=1, curtain_call=active
+T1:  phase=CLIMAX, climax_turn_count=1
 T2:  phase=CLIMAX, climax_turn_count=2
-T3:  phase=CLIMAX, climax_turn_count=3, curtain_call=forced
+T3:  phase=CLIMAX, climax_turn_count=3
 T4:  climax_turn_count≥limit → phase=RESOLUTION, outcome_hint=transition
 T5:  phase=BREATHER (RESOLUTION always transitions to BREATHER)
 T6:  normal rhythm continues
@@ -423,7 +410,6 @@ T6:  normal climax rhythm continues
 |---------|------|-------------------|
 | `phase_transition_signals` | `ccya/ev/checkers/pacing_convergence.py` | Phase transition triggers match engine logic |
 | `convergence_recompute` | `ccya/ev/checkers/pacing_convergence.py` | Independently recompute convergence score from raw state |
-| `curtain_call` | `ccya/ev/checkers/pacing_convergence.py` | Curtain call state matches CLIMAX phase rules |
 | `directive_beat_alignment` | `ccya/ev/checkers/pacing_convergence.py` | Selected beat aligns with directive and phase constraints |
 | `phase_transition` | `ccya/ev/checkers/phase_transition.py` | Phase engine transitions follow the state machine, outcome_hint consistency |
 

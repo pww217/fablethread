@@ -19,26 +19,23 @@ Bundle of pacing engine improvements rooted in `_pacing.py` and `narrate.py`. Fi
 
 ## Findings
 
-### I-42.1 — Convergence limited dynamic range (HIGH)
+### I-42.1 — Convergence limited dynamic range — WON'T DO
 
-Convergence rarely exceeds 3-4. Typical range 0-3. Formula designed for 0-9 range but inputs are all compressed:
+Convergence rarely exceeds 3-4. Typical range 0-3. Formula max is 6. Components: urgent_thread (0-2) + threat_thread (0-1) + beat_streak (0-1) + roll_starvation (0-1) + threat_density (0-1).
+
 - `beat_streak`: avg 0.68-0.92 (always 0 or 1, threshold too easy)
 - `threat_thread`: avg 0.56-1.00
 - `urgent_thread`: avg 0.40-0.60 (dampening loop → two-way sanitizer redesign should fix)
-- `roll_starvation`: avg 0.00-0.12
-- `threat_density`: avg 0.00-0.16 (never 3+ active threat threads)
+- `roll_starvation`: avg 0.00-0.12 (edge case, not core convergence)
+- `threat_density`: avg 0.00-0.16 (edge case, not core convergence)
 
-Convergence distribution (25t runs): noir (0.38-2.44), space-western (0.30-2.58), golden-piracy (0.28-2.44), zombie-survival (0.26-2.36), allied-ww2 (0.22-2.58). Max value: 2.58. No run exceeds 3.
+Assessment: beat_streak and threat_thread are the core convergence drivers. roll_starvation and threat_density are edge case handling. Current behavior is acceptable.
 
-### I-42.2 — BREATHER uses smoothed convergence (HIGH)
+### I-42.2 — BREATHER uses smoothed convergence — RESOLVED
 
-`_compute_scene_phase()` receives raw convergence for phase transitions. `_compute_pacing_context()` receives `int(smoothed_convergence)` for outcome_hint hard gate. **Design intent: BREATHER should use smoothed (not raw) convergence for a clean break — dumping threads/NPCs pursuing the player.**
+All phase transitions now use smoothed convergence. No action needed.
 
-No functional bug (smoothed >= raw when increasing), but code clarity issue. outcome_hint transitions never fire (max smoothed ~3.2, threshold is 5).
-
-Design intent: Smoothed convergence for BREATHER exit provides a clean break — prevents the LLM from immediately re-engaging threads/NPCs that were just dumped. Raw would be too jumpy.
-
-### I-42.3 — BREATHER amplifies dampening (HIGH)
+### I-42.3 — BREATHER amplifies dampening — ACCEPTABLE
 
 BREATHER resets convergence to 0-1 and threads lose urgency (sanitizer downgrades during 1-2 turn BREATHER). After breather exits, convergence must rebuild from scratch.
 
@@ -46,9 +43,9 @@ Cycle: BREATHER → RISING → convergence climbs to 2-3 → CLIMAX → sanitize
 
 Evidence: 5 BREATHER→RISING→CLIMAX cycles across runs. BREATHER duration: 1-2 turns. No minimum duration enforcement (breather_max_turns=3). After breather exit, convergence climbs from 0-1 back to 2-3 within 4-9 turns.
 
-Design intent: Clean break is intentional for dumping threads/NPCs pursuing the player. But BREATHER uses smoothed convergence (not raw), which should help prevent immediate re-engagement. The issue is sanitizer downgrades during BREATHER — two-way sanitizer redesign should address this.
+Assessment: This cycle is acceptable behavior. BREATHER is meant to be a clean break — the dampening is a feature, not a bug.
 
-### I-42.4 — Curtain call is unnecessary complexity (HIGH)
+### I-42.4 — Curtain call — REMOVE
 
 Curtain call enters "forced" tier at `climax_turn_count >= limit-1` (T3 of CLIMAX), telling Narrator "MUST resolve" threads. Extension evaluation at `climax_turn_count >= limit` (T4), requiring `convergence >= 3 AND urgent_thread > 0`.
 
@@ -56,21 +53,15 @@ Self-fulfilling prophecy: Record mandates urgency in CLIMAX → Sanitizer downgr
 
 Evidence: 3 of 5 runs extended CLIMAX past limit=4. CLIMAX duration: noir 1 turn, zs(second) 1 turn, sw 10 turns, gp 7 turns, aw2 7 turns.
 
-Assessment: Curtain call adds complexity with few advantages. Recent evals should be checked to verify if curtain call is actually honored by the LLM or doing anything meaningful. If not honored, it's just context bloat. If honored, it may be causing premature thread resolution.
+Decision: Remove curtain call entirely. It adds complexity with no benefit.
 
-### I-42.5 — Rushed endings (MEDIUM)
+### I-42.5 — Rushed endings — WON'T DO
 
-Dampening loop delays CLIMAX entry, 25-turn cap limits total game length. Noir spends 22 turns in RISING before reaching CLIMAX at T25 (1 turn). Zombie-survival second CLIMAX is 1 turn.
-
-CLIMAX start turns: sw T5/T20, gp T7/T17, aw2 T12/T22, zs T14/T25, noir T25.
+Side effect of other pacing issues. No action needed.
 
 ## Fix Strategy
 
-1. Scale beat_streak distribution to 0-10 — requires `beat_streak_scale` parameter and formula adjustment in `_pacing.py`
-2. Keep smoothed convergence for BREATHER — intentional design for clean break
-3. Two-way sanitizer redesign (B-50.2) should address BREATHER dampening amplification
-4. Evaluate curtain call: check recent evals to see if honored/doing anything. If not honored, remove it. If honored, consider delaying forced tier or modifying guidance.
-5. Consider dynamic turn limits based on CLIMAX entry turn, or reduce sanitizer frequency during late-game RISING
+1. Remove curtain call entirely — `climax_curtain_call` logic in `_pacing.py`, `narrate.py`, and `narrate_system.j2`
 
 ## References
 
