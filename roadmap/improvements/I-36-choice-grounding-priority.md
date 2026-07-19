@@ -1,6 +1,6 @@
 ---
 title: "Choice grounding priority"
-status: idea
+status: scoping
 urgency: 3
 size: small
 created: 2026-07-09
@@ -15,6 +15,14 @@ labels:
 The record step's action generation prompt tells the LLM to "reference actual game state: named NPCs present, inventory items, location features" — but NPCs, inventory, and location are not provided in the user prompt. Meanwhile, the prompt provides dormant threads, band results, scene phase, and urgency decay timers — internal mechanics the player never sees.
 
 The prompt provides no explicit instruction to exclude dormant threads from choices, so the LLM may generate actions referencing faded/background elements.
+
+## Related: I-43.2 (folded in)
+
+I-43.2 identified the same issues with additional context:
+- Choices reference inventory items/NPCs not in scene
+- Spoil dormant threads unintentionally
+- Should focus on active/urgent threads first
+- Actions are forward-looking by design (correct), but quality issues need fixing
 
 ## Solution
 
