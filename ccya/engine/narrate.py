@@ -207,8 +207,8 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any, Any, float]:
     prev_smoothed = state.meta.smoothed_convergence
     smoothed_convergence = config.convergence_alpha * _convergence_score + (1 - config.convergence_alpha) * prev_smoothed
 
-    # Compute phase (returns new scene model)
-    new_scene = _compute_scene_phase(state, ctx._ages, config, _convergence_score, turn_no)
+    # Compute phase (returns new scene model) — use smoothed to prevent transient spikes
+    new_scene = _compute_scene_phase(state, ctx._ages, config, smoothed_convergence, turn_no)
     scene_phase = new_scene.scene_phase
 
     # Compute unified pacing context with new signal set
@@ -224,7 +224,7 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any, Any, float]:
         convergence_score=int(smoothed_convergence),
     )
 
-    _pc.convergence_score = _convergence_score
+    _pc.convergence_score = int(smoothed_convergence)
     _pc.convergence_components = _convergence_components
     _pc.convergence_threads = _raw_thread_dicts
 

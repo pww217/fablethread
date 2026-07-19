@@ -34,6 +34,7 @@ def _ruling_messages(
     recent_turns: list[dict[str, Any]] | None = None,
     scene_phase: str = "SETUP",
     beat_candidates: list[dict[str, Any]] | None = None,
+    allowed_beat_types: list[str] | None = None,
 ) -> list[dict[str, str]]:
     pc = state.pc
     location = state.location
@@ -68,6 +69,7 @@ def _ruling_messages(
             "state": state,
             "pc_situation": _filter_pc_situation(pc.situation, state.pc_situation_schema),
             "beat_candidates": beat_candidates or [],
+            "allowed_beat_types": allowed_beat_types or [],
         },
     )
     return [
@@ -115,7 +117,7 @@ async def _call_ruling(
             selected_beat = j.pop("selected_beat", None)
             intent = IntentEnvelope(**j)
             if not intent.reason.strip():
-                raise ValueError(f"reason is empty — must use [Ruling] [connector] [Reason] structure in 5-7 words (got reason={j.get('reason', '')!r})")
+                raise ValueError(f"reason is empty — must use [Ruling] [connector] [Reason] structure, max 10 words (got reason={j.get('reason', '')!r})")
             if intent.check.required and not intent.check.skill:
                 raise ValueError(f"check.required=true but check.skill is missing/empty (got {j.get('check', {}).get('skill', None)})")
             return intent, {
@@ -162,6 +164,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     _comp = {nid: entry.model_dump() for nid, entry in (state.compendium.npcs or {}).items()}
     scene_phase = state.scene.scene_phase
     beat_candidates = list(state.meta.beat_candidates)
+    allowed_beat_types = derive_allowed_beat_types(scene_phase, directive=state.pc.directives)
     ruling_messages = _ruling_messages(
         ctx._env, state, ctx.user_input,
         turn_no=turn_no,
@@ -170,6 +173,7 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
         recent_turns=ctx.recent_turns[-1:],
         scene_phase=scene_phase,
         beat_candidates=beat_candidates,
+        allowed_beat_types=allowed_beat_types,
     )
     rendered_ruling_system = ruling_messages[0]["content"] if ruling_messages else ""
     rendered_ruling_user = ruling_messages[-1]["content"] if ruling_messages else ""
