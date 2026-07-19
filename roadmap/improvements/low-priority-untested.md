@@ -19,11 +19,11 @@ Low-priority items from validated findings that are either trivial fixes, untest
 
 ## Findings
 
-### I-44.1 — Location description checker (LOW)
+### I-44.1 — Location description checker — DIRECT BUG (MEDIUM)
 
 `ccya/ev/checkers/state.py:47` uses AND logic: fail only if `words < 15 AND sentences < 1`. All descriptions have at least 1 sentence, so they pass even though they're clearly too short (12-19 words typical, all under 30).
 
-Fix: Switch from AND logic to OR logic (fail if words < min OR sentences < min), or raise minimum sentence threshold to 2.
+This is a direct bug. Fix: Switch from AND logic to OR logic (fail if words < min OR sentences < min), or raise minimum sentence threshold to 2.
 
 ### I-44.2 — Untested mechanics: update+resolve conflict (LOW)
 

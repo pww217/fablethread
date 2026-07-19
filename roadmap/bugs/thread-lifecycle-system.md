@@ -31,21 +31,25 @@ Evidence:
 
 Impact: Conditions persist indefinitely, affecting ruling accuracy, narration accuracy, and game balance.
 
-### B-50.2 — Sanitizer only downgrades urgency (CRITICAL)
+### B-50.2 — Sanitizer dampening should be two-way (CRITICAL)
 
-Zero urgency escalations across all 5 runs. Every sanitizer urgency change is a downgrade (urgent → normal). `sanitize_thread.j2:62-64` instructs "Urgency wrong?" without specifying direction. No escalation guidance exists.
+Sanitizer currently only downgrades urgency (17 downgrades, 0 escalations across 5 runs). **Design intent: sanitizer should be two-way — upgrade AND downgrade, match tone of scene, no bias toward either direction.** Should pull from background/dormant threads when necessary to provide escalation signals.
 
-Impact: `urgent_thread` component (0-2 points, highest-value in convergence formula) averages 0.40-0.60 across runs (10-15/25 turns at 1). Creates feedback loop: downgrades → low convergence → beat_streak dominates → convergence stays at 0-3. Total: 0 escalations, 17 downgrades.
+Current behavior: `sanitize_thread.j2:62-64` instructs "Urgency wrong?" without specifying direction. LLM only emits downgrades (urgent → normal). Creates dampening loop: downgrades → low convergence → beat_streak dominates → convergence stays at 0-3. `urgent_thread` component averages 0.40-0.60 across runs.
 
-### B-50.3 — Seed threads bypass creation gates (CRITICAL)
+Design intent: Sanitizer should evaluate scene tone and thread state objectively. If a thread's urgency has genuinely escalated (new threats, imminent danger), sanitizer should upgrade it. If it has de-escalated, downgrade it. No built-in bias toward either direction. Background/dormant threads should be pulled into consideration when they have relevant urgency.
 
-Seeded threads bypass cooldown (default 3 turns), cap eviction (thread_max_active=5), ID collision checks. Not implicit creation via thread_update — the code explicitly skips unknown IDs. Thread creation uses TWO paths: seeding at game start (seed.py), and explicit `thread_add` from extractor.
+### B-50.3 — Seed threads bypass creation gates — INTENTIONAL (MEDIUM)
+
+Seeded threads bypass cooldown (default 3 turns), cap eviction (thread_max_active=5), ID collision checks. **This is intentional design.** Seeded threads are pre-loaded premise: only a couple meant to be active, most meant to be dormant. Thread creation uses TWO paths: seeding at game start (seed.py), and explicit `thread_add` from extractor.
 
 Evidence: noir-1930s 25t: `syndicate_retaliation` ABANDONED at T1 (seeded), `informant_network` UPDATED at T1 (seeded), `political_exposure` UPDATED at T3 (seeded), `gilded_lily_confrontation` ADDED at T15 (explicit thread_add).
 
+Not implicit creation via thread_update — the code explicitly skips unknown IDs.
+
 ### B-50.4 — Thread one-directionality (HIGH)
 
-Record extractor consistently emits `major_update_signal: advancement` regardless of roll band. `record_system.j2:12` allows `advancement|setback` but LLM consistently emits `advancement`.
+Record extractor consistently emits `major_update_signal: advancement` regardless of roll band. **75-80% advancement rate is purposeful design.** Setbacks should be narratively meaningful, not mechanical. Advancement ≠ good outcome (can be bad outcomes). 3 setbacks in a row = stagnation. Thread open 20 turns = stagnation.
 
 Signal distribution (140 turns across 9 runs): 148 advancement vs 18 setback (10.8% setback rate). noir-1930s: 4.3-20% setback. golden-piracy: 0% setback in both runs.
 
@@ -66,14 +70,16 @@ Zero `urgency_decay` logs across all 11 runs (140+ turns). The decay mechanism e
 
 Root cause: Extractor resets `urgency_set_turn` every turn it updates a thread (turn_state.py:66). Sanitizer also resets it (thread_sanitizer.py:414). Auto-dormant resets it too (turn_state.py:166, 184). Decay is always preempted.
 
+Impact: The 13-turn maximum urgency window is enforced by the sanitizer, not by decay. Decay is dead code in practice. Whether this matters depends on how the two-way sanitizer redesign handles urgency tracking.
+
 ## Fix Strategy
 
 1. Fix `turn_state.py:443` — replace dict-iteration with model-object iteration (Condition TTL)
-2. Add urgency escalation guidance to `sanitize_thread.j2` — if Record set urgency urgent within last 2 turns, preserve it
-3. Add thread_add-style validation (cooldown, cap eviction) to seeded threads in `seed.py`
-4. Strengthen `record_system.j2` — make setback on fail rolls a binding instruction
-5. Add programmatic compaction quality checks — count of advancement vs setback entries preserved
-6. Fix urgency decay — either make it fire even when extractor/sanitizer touch the thread, or accept sanitizer as the enforcement mechanism
+2. Redesign sanitizer to be two-way: upgrade AND downgrade based on scene tone, no bias, pull from background/dormant when necessary
+3. Leave seed bypass as-is — intentional design for pre-loaded premise
+4. Keep advancement rate at 75-80% — purposeful, setbacks should be narratively meaningful not mechanical
+5. Improve compaction prompt to preserve key facts — consider programmatic quality checks
+6. Accept sanitizer as enforcement mechanism for urgency decay, or investigate whether decay should fire independently
 
 ## References
 

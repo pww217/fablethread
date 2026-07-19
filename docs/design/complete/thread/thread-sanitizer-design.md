@@ -4,6 +4,14 @@
 
 Design authority for the thread sanitizer: a batch process that reads narrative evidence and rewrites `arc.threads[]` to match what actually happened at the table. This document governs implementation under `/plans/`.
 
+### Two-way urgency adjustment
+
+The sanitizer performs **two-way urgency adjustment** — it can both escalate AND demote thread urgency to match the tone of the current scene. It pulls from background/dormant threads when necessary to maintain scene tension. This is intentional: the scene should reflect the actual narrative state, not just escalate everything.
+
+### Seed bypass
+
+**Seeded threads are exempt from sanitizer escalation.** Seeded threads are pre-loaded premise — most are meant to remain dormant. The sanitizer should not escalate them just because they haven't been touched for N turns. This is a deliberate design choice, not a bug.
+
 ## Problem Statement
 
 Threads accumulate without correction. The storyteller can add threads, update urgency, and push progress, but it never _removes_ or _consolidates_ threads that narrative outruns. Over time:
