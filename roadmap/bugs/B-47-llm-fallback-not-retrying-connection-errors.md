@@ -1,6 +1,6 @@
 ---
 title: "LLM fallback never triggered: openai.APIConnectionError not treated as retryable"
-status: new
+status: done
 urgency: 3
 size: medium
 created: 2026-07-16

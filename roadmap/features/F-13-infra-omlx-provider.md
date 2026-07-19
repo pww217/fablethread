@@ -1,6 +1,6 @@
 ---
 title: "[Infra] OMLX provider"
-status: scoping
+status: done
 urgency: 4
 size: large
 created: 2026-06-14

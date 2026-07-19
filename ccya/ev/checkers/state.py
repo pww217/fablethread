@@ -44,7 +44,7 @@ def location_description_consistency(events: list[dict[str, Any]], *, config: An
         sentences = re.split(r"[.!?]+", description)
         sentences = [s.strip() for s in sentences if s.strip()]
 
-        if len(words) < cfg.location_min_words and len(sentences) < cfg.location_min_sentences:
+        if len(words) < cfg.location_min_words or len(sentences) < cfg.location_min_sentences:
             findings.append({
                 "turn": ev.get("turn"),
                 "check": "description_substantive",
