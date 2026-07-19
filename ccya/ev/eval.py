@@ -86,7 +86,7 @@ def _build_rubric_areas(checker_results: dict[str, CheckerResult]) -> list[dict[
         "Narration": ["directive_tone_match", "beat_narrative_chain", "state_fidelity"],
         "Pacing": ["pacing_directives", "phase_transition", "climax_turn_counting",
                     "breather_enforcement", "phase_transition_signals", "convergence_recompute",
-                    "curtain_call", "directive_beat_alignment"],
+                    "directive_beat_alignment"],
         "State": ["location_change", "inventory_integrity", "conditions_lifecycle",
                   "location_description_consistency", "world_state_facts"],
         "Threads": ["thread_lifecycle", "thread_resolution_validity", "new_thread_validity",

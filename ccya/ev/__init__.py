@@ -78,7 +78,7 @@ def main() -> None:
     flags, args = _strip_flags(args)
     if not args:
        print("Error: no command specified.", file=sys.stderr)
-       print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, sanitizer, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes, prompt-eval", file=sys.stderr)
+       print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, sanitizer, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, warnings, prompt-sizes, prompt-eval", file=sys.stderr)
        print("\nUsage: .venv/bin/python scripts/debug/ev.py <command> [args...]", file=sys.stderr)
        sys.exit(1)
 
@@ -135,7 +135,7 @@ def main() -> None:
     match cmd:
         case "help":
             print(__doc__.strip() if __doc__ else "ev.py — Debug CLI for CCYA events.jsonl")
-            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, sanitizer, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes, prompt-eval")
+            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, sanitizer, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, warnings, prompt-sizes, prompt-eval")
             sys.exit(0)
         case "summary":
             from ccya.ev.inspect import cmd_summary
@@ -296,9 +296,6 @@ def main() -> None:
         case "phase-transitions":
             from ccya.ev.state_tools import cmd_phase_transitions
             cmd_phase_transitions(events, include_compaction="include-compaction" in flags, by_scene="by-scene" in flags)
-        case "curtain-call":
-            from ccya.ev.state_tools import cmd_curtain_call
-            cmd_curtain_call(events, include_compaction="include-compaction" in flags, by_scene="by-scene" in flags)
         case "warnings":
             from ccya.ev.warnings import cmd_warnings
             cmd_warnings(events)

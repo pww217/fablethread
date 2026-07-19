@@ -303,20 +303,11 @@ def _compute_scene_phase(
             turns_in_phase = 1
             turn_entered = turn_no
 
-    # Compute curtain_call after phase may have changed
-    _curtain_call = ""
-    if phase == "CLIMAX":
-        if climax_turn_count >= config.climax_turn_limit - 1:
-            _curtain_call = "forced"
-        elif climax_turn_count == 1:
-            _curtain_call = "active"
-
     return Scene(
         scene_phase=phase,
         climax_turn_count=climax_turn_count,
         breather_turn_count=breather_turn_count,
         turns_in_phase=turns_in_phase,
-        curtain_call=_curtain_call,
         tags=list(scene.tags),
         world_state=list(scene.world_state),
         turn_entered=turn_entered,

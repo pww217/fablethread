@@ -63,7 +63,6 @@ class Scene(BaseModel):
     climax_turn_count: int = 0
     breather_turn_count: int = 0
     turns_in_phase: int = 0
-    curtain_call: str = ""
     location_entered_turn: int = 0
 
 

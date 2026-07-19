@@ -674,7 +674,6 @@ async def _persist_and_async_cleanup(
         ),
         "post_turn_location_id": state.location.id,
         "scene_phase": state.scene.scene_phase,
-        "curtain_call": state.scene.curtain_call,
         "narrate": {**narr_metrics, "prose": narrative},
         "scene": {"total_ms": round(extraction_event.get("scene", {}).get("ms", 0), 1)},
         "state": {"total_ms": round(extraction_event.get("state", {}).get("ms", 0), 1)},

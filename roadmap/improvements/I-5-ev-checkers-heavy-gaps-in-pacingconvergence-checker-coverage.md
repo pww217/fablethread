@@ -60,7 +60,6 @@ The checker library has good coverage for extraction integrity (threads, invento
 | Phase transitions | `phase_transition` | Only validates state machine edges + climax outcome_hint. Misses: SETUP→RISING triggers, CLIMAX signal-gated exit, RESOLUTION→BREATHER, `turns_in_phase` |
 | Convergence score | `convergence_components` | Validates stored components sum, doesn't independently recompute from raw state, misses: +2 weight for urgent_thread, beat_streak carry-over, roll_starvation formula, dormant exclusion |
 | Stall floor | None | `consecutive_low_convergence` increment/reset, `stall_floor` formula |
-| Curtain call | None | `curtain_call: "active"` / `"forced"` on CLIMAX turns |
 | Spiral detection | None | `detect_spiral()` consecutive/ratio thresholds |
 | Directive-beat alignment | `beat_phase_validity` | Only checks phase constraints. Misses: Scene Imperative filtering, spiral pressure exclusion |
 | CLIMAX exit signals | None | Early exit (resolved + convergence < 2), extension (convergence ≥ 3 + urgent), hard cap |
@@ -108,20 +107,13 @@ The checker library has good coverage for extraction integrity (threads, invento
   - `stall_floor = min(1 + ((clc - 3) // 3), stall_floor_max)` when `clc >= 3`, else 0
   - `consecutive_low_convergence` persists across BREATHER→RISING cycles
 
-**4. `curtain_call`** — deterministic
-- Reads: `pacing_context`, `state.scene.curtain_call`, `state.scene.climax_turn_count`
-- Verifies:
-  - CLIMAX turn 1: `curtain_call == "active"`
-  - CLIMAX turn ≥ `climax_turn_limit - 1`: `curtain_call == "forced"`
-  - Non-CLIMAX: `curtain_call == ""`
-
-**5. `spiral_detection`** — deterministic
+**4. `spiral_detection`** — deterministic
 - Reads: `ruling`, `state.meta.spiral_detected` (or `pacing_context.spiral_detected`)
 - Verifies:
   - `spiral_detected` is True when: ≥3 consecutive hard+ rolls OR ≥3 of last 5 rolls are hard+
   - `spiral_detected` is False when: neither condition met
 
-**6. `directive_beat_alignment`** — deterministic
+**5. `directive_beat_alignment`** — deterministic
 - Reads: `ruling.selected_beat`, `state.meta.beat_candidates`, `pacing_context`, `state.scene.scene_phase`
 - Verifies:
   - When `directive == "Scene Imperative"`: selected beat type is in `["revelation", "hazard", "callback", "opportunity", "setback", "breathing_room"]`
@@ -130,7 +122,7 @@ The checker library has good coverage for extraction integrity (threads, invento
 
 ### Thread lifecycle (medium priority)
 
-**7. `thread_urgency_decay`** — deterministic
+**6. `thread_urgency_decay`** — deterministic
 - Reads: `last_turn_state.arc.threads`
 - Verifies:
   - Threads untouched ≥4 turns (non-urgent) have `dormant == True`
@@ -194,8 +186,7 @@ The checker library has good coverage for extraction integrity (threads, invento
 1. `convergence_recompute` — verifies the core scoring formula independently
 2. `stall_floor_computation` — 7th component, drives CLIMAX transitions
 3. `phase_transition_signals` — verifies all transition triggers, not just edges
-4. `curtain_call` — CLIMAX soft-close mechanics
-5. `directive_beat_alignment` — directive constraints on beats
+4. `directive_beat_alignment` — directive constraints on beats
 6. `spiral_detection` — roll death spiral
 7. `thread_urgency_decay` — core pacing mechanic
 8. `thread_cap_eviction` — context bloat prevention
