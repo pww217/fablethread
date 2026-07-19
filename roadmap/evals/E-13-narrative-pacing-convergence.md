@@ -503,7 +503,7 @@ If Phase 4 passes, the Noir T12-T15 dead end is resolved. The next step would be
 
 **Model:** `gemma-4-26b-a4b-it` (loaded in LMStudio; LMStudio accepts both `gemma-4-26b-a4b-it` and `gemma-4-26b-a4b-it@iq3_xxs` suffixes)
 
-**Fallback:** `http://127.0.0.1:8000/v1` (llama-swap, MacBook) — used when primary is down. Note: llama-swap loads either `mlx-community--gemma-4-26B-A4B-it-OptiQ-4bit` or `mlx-community--Qwen3.6-35B-A3B-OptiQ-4bit` depending on system resources.
+**Fallback:** `http://127.0.0.1:8000/v1` (local OMLX, MacBook) — used when primary is down.
 
 **Command:** `.venv/bin/python scripts/debug/ev.py play --llm --turns 15 --pack noir-1930s --eval`
 
