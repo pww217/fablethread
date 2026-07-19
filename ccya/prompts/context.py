@@ -267,11 +267,11 @@ class SceneExtractBoundary(BaseModel):
     """Context for extract_scene_user.j2.
 
     Source: _extract_scene_messages() passes pc, conditions directly.
-    npc_roster comes from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/position/last_presence_turn/last_seen_location/departed_reason.
+    npc_roster comes from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_presence_turn/last_seen_location/departed_reason/tie.
     """
 
     narration: str
-    npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/position/last_presence_turn/last_seen_location/departed_reason
+    npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_presence_turn/last_seen_location/departed_reason/tie
     pc_name: str = "Unnamed"
     turn_no: int
 

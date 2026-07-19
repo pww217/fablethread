@@ -1,6 +1,6 @@
 ---
 title: "Prompt audit — architecture alignment, variables, schema, edge cases"
-status: done
+status: testing
 type: improvement
 urgency: 3
 size: large
@@ -906,21 +906,79 @@ Low-impact items from first and second audits, all fixed:
 18. **`record_system.j2` — `thread_resolve.world_state_candidate` undocumented** ✅ FIXED
     - Added field rules: explains when to use it (when thread resolution changes an existing world_state entry) and when to omit (resolution doesn't alter any world_state entry)
 
+### Fourth Audit — Bugs Fixed (validated 2026-07-19)
+
+High-impact bugs from second audit, all fixed:
+
+3. **`sanitize_thread.j2` — no `thread_add` field in schema** ✅ FIXED
+   - Added `thread_add` field to sanitize schema (lines 120-126)
+   - Added per-thread check #6: "New tension? → add a new thread via thread_add"
+   - Sanitizer can now add new threads during post-processing review
+
+4. **`world_system.j2:26` vs `world_system.j2:35` — environmental tag contradiction** ✅ FIXED
+   - Removed `[environment]` from effect format examples (line 20)
+   - Removed `[environment]` from tag meanings (line 26)
+   - Removed "Environmental" from beat priority order (line 35)
+   - No more confusing banned tag definition
+
+6. **`record_system.j2:119` — "exactly 4 choices" fabrication risk** ✅ FIXED
+   - Changed "exactly 4 choices" to "at least 2, at most 4 choices"
+   - LLM can now emit fewer choices when scene genuinely has fewer options
+
+### Fifth Audit — Redundancy Fixes (validated 2026-07-19)
+
+Redundancy and guidance-gap items from first and second audits, all fixed:
+
+19. **`scene_extract_system.j2` — dedup rules overlap** ✅ FIXED
+    - Consolidated re-promotion rules from "How to use compendium_npc_update" (lines 57-59) into the authoritative "NPC ID rules" section (line 71)
+    - Removed duplicate "Re-promotion is mandatory" from "How to use", kept single authoritative statement
+    - Removed duplicate re-promotion bullet from "NPC ID rules" section
+
+20. **`record_system.j2` — thread ID rules stated 5-6×** ✅ FIXED
+    - Consolidated thread ID guidance from lines 25, 43-47, 53 into single authoritative section at line 25
+    - Added "Copy EXACTLY" rule directly into the thread ID definition paragraph
+    - Removed redundant "Thread IDs:" bullet, example block, and "Copy the ID EXACTLY" instruction
+    - Removed "CRITICAL:" prefix from 3 items (Do NOT resolve threads that do not exist, Never both update AND resolve, thread_update IDs must be unique)
+
+21. **`record_system.j2` — "CRITICAL" overuse** ✅ FIXED
+    - Reduced from 9 to 2 strategic uses: Progress must be a new fact (line 41), Do NOT emit arc_resolve as empty object (line 103)
+    - Removed "CRITICAL:" from: Do NOT resolve threads that do not exist, Never both update AND resolve, thread_update IDs must be unique
+
+22. **`extract_scene_system.j2` — departed_reason conditionality** ✅ FIXED
+    - Added guidance: if narration doesn't specify reason, infer from context with "unknown — No clear explanation found in narration; NPC left without farewell."
+    - Clarifies what to do when departure reason isn't explicit
+
+### Sixth Audit — Guidance Gaps Fixed (validated 2026-07-19)
+
+Medium-impact guidance gaps from first and second audits, all fixed:
+
+23. **`ruling_system.j2` — scene motion definitions vague** ✅ FIXED
+    - Added concrete examples to each motion type: hold (talking, planning, inspecting), advance (attacking, confronting, escaping), transition (leaving town, departing scene)
+
+24. **`ruling_system.j2` — missing beat selection criteria** ✅ FIXED
+    - Added selection criteria: prefer beats matching player's intent direction (leave → transition, engage → opportunity/confrontation); when ambiguous, prefer beat that advances main tension or introduces new stakes
+
+25. **`ruling_system.j2` — trivial difficulty combat equivalent** ✅ FIXED
+    - Added "Combat equivalent: attacking an unarmed, unaware, or helpless opponent (no check needed — automatic success)" to the trivial list
+
+26. **`narrate_system.j2` — no explicit prose length cap** ✅ FIXED
+    - Changed "Default terse" to "Default terse (3–6 sentences)" with explicit range
+
 ### Redundancy summary (validated 2026-07-03)
 
 All redundancy claims validated against rendered output from `1434_space-western_25t`, turn 8.
 
 **Confirmed redundancies (high confidence):**
 1. ~~Scene Extract — presence levels defined 3×~~ **FIXED**: consolidated to standalone section, removed from "How to use"
-2. ~~Scene Extract — dedup rules overlap~~ (~15 lines, NPC ID rules section repeats dedup section)
-3. ~~Record — "CRITICAL" used 9×~~ (counted in rendered output, dilutes emphasis)
-4. ~~Record — thread ID rules stated 5-6×~~ (~15 lines, lines 41-49 particularly overlapping)
+2. ~~Scene Extract — dedup rules overlap~~ **FIXED**: consolidated re-promotion rules into authoritative NPC ID rules section
+3. ~~Record — "CRITICAL" used 9×~~ **FIXED**: reduced to 2 strategic uses
+4. ~~Record — thread ID rules stated 5-6×~~ **FIXED**: consolidated into single authoritative section at line 25
 5. ~~Narrate — "Every sentence must advance" / "Each beat must advance"~~ **FIXED**: consolidated to single Style section bullet
-6. ~~State Extract — narration authority stated 4×~~ (all in opening section, ~4 lines)
+6. ~~State Extract — narration authority stated 4×~~ **INVALIDATED**: only 2 related statements (line 3 authority hierarchy, line 17 "ground all changes in what narration confirms"). Not redundant.
 
 **Partially confirmed (less impactful than noted):**
 7. **Narrate — inventory constraint stated 3×** (all within same Inventory section, internal consolidation only)
 
 **Worst offenders:**
-- ~~**Scene Extract** — ~55 lines of redundant presence/dedup guidance. Could save ~15-20 lines by consolidating.~~ **FIXED: ~13 lines saved by consolidating presence levels**
-- **Record** — ~20 lines of emphasis inflation (9× "CRITICAL" + 5× thread ID rules). Could save ~10 lines by reducing emphasis and consolidating.
+- ~~**Scene Extract** — ~55 lines of redundant presence/dedup guidance. Could save ~15-20 lines by consolidating.~~ **FIXED: ~13 lines saved by consolidating presence levels + dedup rules**
+- ~~**Record** — ~20 lines of emphasis inflation (9× "CRITICAL" + 5× thread ID rules). Could save ~10 lines by reducing emphasis and consolidating.~~ **FIXED: CRITICAL reduced from 9 to 2, thread ID rules consolidated**

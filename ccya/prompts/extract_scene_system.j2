@@ -46,7 +46,7 @@ Decision rule: spatially proximate → `nearby`; physically left → `known`; ca
 - `presence`: present|nearby|known|departed. REQUIRED for every NPC update — never omit it.
 - `position`: Where the NPC is spatially in the scene. 5-7 words max. Only spatial location — not what they're doing. Include spatial barriers and visibility constraints (e.g., 'behind a door, not visible', 'across the bar', 'standing in doorway blocking exit', 'at player's elbow'). Update when narration changes the NPC's spatial location.
 - `last_seen_location`: Only set when the narration explicitly places the NPC in a location different from their last. Omit if the NPC is at their last known location — the engine will handle location tracking. This field is how indicate an NPC followed you to a new scene (e.g., "goes with the player to", "follows the player to", "is at the new scene with").
-- `departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. Examples: "killed in battle — Caught in the crossfire defending the village gates.", "sailed away — Booked passage on the evening tide, destination unknown."
+- `departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. If the narration doesn't specify a reason, infer from context (e.g., "unknown — No clear explanation found in narration; NPC left without farewell."). Examples: "killed in battle — Caught in the crossfire defending the village gates.", "sailed away — Booked passage on the evening tide, destination unknown."
 
 ### How to use compendium_npc_update
 
@@ -54,9 +54,7 @@ Decision rule: spatially proximate → `nearby`; physically left → `known`; ca
 - **NPC behavior changes:** Update `position` only when the NPC's spatial location changes.
 - **Durable identity updates:** Update `name`, `title`, `bio`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes. **EXCEPTION:** If an NPC was previously absent or known and the narration now places them in the scene or nearby, you MUST emit an update even if their other fields haven't changed.
-- **Re-promotion:** If an NPC was demoted to `nearby` by a location change but narration shows they followed, set `presence: "present"` — do NOT create a new compendium entry.
-- **Critical:** If an NPC is mentioned in the narration as being in the same scene as the player, you MUST set `presence: "present"` regardless of their current presence value. The location change demotion happens automatically — your job is to re-promote when the narration shows they followed.
-- **Re-promotion is mandatory:** When narration explicitly names an NPC and places them in the scene (e.g., "Elara Vance is already there, waiting by the door"), you MUST emit a compendium update with `presence: "present"`. Do NOT skip this just because the NPC was previously demoted.
+- **Re-promotion:** If narration places an NPC in the scene (e.g., "Elara Vance is already there, waiting by the door"), set `presence: "present"` regardless of their current value. Do NOT create a new entry — update the existing one.
 
 
 
@@ -68,7 +66,7 @@ Decision rule: spatially proximate → `nearby`; physically left → `known`; ca
 - When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC.**
 - **Dedup — mandatory pre-check:** Before emitting `compendium_npc_update`, check the `known_characters` compendium. If the NPC's name or title matches an existing entry (case-insensitive), use that entry's ID. NEVER create a new entry for an NPC that already exists.
 - **SAME ENTITY, DIFFERENT NAMES:** When narration mentions multiple names/titles that refer to the same entity, create ONE compendium entry with the most specific identifier. Do NOT create separate entries for what is clearly the same person.
-- **Re-promotion:** If an NPC was previously `known` and narration places them in the scene, set `presence: "present"` and update `position`. Do NOT create a new entry.
+
 
 ## NPC field requirements
 

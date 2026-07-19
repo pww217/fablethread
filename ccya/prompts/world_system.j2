@@ -17,13 +17,6 @@ The `effect` field contains mechanism tags that tell the narrator WHAT to blend,
 - `[highlight: fear]`
 - `[blend: motivation vs fear]`
 - `[thread: faction_patrols]`
-- `[environment]`
-
-Tag meanings:
-- `[highlight: field]` — which psychological field drives the beat (motivation|fear|leverage|tie|ambition|instinct|quirk|presence|goal|history|appearance|voice|traits|notes)
-- `[blend: mechanism]` — how two NPCs interact (e.g., "motivation vs fear", "leverage vs tie")
-- `[thread: thread_slug]` — which active thread is involved
-- `[environment]` — marks a purely environmental beat (no NPCs)
 
 ## Generation rules
 
@@ -32,7 +25,6 @@ Beat priority order (highest to lowest):
 2. **NPC + thread** — one NPC combined with an active thread (equal priority with #1).
 3. **Single NPC** — one NPC on their psychological field.
 4. **Single thread** — last resort, only when no NPCs with valid psychological fields exist in the scene.
-5. **Environmental** — never use. There is always an NPC or thread worth featuring.
 
 **NPC-only beats rule:** Threads may only be combined with an NPC. No single-thread-only beats unless no NPCs with psychological fields exist in the scene.
 
