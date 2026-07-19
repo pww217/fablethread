@@ -863,21 +863,64 @@ Second pass focused on cross-prompt inconsistencies, missing variable wiring, an
    - `recent_turns[-1]`: full narration from previous turn
    - Different purposes, intentional design per `step2c-record.md:21` (`[:-1]` slices last because full narration shown via recent_turns)
 
+### Third Audit — Fixes Applied (validated 2026-07-19)
+
+Low-impact items from first and second audits, all fixed:
+
+9. **`intent_verb` example list incomplete** ✅ FIXED
+   - Added `steal`, `use`, `open`, `close`, `read`, `listen` to ruling_system.j2:84
+   - Now covers common non-combat actions
+
+10. **`meta.turn` fallback "?"** ✅ ALREADY FIXED (first audit)
+    - ruling_user.j2:40 already uses `default('—')`
+
+11. **`narrate_system.j2` — tense ambiguity** ✅ FIXED
+    - Changed "If the genre tone section below specifies a tense, use it; otherwise use past tense" to "Use present tense unless the genre tone section below specifies otherwise"
+    - Resolves the second-person/past-tense confusion
+
+12. **`narrate_system.j2` — "Every sentence must advance" / "Each beat must advance"** ✅ FIXED
+    - Removed redundant "Every sentence must advance" from Pacing section (line 83)
+    - Moved the rule to Style section as a concrete bullet, keeping it once
+
+13. **`scene_extract_system.j2` — presence levels defined 3×** ✅ FIXED
+    - Consolidated from 3 sections (extraction mandate, how to use, dedicated section) to 2
+    - Added presence levels as a standalone section right after extraction mandate
+    - Removed the duplicate presence-level definitions from "How to use compendium_npc_update"
+    - Saved ~13 lines of overlap
+
+14. **`NPCRosterEntryBlock` missing 5 fields** ✅ FIXED
+    - Added `tie`, `departed_reason`, `personality_label`, `personality_traits`, `personality_speech_hint` to context.py
+    - Now matches `build_npc_roster()` output shape
+
+15. **`position` dead field in `_npc_roster.j2`** ✅ FIXED
+    - Removed `{% if n.position %} | {{ n.position }}{% endif %}` from _npc_roster.j2:6
+    - `build_npc_roster()` does not return `position` — always rendered empty
+
+16. **`narrate_seed_system.j2` — ~700-word target fragile** ✅ FIXED
+    - Changed "~700 words" to "Medium-length opening"
+    - LLMs are poor at counting exact word counts
+
+17. **`bond` → `tie` remaining** ✅ ALREADY FIXED (first audit)
+    - prepare_seed_system.j2 already uses `tie` in schema (line 40)
+
+18. **`record_system.j2` — `thread_resolve.world_state_candidate` undocumented** ✅ FIXED
+    - Added field rules: explains when to use it (when thread resolution changes an existing world_state entry) and when to omit (resolution doesn't alter any world_state entry)
+
 ### Redundancy summary (validated 2026-07-03)
 
 All redundancy claims validated against rendered output from `1434_space-western_25t`, turn 8.
 
 **Confirmed redundancies (high confidence):**
-1. **Scene Extract — presence levels defined 3×** (~40 lines overlap in 132-line prompt, ~30% of prompt)
-2. **Scene Extract — dedup rules overlap** (~15 lines, NPC ID rules section repeats dedup section)
-3. **Record — "CRITICAL" used 9×** (counted in rendered output, dilutes emphasis)
-4. **Record — thread ID rules stated 5-6×** (~15 lines, lines 41-49 particularly overlapping)
-5. **Narrate — "Every sentence must advance" / "Each beat must advance"** (Style vs Pacing sections)
-6. **State Extract — narration authority stated 4×** (all in opening section, ~4 lines)
+1. ~~Scene Extract — presence levels defined 3×~~ **FIXED**: consolidated to standalone section, removed from "How to use"
+2. ~~Scene Extract — dedup rules overlap~~ (~15 lines, NPC ID rules section repeats dedup section)
+3. ~~Record — "CRITICAL" used 9×~~ (counted in rendered output, dilutes emphasis)
+4. ~~Record — thread ID rules stated 5-6×~~ (~15 lines, lines 41-49 particularly overlapping)
+5. ~~Narrate — "Every sentence must advance" / "Each beat must advance"~~ **FIXED**: consolidated to single Style section bullet
+6. ~~State Extract — narration authority stated 4×~~ (all in opening section, ~4 lines)
 
 **Partially confirmed (less impactful than noted):**
 7. **Narrate — inventory constraint stated 3×** (all within same Inventory section, internal consolidation only)
 
 **Worst offenders:**
-- **Scene Extract** — ~55 lines of redundant presence/dedup guidance. Could save ~15-20 lines by consolidating.
+- ~~**Scene Extract** — ~55 lines of redundant presence/dedup guidance. Could save ~15-20 lines by consolidating.~~ **FIXED: ~13 lines saved by consolidating presence levels**
 - **Record** — ~20 lines of emphasis inflation (9× "CRITICAL" + 5× thread ID rules). Could save ~10 lines by reducing emphasis and consolidating.

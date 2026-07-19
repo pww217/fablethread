@@ -1,6 +1,6 @@
 ---
 title: "Thread lifecycle system: TTL bug, dampening loop, seed bypass, compaction, decay"
-status: validated
+status: testing
 urgency: 1
 size: large
 created: 2026-07-19
@@ -74,12 +74,12 @@ Impact: The 13-turn maximum urgency window is enforced by the sanitizer, not by 
 
 ## Fix Strategy
 
-1. Fix `turn_state.py:443` — replace dict-iteration with model-object iteration (Condition TTL)
+1. ~~Fix `turn_state.py:443` — replace dict-iteration with model-object iteration (Condition TTL)~~ — **done** (214532fa)
 2. Redesign sanitizer to be two-way: upgrade AND downgrade based on scene tone, no bias, pull from background/dormant when necessary
 3. Leave seed bypass as-is — intentional design for pre-loaded premise
 4. Keep advancement rate at 75-80% — purposeful, setbacks should be narratively meaningful not mechanical
 5. Improve compaction prompt to preserve key facts — consider programmatic quality checks
-6. Accept sanitizer as enforcement mechanism for urgency decay, or investigate whether decay should fire independently
+6. ~~Accept sanitizer as enforcement mechanism for urgency decay, or investigate whether decay should fire independently~~ — **done** (214532fa): removed `urgency_set_turn` reset from auto-dormant (lines 166, 184) so decay can fire independently
 
 ## References
 
