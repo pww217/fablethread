@@ -22,7 +22,7 @@ flowchart TD
     USER["user_input"]
 
     subgraph ENGINE["engine — run_turn()"]
-        PHASE["Phase Engine<br>5-state machine (Python)<br>convergence_score + stall_floor<br>runs before ruling"]:::pyNode
+        PHASE["Phase Engine<br>5-state machine (Python)<br>convergence_score<br>runs during narrate (Call 1)"]:::pyNode
         STEP0["Step 0<br>Ruling/Intent (LLM)<br>reads beat_candidates<br>sets pending_gm_beat"]:::stageRules
         DICE["Dice Resolution<br>(Python)"]:::pyNode
         STEP1["Step 1<br>Narrate (LLM)<br>reads pending_gm_beat"]:::stageNarrate
@@ -40,19 +40,12 @@ flowchart TD
         EVENTS["events.jsonl<br>(structured turn log)"]:::storageNode
     end
 
-    USER --> PHASE
-    PHASE --> STEP0
+    USER --> STEP0
     STEP0 -- "IntentEnvelope + RulesOutcome" --> DICE
     DICE -- "scene_motion" --> PHASE
     PHASE -- "scene_phase, PacingContext" --> STEP1
-    STEP1 --> STEP2A & STEP2B & STEP2C
-    STEP2A & STEP2B & STEP2C --> VALIDATE
-    VALIDATE --> PERSISTENCE
     STEP0 -. "beat_candidates (prev turn's World)" .-> STEP0
-    PERSISTENCE -- "load_state() (incl. prior_history)<br>load_last_narration() (→ recent_turns)" --> ENGINE
     STEP1 -. "consumes pending_gm_beat" .-> STEP0
-    STEP2C --> SANITIZE --> STEP2D
-    STEP2D --> PERSISTENCE
 ```
 
 ## Pipeline Quick Reference
@@ -60,7 +53,7 @@ flowchart TD
 | Step | Docs | When it runs | Key inputs | Key outputs | Mechanics it owns |
 |---|---|---|---|---|---|
 | **Step 0 — Ruling/Intent** | [step0-ruling](./step0-ruling.md) | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input`, `arc.threads` (urgent only), `state.meta.beat_candidates` mechanism tags | `IntentEnvelope`, `RulesOutcome`, `selected_beat` mechanism tags → `state.meta.pending_gm_beat` | Intent classification, impossibility check, dice roll resolution (1d12 + stat_mod + diff_mod → band), LLM-driven difficulty adjustment factoring conditions/inventory, anti-declare-outcome enforcement. Roll criteria tightened to major narrative pivots only. Urgent threads context provided to LLM. When `impossible=true`, no roll occurs and Python synthesizes a `fail` outcome. **Beat selection** — reads `state.meta.beat_candidates` mechanism tags (prepared by previous turn's World step) and selects one by index (or null) for the upcoming narration. Always replaces or pops `state.meta.pending_gm_beat`; always pops `state.meta.beat_candidates`. |
-| **Phase Engine** | — | Every turn (always, Python, runs before ruling in turn.py) | `state.scene`, `ages`, `EngineConfig`, `convergence_score` | `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER), `climax_turn_count`, `breather_turn_count` in `state.scene` | 5-state phase machine driven by convergence score (5-component composite, range 0-6, + stall_floor) and scene age. Phase drives directive computation and beat constraints. Convergence enter threshold default is 2 (class default in config.py:89; YAML fallback is 3). Phase computation deduplicated via `_phase_computed` flag on state. |
+| **Phase Engine** | — | Every turn (always, Python, runs during narrate in `_narrate_setup()`) | `state.scene`, `ages`, `EngineConfig`, raw convergence_score | `scene_phase` (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER), `climax_turn_count`, `breather_turn_count` in `state.scene` | 5-state phase machine driven by **raw** convergence score (5-component composite, range 0-6) and scene age. Phase drives directive computation and beat constraints. Convergence enter threshold default is 2. |
 | **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `prior_history` (last 10 bullets, all but last rendered), `recent_turns[-1:]`, `pacing_context`, `pending_gm_beat` mechanism tags (set by Ruling same turn), `npc_roster` (from build_npc_roster()), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat mechanism tags as creative guidance (narrator generates prose grounded in actual NPC fields in the roster). Scene motion shaped by `PacingContext.outcome_hint`; impossible actions narrated as natural failures. |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc`, `npc_roster` (from build_npc_roster()), conditions, compendium entries | `SceneExtractResult`: compendium_npc_update, candidate_npcs (per-NPC beat candidates: [{id, type, effect}]) | NPC presence, durable NPC compendium identity, per-NPC beat candidate signals with driver assignment. |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, conditions | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove, location_change, location_description | Inventory delta accuracy, condition lifecycle, location deltas. |
