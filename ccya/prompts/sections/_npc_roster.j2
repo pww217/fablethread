@@ -3,7 +3,6 @@
 {% if npc_roster -%}
 {% for n in npc_roster -%}
 - `{{ n.id }}` | {% if n.name %}**{{ n.name }}**{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.presence == "departed" and n.departed_reason %} — {{ n.departed_reason }}{% endif %}{% if n.bio and n.presence != "departed" %} — {{ n.bio }}{% endif %}
-{% if n.position %} | {{ n.position }}{% endif %}
 {%- if n.tie %} | tie: {{ n.tie }}{% endif %}
 {%- if show_all_fields %}{%- if n.motivation %} | wants: {{ n.motivation }}{% endif %}{%- if n.fear %} | fears: {{ n.fear }}{% endif %}{%- if n.leverage %} | leverage: {{ n.leverage }}{% endif %}{%- else %}{%- if n.presence == "present" %}{%- if n.motivation %} | wants: {{ n.motivation }}{% endif %}{%- if n.fear %} | fears: {{ n.fear }}{% endif %}{%- if n.leverage %} | leverage: {{ n.leverage }}{% endif %}{%- endif %}{%- endif %}
 {%- set _ls_loc = n.last_seen_location %}{% if _ls_loc %} | last seen: {{ _ls_loc }}{% if n.last_presence_turn %} ({{ (turn_no if turn_no is defined else meta.turn) - n.last_presence_turn }} turns ago){% endif %}{% endif %}

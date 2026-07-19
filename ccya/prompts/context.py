@@ -201,7 +201,7 @@ class LastSeenBlock(BaseModel):
 class NPCRosterEntryBlock(BaseModel):
     """Single entry in an NPC roster for prompt rendering.
 
-    Source shapes vary by origin: build_npc_roster() outputs dicts with id/name/title/bio/presence/mfl/notes/last_presence_turn/last_seen_location/departed_reason.
+    Source shapes vary by origin: build_npc_roster() outputs dicts with id/name/title/bio/presence/mfl/notes/last_presence_turn/last_seen_location/departed_reason/tie/personality_label/personality_traits/personality_speech_hint.
     """
 
     id: str
@@ -213,6 +213,11 @@ class NPCRosterEntryBlock(BaseModel):
     fear: str | None = None
     leverage: str | None = None
     notes: str | None = None
+    tie: str | None = None
+    departed_reason: str | None = None
+    personality_label: str | None = None
+    personality_traits: str | None = None
+    personality_speech_hint: str | None = None
     last_presence_turn: int | None = None
     last_seen_location: str | None = None
 

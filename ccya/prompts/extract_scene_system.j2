@@ -14,6 +14,15 @@ Scan narration for every proper name. For each:
 
 **Default to extraction.** Over-extract > under-extract.
 
+## Presence levels
+
+- `"present"` — in the immediate scene with the player
+- `"nearby"` — still in the area: just outside, next room, watching from shadows, within earshot. Auto-decays to `known` after 2 turns if not re-promoted.
+- `"known"` — physically left the area, but not permanently. The LLM manages this state.
+- `"departed"` — permanently gone: dead, sailed away, imprisoned for life, comatose, ascended, unreachable. Requires `departed_reason`. Auto-archived after 3 turns.
+
+Decision rule: spatially proximate → `nearby`; physically left → `known`; can never return → `departed`.
+
 ## Output schema
 
 ```json
@@ -40,14 +49,6 @@ Scan narration for every proper name. For each:
 - `departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. Examples: "killed in battle — Caught in the crossfire defending the village gates.", "sailed away — Booked passage on the evening tide, destination unknown."
 
 ### How to use compendium_npc_update
-
-Presence levels:
-- `"present"` — in the immediate scene with the player
-- `"nearby"` — still in the area: just outside, next room, watching from shadows, within earshot. Auto-decays to `known` after 2 turns if not re-promoted.
-- `"known"` — physically left the area, but not permanently. The LLM manages this state.
-- `"departed"` — permanently gone: dead, sailed away, imprisoned for life, comatose, ascended, unreachable. Requires `departed_reason`. Auto-archived after 3 turns.
-
-Decision rule: spatially proximate → `nearby`; physically left → `known`; can never return → `departed`.
 
 - **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory), and optionally `title`. For known NPCs, only set `presence`/`position`.
 - **NPC behavior changes:** Update `position` only when the NPC's spatial location changes.
