@@ -1,10 +1,7 @@
-.PHONY: install run dev fmt lint test test-v test-x typecheck check deadcode css clean new-game roadmap vendor llama-swap kill eval eval-fast eval-judge-only eval-pack eval-all full-eval clean-pycache
+.PHONY: install run dev fmt lint test test-v test-x typecheck check deadcode css clean new-game roadmap vendor kill eval eval-fast eval-judge-only eval-pack eval-all full-eval clean-pycache
 
 install:
 	uv sync
-
-llama-swap:
-	@bash scripts/infra/llama-swap.sh
 
 kill:
 	@lsof -ti:8765 2>/dev/null | xargs -r kill -9 && echo "killed server on 8765" || echo "no server on 8765"
@@ -12,10 +9,10 @@ kill:
 clean-pycache:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
-run: llama-swap
+run:
 	uv run ccya --host 0.0.0.0
 
-dev: llama-swap
+dev:
 	uv run python -m ccya.cli --host 0.0.0.0
 
 fmt:
@@ -69,5 +66,5 @@ vendor:
 clean:
 	rm -rf .venv dist build *.egg-info __pycache__ .pytest_cache
 
-full-eval: llama-swap
+full-eval:
 	bash scripts/eval/run-cycle.sh

@@ -4,21 +4,21 @@ A choose-your-own-adventure game backed by a local **mlx-lm** model served over 
 
 ## Setup
 
+The default config uses LMStudio on `10.75.100.51:1234`. To use a local model instead:
+
 1. **Install mlx-lm** (Apple Silicon required):
     ```bash
     pip install --user mlx-lm
     # or via uv:
     uv tool install mlx-lm
     ```
-2. **Start the server** in another terminal — pick any model, the default config expects `mlx-community/Qwen3.6-27B-4bit`:
+2. **Start mlx_lm.server**:
     ```bash
     mlx_lm.server \
         --model mlx-community/Qwen3.6-27B-4bit \
-        --host 127.0.0.1 --port 8080
+        --host 127.0.0.1 --port 8000
     ```
-    The model loads once and stays resident; ccya talks to `http://127.0.0.1:8080/v1` (OpenAI shape).
-
-To pick a different model, edit `llm.model` in `config.yaml`.
+3. **Update config** — set `llm.host` in `config.yaml` to `http://127.0.0.1:8000/v1`.
 
 ## Run
 
@@ -127,7 +127,7 @@ tests/                   # Smoke tests
 
 Edit `config.yaml` to change the model, port, or other settings. Key sections:
 
-- `llm` — `host` (e.g. `http://127.0.0.1:8080/v1`), `model`, request timeout, narrate/extract temperatures, retry budget, optional `enable_extract_thinking` / `enable_narrate_thinking` toggles for the Qwen3.x `/think` `/no_think` soft switches
+- `llm` — `host` (default `http://10.75.100.51:1234/v1` for LMStudio), `model`, request timeout, narrate/extract temperatures, retry budget, optional `fallback_host` for secondary LLM, optional `enable_extract_thinking` / `enable_narrate_thinking` toggles for the Qwen3.x `/think` `/no_think` soft switches
 - `rules` — `temperature` (default 0.2) and `max_retries` (default 1) for the rules/intent Call 0
 - `game` — save slot, setting pack, turn window size
 - `server` — bind address and port
