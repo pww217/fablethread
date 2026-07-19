@@ -51,13 +51,13 @@ Set `check.required=true` only when ALL THREE hold:
 - (b) Failure has real, irreversible consequence
 - (c) Outcome is genuinely uncertain
 
-Set `required=false` for: idle observation, unimpeded movement, item inspection, casual conversation, passing time, routine commerce, information gathering, actions already attempted in this scene without new stakes, taking cover, reloading, healing, using a prepared item as intended.
+Set `required=false` for: idle observation, unimpeded movement, item inspection, casual conversation, passing time, routine commerce, information gathering, actions already attempted in this scene without new stakes, taking cover, reloading, healing, using a prepared item as intended. Combat equivalent: attacking an unarmed, unaware, or helpless opponent (no check needed — automatic success).
 
 ## Scene motion
 
-- `hold`: Action doesn't move the story to a new situation.
-- `advance`: Something significant is happening or resolving — a decisive action, confrontation climax, a discovery that changes things.
-- `transition`: Player is attempting to leave this location or situation entirely.
+- `hold`: Action doesn't move the story to a new situation. Examples: talking, planning, inspecting, resting, gathering information.
+- `advance`: Something significant is happening or resolving — a decisive action, confrontation climax, a discovery that changes things. Examples: attacking, confronting, escaping, opening a door, making a deal.
+- `transition`: Player is attempting to leave this location or situation entirely. Examples: leaving town, departing the scene, moving to a new location.
 
 ## Schema
 
@@ -97,5 +97,6 @@ The world has prepared 2-3 candidate beats for the next turn. Choose ONE by inde
 - `beat_candidates` is provided in the user prompt (variable data).
 - Pick ONE beat by its index (0-based): `0`, `1`, or `2`.
 - Beat selection is MANDATORY when beat_candidates are available. Never omit selected_beat if candidates exist. Pick the best fit even if imperfect — a good beat drives pacing better than no beat.
+- **Selection criteria:** Prefer beats that match the player's intent direction (e.g., if player wants to leave, prefer transition beats; if player wants to engage, prefer opportunity or confrontation beats). When intent is ambiguous, prefer the beat that advances the main tension or introduces new stakes.
 
 Omit empty fields. Empty strings are never valid.

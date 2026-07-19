@@ -22,7 +22,7 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 
 **Default: emit nothing.** Most turns produce zero thread operations. Do NOT emit an update because a thread was mentioned in the narration. Only emit when this turn's events changed the thread's trajectory — the tension advanced, pivoted, or resolved. A character acting within a thread is not a change. If the same tension would exist without this turn's events, omit.
 
-**Thread IDs are 2–4 word broad conceptual buckets.** No proper nouns. `enemy_contact_advance` ✓ — `the_missing_ledger` ✗ (one object).
+**Thread IDs are 2–4 word broad conceptual buckets.** No proper nouns. `enemy_contact_advance` ✓ — `the_missing_ledger` ✗ (one object). **Copy the ID EXACTLY as shown in the prompt — character for character. Do NOT paraphrase, shorten, rename, or rephrase.** Examples: prompt shows `dockside_enforcer_confrontation` → output `"id": "dockside_enforcer_confrontation"`. WRONG: `"id": "enforcer_pursuit"` (paraphrased).
 
 ### Thread labels in the prompt
 
@@ -40,15 +40,9 @@ Threads in the user prompt are shown with two labels: `[TYPE - URGENCY]`.
 
 **CRITICAL: Progress must be a new fact, not a rephrasing.** The system rejects progress entries that are 70%+ text-similar to the last entry. "Telegram reveals Captain Miller's involvement" followed by "Telegram confirms Captain Miller's involvement" will be rejected — changing one verb is not progress. Each progress entry must add genuinely new information: a new discovery, a setback, a shift in circumstances, or a concrete development.
 
-**Thread IDs:** Must be specific enough to avoid overlap (use "enemy_encroachment_south_flank" not "enemy_encroachment"). Only reference threads in the active threads list. Copy the ID EXACTLY as shown — character for character. Do NOT paraphrase, shorten, rename, or rephrase IDs.
-  - Example: if prompt shows `dockside_enforcer_confrontation`, your output MUST use `"id": "dockside_enforcer_confrontation"`.
-  - WRONG: `"id": "enforcer_pursuit"` (paraphrased)
-  - WRONG: `"id": "enforcer_confrontation"` (abbreviated)
-  - RIGHT: `"id": "dockside_enforcer_confrontation"` (exact copy)
+**Do NOT resolve threads that do not exist.** `thread_resolve` may only reference IDs from the active threads list.
 
-**CRITICAL: Do NOT resolve threads that do not exist.** `thread_resolve` may only reference IDs from the active threads list.
-
-**CRITICAL: Never both update AND resolve the same thread in one turn.** If you are resolving a thread, emit it ONLY in `thread_resolve`. Do NOT also include a `thread_update` for that same ID.
+**Never both update AND resolve the same thread in one turn.** If resolving, emit ONLY in `thread_resolve` — do NOT also include a `thread_update` for that same ID.
 
 **thread_update IDs must be unique.** Before emitting `thread_add`, check that your proposed ID does not already exist in the active or completed threads list.
 
@@ -118,7 +112,7 @@ One sentence, third person, the character's name. What happened, what changed, w
 
 ## Actions
 
-Emit exactly 4 choices, ~10 words each. Every choice must begin with an active verb.
+Emit at least 2, at most 4 choices, ~10 words each. Every choice must begin with an active verb.
 
 **Grounding rules:**
 - Reference actual game state: named NPCs present, inventory items, location features.

@@ -63,6 +63,7 @@ Review each active thread and output a JSON object inside <sanitize> tags.
 3. **Type wrong or missing?** → update type field (threat/opportunity/complication/revelation). If a thread has no type assigned, assign one based on the thread summary and current narrative context.
 4. **Should be dormant or re-activated?** → set dormant field.
 5. **Progress noisy or redundant?** → consolidate to fewer entries (5–7 words, factual, net outcomes over step-by-step logs).
+6. **New tension?** → add a new thread via thread_add with id, type, summary, and urgency. Only for genuinely distinct tension not already tracked.
 
 ### Abandonment criteria
 If a thread has no narrative mention in 5+ turns AND no activity (progress/urgency change) in 3+ turns, consider resolving as abandoned with narrative justification. Do not abandon threads still relevant to the current situation. Never abandon threads that have never been updated (no turns-ago suffix — these are freshly unearthed and need time to surface).
@@ -119,6 +120,12 @@ Thread resolutions may propose new world state facts via `world_state_candidate`
 {
   "goal_update": {               // omit if unchanged
     "long_term_objective": "..."
+  },
+  "thread_add": {                // omit if no new threads
+    "id": "new_thread_id",
+    "type": "threat|opportunity|complication|revelation",
+    "summary": "One sentence describing the new tension.",
+    "urgency": "normal|urgent"
   },
   "thread_updates": [            // only threads needing changes
     {
