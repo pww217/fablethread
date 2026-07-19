@@ -28,7 +28,7 @@ flowchart TD
     W -. "writes beat_candidates" .-> R
     R -. "feeds pending_gm_beat" .-> N
 
-    note1["_compute_scene_phase +<br>compute_convergence_score run<br>in turn.py before ruling<br>(deduped via _phase_computed flag)"]:::shared
+    note1["_compute_scene_phase +<br>compute_convergence_score run<br>in _narrate_setup() during<br>Call 1 (narration phase)<br>(before extraction, after ruling)"]:::shared
     S -.-> note1
 ```
 
@@ -36,15 +36,15 @@ flowchart TD
 
 ### Definition
 
-The phase engine tracks `state.scene.scene_phase` through five states: SETUP, RISING, CLIMAX, RESOLUTION, BREATHER. Transitions are driven by convergence score (5 components, urgent_thread 0-2, max score 6, EMA smoothed) and scene age.
+The phase engine tracks `state.scene.scene_phase` through five states: SETUP, RISING, CLIMAX, RESOLUTION, BREATHER. Transitions are driven by **raw** convergence score (5 components, urgent_thread 0-2, max score 6) and scene age. The EMA-smoothed value is used for the outcome_hint convergence hard gate.
 
 ### Phase transitions
 
 | From | To | Condition |
 |------|-----|-----------|
 | SETUP | RISING | Urgent thread appears OR turns_in_phase ≥ 3 OR `total_convergence_score >= 2 AND turns_in_phase >= 2` (2-turn TTL prevents stagnation) |
-| RISING | CLIMAX | smoothed_convergence ≥ enter_threshold (default **2**) AND turns_in_phase ≥ RISING_min (default 3) |
-| CLIMAX | RESOLUTION | Signal-gated exit: (a) early exit on **thread resolved on previous turn** + low convergence (< exit_threshold, default 1) AND min_turns (CLIMAX_min, default 3), (b) extension on sustained pressure (smoothed_convergence ≥ 3 + urgent active thread, hard cap at limit + extension_max), (c) default timeout at limit |
+| RISING | CLIMAX | raw_convergence ≥ enter_threshold (default **2**) AND turns_in_phase ≥ RISING_min (default 3) |
+| CLIMAX | RESOLUTION | Signal-gated exit: (a) early exit on **thread resolved on previous turn** + low convergence (< exit_threshold, default 1) AND min_turns (CLIMAX_min, default 3), (b) extension on sustained pressure (raw_convergence ≥ 3 + urgent active thread, hard cap at limit + extension_max), (c) default timeout at limit |
 | RESOLUTION | BREATHER | Always (1-turn transition) |
 | BREATHER | RISING | (Urgent thread appears OR breather_max_turns elapsed) AND turns_in_phase ≥ BREATHER_min (default 2) |
 
@@ -54,7 +54,7 @@ The phase engine tracks `state.scene.scene_phase` through five states: SETUP, RI
 
 Note: `scene_age` was removed from convergence — it is now used only by the narration directive, not the convergence score.
 
-The raw score is smoothed using exponential moving average (EMA) each turn: `smoothed = alpha * raw + (1 - alpha) * prev_smoothed`. Phase transitions use the smoothed value. First turn uses raw score as initial smoothed value.
+The raw score is smoothed using exponential moving average (EMA) each turn: `smoothed = alpha * raw + (1 - alpha) * prev_smoothed`. **Phase transitions use the raw score.** The smoothed score is used for the outcome_hint convergence hard gate in `_compute_pacing_context()`. First turn uses `prev_smoothed=0`, so smoothed = 0.4 * raw.
 
 ## 2.5. Curtain Call — CLIMAX phase soft close
 
@@ -277,7 +277,7 @@ flowchart TD
     classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
     classDef system fill:#3b0764,color:#e9d5ff,stroke:#7c3aed,strokeWidth:2px
 
-    INPUT["Player input"]:::input --> PHASE["Phase Engine<br>scene_phase transitions<br>(in turn.py before ruling)"]:::system
+    INPUT["Player input"]:::input --> PHASE["Phase Engine<br>scene_phase transitions<br>(in _narrate_setup(), Call 1)"]:::system
 
     THREADS["arc.threads[]<br>urgency counts"]:::input --> PHASE
 
@@ -388,7 +388,7 @@ T6:  normal climax rhythm continues
 | `_compute_pacing_context()` | `_pacing.py` | 171-205 | scene_phase + urgency + age → PacingContext |
 | `_compute_ages()` | `_pacing.py` | 208-219 | Scene age computation |
 | `compute_convergence_score(scene_phase, active_threads, recent_beats, config, turn_no, recent_rolls)` | `_pacing.py` | 55-122 | **5-component** score (urgent_thread 0-2 count-capped, any_threat, **no scene_age**, beat_streak with carry-over using tension bucket, roll_starvation, threat_density) → tuple[int, dict[str, int]] |
-| `_compute_scene_phase(state, ages, config, smoothed_convergence, turn_no)` | `_pacing.py` | 218-318 | Phase transitions with hysteresis (enter/exit thresholds) and min_turns gates |
+| `_compute_scene_phase(state, ages, config, total_convergence_score, turn_no)` | `_pacing.py` | 218-318 | Phase transitions with hysteresis (enter/exit thresholds) and min_turns gates. Uses raw convergence score. |
 | `derive_allowed_beat_types()` | `_pacing.py` | 61-73 | Phase + directive → allowed beat types |
 | `sanitize_threads()` | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
 
