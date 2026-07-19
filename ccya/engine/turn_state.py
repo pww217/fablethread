@@ -163,7 +163,6 @@ def _apply_thread_automatics(
             updated = t.model_copy(update={
                 "dormant": True,
                 "urgency": "background",
-                "urgency_set_turn": turn_no,
                 "last_updated_turn": turn_no,
             })
             threads[i] = updated
@@ -181,7 +180,6 @@ def _apply_thread_automatics(
         if t.dormant and t.urgency != "background":
             updated_dormant = t.model_copy(update={
                 "urgency": "background",
-                "urgency_set_turn": turn_no,
             })
             threads[i] = updated_dormant
             mutated = True
@@ -440,32 +438,40 @@ def _expire_conditions(
     expired_ids: list[str] = []
 
     for c in conditions:
-        if not isinstance(c, dict):
-            continue
-        tr = c.get("turns_remaining")
+        # Handle both Condition model objects and legacy dict format
+        if isinstance(c, dict):
+            cond_id = c.get("id", "?")
+            tr = c.get("turns_remaining")
+        else:
+            cond_id = getattr(c, "id", "?")
+            tr = getattr(c, "turns_remaining", 0)
+
         if tr == "permanent":
-            updated_conds.append(c)
+            updated_conds.append(c if isinstance(c, dict) else c.model_dump())
             continue
         if isinstance(tr, int):
             new_remaining = tr - 1
             if new_remaining <= 0:
-                expired_ids.append(c.get("id", "?"))
+                expired_ids.append(cond_id)
                 _log.info(
                     "condition expired: %s at turn %d",
-                    c.get("id"), turn_no,
+                    cond_id, turn_no,
                     extra={"turn": turn_no},
                 )
                 # do not append — condition removed
             else:
-                updated_conds.append({**c, "turns_remaining": new_remaining})
+                if isinstance(c, dict):
+                    updated_conds.append({**c, "turns_remaining": new_remaining})
+                else:
+                    updated_conds.append(c.model_copy(update={"turns_remaining": new_remaining}))
         else:
             # Unknown type — keep as-is with warning
             _log.warning(
                 "condition unknown turns_remaining type: %s for %s",
-                type(tr).__name__, c.get("id"),
+                type(tr).__name__, cond_id,
                 extra={"turn": turn_no},
             )
-            updated_conds.append(c)
+            updated_conds.append(c if isinstance(c, dict) else c.model_dump())
 
     if expired_ids:
         _log.info(
