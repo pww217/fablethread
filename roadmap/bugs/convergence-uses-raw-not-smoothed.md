@@ -1,6 +1,6 @@
 ---
 title: "Convergence score uses raw instead of smoothed across all phase transitions"
-status: up-next
+status: testing
 urgency: 2
 size: medium
 created: 2026-07-19
