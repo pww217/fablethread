@@ -38,6 +38,8 @@ flowchart TD
 
 The phase engine tracks `state.scene.scene_phase` through five states: SETUP, RISING, CLIMAX, RESOLUTION, BREATHER. Transitions are driven by **raw** convergence score (5 components, urgent_thread 0-2, max score 6) and scene age. The EMA-smoothed value is used for the outcome_hint convergence hard gate.
 
+**BREATHER uses smoothed convergence for a clean break.** Design intent: smoothed convergence prevents the LLM from immediately re-engaging threads/NPCs that were just dumped. Raw would be too jumpy. Clean break is intentional for dumping threads/NPCs pursuing the player.
+
 ### Phase transitions
 
 | From | To | Condition |
@@ -66,6 +68,8 @@ Two-tier soft close guides the record toward thread resolution in CLIMAX:
 | Forced | Turn ≥ climax_turn_limit - 1 | `curtain_call: "forced"` | "This thread MUST resolve now. The engine will force a transition if you don't." |
 
 Hard cutoff at `climax_turn_limit` unchanged (phase machine handles it). For default limit=4: turn 1→active, turn 2→none, turn 3→forced, turn 4→forced.
+
+**Assessment:** Curtain call is unnecessary complexity. It adds code overhead with few advantages. Eval runs should be checked to verify if curtain calls are actually being honored or having any meaningful impact. If they're not being honored or adding value, consider removing.
 
 ## 3. GM Beats
 
@@ -253,6 +257,10 @@ flowchart LR
 | Thread cap eviction | Non-dormant threads > 5 on `thread_add` | Set oldest non-dormant → `dormant: True` (not evicted) |
 | Engine culling | ≥3 dormant threads | Oldest (by last_updated_turn) → completed_threads with resolution_state: "abandoned" |
 | Progress dedup | ≥70% overlap with last progress entry | Reject new entry |
+
+### Sanitizer: two-way urgency adjustment
+
+The thread sanitizer (`thread_sanitizer.py`) performs **two-way urgency adjustment** — it can both escalate and demote thread urgency to match the tone of the current scene. It pulls from background/dormant threads when necessary to maintain scene tension. Seeds are exempt from sanitizer escalation — seeded threads are pre-loaded premise and most are meant to remain dormant.
 
 ### Code locations
 

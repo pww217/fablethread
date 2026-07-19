@@ -243,6 +243,7 @@ When inspecting a game, check one area at a time rather than running all checker
 - **What it checks:** Location description is non-empty and substantive
 - **CLI:** `ev.py check TURN location_description_consistency --save-dir saves/my-game`
 - **Caveats:** Reads post-turn state (location_description stripped from event blobs via `_SKIP_FIELDS`). Checks non-empty, minimum sentences (default 2) and minimum words (default 30). Requires `--save-dir` for state access.
+- **Known bug:** Uses AND logic — fails only if `words < 15 AND sentences < 1`. This means descriptions with 12-19 words pass even though they're clearly too short. Fix: change to OR logic — fail if `words < 15 OR sentences < 1`.
 
 ### world_state_facts
 

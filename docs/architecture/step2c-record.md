@@ -31,7 +31,7 @@ flowchart LR
         O1c["arc_resolve: ArcResolution | None<br>  resolution, long_term_objective (new goal string)"]:::outNode
         O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state, outcome,<br>resolved_turn, world_state_candidate"]:::outNode
         O3["thread_add: ArcThread | None"]:::outNode
-        O4["actions: list[str]<br>  exactly 4 suggested player choices, grounded in game state (NPCs, inventory, location)"]:::outNode
+        O4["actions: list[str]<br>  forward-looking suggestions (\"what comes next\"), grounded in game state (NPCs, inventory, location)"]:::outNode
         O5["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
     end
 
@@ -53,6 +53,17 @@ Record receives urgency interpretation rules in its system prompt (added by I-32
 Record is the post-narration backward-looking scribe. It always executes every turn (never skipped) and feeds the next turn's rules call via `thread_update/goal_update/arc_resolve/thread_resolve/thread_add` (record-managed thread lifecycle). World state candidates are collected in `state.world_state_candidates` from ThreadResolution.world_state_candidate; sanitizer evaluation is handled by the seed worldbuilding plan.
 
 Record's prompt was previously the unified "Storytell" prompt. The split removed forward-looking inputs (pacing_context, candidate_npcs, npc_roster, intent, recent_beats) and forward-looking outputs (gm_beat). Beat generation now lives in Step 2d (World) and beat selection in Step 0 (Ruling).
+
+### Actions: forward-looking by design
+
+Record's `actions` field provides forward-looking suggestions ("what comes next") — not backward-looking recaps. This is intentional design. Current problems with action generation:
+- Choices may reference inventory items or NPCs not currently in the scene
+- Actions may spoil dormant threads by exposing their content
+- Actions should prioritize active/urgent threads first, then background/dormant threads
+
+### Beat structure
+
+The beat system (4-entry/60% pressure threshold) was found to be too strict. Consider relaxing to 6-entry/50% or 8-entry windows. Beat recycling is also caused by stale threads, few NPCs, and stagnant NPCs — not just the pressure window threshold.
 
 ## Campaign Arc System
 

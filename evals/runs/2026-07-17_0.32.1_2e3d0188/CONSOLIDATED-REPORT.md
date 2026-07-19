@@ -74,10 +74,12 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 ## 3. CRITICAL — Dampening Loop (Sanitizer Only Downgrades) ✅ VALIDATED
 
 **Severity:** CRITICAL
-**Effort:** Medium (prompt + logic change)
+**Effort:** Medium (logic redesign)
 **Files:** `ccya/engine/thread_sanitizer.py`, `ccya/prompts/sanitize_thread.j2`
 
 **What:** Zero urgency escalations across all 5 runs. Every sanitizer urgency change is a downgrade (urgent → normal). The sanitizer acts as a **tension damper, not a tension amplifier**.
+
+**Design intent:** Sanitizer should be two-way — upgrade AND downgrade, match tone of scene, no bias toward either direction. Should pull from background/dormant threads when necessary to provide escalation signals. `sanitize_thread.j2:62-64` instructs "Urgency wrong?" without specifying direction.
 
 **Lifecycle:** Record assigns urgency only during CLIMAX or when threats feel "immediate/imminent" → Sanitizer downgrades on every 5-turn cycle → A thread stays urgent for 1-2 sanitizer cycles (5-10 turns) → Convergence drops.
 
@@ -89,7 +91,7 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 
 **Cross-cutting:** This is the primary mechanism behind the narrow convergence distribution. It interacts with BREATHER (amplifies reset), CLIMAX extensions (suppresses them), and convergence scoring (inverts intended weighting).
 
-**Fix:** Add urgency escalation guidance to `sanitize_thread.j2`. If a thread was set urgent by Record within the last 2 turns, the sanitizer should preserve that urgency.
+**Fix:** Redesign sanitizer to be two-way — upgrade AND downgrade based on scene tone, no bias, pull from background/dormant when necessary.
 
 **Additional context from validation:** `sanitize_thread.j2:62-64` instructs "Urgency wrong?" without specifying direction. No escalation guidance exists. Sanitizer urgency changes across runs: noir (2 downgrades), space-western (6), golden-piracy (3), zombie-survival (4), allied-ww2 (2). Total: 0 escalations, 17 downgrades. The `urgent_thread` component averages 0.40-0.60 across runs (10-15/25 turns at 1), confirming it rarely contributes to convergence.
 
@@ -97,13 +99,15 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 
 ---
 
-## 4. CRITICAL — Implicit Thread Creation via thread_update ✅ VALIDATED
+## 4. CRITICAL — Seeded Threads Bypass Creation Gates — INTENTIONAL ✅ VALIDATED
 
-**Severity:** CRITICAL
-**Effort:** Medium (engine change)
+**Severity:** CRITICAL (reclassified to MEDIUM — intentional design)
+**Effort:** None (document as intentional)
 **Files:** `ccya/engine/_apply.py`, `ccya/engine/turn_state.py`, `ccya/engine/seed.py`
 
-**What:** Seeded threads bypass thread_add gates (cooldown, cap eviction, ID collision checks). The claim "ALL threads created implicitly via thread_update" is INCORRECT — the code explicitly skips unknown IDs in both extractor and sanitizer. Thread creation uses TWO paths: seeding at game start (seed.py), and explicit `thread_add` from extractor.
+**What:** Seeded threads bypass thread_add gates (cooldown, cap eviction, ID collision checks). **This is intentional design.** Seeded threads are pre-loaded premise: only a couple meant to be active, most meant to be dormant. Thread creation uses TWO paths: seeding at game start (seed.py), and explicit `thread_add` from extractor.
+
+The claim "ALL threads created implicitly via thread_update" is INCORRECT — the code explicitly skips unknown IDs in both extractor and sanitizer.
 
 **Impact:**
 - Seeded threads bypass cooldown (default 3 turns), cap eviction (thread_max_active=5), ID collision checks
@@ -113,7 +117,7 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 
 **Evidence:** noir-1930s 25t: `syndicate_retaliation` ABANDONED at T1 (seeded), `informant_network` UPDATED at T1 (seeded), `political_exposure` UPDATED at T3 (seeded), `gilded_lily_confrontation` ADDED at T15 (explicit thread_add). golden-piracy 25t: `guild_enforcement` UPDATED at T1 (seeded), `shoreline_skirmish` ADDED at T18 (explicit thread_add).
 
-**Fix:** Add thread_add-style validation (cooldown, cap eviction) to seeded threads. Or document that seed bypass is intentional.
+**Fix:** Leave as-is — intentional design for pre-loaded premise.
 
 **Refs:** DEEPDIVE-01 §1.1; threads_arcs_and_sanitation.md §2; validation-C-results.md
 
@@ -171,13 +175,15 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 
 ---
 
-## 7. HIGH — BREATHER Amplifies Dampening Loop ✅ VALIDATED
+## 7. HIGH — BREATHER Uses Smoothed Convergence for Clean Break ✅ VALIDATED
 
 **Severity:** HIGH
-**Effort:** Medium (config change)
+**Effort:** Medium (two-way sanitizer redesign should address)
 **Files:** `ccya/engine/_pacing.py`
 
 **What:** BREATHER resets convergence to 0-1 and threads lose urgency (sanitizer downgrades during the 1-2 turn BREATHER). After breather exits, convergence must rebuild from scratch.
+
+**Design intent:** BREATHER uses smoothed (not raw) convergence for a clean break — dumping threads/NPCs pursuing the player. Smoothed convergence prevents the LLM from immediately re-engaging threads/NPCs that were just dumped. Raw would be too jumpy.
 
 **Cycle:** BREATHER → RISING → convergence climbs to 2-3 → CLIMAX → sanitizer downgrades → convergence drops → back to RISING (never CLIMAX again).
 
@@ -187,23 +193,25 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 - After breather exit, convergence climbs from 0-1 back to 2-3 within 4-9 turns
 - noir never reaches BREATHER in 25 turns (stays in RISING for 22 turns)
 
-**Additional context from validation:** `_pacing.py:228-231` shows BREATHER exit condition: `convergence >= breather_exit_threshold` (default 2). No minimum duration enforcement. Across all runs, 5 BREATHER→RISING→CLIMAX cycles were observed. BREATHER duration: 1-2 turns. After breather exit, convergence climbs from 0-1 back to 2-3 within 4-9 turns. Noir never reaches BREATHER in 25 turns (stays in RISING for 22 turns). The sanitizer downgrades threads during BREATHER, amplifying the convergence reset.
+**Additional context from validation:** `_pacing.py:228-231` shows BREATHER exit condition: `convergence >= breather_exit_threshold` (default 2). No minimum duration enforcement. Across all runs, 5 BREATHER→RISING→CLIMAX cycles were observed. BREATHER duration: 1-2 turns. After breather exit, convergence climbs from 0-1 back to 2-3 within 4-9 turns. Noir never reaches BREATHER in 25 turns (stays in RISING for 22 turns). The sanitizer downgrades threads during BREATHER, amplifying the convergence reset. Two-way sanitizer redesign (B-50.2) should address this.
 
 **Fix suggestions:**
-1. Give BREATHER a minimum duration (e.g., BREATHER_min=2 enforced before any exit)
-2. Use partial reset instead of full reset: `smoothed_convergence = max(1, prev_smoothed * 0.5)`
+1. Two-way sanitizer redesign (B-50.2) should address BREATHER dampening amplification
+2. Keep smoothed convergence — intentional design for clean break
 
 **Refs:** DEEPDIVE-02 §2.2; DEEPDIVE-03 §3.4; validation-A-results.md
 
 ---
 
-## 8. HIGH — Curtain Call vs. Extension Conflict ✅ VALIDATED
+## 8. HIGH — Curtain Call is Unnecessary Complexity ✅ VALIDATED
 
 **Severity:** HIGH
-**Effort:** Small (prompt change)
+**Effort:** Small (evaluate and possibly remove)
 **Files:** `ccya/prompts/narrate_system.j2`
 
 **What:** Curtain call enters "forced" tier at `climax_turn_count >= limit-1` (T3 of CLIMAX), telling the Narrator "MUST resolve" threads. Extension evaluation happens at `climax_turn_count >= limit` (T4).
+
+**Assessment:** Curtain call adds complexity with few advantages. Recent evals should be checked to verify if curtain call is actually honored by the LLM or doing anything meaningful. If not honored, it's just context bloat. If honored, it may be causing premature thread resolution.
 
 **Conflict:**
 - At T3: Narrator is told to resolve threads (curtain_call=forced)
@@ -217,9 +225,10 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 **Additional context from validation:** `_pacing.py:235-240` shows curtain_call logic: forced tier at `climax_turn_count >= limit-1`. Extension evaluation at `climax_turn_count >= limit` requires `convergence >= 3 AND urgent_thread > 0`. Across all runs: noir-1930s (0 extensions), space-western (1 extension at T14), golden-piracy (1 extension at T10), zombie-survival (0 extensions), allied-ww2 (1 extension at T11). Total: 3/5 runs extended. The sanitizer downgrades urgent threads during CLIMAX, causing convergence to drop below 3 by T4. The self-fulfilling prophecy is confirmed: Record mandates urgency in CLIMAX → Sanitizer downgrades → Extension fails.
 
 **Fix suggestions:**
-1. Delay curtain_call forced tier to T4+
-2. Modify curtain_call guidance during extension-eligible CLIMAX phases
-3. Reduce sanitizer dampening during CLIMAX
+1. Check recent evals to verify if curtain call is honored/doing anything
+2. If not honored, remove it
+3. If honored, consider delaying forced tier or modifying guidance
+4. Reduce sanitizer dampening during CLIMAX (two-way sanitizer redesign should help)
 
 **Refs:** DEEPDIVE-03 §3.2; validation-A-results.md
 
@@ -233,33 +242,37 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 
 **What:** Record extractor consistently emits `major_update_signal: advancement` regardless of roll band. noir-1930s shows 4-7% setbacks (not 0% as previously claimed). Other runs show setback rates mirroring fail rates (8-20%), but advancement still dominates 78-100% of signals.
 
+**Design intent:** 75-80% advancement rate is purposeful design. Setbacks should be narratively meaningful, not mechanical. Advancement ≠ good outcome (can be bad outcomes). 3 setbacks in a row = stagnation. Thread open 20 turns = stagnation.
+
 **Root cause:** The record prompt allows `advancement|setback` as valid signals (confirmed at `record_system.j2:12`), but the LLM consistently emits `advancement`. The sanitizer does NOT filter setbacks — the record extractor is the source.
 
 **Impact:** Thread urgency/progress state drifts upward. Threads appear to be progressing even when the player is failing. The sanitizer receives these updates but has no downward correction signal.
 
 **Additional context from validation:** noir-1930s has 1 setback in both the 15t (7.1%) and 25t (4.3%) runs — not 0% as previously claimed, but still very low. golden-piracy 25t has 0% setbacks (confirmed). Allied-ww2 has the highest setback rate at 22.2%. Advancement dominance is 78-100% across all runs, confirming the one-directionality finding.
 
-**Fix:** Strengthen the record prompt to require `setback` on fail/setback rolls. Make it a binding instruction, not a suggestion.
+**Fix:** Keep advancement rate at 75-80% — purposeful. Focus on making setbacks narratively meaningful rather than mechanically frequent.
 
 **Refs:** ruling_narration_and_npcs.md §3.14, §8.1; DEEPDIVE-04 §4.1.1, §4.2.2; validation-B-results.md
 
 ---
 
-## 10. HIGH — Record Actions Disconnected from Narration ✅ VALIDATED
+## 10. HIGH — Record Actions Forward-Looking by Design, Quality Issues ✅ VALIDATED
 
 **Severity:** HIGH
 **Effort:** Small (prompt change)
 **Files:** `ccya/prompts/record_system.j2`
 
-**What:** Record actions are forward-looking suggestions for what the player *might* do next, not descriptions of what the narration just depicted. This creates a disconnect — the actions don't validate whether the narration actually advanced the suggested threads.
+**What:** Record actions are forward-looking suggestions for what the player *might* do next, not descriptions of what the narration just depicted. **This is intentional.**
+
+**Design intent:** Forward-looking is correct. But the current implementation has quality issues — choices reference inventory items/NPCs not in scene. Spoils dormant threads unintentionally. Should focus on active/urgent threads first.
 
 **Evidence:** noir-1930s T5: Record suggests "Offer Arthur Sterling a bribe", "Threaten with newspaper", "Inquire about shipment protection", "Search desk for documents" — but narration only matches "Threaten with newspaper". noir-1930s T10: Record suggests "Enter Gilded Lily through main doors", "Sneak through side entrance", "Observe for guards", "Search street for witnesses" — but narration is a transition to the Gilded Lily after a failed interrogation.
 
 **Impact:** Actions are post-hoc suggestions, not validation of narration advancement. This means the Record extractor cannot confirm that narration actually advanced the threads it suggests.
 
-**Additional context from validation:** This is structural by design — the record prompt (record_system.j2:117-129) defines actions as forward-looking choices with grounding rules. The disconnect is a narrative coherence gap, not a data integrity bug. The record prompt intentionally separates forward-looking actions from retrospective outcome_summary (record_system.j2:113-115). Specific T5 actions from prior report cannot be verified in the 2145 event data structure, but the T10 narration was confirmed as a transition after failed interrogation.
+**Additional context from validation:** This is structural by design — the record prompt (record_system.j2:117-129) defines actions as forward-looking choices with grounding rules. The disconnect is a narrative coherence gap, not a data integrity bug. The record prompt intentionally separates forward-looking actions from retrospective outcome_summary (record_system.j2:113-115). Specific T5 actions from prior report cannot be verified in the 2145 event data structure, but the T10 narration was confirmed as a transition after failed interrogation. There may be a design document in scoping that tries to address this by changing the context.
 
-**Fix:** Restructure record prompt to first describe what the narration depicted, then suggest next actions — reversing the current order.
+**Fix:** Keep forward-looking actions — fix quality issues (references to out-of-scene items/NPCs, spoiling dormant threads, not prioritizing active/urgent threads).
 
 **Refs:** ruling_narration_and_npcs.md §8.7; validation-B-results.md
 
@@ -273,6 +286,8 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 
 **What:** The 4-entry sliding window diversity rule prevents same-type/NPC/thread in the last 4 entries, but doesn't prevent the same thread from persisting across the entire game. Same 2-3 threads dominate beat candidates across entire runs (65-84% of candidates).
 
+**Current 4-entry/60% was too strict.** Try 6-entry/50% (3 of 6) or 8-entry. Medium-term window: 5-8 turns = one pacing cycle.
+
 **Examples:**
 - noir: `political_exposure` in 84% of candidates (21/25 turns)
 - space-western: `authority_encroachment` + `resource_scarcity` ~70% combined
@@ -282,6 +297,8 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 **Impact:** Narrative loops (noir T10-T17: same Gilded Lily confrontations). Beats are mechanically generated but narratively stale.
 
 **Additional context from validation:** The diversity rule is in `world_system.j2:54-57`: "You have a 4-beat sliding window in `recent_beats`. Avoid excessive repetition: If a type/thread/NPC appears 2+ in the last 4 entries, it should be avoided if possible." The rule says "avoided if possible" not "must not appear," giving the LLM discretion to repeat. Combined with the "must emit at least 1" override (line 48, 52), the diversity rule is effectively advisory rather than enforced. The 4-entry window is too narrow — same threads recycle across entire runs because the window doesn't prevent long-term repetition.
+
+**Recycling also caused by:** stale threads, few NPCs, stagnant NPCs.
 
 **Validated beat candidate diversity across all runs:**
 
@@ -299,7 +316,7 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 
 *Note: >100% occurs because effect fields can reference multiple threads (e.g., "vs [thread: X] [thread: Y]").
 
-**Fix:** Increase diversity window from 4 to 8-10. Consider adding thread cooldowns (6-8 turns) where threads that just appeared cannot be selected again.
+**Fix:** Increase diversity window to 6-entry/50% (3 of 6) or 8-entry. Medium-term window (5-8 turns = one pacing cycle). Also address: stale threads, few NPCs, stagnant NPCs.
 
 **Refs:** ruling_narration_and_npcs.md §3.9, §8.2; DEEPDIVE-01 §1.4; validation-D-results.md
 
@@ -364,10 +381,12 @@ The system's mechanics work correctly in isolation, but cross-cutting interactio
 
 **Additional context from validation:** Convergence range by pack (25t runs): noir (0.38-2.44), space-western (0.30-2.58), golden-piracy (0.28-2.44), zombie-survival (0.26-2.36), allied-ww2 (0.22-2.58). The aggressive persona in allied-ww2 does not override the pack's moral-dilemma thread design — convergence stays low. The convergence range 1.20-2.44 by pack confirms pack design dominance. Persona config modulates within pack constraints but doesn't override them.
 
-**arc_origin absence:** `arc_origin` (2-3 sentences of backstory) is generated at seed time but never included in per-turn prompts. This causes persona drift after turn 1 — the LLM loses emotional anchoring and relies solely on mechanical signals.
+**arc_origin is a UI element:** `arc_origin` (2-3 sentences of backstory) is generated at seed time but never included in per-turn prompts. **This is intentional design — arc_origin is a pure UI element, not meant for per-turn prompts.** Only exception: seed narration.
+
+Potential bug: UI may not be rendering arc_origin as a long-term objective tooltip. If so, the bug is in the UI, not the prompts.
 
 **Fix suggestions:**
-1. Reintroduce `arc_origin` into narrate/record prompts (even condensed, 1 sentence)
+1. Accept arc_origin as UI element. Check if UI is rendering it as long-term objective tooltip.
 2. Add persona emotional anchors to per-turn prompts
 3. Document which packs are "high urgency" vs "low urgency"
 
@@ -428,7 +447,7 @@ The auto-dormant mechanism (turn_state.py:152-174) logs "thread_automatics.auto_
 
 ---
 
-## 17. LOW — Directive Content Quality ✅ VALIDATED
+## 17. LOW — Scene Pressure Directive is Heavy-Handed but Necessary ✅ VALIDATED
 
 **Severity:** LOW
 **Effort:** Small (prompt change)
@@ -436,23 +455,27 @@ The auto-dormant mechanism (turn_state.py:152-174) logs "thread_automatics.auto_
 
 **What:** Directives are extremely sparse and generic. noir-1930s 25t has 100% empty directives (12% claim was from a different run). Other 25t runs: 64-80% empty. The non-empty directives use only two generic labels: "Scene Pressure" and "Scene Imperative". No turn has a directive with specific content like "Scene Pressure — guards are closing in."
 
+**Design intent:** Scene pressure is about forcing scene transitions (not "guards closing in"). Prevent getting stuck in one location for 20 turns. Heavy-handed but necessary when LLM naturally wants to stay put.
+
 **Impact:** The pacing system's directive mechanism is barely active. This is a pacing-system issue — the directive generation logic needs to produce more specific, context-aware directives.
 
 **Additional context from validation:** noir-1930s 25t has 0% non-empty directives despite having directives in the event data. noir-1930s 15t has 86.7% empty (close to 88% claim). Golden-piracy 25t has the most directive coverage at 28% (most "healthy" run). Directive coverage varies significantly across runs, suggesting inconsistent directive generation, not just sparsity.
 
-**Fix:** Make directive generation produce specific, context-aware directives.
+**Fix:** Keep scene pressure as-is — heavy-handed but necessary for forcing transitions. Improve specificity if possible.
 
 **Refs:** ruling_narration_and_npcs.md §8.5; validation-B-results.md
 
 ---
 
-## 18. LOW — Location Descriptions Consistently Short ✅ VALIDATED
+## 18. MEDIUM — Location Descriptions Consistently Short — DIRECT BUG ✅ VALIDATED
 
-**Severity:** LOW
+**Severity:** MEDIUM (reclassified from LOW — direct bug)
 **Effort:** Trivial (checker change)
 **Files:** `ccya/ev/checkers/state.py:47`, `ccya/engine/config.py:21-22`
 
-**What:** All location descriptions across all 5 runs are under 30 words (12-19 words typical). The checker passes because it uses OR logic: fail only if `words < 15 AND sentences < 1`. Since all descriptions have at least 1 sentence, they pass even though they're clearly too short.
+**What:** All location descriptions across all 5 runs are under 30 words (12-19 words typical). The checker passes because it uses AND logic: fail only if `words < 15 AND sentences < 1`. Since all descriptions have at least 1 sentence, they pass even though they're clearly too short.
+
+**This is a direct bug.**
 
 **Checker logic:** `state.py:47` — `if len(words) < cfg.location_min_words and len(sentences) < cfg.location_min_sentences`. Config defaults: `location_min_sentences=1`, `location_min_words=15`. Any description with 1+ sentence passes regardless of word count.
 
