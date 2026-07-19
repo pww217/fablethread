@@ -1,6 +1,6 @@
 ---
 title: "Pacing, NPC extraction, beats, prompt bloat — iterative stabilization"
-status: implemented
+status: done
 urgency: 3
 size: large
 created: 2026-06-29

@@ -1,6 +1,6 @@
 ---
 title: "Checker structural validation (ev.py check --lint)"
-status: scoping
+status: canceled
 urgency: 3
 size: medium
 created: 2026-07-06

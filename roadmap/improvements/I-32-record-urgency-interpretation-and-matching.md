@@ -1,6 +1,6 @@
 ---
 title: "Record prompt: restore urgency interpretation rules and semantic matching guidance"
-status: completed
+status: done
 urgency: 3
 size: medium
 created: 2026-07-08

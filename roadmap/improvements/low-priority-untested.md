@@ -1,6 +1,6 @@
 ---
 title: "Low-priority: location checker, untested paths, resolved items"
-status: up-next
+status: canceled
 urgency: 4
 size: small
 created: 2026-07-19
