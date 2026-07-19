@@ -1,5 +1,5 @@
 ---
-title: "Prompt coherence: beats, narration, record actions, directives"
+title: "Prompt coherence: beats, narration, directives"
 status: up-next
 urgency: 3
 size: medium
@@ -15,7 +15,9 @@ pr:
 
 ## Description
 
-Bundle of prompt coherence issues rooted in `narrate_system.j2`, `narrate_user.j2`, `record_system.j2`, `world.j2`. Five findings validated across 5 eval runs (2026-07-17_0.32.1_2e3d0188). Core issue: prompts give LLM conflicting or insufficient guidance, causing beats to be ignored, record actions disconnected from narration, and generic directives.
+Bundle of prompt coherence issues rooted in `narrate_system.j2`, `narrate_user.j2`, `world.j2`. Three findings validated across 5 eval runs (2026-07-17_0.32.1_2e3d0188). Core issue: beats are ignored by LLM, beat recycling causes narrative loops.
+
+(I-43.2 record actions quality was folded into I-36-choice-grounding-priority.)
 
 ## Findings
 
@@ -39,11 +41,13 @@ Actions are forward-looking, not validation of narration advancement. The record
 
 Current problems: Choices reference inventory items/NPCs not in scene. Spoils dormant threads unintentionally. Should focus on active/urgent threads first.
 
-Design intent: Forward-looking is correct. But the current implementation has quality issues — not the forward-looking nature itself. There may be a design document in scoping that tries to address this by changing the context.
+Design intent: Forward-looking is correct. But the current implementation has quality issues — not the forward-looking nature itself.
+
+**Note: Folded into I-36-choice-grounding-priority.**
 
 ### I-43.3 — Beat recycling / narrative loops (MEDIUM)
 
-The 4-entry sliding window diversity rule in `world.j2:54-57` prevents same-type/NPC/thread in the last 4 entries, but doesn't prevent the same thread from persisting across the entire game. Same 2-3 threads dominate beat candidates across entire runs (65-84% of candidates).
+The 4-entry sliding window diversity rule in `world_system.j2:46-49` prevents same-type/NPC/thread in the last 4 entries, but doesn't prevent the same thread from persisting across the entire game. Same 2-3 threads dominate beat candidates across entire runs (65-84% of candidates).
 
 Examples:
 - noir: `political_exposure` in 84% of candidates (21/25 turns)
@@ -53,7 +57,7 @@ Examples:
 
 The diversity rule says "avoided if possible" not "must not appear," giving LLM discretion to repeat. Combined with "must emit at least 1" override (line 48, 52), diversity rule is effectively advisory.
 
-Current 4-entry/60% was too strict. Try 6-entry/50% (3 of 6) or 8-entry. Medium-term window: 5-8 turns = one pacing cycle. Recycling also caused by: stale threads, few NPCs, stagnant NPCs.
+Current 4-entry/60% was too strict. Try 6-entry/50% (3 of 6). Medium-term window: 5-8 turns = one pacing cycle.
 
 ### I-43.4 — arc_origin is a UI element, not a prompt issue (MEDIUM)
 
@@ -75,13 +79,12 @@ Directive presence is 20-56% across runs (not 12% as previously claimed):
 ## Fix Strategy
 
 1. Rethink beat structure — make them interpretable, not mandatory. Beats are creative guidance by design, tied to scene pressure. Fix the formula, not the binding level.
-2. Keep forward-looking actions — fix quality issues (references to out-of-scene items/NPCs, spoiling dormant threads, not prioritizing active/urgent threads). Search for design doc in scoping.
-3. Increase diversity window to 6-entry/50% (3 of 6) or 8-entry. Medium-term window (5-8 turns = one pacing cycle). Also address: stale threads, few NPCs, stagnant NPCs.
-4. Accept arc_origin as UI element. Check if UI is rendering it as long-term objective tooltip — if not, that's a UI bug.
-5. Keep scene pressure as-is — it's heavy-handed but necessary for forcing transitions. Improve specificity if possible.
+2. Increase diversity window to 6-entry/50% (3 of 6). Medium-term window (5-8 turns = one pacing cycle).
+3. Accept arc_origin as UI element. Check if UI is rendering it as long-term objective tooltip — if not, that's a UI bug.
+4. Keep scene pressure as-is — it's heavy-handed but necessary for forcing transitions. Improve specificity if possible.
 
 ## References
 
 - CONSOLIDATED-REPORT.md §2, §10, §11, §14, §17
 - validation-B-results.md (B1, B3, B4)
-- `ccya/prompts/narrate_system.j2`, `ccya/prompts/narrate_user.j2`, `ccya/prompts/record_system.j2`, `ccya/prompts/world.j2`
+- `ccya/prompts/narrate_system.j2`, `ccya/prompts/narrate_user.j2`, `ccya/prompts/world_system.j2`
