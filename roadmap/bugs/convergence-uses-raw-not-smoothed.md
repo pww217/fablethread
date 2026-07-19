@@ -1,6 +1,6 @@
 ---
 title: "Convergence score uses raw instead of smoothed across all phase transitions"
-status: validated
+status: up-next
 urgency: 2
 size: medium
 created: 2026-07-19
@@ -103,10 +103,10 @@ The dampening loop (I-42.3) is partially caused by this — raw convergence drop
 
 Pass `smoothed_convergence` to `_compute_scene_phase()` instead of raw `_convergence_score` for all phase transition logic. The smoothed value is already computed and persisted — it just needs to be used.
 
-Files to change:
-- `ccya/engine/narrate.py` — pass `smoothed_convergence` to `_compute_scene_phase()` instead of raw
-- `ccya/engine/_pacing.py:_compute_scene_phase()` — parameter is already `total_convergence_score`, just needs the right value passed in
-- `ccya/engine/_pacing.py:_compute_pacing_context()` — convergence hard gate already receives `convergence_score`, but it's overwritten with raw in PacingContext
+Files changed:
+- `ccya/engine/narrate.py:211` — pass `smoothed_convergence` instead of raw `_convergence_score`
+- `ccya/engine/narrate.py:227` — use `int(smoothed_convergence)` instead of raw `_convergence_score`
+- `ccya/engine/_pacing.py:_compute_scene_phase()` — parameter type changed from `int` to `float` to accept smoothed value
 
 ## Related Tickets
 

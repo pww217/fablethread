@@ -133,7 +133,7 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 - `RulingBoundary` declares: `pc`, `location`, `user_input`, `meta`, `npc_roster`, `recent_turns`, `inventory`, `scene_phase`, `urgent_threads`
 - **Dead field in boundary model:** `scene_phase` (line 230) — never referenced in `ruling_user.j2`
 - **Missing from boundary model:** `pc_situation`, `beat_candidates`, `allowed_beat_types` — injected in `ruling.py:69-71` but not in `RulingBoundary`
-- **Dead template code:** `ruling_user.j2:33-36` (`allowed_beat_types` section) — variable never passed to template, `{% if %}` always falsy
+- **Dead template code:** `ruling_user.j2:33-36` (`allowed_beat_types` section) — variable never passed to template, `{% if %}` always falsy — **FIXED**: `allowed_beat_types` now computed in `_ruling_phase()` and passed to `_ruling_messages()`.
 - **Dead render variable:** `state` passed in `ruling.py:69` but never referenced in `ruling_user.j2`
 - `_pc_header.j2` uses `pc.tagline or pc.concept` — `PlayerBlock.concept=None` always (context.py:43), so tagline is the only active path
 - `_conditions.j2` references `show_age` and `turn_no` as optional — never passed in ruling context, so age display never renders (correct behavior)
@@ -182,14 +182,14 @@ Audit every prompt pair in `ccya/prompts/` with a structured rubric applied to e
 #### A.8 Findings:
 - [ ] **Schema example misleading:** Shows `"impossible": true` and `"check.required": true` as defaults when both default to `false`. Should flip to `false`/`false`. **VALIDATED: confirmed.** Models follow examples more than prose — this causes real output errors.
 - [ ] **`reason` format contradiction:** General rule says `[Ruling] [connector] [Reason]` but impossibility examples omit `[Ruling]` prefix. Either fix examples or clarify exception. **VALIDATED: confirmed.**
-- [ ] **Dead template code:** `ruling_user.j2:33-36` references `allowed_beat_types` which is never passed — section never renders. Remove or wire in. **INVALIDATED: `allowed_beat_types` IS rendered at line 33-36 and IS passed by ruling engine. Not dead.**
+- [x] **Dead template code:** `ruling_user.j2:33-36` references `allowed_beat_types` which is never passed — section never renders. Remove or wire in. **FIXED**: `allowed_beat_types` now computed in `_ruling_phase()` and passed to template.
 - [ ] **Dead boundary model field:** `RulingBoundary.scene_phase` never used in template. Remove or use for beat selection guidance. **VALIDATED: confirmed.**
 - [ ] **Missing from boundary model:** `pc_situation`, `beat_candidates` injected outside boundary system. Add to `RulingBoundary` for type safety. **VALIDATED: confirmed.** `pc_situation`, `beat_candidates`, `allowed_beat_types` all used in template but not in boundary model.
 - [ ] **Dead render variable:** `state` passed to ruling template but never referenced. Remove from `_ruling_messages()`. **VALIDATED: confirmed.**
 - [ ] **`trivial` difficulty gap:** Marked "non-combat only" but no guidance on what to use for low-difficulty combat checks. **VALIDATED: confirmed.**
 - [ ] **Beat selection guidance weak:** "Pick the best fit" is vague. What criteria should the ruling LLM use? Narrative relevance? Pacing? NPC involvement? **VALIDATED: confirmed.**
 - [ ] **`meta.turn` fallback:** `'| default('?')` shows "?" for turn 0. Should use a numeric default. **VALIDATED: confirmed.**
-- [ ] **`reason` 10-word cap stated 3 times:** Consolidate to single authoritative statement. **VALIDATED: confirmed.**
+- [x] **`reason` 10-word cap stated 3 times:** Consolidate to single authoritative statement. **FIXED**: error message aligned to 10-word cap from system prompt.
 - [ ] **`intent_verb` example list:** Consider adding `steal`, `use`, `open`, `close`, `read`, `listen` for common non-combat actions. **VALIDATED: confirmed.**
 - [ ] **System prompt overstates beat availability:** "2-3 candidate beats" when candidates may not exist. Change to "candidate beats (if any)". **VALIDATED: confirmed.**
 
@@ -810,6 +810,58 @@ Stream names: `ruling`, `narrate`, `scene`, `state`, `record`, `world`, `storyte
 | Individual pair findings (A-G) | 58 |
 | Cross-cutting findings | 16 |
 | **Grand total** | **74** |
+
+## Second Audit (validated 2026-07-19)
+
+Second pass focused on cross-prompt inconsistencies, missing variable wiring, and schema gaps not caught in first pass. Each finding verified against source code.
+
+### New findings — confirmed bugs
+
+1. **`ruling_user.j2:33-36` — `allowed_beat_types` never passed to template** ✅ FIXED
+   - `_ruling_messages()` in `ruling.py:54-72` now passes `allowed_beat_types` to template
+   - `_ruling_phase()` now computes `allowed_beat_types` via `derive_allowed_beat_types()` and passes it
+   - Ruling LLM now sees allowed beat types and can respect phase constraints when selecting beats
+   - **Fix:** Added `allowed_beat_types` parameter to `_ruling_messages()`, computed in `_ruling_phase()`, rendered in `ruling_user.j2`
+
+2. **`ruling_system.j2:3` vs `ruling.py:118` — word count contradiction** ✅ FIXED
+   - Error message updated: "must use [Ruling] [connector] [Reason] structure, max 10 words"
+   - Now matches system prompt's "HARD CAP: 10 words max"
+   - **Fix:** Aligned error message to system prompt (10-word cap)
+
+### New findings — guidance gaps
+
+3. **`sanitize_thread.j2` — no `thread_add` field in schema** ✅ CONFIRMED GAP
+   - Schema (lines 119-157): only `goal_update`, `thread_updates`, `resolved_threads`, `world_state`, `_checklist`
+   - `_checklist` line 153 says `"new": "N new threads added"` — acknowledges new threads may be added
+   - But no field exists to actually add new threads
+   - Sanitizer is the post-processing layer; record extractor handles `thread_add` but sanitizer may detect new tensions during review
+   - **Fix:** Add `thread_add` field to sanitize schema, or clarify that sanitizing new threads is record's responsibility only
+
+4. **`world_system.j2:26` vs `world_system.j2:35` — environmental tag contradiction** ✅ CONFIRMED CONFUSING
+   - Line 26: `[environment]` defined as valid mechanism tag with description
+   - Line 35: "Environmental — never use. There is always an NPC or thread worth featuring."
+   - Defines a tag that's banned — confusing for the LLM
+   - **Fix:** Either remove the tag definition or clarify "this tag exists as a mechanism but should never be used"
+
+5. **`ruling_system.j2:56-60` — scene motion definitions vague** ✅ CONFIRMED GUIDANCE GAP
+   - `hold`: "doesn't move the story to a new situation" — no examples, what counts as "new situation"?
+   - `advance`: "Something significant is happening" — what counts as "significant"?
+   - `transition`: "leaving this location or situation entirely" — clearer
+   - No decision criteria or examples; `advance` vs `transition` boundary unclear
+   - **Fix:** Add 1-2 examples per value, clarify advance vs transition distinction
+
+6. **`record_system.j2:119` — "exactly 4 choices" with strict grounding** ✅ CONFIRMED GUIDANCE GAP
+   - Lines 119, 122-128: mandate exactly 4 choices, prohibit generic/passive options, require NPC/inventory grounding
+   - No guidance on what to do if scene genuinely has fewer than 4 meaningful distinct options
+   - LLM likely fabricates choices to meet the "exactly 4" requirement
+   - **Fix:** Change to "up to 4 choices" or add "If fewer than 4 meaningful options exist, emit fewer — never fabricate"
+
+### Invalidated findings
+
+7. **`record_user.j2` — `prior_history` vs `recent_turns` overlap** ❌ NOT A BUG
+   - `prior_history`: outcome summary bullets (one-liners like "- [T1] The adventure begins.")
+   - `recent_turns[-1]`: full narration from previous turn
+   - Different purposes, intentional design per `step2c-record.md:21` (`[:-1]` slices last because full narration shown via recent_turns)
 
 ### Redundancy summary (validated 2026-07-03)
 

@@ -213,7 +213,7 @@ def _compute_scene_phase(
     state: WorldState,
     ages: dict[str, int],
     config: EngineConfig,
-    total_convergence_score: int = 0,
+    total_convergence_score: float = 0.0,
     turn_no: int = 0,
 ) -> Scene:
     """Compute the scene phase using the 5-state machine.
