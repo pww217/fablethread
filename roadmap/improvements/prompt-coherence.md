@@ -1,6 +1,6 @@
 ---
 title: "Prompt coherence: beats, narration, directives"
-status: up-next
+status: testing
 urgency: 3
 size: medium
 created: 2026-07-19
@@ -11,6 +11,7 @@ plan:
 pr:
   url:
   branch:
+completed: 2026-07-19
 ---
 
 ## Description
@@ -57,7 +58,9 @@ Examples:
 
 The diversity rule says "avoided if possible" not "must not appear," giving LLM discretion to repeat. Combined with "must emit at least 1" override (line 48, 52), diversity rule is effectively advisory.
 
-Current 4-entry/60% was too strict. Try 6-entry/50% (3 of 6). Medium-term window: 5-8 turns = one pacing cycle.
+**Implemented:** Raised to 8-entry window, 4+ threshold (50%). Added NPC binding to effect tags so diversity can count NPC occurrences in the effect string. Also added tie rule (always two NPCs) and blend rule (NPC fields only, threads separate).
+
+See commit `93421e51`.
 
 ### I-43.4 — arc_origin is a UI element, not a prompt issue (MEDIUM)
 
@@ -79,9 +82,10 @@ Directive presence is 20-56% across runs (not 12% as previously claimed):
 ## Fix Strategy
 
 1. Rethink beat structure — make them interpretable, not mandatory. Beats are creative guidance by design, tied to scene pressure. Fix the formula, not the binding level.
-2. Increase diversity window to 6-entry/50% (3 of 6). Medium-term window (5-8 turns = one pacing cycle).
+2. Increase diversity window to 8-entry/50% (4 of 8). Medium-term window (5-8 turns = one pacing cycle). **DONE**
 3. Accept arc_origin as UI element. Check if UI is rendering it as long-term objective tooltip — if not, that's a UI bug.
 4. Keep scene pressure as-is — it's heavy-handed but necessary for forcing transitions. Improve specificity if possible.
+5. **NPC binding in effect tags** — DONE. Every mechanism tag that references a psychological field now binds it to a specific NPC by name (e.g., `[highlight: Paul Bonilla's fear]`). Effect is self-contained so narrator knows exactly which NPC's field to use.
 
 ## References
 
