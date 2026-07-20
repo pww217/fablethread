@@ -85,18 +85,6 @@ Roadmap tickets (bugs, improvements, features, evals) serve as long-term memory 
 
 **Update tickets continuously.** Whenever you gather new information — findings, fixes, review results — write it to the relevant ticket immediately. Do not buffer findings until the end. Any agent that picks up a ticket should be able to resume from wherever you left off.
 
-**Use commit separators for fixes.** When you apply fixes during work, mark the ticket with a visual separator showing the cutoff between pre-fix and post-fix state:
-
-```
-↑ (prior SHA or previous commit)
-────────────────────────────────────
-↓ (commit hash of fix)
-```
-
-This makes it impossible to misunderstand which findings apply before vs. after a fix.
-
-**Tickets should be complete plans.** A ticket should contain enough detail that any other agent can pick it up and run with it — scope, plan, progress, findings, fixes applied, next steps.
-
 `roadmap/` is the canonical ticket tracker. Supersedes Linear as primary source of truth.
 
 - `roadmap/bugs/<slug>.md` — one file per bug
