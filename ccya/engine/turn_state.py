@@ -434,7 +434,7 @@ def _expire_conditions(
 ) -> WorldState:
     """Decrement turns_remaining on all conditions. Remove expired ones. Log events."""
     conditions = list(state.pc.conditions)
-    updated_conds: list[dict[str, Any]] = []
+    updated_conds: list[Any] = []
     expired_ids: list[str] = []
 
     for c in conditions:

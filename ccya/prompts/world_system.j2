@@ -10,20 +10,27 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 ]
 ```
 
-## Effect format — mechanism tags only
+## Effect format — mechanism tags with NPC binding
 
 The `effect` field contains mechanism tags that tell the narrator WHAT to blend, not HOW. No prose, no quote, no directional hint. The narrator reads the mechanism tags and generates the prose itself, grounded in the actual NPC fields in the roster.
 
-- `[highlight: fear]`
-- `[blend: motivation vs fear]`
-- `[thread: faction_patrols]`
+**Every mechanism tag that references a psychological field MUST bind it to a specific NPC by name.** The `npcs` field alone is not enough — the effect must be self-contained so the narrator knows exactly which NPC's field to use.
+
+- `[highlight: Paul Bonilla's fear]`
+- `[blend: Paul Bonilla's motivation vs Thomas Miller's fear]`
+- `[thread: faction_patrols]` (threads don't bind to NPCs — leave as bare slugs)
+- `[environment]` (for environment-only beats when no NPCs present)
+
+**Tie rule:** Tie ALWAYS involves two NPCs and represents a relationship between them, not a single-NPC drive. Format: `[tie: Paul Bonilla vs Thomas Miller]`. If you're tempted to use tie for a single-NPC motivation, use motivation instead. Tie is for NPC↔NPC dynamics only.
+
+**Blend rule:** Blends (`[blend: X vs Y]`) combine TWO psychological fields from NPCs. Never put a thread slug inside a blend. For NPC+thread beats, keep them separate: `[highlight: Travis Simmons's leverage] [thread: faction_patrols]` — not `[blend: Travis Simmons's leverage vs faction_patrols]`.
 
 ## Generation rules
 
 Beat priority order (highest to lowest):
-1. **NPC + NPC** — cross-NPC blending (equal priority with #2). Put NPC A's motivation against NPC B's fear, or NPC A's leverage against NPC B's tie.
-2. **NPC + thread** — one NPC combined with an active thread (equal priority with #1).
-3. **Single NPC** — one NPC on their psychological field.
+1. **NPC + NPC** — cross-NPC blending (equal priority with #2). Put NPC A's motivation against NPC B's fear, or NPC A's leverage against NPC B's tie. Both NPCs must be named in the effect tag.
+2. **NPC + thread** — one NPC combined with an active thread (equal priority with #1). The NPC must be named in the effect tag.
+3. **Single NPC** — one NPC on their psychological field. The NPC must be named in the effect tag.
 4. **Single thread** — last resort, only when no NPCs with valid psychological fields exist in the scene.
 
 **NPC-only beats rule:** Threads may only be combined with an NPC. No single-thread-only beats unless no NPCs with psychological fields exist in the scene.
@@ -32,6 +39,8 @@ Beat priority order (highest to lowest):
 - MUST use mechanism tags as described above.
 - MUST use only the NPC fields explicitly listed in the roster (motivation, fear, leverage, tie, bio). Do NOT invent new facts, items, events, or fields beyond what is explicitly stated.
 - Effect MUST be mechanism tags only — no prose, no quote, no directional hint. The narrator generates the prose from the mechanism tags.
+- MUST name the specific NPC whose field is being used: `[highlight: Paul Bonilla's motivation]` not `[highlight: motivation]`.
+- For blends, name each NPC whose field is being blended: `[blend: Paul Bonilla's motivation vs Thomas Miller's fear]` not `[blend: motivation vs fear]`.
 
 **`npcs` (required):** You MUST populate `npcs` with actual NPC IDs from the roster. If `npcs` is empty, you skipped the NPC roster — fix your beat. Every NPC that is acting, reacting, or directly affected MUST be listed. If an NPC's motivation, fear, leverage, or tie is driving this beat, that NPC MUST be in the `npcs` list.
 
@@ -43,10 +52,10 @@ Beat priority order (highest to lowest):
 
 **Priority:** The "must emit at least 1" requirement OVERRIDES all diversity constraints. If diversity filters would leave you with 0 candidates, relax the repetition rules and emit 1 candidate.
 
-- You have a 4-beat sliding window in `recent_beats`. Avoid excessive repetition:
-  - **Beat type:** If a type appears 2 or more in the last 4 entries, it should be avoided if possible.
-  - **NPC:** If an NPC ID appears 2 or more in the last 4 entries, that NPC should be avoided if possible.
-  - **Thread:** If a thread slug appears 2 or more in the last 4 entries, that thread should be avoided if possible.
+- You have an 8-beat sliding window in `recent_beats`. Avoid excessive repetition:
+  - **Beat type:** If a type appears 4 or more in the last 8 entries, it should be avoided if possible.
+  - **NPC:** If an NPC appears 4 or more in the last 8 entries (count occurrences in the effect tag), that NPC should be avoided if possible.
+  - **Thread:** If a thread slug appears 4 or more in the last 8 entries, that thread should be avoided if possible.
   - **Effect:** Do NOT emit a beat whose effect describes the same event as any beat in `recent_beats`. Each beat must advance the situation forward in time.
 
 ## Dormant threads
