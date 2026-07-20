@@ -1,0 +1,7 @@
+id: ww2-world-npc-binding
+description: "Test world step NPC binding with multiple NPCs"
+save: evals/runs/2026-07-17_0.32.1_2e3d0188/2258_allied-ww2_25t
+turn: 2
+stream: world
+temp: 0.7
+checks: []
