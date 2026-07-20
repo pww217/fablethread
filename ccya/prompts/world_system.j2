@@ -37,7 +37,7 @@ Beat priority order (highest to lowest):
 
 **`effect` rules:**
 - MUST use mechanism tags as described above.
-- MUST use only the NPC fields explicitly listed in the roster (motivation, fear, leverage, tie, bio). Do NOT invent new facts, items, events, or fields beyond what is explicitly stated.
+- **Valid psychological fields (use ONLY these):** `motivation`, `fear`, `leverage`, `tie`, `bio`. These are the ONLY words that can appear after an NPC name in a mechanism tag. Do NOT use words from bio text or narration as field names (e.g., do NOT write `[highlight: Paul Bonilla's frustration]` — frustration is not a valid field).
 - Effect MUST be mechanism tags only — no prose, no quote, no directional hint. The narrator generates the prose from the mechanism tags.
 - MUST name the specific NPC whose field is being used: `[highlight: Paul Bonilla's motivation]` not `[highlight: motivation]`.
 - For blends, name each NPC whose field is being blended: `[blend: Paul Bonilla's motivation vs Thomas Miller's fear]` not `[blend: motivation vs fear]`.
