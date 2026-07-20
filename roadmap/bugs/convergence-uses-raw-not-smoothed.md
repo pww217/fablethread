@@ -1,6 +1,6 @@
 ---
 title: "Convergence score uses raw instead of smoothed across all phase transitions"
-status: testing
+status: done
 urgency: 2
 size: medium
 created: 2026-07-19
@@ -16,6 +16,8 @@ pr:
 ## Description
 
 The convergence score EMA smoothing is computed and persisted to `state.meta.smoothed_convergence`, but **all phase transitions use raw convergence instead of smoothed**. The smoothed value is effectively wasted — it's computed, stored, but never consumed by the phase engine or any decision logic.
+
+**Resolved by I-42** (2026-07-20): All phase transitions now use smoothed convergence.
 
 ## Root Cause
 

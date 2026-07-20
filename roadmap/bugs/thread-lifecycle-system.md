@@ -75,10 +75,10 @@ Impact: The 13-turn maximum urgency window is enforced by the sanitizer, not by 
 ## Fix Strategy
 
 1. ~~Fix `turn_state.py:443` — replace dict-iteration with model-object iteration (Condition TTL)~~ — **done** (214532fa)
-2. Redesign sanitizer to be two-way: upgrade AND downgrade based on scene tone, no bias, pull from background/dormant when necessary
+2. ~~Redesign sanitizer to be two-way: upgrade AND downgrade based on scene tone, no bias, pull from background/dormant when necessary~~ — **done** (prompt edits to `sanitize_thread.j2`: added escalation criteria, reactivation guidance, tone-matching instruction)
 3. Leave seed bypass as-is — intentional design for pre-loaded premise
 4. Keep advancement rate at 75-80% — purposeful, setbacks should be narratively meaningful not mechanical
-5. Improve compaction prompt to preserve key facts — consider programmatic quality checks
+5. ~~Improve compaction prompt to preserve key facts — consider programmatic quality checks~~ — **done** (prompt edits to `sanitize_thread.j2`: added quality gate for fact preservation in progress consolidation)
 6. ~~Accept sanitizer as enforcement mechanism for urgency decay, or investigate whether decay should fire independently~~ — **done** (214532fa): removed `urgency_set_turn` reset from auto-dormant (lines 166, 184) so decay can fire independently
 
 ## References
