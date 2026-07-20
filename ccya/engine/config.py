@@ -70,7 +70,7 @@ class EngineConfig:
     fallback_cooldown_s: int = 30
 
     # Max entries in recent_beats history list
-    recent_beats_max: int = 4
+    recent_beats_max: int = 8
     # Gate for de-escalation flag on successful rolls
     thread_deescalate_on_success: bool = True
     # TTL (in turns) for resolved arcs and completed threads kept in prompt context

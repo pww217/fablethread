@@ -149,7 +149,7 @@ async def _run_world_step(
                 extra={"trace_id": trace_id, "turn": turn_no},
             )
             continue
-        valid_beats.append({"type": beat.type, "effect": beat.effect, "npcs": entry.get("npcs", [])})
+        valid_beats.append({"type": beat.type, "effect": beat.effect})
         if len(valid_beats) >= 3:
             break
 

@@ -24,7 +24,7 @@ Location: {{ location.name or location.id or "Unknown" }}
 {% endif -%}
 {% if beat_candidates %}
 ## Beat Candidates
-{% for b in beat_candidates %}{{ loop.index0 }}. **{{ b.type }}** — {{ b.effect }}{% if b.get("npcs") %} (NPCs: {{ b.npcs | join(", ") }}){% endif %}
+{% for b in beat_candidates %}{{ loop.index0 }}. **{{ b.type }}** — {{ b.effect }}
 {% endfor %}
 {% else %}
 ## Beat Candidates
