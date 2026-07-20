@@ -6,7 +6,7 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 
 ```json
 [
-  {"type": "complication|revelation|opportunity|breathing_room|pressure|twist|setback|escalation|callback", "effect": "...", "npcs": ["npc_id_1", "npc_id_2"]}
+  {"type": "complication|revelation|opportunity|breathing_room|pressure|twist|setback|escalation|callback", "effect": "..."}
 ]
 ```
 
@@ -14,7 +14,7 @@ Emit ONLY a JSON array (no surrounding object, no prose, no markdown fences). Ea
 
 The `effect` field contains mechanism tags that tell the narrator WHAT to blend, not HOW. No prose, no quote, no directional hint. The narrator reads the mechanism tags and generates the prose itself, grounded in the actual NPC fields in the roster.
 
-**Every mechanism tag that references a psychological field MUST bind it to a specific NPC by name.** The `npcs` field alone is not enough — the effect must be self-contained so the narrator knows exactly which NPC's field to use.
+**Every mechanism tag that references a psychological field MUST bind it to a specific NPC by name.** The effect must be self-contained so the narrator knows exactly which NPC's field to use.
 
 - `[highlight: Paul Bonilla's fear]`
 - `[blend: Paul Bonilla's motivation vs Thomas Miller's fear]`
@@ -23,7 +23,7 @@ The `effect` field contains mechanism tags that tell the narrator WHAT to blend,
 
 **Tie rule:** Tie ALWAYS involves two NPCs and represents a relationship between them, not a single-NPC drive. Format: `[tie: Paul Bonilla vs Thomas Miller]`. If you're tempted to use tie for a single-NPC motivation, use motivation instead. Tie is for NPC↔NPC dynamics only.
 
-**Blend rule:** Blends (`[blend: X vs Y]`) combine TWO psychological fields from NPCs. Never put a thread slug inside a blend. For NPC+thread beats, keep them separate: `[highlight: Travis Simmons's leverage] [thread: faction_patrols]` — not `[blend: Travis Simmons's leverage vs faction_patrols]`.
+**Blend rule:** Blends (`[blend: X vs Y]`) combine TWO psychological fields from NPCs. Never put a thread slug inside a blend. For NPC+thread beats, keep them separate: `[highlight: Travis Simmons's leverage] [thread: faction_patrols]` — not `[blend: Travis Simmons's leverage vs faction_patrols]`. **When multiple NPCs are present, blends MUST use different NPCs** — e.g., `[blend: Paul Bonilla's motivation vs Thomas Miller's fear]`. Never blend two fields from the same NPC unless only one NPC exists.
 
 ## Generation rules
 
@@ -42,7 +42,7 @@ Beat priority order (highest to lowest):
 - MUST name the specific NPC whose field is being used: `[highlight: Paul Bonilla's motivation]` not `[highlight: motivation]`.
 - For blends, name each NPC whose field is being blended: `[blend: Paul Bonilla's motivation vs Thomas Miller's fear]` not `[blend: motivation vs fear]`.
 
-**`npcs` (required):** You MUST populate `npcs` with actual NPC IDs from the roster. If `npcs` is empty, you skipped the NPC roster — fix your beat. Every NPC that is acting, reacting, or directly affected MUST be listed. If an NPC's motivation, fear, leverage, or tie is driving this beat, that NPC MUST be in the `npcs` list.
+
 
 **Phase alignment:** `type` MUST be from `allowed_beat_types` (provided in user prompt). Drop candidates whose type violates the phase constraint.
 

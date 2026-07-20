@@ -87,7 +87,7 @@ Narrate the attempt and its natural failure. Do NOT write a version where the ac
 
 {% if pending_beat and pending_beat.type -%}
 
-**Beat:** {{ pending_beat.type | replace('_', ' ') | upper }}{% if pending_beat.get("npcs") %} — NPCs: {{ pending_beat.npcs | join(", ") }}{% endif %} — {{ pending_beat.effect }}. Use mechanism tags as creative guidance — generate prose that weaves the mechanism into the scene naturally, grounded in the actual NPC fields in the roster.
+**Beat:** {{ pending_beat.type | replace('_', ' ') | upper }} — {{ pending_beat.effect }}. Use mechanism tags as creative guidance — generate prose that weaves the mechanism into the scene naturally, grounded in the actual NPC fields in the roster.
 {% endif %}{% if pacing_context and pacing_context.outcome_hint -%}
 
 **Outcome:** {{ pacing_context.outcome_hint }}
