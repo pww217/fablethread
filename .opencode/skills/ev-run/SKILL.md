@@ -5,14 +5,17 @@ description: Iterative eval: graduated scope, phase-gated, sequential, eval tick
 
 Purpose: Execute an iterative, phase-gated evaluation with graduated scope. Each phase targets a different severity threshold. Skip phases that find no matching issues.
 
-**The eval is your track.** Eval tickets serve as long-term memory across compactions — record what's been done, what's next, what evidence exists. Create ONE `E-` ticket per eval session (not per bug). Include eval group path, phase report links, all findings, and reproduction context in the ticket body.
+**The eval ticket is your track and long-term memory.** Eval tickets serve as the source of truth across compactions — record what's been done, what's next, what evidence exists. Create ONE `E-` ticket per eval session (not per bug). Include eval group path, phase report links, all findings, fixes applied (with commit separators), and reproduction context in the ticket body. Update the ticket continuously: after every phase, every fix, every review. Any agent that picks up the ticket should be able to resume from wherever you left off.
 
-**Sequential work:** One phase at a time. One issue at a time when investigating bugs. Do not pull multiple phases or issues into context simultaneously. Work through rubric sections one at a time, writing findings to the report file as long-term memory after each section. **No parallel runs:** Never run multiple `ev.py play` instances in parallel — each game reads/writes shared directories (save dirs, events, reports). Running two turns simultaneously from the same game can corrupt state or produce ambiguous checker output. Always run game pairs sequentially, even within a phase that tests multiple pack/persona combinations.
+**Sequential work:** One phase at a time. One issue at a time when investigating bugs. Do not pull multiple phases or issues into context simultaneously. Work through rubric sections one at a time, writing findings to the ticket as long-term memory after each section. **No parallel runs:** Never run multiple `ev.py play` instances in parallel — each game reads/writes shared directories (save dirs, events, reports). Running two turns simultaneously from the same game can corrupt state or produce ambiguous checker output. Always run game pairs sequentially, even within a phase that tests multiple pack/persona combinations.
 
 **Critical constraints:**
-1. Write findings into the report as you discover them — do not buffer findings until the end.
-2. Work through rubric sections one at a time. Write findings to the report file before moving to the next section. The context window cannot hold all checkers + all findings.
+1. Write findings into the ticket as you discover them — do not buffer findings until the end.
+2. Work through rubric sections one at a time. Write findings to the ticket before moving to the next section. The context window cannot hold all checkers + all findings.
 3. The Executive Summary is written LAST, after all rubric sections are complete.
+4. **Checkers are bellwethers, not verdicts.** A passed checker means something *might* be healthy. A failed checker means something *might* be unhealthy. Neither is proof. Always pair checker results with subjective examination — pull live data from runs and examine it directly.
+5. **Use `ev-review` for deep dives.** When examining testing-phase tickets, recent commits, or anything that warrants deeper examination, load the `ev-review` skill. Do not rely on checkers alone for mechanical assessment.
+6. **Exit criteria is completeness, not checker pass.** The eval is done when you have conducted a thorough subjective evaluation of all areas that need focus (testing-phase tickets, recent changes). Not when all checkers pass.
 
 ## Prerequisites
 
@@ -65,8 +68,8 @@ Start small, expand as stability increases. Phase 2 is the most important — th
 ```
 
 **Analysis:**
-- Run full rubric checkers against all runs
-- Write findings to `evals/runs/<group>/PHASE-1.md`
+- Run full rubric checkers against all runs (bellwethers only — verify with subjective examination)
+- Write findings to the eval ticket immediately
 - If critical issues found: run 2-3 more pairs to confirm pattern, then STOP. Fix the bugs before continuing. Do not proceed to Phase 2 while critical bugs are unfixed — signals will be confounded.
 - If no critical issues: skip to Phase 2.
 
@@ -87,8 +90,9 @@ done
 ```
 
 **Analysis:**
-- Run full rubric checkers against all runs
-- Write findings to `evals/runs/<group>/PHASE-2.md`
+- Run full rubric checkers against all runs (bellwethers only — verify with subjective examination)
+- Use `ev-review` for deep dives on any testing-phase tickets or recent changes
+- Write findings to the eval ticket immediately
 - If bugs found that require a refactor (not a simple fix): STOP. Do not proceed to Phase 3. Fix the refactor first, then resume.
 - If no intermediate issues: skip to Phase 3.
 - If engine is still unstable: stay in Phase 2 until stable.
@@ -110,15 +114,17 @@ done
 ```
 
 **Analysis:**
-- Run full rubric checkers against all runs
-- Write findings to `evals/runs/<group>/PHASE-3.md`
+- Run full rubric checkers against all runs (bellwethers only — verify with subjective examination)
+- Use `ev-review` for deep dives on any testing-phase tickets or recent changes
+- Write findings to the eval ticket immediately
 - This phase only runs when: critical bugs are fixed AND intermediate issues are resolved AND engine is stable.
 
 ## Testing Items Review
 
 Scan `roadmap/bugs/*.md` for `status: testing`. For each:
-- Run targeted checkers against relevant runs
-- Assess: confirmed fixed / regressed / inconclusive
+- Use `ev-review` for targeted deep-dive analysis (not just checkers)
+- Run targeted checkers against relevant runs (bellwethers only)
+- Assess: confirmed fixed / regressed / inconclusive via subjective examination
 - Update the bug file directly:
   - Confirmed fixed → `status: done`, `completed: YYYY-MM-DD`
   - Regressed or still broken → `status: up-next`
@@ -131,8 +137,8 @@ A "full eval" is defined as an eval group with multiple runs totaling at least 4
 
 ```
 evals/runs/2026-06-27_0.30.0-28-g0d8013d5_0d8013d/
-                                              ^^^^^^^
-                                              prior SHA
+                                               ^^^^^^^
+                                               prior SHA
 ```
 
 The format is `YYYY-MM-DD_{tag}_{sha:8}_{sha:8}` — the last 8-character hex string is the SHA.
@@ -146,24 +152,24 @@ Focus on engine/prompt areas. Report a brief summary.
 
 ## Rubric Sections — SEQUENTIALLY, ONE AT A TIME
 
-Work through sections **one at a time**. Do not run all checkers for all sections and then write findings. The context window will not hold everything. You must write findings back to the report file as long-term memory after each section.
+Work through sections **one at a time**. Do not run all checkers for all sections and then write findings. The context window will not hold everything. You must write findings back to the ticket as long-term memory after each section.
 
 **The loop:**
 1. Pick ONE rubric section (e.g., "Ruling Engine")
 2. Run all targeted `ev.py` commands for that section across all runs in the current phase
 3. Parse output, assess findings
-4. **Write findings into the report file immediately** — this is your long-term memory
+4. **Write findings into the ticket immediately** — this is your long-term memory
 5. Only then move to the next rubric section
 
-If you are interrupted or lose context, resume by re-reading the report file (which contains your previous findings) and continue from where you stopped.
+If you are interrupted or lose context, resume by re-reading the ticket (which contains your previous findings) and continue from where you stopped.
 
-## Checker Scores
+## Checkers Results
 
-Compile pass/fail table across all rubric areas and all runs in the current phase.
+Compile pass/fail table across all rubric areas and all runs in the current phase. Remember: checkers are bellwethers, not verdicts. Include them for reference but base conclusions on subjective examination.
 
 ## Executive Summary (LAST)
 
-After all rubric sections are complete, write a concise (5-10 item) summary at the top of the report:
+After all rubric sections are complete, write a concise (5-10 item) summary at the top of the ticket:
 - Largest failures
 - Major fix progressions
 - Anything that can be said concisely but matters

@@ -7,7 +7,9 @@ Purpose: Focused deep-dive on a specific mechanic, turn range, or fix validation
 
 **Sequential work:** One mechanic at a time. One issue at a time when investigating bugs. Do not pull multiple mechanics or issues into context simultaneously.
 
-**Eval tickets as memory:** If new issues warrant tracking, create ONE `E-` ticket per review session. The review report lives within the eval ticket, linking to the eval/save examined.
+**Eval tickets as memory:** If new issues warrant tracking, create ONE `E-` ticket per review session. The review report lives within the eval ticket, linking to the eval/save examined. Update the ticket continuously — it is the long-term memory for this work.
+
+**Checkers are bellwethers, not verdicts.** A passed checker means something *might* be healthy. A failed checker means something *might* be unhealthy. Neither is proof. Always pair checker results with subjective examination — pull live data from runs and examine it directly. Use checkers as input, not as the basis for conclusions.
 
 ## Sources
 
@@ -15,6 +17,7 @@ Purpose: Focused deep-dive on a specific mechanic, turn range, or fix validation
 - **Player save dir:** `saves/<name>/` (no metadata, created by web UI)
 - **Group-level:** `evals/runs/<group>/REPORT.md` (consolidated report across multiple runs)
 - **Roadmap:** `roadmap/bugs/` — scan for `testing` items
+- **Eval tickets:** `roadmap/evals/` — prior eval findings and context
 
 ## Prerequisites
 
@@ -60,11 +63,12 @@ If the user asks to validate a fix for a bug in `testing` status, or if the revi
 For each bug with `status: testing` in the roadmap that matches the mechanic(s) being reviewed:
 
 1. **Find relevant run(s)** — identify which eval run(s) are relevant to the bug
-2. **Run targeted checkers** — use `ev.py check` with appropriate checkers against the relevant run(s)
-3. **Assess result:**
+2. **Run targeted checkers** — use `ev.py check` with appropriate checkers against the relevant run(s) (bellwethers only)
+3. **Subjective examination** — pull live data from the relevant run(s) and examine it directly. Do not rely on checker pass/fail as proof of correctness.
+4. **Assess result:**
    - If bug behavior is absent or fixed → update status to `done`, add `completed: YYYY-MM-DD` to the bug file, call the `ticket` skill, run `make roadmap`
    - If bug behavior still present → update status back to `up-next`, note regression in report
-4. **No bug file update** if the testing item is a feature (not a bug) — just note in report whether it's confirmed working
+5. **No bug file update** if the testing item is a feature (not a bug) — just note in report whether it's confirmed working
 
 If the user did NOT ask for fix validation, skip this step.
 
@@ -102,7 +106,7 @@ Write a focused, customized report based on the user's request. The report lives
 ### Sections (tailored to the user's request):
 1. **Request** — what the user asked to examine
 2. **Sources examined** — which runs, which commands, which turns
-3. **Findings** — detailed analysis of the specific mechanic(s)
+3. **Findings** — detailed analysis of the specific mechanic(s) via subjective examination
 4. **Comparisons** — vs. prior runs if relevant
 5. **Recommendations** — what to investigate or fix next
 
@@ -124,6 +128,7 @@ The review report lives within the eval ticket, linking to the eval/save examine
 - Do not analyze commits outside `ccya/` folder for regression risk (unless explicitly asked)
 - Do not review mechanics the user did not request
 - Do not pull multiple mechanics or issues into context at once — work sequentially
+- Do not rely on checkers as proof of correctness — they are bellwethers only
 
 ## Reference Docs
 

@@ -6,6 +6,8 @@ Each checker is an individual mechanical invariant registered with
 `@register_checker`. Deterministic checkers run without an LLM.
 LLM checkers use the configured checker model.
 
+**Checkers are bellwethers, not verdicts.** A passed checker means something *might* be healthy. A failed checker means something *might* be unhealthy. Neither is proof. Always pair checker results with subjective examination — pull live data from runs and examine it directly. Use checkers as input, not as the basis for conclusions.
+
 Checkers are organized by domain:
 
 - **Beats**: `gm_beat_lifecycle`

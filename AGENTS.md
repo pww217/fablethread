@@ -79,7 +79,23 @@ Just because a checker passes doesn't mean the thing is healthy. It just means i
 
 ---
 
-## Roadmap
+## Tickets as Memory
+
+Roadmap tickets (bugs, improvements, features, evals) serve as long-term memory for all work. They are the source of truth that persists across compactions and session boundaries.
+
+**Update tickets continuously.** Whenever you gather new information — findings, fixes, review results — write it to the relevant ticket immediately. Do not buffer findings until the end. Any agent that picks up a ticket should be able to resume from wherever you left off.
+
+**Use commit separators for fixes.** When you apply fixes during work, mark the ticket with a visual separator showing the cutoff between pre-fix and post-fix state:
+
+```
+↑ (prior SHA or previous commit)
+────────────────────────────────────
+↓ (commit hash of fix)
+```
+
+This makes it impossible to misunderstand which findings apply before vs. after a fix.
+
+**Tickets should be complete plans.** A ticket should contain enough detail that any other agent can pick it up and run with it — scope, plan, progress, findings, fixes applied, next steps.
 
 `roadmap/` is the canonical ticket tracker. Supersedes Linear as primary source of truth.
 
