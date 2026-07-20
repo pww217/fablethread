@@ -1,10 +1,11 @@
 ---
 title: "Convergence formula range and phase transition conflicts"
-status: up-next
+status: done
 urgency: 2
 size: large
 created: 2026-07-19
 ticket_id: I-42
+completed: 2026-07-20
 labels: [pacing, convergence, phases]
 design:
 plan:
@@ -45,7 +46,7 @@ Evidence: 5 BREATHER→RISING→CLIMAX cycles across runs. BREATHER duration: 1-
 
 Assessment: This cycle is acceptable behavior. BREATHER is meant to be a clean break — the dampening is a feature, not a bug.
 
-### I-42.4 — Curtain call — REMOVE
+### I-42.4 — Curtain call — RESOLVED (removed in commit 1b016655)
 
 Curtain call enters "forced" tier at `climax_turn_count >= limit-1` (T3 of CLIMAX), telling Narrator "MUST resolve" threads. Extension evaluation at `climax_turn_count >= limit` (T4), requiring `convergence >= 3 AND urgent_thread > 0`.
 
