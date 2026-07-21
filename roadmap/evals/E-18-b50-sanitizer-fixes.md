@@ -153,13 +153,15 @@ Eval to validate B-50 sanitizer fixes: two-way urgency (B-50.2), compaction qual
 #### B-50.2 (two-way sanitizer): CONFIRMED
 - 18 urgency escalations across 5 runs (4 noir, 4 space-western, 1 golden-piracy, 5 zombie, 4 allied-ww2)
 - Escalations fire as narrative tension builds — expected behavior for longer games
-- No reactivations at 25 turns (0 across all runs, vs 4 in Phase 2)
+- 7 reactivations across 5 runs (1 noir, 3 space-western, 2 golden-piracy, 0 zombie, 1 allied-ww2)
+- Notable: `guild_corruption` (space-western) and `naval_corruption` (golden-piracy) each reactivated twice (dormant→active→dormant→active)
 - **Verdict: Two-way sanitizer working at full game length.**
 
-#### B-50.5 (compaction quality): NO COMPACTION AT 25T
-- 0 compaction events in any of the 5 runs
-- Threshold may be above 25 turns — not a regression, just a threshold question
-- **Verdict: No compaction issues to assess at 25 turns.**
+#### B-50.5 (compaction quality): CONFIRMED
+- 18 compaction events across 5 runs (all packs show compaction)
+- Initial analysis missed these — checked wrong field (`extraction.record.output.progress_change` instead of `changes_detail.updated.progress`)
+- Progress entries consolidated from 2-9 down to 1-4 entries
+- **Verdict: Compaction working at full game length.**
 
 #### B-50.6 (decay): NEEDS MORE DATA
 - Not enough data at 25 turns to evaluate decay independently (no compaction events)
@@ -174,8 +176,8 @@ Eval to validate B-50 sanitizer fixes: two-way urgency (B-50.2), compaction qual
 | Metric | Phase 1 (5t) | Phase 2 (15t) | Phase 3 (25t) |
 |--------|-------------|---------------|---------------|
 | Escalations | 2 total | 4 total | 18 total |
-| Reactivations | 3 total | 4 total | 0 total |
-| Compactions | Multiple | Multiple | 0 |
+| Reactivations | 3 total | 4 total | 7 total |
+| Compactions | Multiple | Multiple | 18 total |
 | Sanitizer failures | 0 | 0 | 0 |
 | Pass rate range | 92.9% | 92.9% | 90.5-92.9% |
 
