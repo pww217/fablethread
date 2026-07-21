@@ -1,6 +1,6 @@
 ---
 title: "Prompt coherence: beats, narration, directives"
-status: testing
+status: done
 urgency: 3
 size: medium
 created: 2026-07-19
@@ -11,7 +11,7 @@ plan:
 pr:
   url:
   branch:
-completed: 2026-07-19
+completed: 2026-07-20
 ---
 
 ## Description
@@ -81,7 +81,7 @@ Directive presence is 20-56% across runs (not 12% as previously claimed):
 
 ## Fix Strategy
 
-1. Rethink beat structure — make them interpretable, not mandatory. Beats are creative guidance by design, tied to scene pressure. Fix the formula, not the binding level.
+1. Rethink beat structure — make them interpretable, not mandatory. Beats are creative guidance by design, tied to scene pressure. Fix the formula, not the binding level. **DONE** (a140a15e: dropped npcs field from beat pipeline, NPC names now self-contained in effect tags, strengthened cross-NPC blend guidance)
 2. Increase diversity window to 8-entry/50% (4 of 8). Medium-term window (5-8 turns = one pacing cycle). **DONE**
 3. Accept arc_origin as UI element. Check if UI is rendering it as long-term objective tooltip — if not, that's a UI bug.
 4. Keep scene pressure as-is — it's heavy-handed but necessary for forcing transitions. Improve specificity if possible.

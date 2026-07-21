@@ -121,15 +121,20 @@ done
 
 ## Testing Items Review
 
-Scan `roadmap/bugs/*.md` for `status: testing`. For each:
+Scan ALL roadmap types for `status: testing`:
+```bash
+grep -rn "^status: testing" roadmap/bugs/ roadmap/improvements/ roadmap/features/ roadmap/evals/ 2>/dev/null
+```
+
+For each testing item (bugs, improvements, features, evals):
 - Use `ev-review` for targeted deep-dive analysis (not just checkers)
 - Run targeted checkers against relevant runs (bellwethers only)
 - Assess: confirmed fixed / regressed / inconclusive via subjective examination
-- Update the bug file directly:
+- Update the ticket file directly:
   - Confirmed fixed → `status: done`, `completed: YYYY-MM-DD`
   - Regressed or still broken → `status: up-next`
   - Inconclusive → leave as `testing`
-- After updating all bug files, call the `ticket` skill to validate changes, then run `make roadmap`
+- After updating all files, call the `ticket` skill to validate changes, then run `make roadmap`
 
 ## Changes Since Last Eval
 

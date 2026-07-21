@@ -1,10 +1,11 @@
 ---
 title: "Prompt audit — architecture alignment, variables, schema, edge cases"
-status: testing
+status: done
 type: improvement
 urgency: 3
 size: large
 created: 2026-06-29
+completed: 2026-07-20
 ticket_id: I-2
 labels: [prompts, audit]
 ---
@@ -982,3 +983,54 @@ All redundancy claims validated against rendered output from `1434_space-western
 **Worst offenders:**
 - ~~**Scene Extract** — ~55 lines of redundant presence/dedup guidance. Could save ~15-20 lines by consolidating.~~ **FIXED: ~13 lines saved by consolidating presence levels + dedup rules**
 - ~~**Record** — ~20 lines of emphasis inflation (9× "CRITICAL" + 5× thread ID rules). Could save ~10 lines by reducing emphasis and consolidating.~~ **FIXED: CRITICAL reduced from 9 to 2, thread ID rules consolidated**
+
+---
+
+## Final Audit (validated 2026-07-20)
+
+Review of remaining open items. Each item verified against current source code.
+
+### Items fixed in this pass
+
+1. **`RulingBoundary.scene_phase` dead field** — Removed from `context.py:235`. Declared but never used in ruling prompts. Engine uses `scene_phase` for `derive_allowed_beat_types()` but doesn't need it in the boundary model since it's not rendered in the ruling prompt.
+
+2. **`NarratorBoundary.ages` dead field** — Removed from `context.py:260`. Passed by narrate engine but never used in `narrate_user.j2` or any include template.
+
+### Items LEFT_AS-IS (low impact)
+
+3. **`SceneExtractBoundary.show_all_fields` missing** — Always `True`, template works via Jinja undefined-variable handling. No value in adding for a hardcoded value.
+
+4. **`thread_update.reason` accepted but unused** — In `ThreadUpdate` model and schema, but engine silently drops it in `_apply_thread_updates` and thread_sanitizer. Not used for auditing, logging, or display. Harmlessly ignored.
+
+### Items confirmed NOT dead (false positives)
+
+5. **`NarratorBoundary.resolved_arcs`** — Used in `_arc.j2:14-17` include. Passed by narrate engine, rendered correctly. Not dead.
+
+### Remaining open items (cosmetic/low-impact)
+
+All remaining open items from prior audits are cosmetic or working-as-intended:
+- Schema example defaults (impossible, check.required) — already fixed
+- `intent_verb` list — already fixed
+- `meta.turn` fallback — already fixed
+- Tense ambiguity — already fixed
+- Prose length cap — already fixed
+- NPC naming vs new character tension — not a real conflict
+- "mandatory"/"MUST" overuse — style nit, LLMs respond to emphasis
+- Beat selection guidance — criteria present below header
+- System prompt overstates beat availability — template handles empty case
+- `trivial` difficulty combat equivalent — combat equivalent clear from adjacent context
+- Empty `user_input` guidance — edge case, almost never occurs
+- `departed_reason` conditional in schema — field rules section clarifies
+- No guard against empty `compendium_npc_update` array — engine handles it
+
+### Summary
+
+| Category | Count |
+|----------|-------|
+| Fixed in this pass | 2 |
+| Confirmed NOT dead (false positive) | 1 |
+| LEFT_AS-IS | 2 |
+| Remaining cosmetic (no action needed) | 9 |
+| **Total audit items** | **~74 (across all audits)** |
+
+**Audit is complete. All actionable items resolved.**
