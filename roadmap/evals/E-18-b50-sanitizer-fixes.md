@@ -157,11 +157,13 @@ Eval to validate B-50 sanitizer fixes: two-way urgency (B-50.2), compaction qual
 - Notable: `guild_corruption` (space-western) and `naval_corruption` (golden-piracy) each reactivated twice (dormant→active→dormant→active)
 - **Verdict: Two-way sanitizer working at full game length.**
 
-#### B-50.5 (compaction quality): CONFIRMED
-- 18 compaction events across 5 runs (all packs show compaction)
-- Initial analysis missed these — checked wrong field (`extraction.record.output.progress_change` instead of `changes_detail.updated.progress`)
-- Progress entries consolidated from 2-9 down to 1-4 entries
-- **Verdict: Compaction working at full game length.**
+#### B-50.5 (compaction quality): PARTIAL — quality gate violation found
+- 26 compaction events across 5 runs (all packs show compaction)
+- **QUALITY GATE VIOLATION:** All 26 compactions lose unique entities (names, locations, items)
+- Prompt has explicit quality gate (line 82) to "preserve all unique entities" but LLM consistently ignores it
+- Example: noir-1930s T10 `black_market_expansion` 6→1 lost "Lady May", "Elias Thorne", "Nealburg"
+- Severity: Medium — degrades narrative detail but doesn't break mechanics
+- **Verdict: Compaction works mechanically but loses factual content. Quality gate instruction not being followed.**
 
 #### B-50.6 (decay): NEEDS MORE DATA
 - Not enough data at 25 turns to evaluate decay independently (no compaction events)
@@ -211,7 +213,34 @@ B-50 sanitizer fixes hold at full game length. No regressions. Urgency escalatio
 
 ## Deep-Dive Reviews
 
-(If ev-review was used for targeted analysis, document findings here.)
+### ev-review: Reactivation pattern + Compaction quality (2026-07-20)
+
+**Sources examined:**
+- `evals/runs/2026-07-20_0.32.1-24-gfc9a9f30_fc9a9f30/` — all 5 Phase 3 runs
+- `ccya/prompts/sanitize_thread.j2` — sanitizer prompt (quality gate at line 82)
+- `docs/architecture/step2c-record.md` — arc system, auto-dormant, urgency decay
+
+**Reactivation pattern (B-50.2):**
+- `guild_corruption` (space-western): dormant→active at T5, T10, T20 (3 reactivations)
+- `naval_corruption` (golden-piracy): dormant→active at T5, T25 (2 reactivations)
+- Pattern: dormant→active→(auto-dormant after 8 turns)→active→(auto-dormant)→active
+- **This is working as designed.** Auto-dormant fires after 8 turns of inactivity (engine-enforced). Sanitizer reactivates when narrative evidence shows renewed relevance. The LLM is correctly following the reactivation guidance.
+
+**Compaction quality (B-50.5) — QUALITY GATE VIOLATION:**
+- 26 compaction events across 5 runs, ALL losing unique entities
+- Prompt has explicit quality gate (line 82): "preserve all unique entities (names, locations, items, relationships) and outcomes. Never drop factual content just to reduce count"
+- Actual behavior: consistently dropping names, locations, items
+
+Examples:
+- noir-1930s T10: `black_market_expansion` 6→1 entries. Lost: "Lady May", "Elias Thorne", "Nealburg", "smuggling contact" — all unique entities
+- space-western T10: `syndicate_expansion` 7→3 entries. Lost: "Philip Moore", "encrypted clearance codes", "water filtration units"
+- allied-ww2 T15: `enemy_encroachment` 9→1 entries. Lost: "Cantrell", "depot", "enemy forces", "fire"
+
+**Root cause:** The quality gate instruction is present but the LLM is not following it. The prompt says "consolidate only when entries describe the same event or overlapping progress" but the sanitizer is consolidating across different events.
+
+**Severity:** Medium — factual content loss degrades game state fidelity but doesn't break mechanics. Threads still track correctly, just with less narrative detail.
+
+**Recommendation:** Strengthen quality gate with concrete examples of what to preserve vs. what to consolidate. Consider adding a post-consistency check that verifies unique entities are retained.
 
 ## Next
 
