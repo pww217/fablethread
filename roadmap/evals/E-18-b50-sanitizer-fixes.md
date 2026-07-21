@@ -279,6 +279,61 @@ Examples:
 - Examples: "Anthony Schultz pins Silas Vance in a sedan, forcing a confession about a shadow network protecting the forged files." (19 words)
 - Negligible token cost: +5 words/turn × 30 turns = +150 words/game
 
+### Deep-dive: Beat system analysis (2026-07-21)
+
+**Scope:** All 30 turns, examined world output, ruling selection, and narration incorporation.
+
+#### Beat pipeline mechanics
+- World generates 3 candidates every turn (all 30 turns)
+- Ruling selects 1 by index → `pending_gm_beat` set
+- Narrate reads `pending_gm_beat`, uses mechanism tags as creative guidance
+- 29/30 turns have a `pending_gm_beat` set
+
+#### Beat type distribution (world output)
+- escalation: 23, revelation: 21, pressure: 16, complication: 15, twist: 12, callback: 2, opportunity: 1
+- Ruling selection bias: escalation and revelation dominate. Only 1 twist selected (8% selection rate from 12 generated). Only 1 opportunity selected (from 1 generated). Callbacks generated at T23-24 but never selected.
+
+#### NPC availability drives beat feasibility
+- 0 distinct NPCs: 13 turns (43%) — thread-only beats are legitimate (priority 4)
+- 1 distinct NPC: 13 turns (43%) — NPC+NPC blends impossible, self-blends/single-NPC beats only
+- 2+ distinct NPCs: 4 turns (14%) — only where NPC+NPC blends are possible
+- **Critical:** Turns 10-13 have 2 Silent Figures but they're the same name, so world treats them as 1 distinct NPC → generates self-blends
+
+#### World step prompt adherence issues
+1. **Priority rules not followed when 2+ NPCs exist:** In turns 1-3 (2 distinct NPCs: Ian Garcia + Dockworker Crowd), only ~33% of beats are NPC+NPC blends. World should prioritize NPC+NPC (priority 1) but generates mix of priorities.
+2. **Self-blends (4 instances):** `[blend: Silent Figure's motivation vs Silent Figure's fear]` — same NPC twice. Prompt says "blends MUST use different NPCs."
+3. **Invalid blend format (2 instances):** `[blend: Silas Vance's leverage vs precinct_betrayal]` — thread slug inside blend. Prompt says "Never put a thread slug inside a blend."
+4. **Effect repetition (18 effects repeat):** Prompt says "Do NOT emit a beat whose effect describes the same event as any beat in recent_beats."
+5. **Cognitive load:** The prompt has extensive formatting rules (effect format, tie rule, blend rule, priority order, diversity constraints). LLM consistently violates the more complex rules.
+
+#### Narration incorporation quality
+- **GOOD (both NPC + type reflected):** 13/29 (45%) — beat meaningfully incorporated
+- **PARTIAL (one of NPC or type):** 11/29 (38%) — beat partially incorporated
+- **POOR (neither):** 5/29 (17%) — beat essentially ignored
+- **83% incorporation rate** — beats are used as narrative guidance, not ignored
+- Beats function as "creative guidance" per prompt (player input > GM beat). Narration follows player action first, weaves beat in as texture when possible
+- The POOR cases: T8 (twist with NPC tie — beat intent present but no obvious keywords), T27-30 (thread-only beats — no NPC specificity to incorporate)
+
+#### Examples
+
+**Twists (1 selected out of 12 generated):**
+- Turn 8 (SELECTED): `[tie: Officer Miller vs Anthony Schultz]` — Miller stares through Schultz with indifference, aggression feels hollow. The tie dynamic is present but narration follows player action (grabbing Miller).
+- Other 11 twists generated but never selected by ruling. Ruling consistently prefers escalation/revelation.
+
+**Callbacks (2 generated, 0 selected):**
+- Turn 23: `[highlight: Sedan Driver's bio] [thread: vance_confrontation]` — RESOLUTION phase allows callback, but ruling picked revelation instead
+- Turn 24: `[highlight: Silas Vance's bio] [thread: warehouse_district_reinforcements]` — BREATHER phase allows callback, ruling picked revelation instead
+
+**Opportunity (1 generated, 1 in world output, selected but not reflected well):**
+- Turn 25: `[highlight: Sedan Driver's fear] [thread: warehouse_district_reinforcements]` — World generated as opportunity in BREATHER phase. Narration shows player shoving driver + four enforcers appearing. More escalation than opportunity.
+
+#### Verdict
+- **Pipeline works mechanically:** All 3 steps function end-to-end
+- **Narration quality is strong:** Noir prose is genuinely good, beats provide useful creative direction
+- **World step prompt adherence is weak:** Priority rules, self-blend rule, and format rules consistently violated
+- **Ruling selection is biased:** Strongly prefers tension beats (escalation/revelation), rarely selects twist/callback/opportunity
+- **Core issue:** World prompt has too many rules with high cognitive load. LLM follows simple rules (phase alignment, 2-3 candidates) but violates complex ones (priority ordering, blend constraints, diversity)
+
 ## Next
 
 (What's left to do. If eval is complete, note status.)
