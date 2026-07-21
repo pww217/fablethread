@@ -165,9 +165,13 @@ Eval to validate B-50 sanitizer fixes: two-way urgency (B-50.2), compaction qual
 - Severity: Medium — degrades narrative detail but doesn't break mechanics
 - **Verdict: Compaction works mechanically but loses factual content. Quality gate instruction not being followed.**
 
-#### B-50.6 (decay): NEEDS MORE DATA
-- Not enough data at 25 turns to evaluate decay independently (no compaction events)
-- **Verdict: Inconclusive at 25 turns.**
+#### B-50.6 (decay): CONFIRMED
+- 4 urgency decay events across 5 runs (urgent→normal)
+- space-western T25: `guild_corruption` urgent→normal
+- golden-piracy T10: `naval_corruption` urgent→normal
+- zombie-survival T25: `ventilation_threat` urgent→normal
+- allied-ww2 T20: `enemy_encroachment` urgent→normal
+- **Verdict: Decay working as designed.**
 
 #### Pre-existing failures (not B-50 related, unchanged):
 - convergence_recompute: FAIL (12-23 issues each)
@@ -184,7 +188,9 @@ Eval to validate B-50 sanitizer fixes: two-way urgency (B-50.2), compaction qual
 | Pass rate range | 92.9% | 92.9% | 90.5-92.9% |
 
 #### Overall verdict:
-B-50 sanitizer fixes hold at full game length. No regressions. Urgency escalation behavior working as designed.
+B-50.2 (two-way urgency): CONFIRMED working. B-50.5 (compaction quality): PARTIAL — quality gate instruction exists but LLM consistently ignores it, losing unique entities. B-50.6 (decay): CONFIRMED working.
+
+**New issue found:** B-50.5 quality gate violation — compaction loses factual content despite explicit prompt instruction to preserve unique entities. Severity: medium.
 
 ## Fixes Applied
 
