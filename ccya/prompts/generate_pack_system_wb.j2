@@ -1,4 +1,4 @@
-Generate a complete world scenario as a ScenarioBrief JSON. Emit only the JSON.
+Generate a complete world scenario as a ScenarioBrief YAML. Emit only the YAML.
 
 ## Your job
 
@@ -18,7 +18,7 @@ You are building the seed of a playable text adventure world. The player has giv
 
 ## Schema
 
-```json
+```yaml
 {
   "description": "string — one-line pack description (parity with default packs)",
   "world_name": "string",
@@ -51,7 +51,9 @@ You are building the seed of a playable text adventure world. The player has giv
   "moral_pressures": [{"id": "snake_case", "tags": ["string"]}],
   "npc_bonds": [{"id": "snake_case", "tags": ["string"], "description": "string"}],
   "scene_detail_bundles": [{"id": "snake_case", "items": ["string"], "conditions": ["string"], "sensory": ["string"]}],
-  "pc_situation_schema": [{"key": "snake_case_key", "description": "what this key captures", "required": false, "persist": false}]
+  "pc_situation_schema": [{"key": "snake_case_key", "description": "what this key captures", "required": false, "persist": false}],
+  "currency_id": "string — currency name used as item id (e.g. 'dollars', 'credits')",
+  "starting_currency_amount": "int — starting amount of that currency"
 }
 ```
 
@@ -68,7 +70,7 @@ Generate all pools. IDs are short and semantic. Tags capture the essence of each
 - **character_dynamics (~10):** How the PC relates to power structures and social hierarchies. Tags: access type, alignment, resource level.
 - **moral_pressures (~10):** Immediate ethical tensions where every option has real costs. Tags: value conflict pairs, stakes type.
 - **npc_bonds (~8):** Pre-existing PC-NPC relationships — shared history, debts, conflicts, loyalties. Each needs a `description` (one sentence). Tags: relationship type, emotional weight.
-- **scene_detail_bundles (~7):** Physical details for specific scene types. Each has `items` (max 2 objects), `conditions` (max 2 environmental states), `sensory` (max 2 sounds/smells/textures). Tags: setting type, mood.
+- **scene_detail_bundles (~8):** Physical details for specific scene types. Each has `items` (max 2 objects), `conditions` (max 2 environmental states), `sensory` (max 2 sounds/smells/textures). Tags: setting type, mood.
 - **pc_situation_schema (~5):** Structured keys that define the PC's situational facts filled in at seed time. Each has a `key` (snake_case), `description` (what to fill in), `required` (bool; ~2 required), and `persist` (bool; whether the value survives past seed). Tags: narrative hook type.
 - **currency_id** (string, optional): The currency name used as item id (e.g. "dollars", "credits", "ryō") and **starting_currency_amount** (integer, optional): starting amount of that currency. Generate these if the setting has a clear economy.
 

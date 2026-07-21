@@ -196,22 +196,14 @@ class ScenarioBrief(BaseModel):
 
 
 class WorldBrief(BaseModel):
-    """Player input for generate_pack(). Five structured sections + one free-form.
+    """Player input for generate_pack(). Two sections: concept and tone.
 
-    Each section drives a distinct part of world generation:
-      concept       — the one-line pitch ("post-flood survival", "1930s supernatural noir")
-      tone          — feel and register ("grim survival", "darkly comedic", "tense political")
-      geography     — what the physical world looks like and how it shapes daily life
-      power         — who holds power, how it was won, what it costs ordinary people
-      daily_life    — what people eat, trade, fear, and talk about (grounds the narrator)
-      player_hint   — optional: what kind of person the player wants to be (soft guidance)
+    Drives world generation:
+      concept   — the one-line pitch ("post-flood survival", "1930s supernatural noir")
+      tone      — feel and register ("grim survival", "darkly comedic", "tense political")
     """
     concept: str
     tone: str = ""
-    geography: str = ""
-    power: str = ""
-    daily_life: str = ""
-    player_hint: str = ""
 
 
 class PlayerOverrides(BaseModel):

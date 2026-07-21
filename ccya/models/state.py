@@ -367,6 +367,7 @@ class InventoryItem(BaseModel):
     amount: int = Field(default=1, ge=1)
     color: str | None = None
     aliases: list[str] = Field(default_factory=list)
+    canonical_id: str = ""  # redundant with id, accepted from LLM extraction
 
 
 class InventoryRemove(BaseModel):
