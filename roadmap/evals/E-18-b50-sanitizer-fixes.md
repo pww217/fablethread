@@ -132,6 +132,14 @@ Eval to validate B-50 sanitizer fixes: two-way urgency (B-50.2), compaction qual
 - Previously: significant factual loss (e.g., T15 lost "Sterling/warehouse/Vane/witness/cigarette case/newsboy")
 - **Verdict: Compaction quality gate is working.**
 
+#### B-50.5 (compaction quality) — Phase 4 update (2026-07-21):
+- 9 compaction events across 6 sanitizer runs (30 turns)
+- 2-entry minimum respected: no thread collapsed to 1 entry
+- Sequential step rule working: Turn 25 `vance_confrontation 5→3` kept first/middle/last
+- Entity preservation improved: most losses are minor (articles, redundant name forms)
+- Still losing some narrative details (Turn 15 `pier_14_smuggling_intercept 7→2`)
+- **Verdict: Significant improvement. Concrete rules (2-entry minimum, entity preservation, sequential steps) are effective where abstract quality gate instruction failed.**
+
 #### B-50.6 Summary:
 - noir-1930s: `missing_ledger` auto-dormant at T8
 - space-western: `black_market_contacts` auto-dormant at T13, `uncharted_nebula_exploration` auto-dormant at T15
@@ -247,6 +255,29 @@ Examples:
 **Severity:** Medium — factual content loss degrades game state fidelity but doesn't break mechanics. Threads still track correctly, just with less narrative detail.
 
 **Recommendation:** Strengthen quality gate with concrete examples of what to preserve vs. what to consolidate. Consider adding a post-consistency check that verifies unique entities are retained.
+
+### Phase 4: 30-turn test — Improved compaction rules (2026-07-21)
+- Pack: noir-1930s:driven, Turns: 30
+- Group: `2026-07-21_0.32.1-29-g64d3b875_64d3b875`
+- Commit: `64d3b875` — added 3 compaction rules: 2-entry minimum, entity preservation, sequential step handling
+- Pass rate: 88.1% (37/42 checkers)
+- Failures: thread_urgency_decay, ruling_reason_quality, location_description_consistency, convergence_recompute, convergence_ema
+- Pre-existing: thread_urgency_decay, location_description_consistency, convergence_recompute, convergence_ema
+- New: ruling_reason_quality (2 off-by-one violations: 11 words vs 10 max)
+
+#### B-50.5 (compaction quality): IMPROVED
+- 9 compaction events across 6 sanitizer runs (turns 5, 10, 15, 20, 25, 30)
+- **2-entry minimum respected:** No thread collapsed to 1 entry (previously 9→1, 7→1 cases)
+- **Sequential step rule working:** Turn 25 `vance_confrontation 5→3` kept forged signatures, envelope lost, Vance dragged (first, middle, final)
+- **Entity preservation improved:** Lost entities are mostly minor — articles ("The"), redundant name forms ("Anthony Schultz" → "Schultz"), contextual details ("Three" → "two")
+- **Still losing some narrative:** Turn 15 `pier_14_smuggling_intercept 7→2` lost Schultz arriving at Pier 14, confronting guards, Silent Figure confirming payments. But core facts remain.
+- **Verdict: Significant improvement over Phase 3.** Quality gate instruction alone wasn't working; concrete rules (2-entry minimum, entity preservation, sequential steps) are effective.
+
+#### Outcome summary expansion: CONFIRMED
+- Average ~17 words (previously ~10, one sentence)
+- Captures who (PC + named NPCs), what (key action), what changed (consequence)
+- Examples: "Anthony Schultz pins Silas Vance in a sedan, forcing a confession about a shadow network protecting the forged files." (19 words)
+- Negligible token cost: +5 words/turn × 30 turns = +150 words/game
 
 ## Next
 
