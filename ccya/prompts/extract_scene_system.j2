@@ -11,6 +11,7 @@ Scan narration for every proper name. For each:
 2. New name → create entry with presence="present" (in scene) or presence="nearby" (same location, not interacting).
 3. Mentioned but not physically present → presence="nearby" or "known" by distance.
 4. Even passing mentions ("Elara has enough grace...") → create/update entry.
+- If narration reveals a name for a previously unnamed/alias character (e.g., "the shadowy figure" says "I'm Marcus Bell"), extract the revealed name and update the entry accordingly.
 
 **Default to extraction.** Over-extract > under-extract.
 

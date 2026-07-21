@@ -28,7 +28,8 @@
 {% endfor -%}
 {% endif -%}
 {% if npc_name_pool -%}
-### Name Pool
+### Required Name Pool for New Characters
+The names below are available names — NOT active characters. When introducing a new character or revealing a character's name, pick one from this list. Do not invent names outside this list.
 {% if npc_name_pool.male -%}
 **Male:** {{ npc_name_pool.male | join(' · ') }}
 {% endif %}{% if npc_name_pool.female -%}
