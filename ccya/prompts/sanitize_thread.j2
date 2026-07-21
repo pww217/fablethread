@@ -80,6 +80,9 @@ Threads should shrink over time, not accumulate. Consolidate when:
 - Entries are redundant or contradict each other → keep most recent/accurate
 - Multiple small steps share the same goal → condense to net result
 **Quality gate:** When consolidating, preserve all unique entities (names, locations, items, relationships) and outcomes. Never drop factual content just to reduce count — consolidate only when entries describe the same event or overlapping progress.
+**Minimum entries:** Keep at least 2 progress entries per thread. Never reduce a thread to a single entry — the timeline needs at least a beginning and end marker.
+**Entity preservation:** Always preserve the entry that first introduces any unique entity (person, location, item). Do not fold entity-introduction entries into later entries.
+**Sequential steps:** When entries describe sequential steps toward the same outcome (e.g., "forces converge" → "forces pursue" → "elevator fails"), keep the first step, one middle milestone, and the final state. Collapse the rest.
 
 ### Thread summaries
 Update a thread's summary if it no longer matches the current narrative; keep it broad enough for 3–4+ progress updates, not a single scene.
