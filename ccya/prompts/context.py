@@ -232,7 +232,6 @@ class RulingBoundary(BaseModel):
     npc_roster: list[NPCRosterEntryBlock]
     recent_turns: list[ChronicleEntryBlock] = Field(default_factory=list)
     inventory: list[dict[str, Any]] = Field(default_factory=list)
-    scene_phase: str = "SETUP"
     urgent_threads: list[dict[str, Any]] = Field(default_factory=list)
 
 
@@ -257,7 +256,6 @@ class NarratorBoundary(BaseModel):
     user_input: str
     pending_beat: dict[str, Any] | None = None
     meta: dict[str, int]
-    ages: dict[str, int]
     pc_allegiance: str | None = None
     world_factions: list[dict[str, str]]
     npc_name_pool: dict[str, list[str]]
