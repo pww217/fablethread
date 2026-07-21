@@ -1,9 +1,10 @@
 ---
 title: "Thread lifecycle system: TTL bug, dampening loop, seed bypass, compaction, decay"
-status: testing
+status: done
 urgency: 1
 size: large
 created: 2026-07-19
+completed: 2026-07-20
 ticket_id: B-50
 labels: [threads, sanitizer, state]
 design:
