@@ -1,9 +1,9 @@
 currency_id: doubloons
 starting_currency_amount: 25
 world_facts:
-  - The seas are controlled by powerful pirate fleets and colonial navies that clash over trade routes and island holdings
-  - Island settlements trade in rum, spices, and stolen cargo, with loyalty bought by shares of the plunder
-  - Mutiny is common on every vessel and a captain's authority depends on keeping the crew fed and motivated
+  - The seas are controlled by powerful pirate fleets and colonial navies clashing over trade routes and island holdings — and the two empires agree on one thing: people are cargo.
+  - Caribbean island settlements trade in rum, spices, and stolen cargo, with loyalty bought by shares of plunder — and with the lives of those who were cargo before they were crew.
+  - Mutiny is common on every vessel, captain's authority depends on keeping crew fed and motivated — and ironically the Articles hold best when the pressure on them is greatest.
 
 constraints:
    # required-presence
@@ -19,187 +19,182 @@ world_rules:
   - No supernatural, paranormal, or mythological creatures exist in this setting. Technology is limited to the Age of Sail era (late 1600s–early 1700s).
 
 situation_archetypes:
-  - id: mutiny_in_progress
-    tags: [mutiny, in_progress, crew_rebellion]
+  - id: mutiny_the_captain_started
+    tags: [mutiny_engineered, captain_provokes, loyalty_by_survival, suspect_removal]
     incompatible_with: []
-  - id: naval_engagement
-    tags: [naval, engagement, combat]
+  - id: the_sick_who_wont_die_fast_enough
+    tags: [sick_crew, dying_costs_less, slow_death, articles_silent]
     incompatible_with: []
-  - id: port_intrigue
-    tags: [port, intrigue, political_manipulation]
+  - id: treasure_that_belongs_to_someone_who_will_come_for_it
+    tags: [treasure_with_owner, returning_owner, named_reclaim, claim_preexists]
     incompatible_with: []
-  - id: cargo_heist
-    tags: [cargo, heist, theft]
+  - id: the_human_cargo_sabotaging_itself_free
+    tags: [human_cargo, self_liberation, hold_open, articles_unspoken]
     incompatible_with: []
-  - id: disease_onboard
-    tags: [disease, onboard, health_crisis]
+  - id: the_blockade_registered_to_a_country_that_does_not_admit_it_exists
+    tags: [unofficial_blockade, denying_flag, rowed_paper, stateless_patrol]
     incompatible_with: []
-  - id: storm_disaster
-    tags: [storm, disaster, natural_force]
+  - id: the_governor_who_rents_you_a_safe_harbor_and_reports_you_to_his_superiors
+    tags: [double_dealing_governor, harbor_rent, divided_loyalty, paying_both_sides]
     incompatible_with: []
-  - id: treasure_discovery
-    tags: [treasure, discovery, opportunity]
+  - id: suppressing_a_mutiny_that_was_actually_a_vote
+    tags: [vote_called_mutiny, articles_violation, suppression_inverted, captain_overreads]
     incompatible_with: []
-  - id: crew_conflict
-    tags: [crew, conflict, internal_tension]
+  - id: fight_over_whose_name_goes_on_the_share_list_after_the_death
+    tags: [share_list, dead_share, articles_silent, inheritance_disputed]
     incompatible_with: []
-  - id: naval_blockade
-    tags: [naval, blockade, isolation]
+  - id: the_pardon_someone_offered_the_crew_but_not_the_captain
+    tags: [pardon_divided, crew_amnesty, captain_excluded, divided_offer]
     incompatible_with: []
-  - id: mutiny_suppression
-    tags: [mutiny, suppression, authority_enforcement]
+  - id: the_slaver_ship_taken_for_cargo_but_the_cargo_wont_leave
+    tags: [slaver_taken, freed_refuse_leave, learn_articles, refuse_depart]
     incompatible_with: []
-  - id: port_strike
-    tags: [port, strike, labor_dispute]
+  - id: the_court_that_has_to_try_you_because_you_were_observed_doing_nothing
+    tags: [trial_for_inaction, crime_of_witness, inaction_offense, observed_idle]
     incompatible_with: []
-  - id: cargo_sabotage
-    tags: [cargo, sabotage, deliberate_damage]
+  - id: the_naval_engagement_you_started_by_accident
+    tags: [accidental_engagement, victim_engineered, started_by_misreading, unintended_battle]
     incompatible_with: []
 
 arc_categories:
-  - id: leadership_legitimacy
-    tags: [leadership, legitimacy, authority_questioned]
+  - id: the_vote_that_keeps_happening_until_you_get_it_right
+    tags: [repeated_vote, until_correct, ritual_election, consent_extracted]
     incompatible_with: []
-  - id: faction_power_struggle
-    tags: [faction, power_struggle, competing_interests]
+  - id: the_repeated_votes_that_no_one_calls_a_mutiny
+    tags: [votes_not_named, removed_captain, agreed_narrative, mutiny_unnamed]
     incompatible_with: []
-  - id: territorial_control
-    tags: [territory, control, geographic_dominance]
+  - id: plying_the_sea_a_free_vessel_built_off_human_cargo
+    tags: [free_vessel, cargo_origin, articles_unfreed, hold_unliberated]
     incompatible_with: []
-  - id: mutiny_escalation
-    tags: [mutiny, escalation, rebellion_growth]
+  - id: the_two_empires_that_agree_on_one_thing_people_are_cargo
+    tags: [empires_agree, cargo_consensus, common_forget, body_trade]
     incompatible_with: []
-  - id: outside_betrayal
-    tags: [outside, betrayal, external_threat]
+  - id: the_quarrel_over_which_empire_the_pirates_will_let_use_them
+    tags: [pirate_broker, empire_quarrel, sold_alignment, pirate_as_lever]
     incompatible_with: []
-  - id: colonial_conspiracy
-    tags: [colonial, conspiracy, imperial_manipulation]
+  - id: the_hunt_for_a_thing_someone_will_not_let_be_found
+    tags: [hunt_suppressed, hidden_target, refused_recovery, kept_unfound]
     incompatible_with: []
-  - id: ship_rivalry
-    tags: [ship, rivalry, competitive_conflict]
+  - id: the_wreck_that_keeps_everyone_honest_in_the_aftermath
+    tags: [wreck_aftermath, enforced_honesty, shared_salvage, kept_secret_in_share]
     incompatible_with: []
-  - id: pardon_scheme
-    tags: [pardon, scheme, political_opportunity]
+  - id: the_pardon_offered_to_everyone_except_the_one_who_refused_it
+    tags: [pardon_refused, excluder_themselves, exception_self_chosen, holdout_named]
     incompatible_with: []
-  - id: naval_blockade
-    tags: [naval, blockade, isolation_pressure]
+  - id: the_disease_that_came_aboard_in_the_cargo
+    tags: [disease_in_cargo, cargo_as_infection, returning_plague, hold_carrier]
     incompatible_with: []
-  - id: cargo_sabotage
-    tags: [cargo, sabotage, supply_disruption]
+  - id: the_sabotage_that_keeps_repairing_itself
+    tags: [self_repairing_sabotage, fixed_then_again, recurring_break, handless_hand]
     incompatible_with: []
-  - id: disease_quarantine
-    tags: [disease, quarantine, health_crisis]
+  - id: the_chase_ship_whose_orders_named_you_by_your_real_name
+    tags: [chase_orders, your_real_name, file_on_you, named_target]
     incompatible_with: []
-  - id: storm_wreckage
-    tags: [storm, wreckage, disaster_aftermath]
+  - id: the_court_whose_judge_was_your_old_captain
+    tags: [judge_old_captain, reunion_bench, trial_as_reunion, accused_recognized]
     incompatible_with: []
-  - id: treasure_hunt
-    tags: [treasure, hunt, pursuit_goal]
+  - id: the_debt_in_a_currency_the_articles_did_not_recognize
+    tags: [debt_unrecognized, currency_off_articles, owed_unlisted, debt_outside_charter]
     incompatible_with: []
-  - id: crew_defection
-    tags: [crew, defection, loyalty_loss]
-    incompatible_with: []
-  - id: slave_trade
-    tags: [slave, trade, moral_horror]
+  - id: the_crew_that_voted_to_keep_their_chains
+    tags: [kept_chains, voted_for_chains, mercy_voted_cruelty, elected_subjection]
     incompatible_with: []
 
 character_dynamics:
-  - id: loyal_crewman
-    tags: [crew_loyalty, working_class, ship_identity]
-    incompatible_with: [mutinous_officer, free_agent]
-  - id: mutinous_officer
-    tags: [ambitious, dissident, leadership_challenge]
-    incompatible_with: [loyal_crewman, established_authority]
-  - id: reluctant_recruit
-    tags: [forced_into_pirate_life, conflicted, inexperienced]
-    incompatible_with: [seasoned_veteran, free_agent]
-  - id: seasoned_veteran
-    tags: [experienced, hardened, respected_by_crew]
+  - id: crewman_loyal_to_the_articles_not_the_captain
+    tags: [crew, articles_loyalty, captain_excluded, charter_over_person]
+    incompatible_with: [officer_who_believes_they_are_upholding_the_articles_better_than_the_captain, the_quartermaster_who_counts_against_the_captain]
+  - id: officer_who_believes_they_are_upholding_the_articles_better_than_the_captain
+    tags: [officer, articles_strict, better_captain, principled_dissident]
+    incompatible_with: [crewman_loyal_to_the_articles_not_the_captain, captain_whose_authority_is_renewed_every_share_day]
+  - id: the_pressed_one_who_keeps_getting_voted_into_responsibility
+    tags: [pressed, voted_responsibility, unwilling_officer, conscript_promoted]
+    incompatible_with: [veteran_who_knows_which_side_of_the_articles_saves_you_in_a_fight, the_quartermaster_who_counts_against_the_captain]
+  - id: veteran_who_knows_which_side_of_the_articles_saves_you_in_a_fight
+    tags: [veteran, articles_loophole, survival_knowledge, fight_in_archive]
     incompatible_with: []
-  - id: free_agent
-    tags: [independent, unaligned, self_reliant]
-    incompatible_with: [loyal_crewman, established_authority]
-  - id: established_authority
-    tags: [captaincy, command_structure, institutional_power]
-    incompatible_with: [mutinous_officer, free_agent]
-  - id: information_broker
-    tags: [connected, secretive, leverage_holding]
+  - id: the_quartermaster_who_counts_against_the_captain
+    tags: [quartermaster, count_against, ledger_dispute, parallel_authority]
+    incompatible_with: [officer_who_believes_they_are_upholding_the_articles_better_than_the_captain]
+  - id: captain_whose_authority_is_renewed_every_share_day
+    tags: [captain, share_day_renewal, renewed_authority, conditional_command]
+    incompatible_with: [officer_who_believes_they_are_upholding_the_articles_better_than_the_captain, the_quartermaster_who_counts_against_the_captain]
+  - id: the_one_who_keeps_the_articles_and_knows_they_were_written_by_an_older_hand
+    tags: [articles_keeper, older_hand, prior_author, suspicious_charter]
     incompatible_with: []
-  - id: displaced_elite
-    tags: [former_status, loss_of_power, adaptation_needed]
+  - id: the_one_whose_family_lost_its_plantation_the_year_they_were_transported
+    tags: [transported, plantation_lost, year_record, displaced_to_pirate]
     incompatible_with: []
 
 npc_bonds:
-  - id: served_under
-    tags: [crew, years_served_together]
-    description: The NPC was a crewmate on a previous ship — they have shared watches, shared rations, and shared danger.
-  - id: shared_privateer
-    tags: [privateer, shared_past]
-    description: The NPC and PC once sailed under a letter of marque — legitimate privateers turned to piracy together when the war ended.
-  - id: saved_my_life
-    tags: [debt, survival]
-    description: The NPC pulled the PC from a sinking prize ship. The PC owes a life-debt that cannot be squared with coin.
-  - id: oath_brother
-    tags: [oath, bonds_stronger_than_blood]
-    description: The PC and this NPC swore a blood oath to stand together through mutiny, battle, or the gallows.
-  - id: displaced_captain
-    tags: [rivalry, command]
-    description: This NPC was the PC's captain on a previous voyage — a command ended by mutiny, capture, or shipwreck that both survived.
-  - id: debt_of_blood
-    tags: [violence, revenge_bond]
-    description: The PC killed someone this NPC loved — a shipmate, a brother. The NPC accepted it as the Articles demanded, but the weight is still there.
-  - id: sailed_with_before
-    description: The NPC and PC served on the same ship in a previous crew, for good or ill.
-    tags: [previous_crew, shared_history]
-    incompatible_with: []
-  - id: ransomed_together
-    description: The NPC and PC were held for ransom together and have a pact from that time.
-    tags: [captivity, pact, shared_trauma]
-    incompatible_with: []
+  - id: the_saved_my_life_but_the_prize_sank
+    tags: [saved, prize_sank, soul_owed, family_unpaid]
+    description: The NPC pulled the PC from a sinking prize ship — life-debt, plainly. The prize sank anyway, and someone's family elsewhere is still owed that vessel's share under the Articles; the NPC carries that share-debt for the PC.
+  - id: the_oath_sworn_over_someone_both_had_reason_to_want_dead
+    tags: [oath_sworn, mutual_motive, victim_shared, common_complicity]
+    description: The NPC and PC swore a blood oath to stand together through mutiny, battle, or gallows. The oath was sworn over the body of someone both of them had reason to want dead. The oath is the bond; the body is the proof.
+  - id: the_displaced_captain_now_shares_your_table
+    tags: [displaced_captain, prior_mutiny, justified_articles, table_together_now]
+    description: The NPC was the PC's captain — the command ended by mutiny, capture, or shipwreck. The mutiny was justified under the Articles; the PC was on the crew that mutinied. Now they share a table; neither says which seat each belongs in.
+  - id: the_debt_of_blood_where_the_forgiver_kept_the_articles
+    tags: [debt_of_blood, articles_at_word, took_as_justice, weight_of_forgiveness]
+    description: The PC killed someone the NPC loved. The NPC took the Articles at their word — declared it paid, took the share-set, called the matter settled. The forgiveness is the weight; the PC has not yet earned the right to call it settled back.
+  - id: the_ransom_paid_with_the_others_secret
+    tags: [ransom_together, secret_paid, paid_with_truth, leveraged_release]
+    description: The NPC and PC were held for ransom together, once. One paid their ransom with the other's secret. The secret is still in the holder's hand; the bond is the silence around it.
+  - id: the_captain_who_transferred_you_off_the_ship_a_week_before_it_sank
+    tags: [captain_transferred, mercy_then_loss, ship_sank_week_later, displaced_from_fatal]
+    description: The NPC was the PC's captain. The captain transferred the PC off the ship a week before the engagement; the ship went down. The PC survived because the captain said so. The captain cannot say whether the kindness was for the PC or for the captain.
+  - id: the_privateer_letter_that_both_know_was_forged
+    tags: [privateer_letter, forged_both_know, mutual_perjury, shared_lie]
+    description: The NPC and PC sailed together under a letter of marque. Both know the letter was forged; neither has ever said so, and the Articles they wrote together are modeled on the forgery, which is the proof of the bond.
+  - id: the_one_who_knows_which_cargo_in_your_hold_came_from_a_slaver
+    tags: [slaver_cargo, hold_known, sharer_with_knowledge, divided_with_guilt]
+    description: The NPC knows which cargo in the PC's hold came from a slaver ship — and divides every share with that knowledge. The proof of the bond is that the NPC has never reported it.
 
 pc_situation_schema:
-  - key: vessel
-    description: The PC's ship or vessel. Name, type, condition, and armament.
+  - key: the_ship_whose_previous_captain_was_kept_or_killed_by_you
+    description: The PC's current vessel had a previous captain, and the transition was not Articles-clean. Did the PC keep the captain, kill the captain, or stand aside while someone did — and what does the crew that watched it happen aboard now say about it to each other?
     required: false
     persist: true
-  - key: home_port
-    description: Where is the PC based? Who controls it, and are they welcome there?
+  - key: the_port_that_will_hang_you_or_drink_with_you_depending_on_the_messenger
+    description: The PC has a home port. The same port will hang the PC or drink with the PC depending on which message arrived most recently from elsewhere — and the PC does not always know which one arrived.
     required: false
     persist: true
-  - key: reputation
-    description: How is the PC known or unknown? Feared, respected, or unknown?
+  - key: the_thing_you_did_under_articles_that_made_a_stranger_call_you_pirate_like_it_was_a_name
+    description: The PC did something under the Articles — within them, technically — that made a stranger call the PC "pirate" like it was the PC's name. What was the act, and what made it not technically a violation?
     required: false
-  - key: alliance_status
-    description: Who does the PC sail under or with? (pirate fleet, navy, independent, merchant guild)
+  - key: the_empire_whose_pardon_letter_is_in_your_sea_chest_unsigned
+    description: The PC keeps a pardon letter in their sea chest from an empire that has not yet been answered. Which empire, what did the PC do to be offered it, and why has the PC not yet signed it?
     required: false
     persist: true
 
 scene_detail_bundles:
   - id: quarterdeck
-    items: [a compass in a gimbaled brass mount, a swivel gun loaded with grapeshot]
+    items: [a compass in a gimbaled brass mount, a swivel gun loaded with grapeshot, a name scratched into the rail that no current crewman answers to]
     conditions: [the deck slick with spray, the rigging humming under strain]
     sensory: [the snap of canvas overhead, the creak of the helm under pressure]
   - id: orlop_deck
-    items: [a surgeon's saw with a stained handle, a lantern swinging with the ship's roll]
+    items: [a surgeon's saw with a stained handle, a lantern swinging with the ship's roll, a surgery ledger with the date of an operation not yet performed]
     conditions: [oppressively dark, the air thick with bilge and salt]
     sensory: [the groan of the hull timbers, the scurrying of rats in the dark]
   - id: captains_cabin
-    items: [a sea chart with course corrections in red ink, a brace of pistols in a felt-lined case]
+    items: [a sea chart with course corrections in red ink, a brace of pistols in a felt-lined case, a child's drawing tucked in the chart-easel]
     conditions: [the cabin listing to starboard, the lock on the dispatch box scratched]
     sensory: [the tang of gunpowder and Madeira, the drip of water through a deck seam]
   - id: galley
-    items: [an iron kettle over a low fire, a cleaver worn thin from sharpening]
+    items: [an iron kettle over a low fire, a cleaver worn thin from sharpening, a tin cup with a woman's name etched polished back into visibility]
     conditions: [greasy and close, the fire smoking badly]
     sensory: [the sizzle of hardtack frying, the smell of rancid cooking oil]
   - id: cargo_hold
-    items: [barrels of salt pork stamped with a naval mark, a broken musket discarded in a corner]
+    items: [barrels of salt pork stamped with a naval mark, a broken musket discarded in a corner, a single set of women's shoes paired and set down rather than thrown]
     conditions: [the hold half-flooded, crates shifted and splintered]
     sensory: [the slosh of bilgewater against the hull, the smell of damp timber and spoiled provisions]
   - id: beach_cove
-    items: [a longboat pulled up on the sand, a sea chest with the lock smashed]
+    items: [a longboat pulled up on the sand, a sea chest with the lock smashed, a second longboat burned to the waterline and still warm]
     conditions: [the tide coming in fast, the cove sheltered from the wind]
     sensory: [the hiss of waves on shingle, the cry of gulls overhead]
   - id: warehouse_district
-    items: [a hoist with a frayed rope, a ledger open to a page of false weights]
+    items: [a hoist with a frayed rope, a ledger open to a page of false weights, a manifest line in a child's hand for "Ma, Pa, self."]
     conditions: [the air thick with dust from spice sacks, a lantern burning low in a wall sconce]
     sensory: [the skitter of rats in the rafters, the muffled shouts from the street outside]

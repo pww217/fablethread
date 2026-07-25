@@ -1,9 +1,9 @@
 currency_id: credits
 starting_currency_amount: 100
 world_facts:
-  - Humanity has spread across scattered colonies with no central authority and no reliable communication between systems
-  - Space travel is dangerous, expensive, and unpredictable — jump drives can misfire and supply runs take weeks
-  - Frontier worlds operate by their own rules, far from any government's reach and governed by whoever controls the resources
+  - The Rim is not the frontier of dust, debt, and old loyalties — it is the loser's hospital. Twelve years after the war ended, people here are stubborn, resourceful, and suspicious of inner-worlders because they lost, they remember that they lost, and pretending they didn't is the work of every day.
+  - The ship is everything — home, livelihood, and the only way out. Every pilot loves their vessel and has modifications keeping it flying; a broken ship is a death sentence, and the love is therefore also the fear.
+  - Frontier danger is people — rival crews, hostile settlements, Coalition patrols running on inertia, harsh environment. The storm kills as fast as a plasma bolt, and no one in the inner systems can remember anymore why the patrols are still running.
 
 constraints:
   # required-presence
@@ -16,186 +16,182 @@ constraints:
   required_inventory_kinds: [weapon, tool]
 
 situation_archetypes:
-  - id: freighter_under_attack
-    tags: [frontier, violence, immediate_action]
+  - id: inspection_with_a_warrant_that_names_you
+    tags: [inspection, warrant_with_name, prior_known, prearrived_authority]
     incompatible_with: []
-  - id: settlement_siege
-    tags: [frontier, siege, community_defense]
+  - id: standoff_over_a_dead_mans_debt
+    tags: [standoff, dead_owed, transferred_debt, saloon_quiet]
     incompatible_with: []
-  - id: dust_storm_chase
-    tags: [frontier, chase, environmental_hazard]
+  - id: the_coordinates_someone_died_to_send_you
+    tags: [transmitted_coords, dying_message, chose_recipient, unsought_inheritance]
     incompatible_with: []
-  - id: mining_town_firefight
-    tags: [mining, violence, resource_conflict]
+  - id: the_settlement_the_coalition_decommissioned
+    tags: [decommissioned_settlement, still_occupied, official_empty, lived_in_paper]
     incompatible_with: []
-  - id: crash_landing
-    tags: [space, emergency, isolation]
+  - id: crossing_with_someone_the_coalition_wants_back
+    tags: [crossing_passenger, wanted_back, supposed_clear, absolved_unclear]
     incompatible_with: []
-  - id: supply_interdiction
-    tags: [frontier, logistics, blockade]
+  - id: firefight_over_the_ore_that_was_supposed_to_be_depleted
+    tags: [depleted_lie, active_mine, survey_false, profitable_quiet]
     incompatible_with: []
-  - id: border_clash
-    tags: [frontier, violence, territorial_dispute]
+  - id: ambush_that_looks_too_well_planned_to_be_bandits
+    tags: [well_planned_ambush, uniform_information, institutional_hand, false_bandit]
     incompatible_with: []
-  - id: saloon_standoff
-    tags: [frontier, violence, immediate_action]
+  - id: outpost_that_keeps_sending_signal_after_everyone_is_dead
+    tags: [dead_outpost, ongoing_signal, posthumous_beacon, handless_transmit]
     incompatible_with: []
-  - id: convoy_ambush
-    tags: [frontier, ambush, logistics_warfare]
+  - id: the_pardon_someone_keeps_offering
+    tags: [recurring_pardon, kept_offered, refusing_amnesty, named_offer]
     incompatible_with: []
-  - id: outpost_defense
-    tags: [space, defense, isolation]
+  - id: the_browncoat_who_does_not_age
+    tags: [browncoat, unaged, war_record_unread, body_year_mismatch]
     incompatible_with: []
-  - id: customs_inspection
-    tags: [coalition, authority, tension]
+  - id: the_companion_whose_registry_has_someone_elses_name_on_purpose
+    tags: [companion, registry_swap, guild_approved, assumed_license]
     incompatible_with: []
-  - id: desert_crossing
-    tags: [frontier, survival, environmental_hazard]
+  - id: the_freighter_that_was_supposed_to_have_been_recovered_last_year
+    tags: [recovered_on_paper, still_here, official_salvage_log, false_wreck_tidy]
     incompatible_with: []
 
 arc_categories:
-  - id: rebellion_vs_authority
-    tags: [rebellion, coalition, frontier_autonomy]
+  - id: the_war_that_refuses_to_be_over
+    tags: [unfinished_war, body_keeps_score, generation_quiet, continuing_loss]
     incompatible_with: []
-  - id: settlement_survival
-    tags: [survival, community, resource_scarcity]
+  - id: the_deed_signed_in_a_dead_language
+    tags: [deed, dead_language, signed_dispatch, prior_author]
     incompatible_with: []
-  - id: supply_line_warfare
-    tags: [logistics, trade, blockade_breaking]
+  - id: the_rebellion_that_already_lost_and_will_not_admit_it
+    tags: [rebellion_denial, pretense_continues, lost_still_fought, mutual_performance]
     incompatible_with: []
-  - id: coalition_occupation_resistance
-    tags: [rebellion, occupation, partisan warfare]
+  - id: the_occupation_that_forgot_why_it_came
+    tags: [occupation_inertia, forgotten_reason, patrols_continue, reasons_lost]
     incompatible_with: []
-  - id: terraforming_crisis
-    tags: [space, environmental, corporate_control]
+  - id: the_guild_that_sells_its_members_as_licenses
+    tags: [guild, members_as_property, license_transferable, body_as_license]
     incompatible_with: []
-  - id: companion_guild_politics
-    tags: [politics, guild, frontier_law]
+  - id: the_world_that_was_supposed_to_be_habitable
+    tags: [terraforming_failed, survey_lie, supposed_habitable, scheduled_abandon]
     incompatible_with: []
-  - id: browncoat_legacy
-    tags: [war_veteran, honor, post_war_identity]
+  - id: the_settlement_the_charter_uses_to_count_someone_as_dead
+    tags: [charter_dead, living_counted_dead, paper_death, ongoing_life]
     incompatible_with: []
-  - id: independent_trade_routes
-    tags: [trade, independence, economics]
+  - id: the_partisans_who_keep_each_other_in_old_rosters
+    tags: [partisan_roster, kept_enrolled, mutual_enrollment, never_discharged]
     incompatible_with: []
-  - id: frontier_justice
-    tags: [frontier, law, vigilante_action]
+  - id: the_route_that_closed_because_someone_died_to_open_it
+    tags: [closed_route, opening_death, debt_for_passage, route_memory]
     incompatible_with: []
-  - id: resource_extraction_conflict
-    tags: [mining, corporate_control, labor_dispute]
+  - id: the_pardon_the_crew_keeps_voting_to_refuse
+    tags: [pardon_vote, voting_refusal, recurring_refusal, collective_amnesty_rejection]
     incompatible_with: []
-  - id: colony_abandonment
-    tags: [space, isolation, community_collapse]
+  - id: the_corporate_survey_that_keeps_coming_back_corrected
+    tags: [corrected_survey, recurring_revision, paper_correction, hidden_resource]
     incompatible_with: []
-  - id: rustbelt_decline
-    tags: [frontier, economic_decay, desperation]
+  - id: the_militia_assembled_to_protect_a_debt
+    tags: [militia_debt, armed_collection, debt_enforcement, owed_gun]
     incompatible_with: []
-  - id: militia_assembly
-    tags: [militia, defense, frontier_mobilization]
+  - id: the_resource_that_was_never_supposed_to_be_there
+    tags: [impossible_resource, survey_omission, suppressed_finding, present_unlisted]
     incompatible_with: []
-  - id: partisan_operations
-    tags: [rebellion, guerrilla_tactics, occupation]
-    incompatible_with: []
-  - id: corporate_land_grab
-    tags: [corporate_control, land_dispute, exploitation]
+  - id: the_judge_who_is_also_a_partisan
+    tags: [judge_partisan, dual_role, clean_bench_dirty_tribe, conflicted_authority]
     incompatible_with: []
 
 character_dynamics:
-  - id: rim_veteran
-    tags: [frontier, war_experience, established_presence]
+  - id: veteran_who_kept_their_browncoat_in_a_box
+    tags: [veteran, boxed_browncoat, folded_war, unadmitted_service]
     incompatible_with: []
-  - id: coalition_deserter
-    tags: [coalition, desertion, fugitive_status]
+  - id: deserter_who_keeps_getting_promoted_in_absentia
+    tags: [deserter, absentia_promotion, parked_records, advancing_deserter]
+    incompatible_with: [officer_who_did_not_retire_in_any_record]
+  - id: pilot_who_owes_their_ship_to_someone_dead
+    tags: [pilot, ship_debt, dead_prevowner, transferred_care]
     incompatible_with: []
-  - id: independent_pilot
-    tags: [space, independence, trade]
+  - id: companion_whose_registry_has_the_wrong_name_on_purpose
+    tags: [companion, registry_swap, wrong_name_intended, guild_complicit]
     incompatible_with: []
-  - id: town_deputy
-    tags: [frontier, law_enforcement, community_role]
+  - id: scavenger_who_keeps_finding_their_own_abandoned_ships
+    tags: [scavenger, returning_wreck, recurring_self_salvage, finds_own_history]
     incompatible_with: []
-  - id: companion_registrant
-    tags: [guild, frontier_law, regulated_trade]
+  - id: the_deputy_who_inherited_the_last_ones_secret
+    tags: [deputy, inherited_secret, prior_deputy, memory_in_office]
     incompatible_with: []
-  - id: rustbelt_scavenger
-    tags: [space, scavenging, desperation]
+  - id: the_trader_who_runs_the_route_someone_died_to_open
+    tags: [trader, route_debt, died_to_open, traders_burden]
     incompatible_with: []
-  - id: displaced_officer
-    tags: [coalition, post_war_displacement, authority_figure]
-    incompatible_with: [coalition_deserter]
-  - id: free_trader
-    tags: [trade, independence, mobility]
-    incompatible_with: []
-
-pc_situation_schema:
-  - key: vessel
-    description: What vessel does the PC have? Name, type, condition, and features.
-    required: false
-    persist: true
-  - key: home_port
-    description: What port or station does the PC dock or claim as home?
-    required: false
-    persist: true
-  - key: reputation
-    description: How is the PC known or unknown? Feared, respected, or just another face?
-    required: false
-  - key: filiation
-    description: What faction or guild is the PC aligned with or registered under?
-    required: false
-    persist: true
+  - id: officer_who_did_not_retire_in_any_record
+    tags: [officer, missing_record, unretired, paper_absence]
+    incompatible_with: [deserter_who_keeps_getting_promoted_in_absentia]
 
 npc_bonds:
-  - id: old_crewmate
-    tags: [crew, ship, shared_mileage]
-    description: The NPC served on the same ship as the PC — not friends, but the kind of bond formed by shared cargo holds and close calls.
-  - id: shared_smuggling_run
-    tags: [smuggling, trust, mutual_risk]
-    description: The NPC and PC ran a smuggling route together. The job paid but the mutual liability is the real tie that holds.
   - id: coalition_adversary
-    tags: [coalition, war, enemy_lines]
-    description: The NPC was on the opposite side of the war. The PC knows them as an adversary who earned respect through competence.
-  - id: settlement_debt
-    tags: [settlement, community, obligation]
-    description: The NPC's settlement saved the PC once — gave them shelter, fuel, a reason to keep flying. The bond is to the community, not just the person.
-  - id: war_remnant
-    tags: [war, veteran, shared_trauma]
-    description: The NPC served in the same theater of the war as the PC. The war shaped them similarly and neither talks about it.
-  - id: family_scattered
-    tags: [family, separation, search]
-    description: The NPC is connected to the PC's family — a sibling, a cousin, someone who knows what happened to the rest.
+    tags: [adversary, mutual_competence, respect_with_nowhere, post_armistice_respect]
+    description: The NPC was on the opposite side of the war. The PC knows them as an adversary who earned respect through competence; the war ended; both are still competent; the respect has nowhere to go, and the competence has nothing to do.
+  - id: shared_smuggling_run
+    tags: [smuggling_run, unfinished_cargo, recurring_anonymous_update, mutual_liability]
+    description: The NPC and PC ran a smuggling route together. The job paid but the run never finished — the cargo is still aboard somewhere, and both of them get the same anonymous updates about its location.
   - id: partisan_cell
-    tags: [rebellion, underground, mutual_cause]
-    description: The NPC and PC worked with the same partisan cell during the war — a shared cause that outlasted the armistice.
+    tags: [partisan_cell, cause_lost, mutual_pretense, kept_cell]
+    description: The NPC and PC worked with the same partisan cell during the war. The cause did not outlast the armistice. The cell pretends it did, for each other, because admitting the cause is gone means admitting the people who died for it died for nothing.
   - id: smuggling_connection
-    description: The NPC was the PC's contact on a smuggling route that went bad — trust was broken, then rebuilt.
-    tags: [smuggling, trust, shared_risk]
-    incompatible_with: []
+    tags: [smuggling_contact, trust_broken_rebuilt, route_dependent, broken_then_repaired]
+    description: The NPC was the PC's contact on a smuggling route that went bad. Trust was broken, then rebuilt — the bond is the rebuilding, and the proof of the bond is that the route still runs.
+  - id: war_remnant
+    tags: [war_remnant, shared_aftermath, untold_truth, silent_comrades]
+    description: The NPC served in the same theater of the war as the PC. The war shaped them similarly and neither talks — not because of the war, but because of what they did after, which they also do not talk about.
+  - id: old_crewmate
+    tags: [crew, sacrifice, charge_displaced, self_replaced_charge]
+    description: The NPC served on the same ship as the PC — not friends, but the kind of bond formed by shared cargo holds and close calls. The NPC took a charge that should have been the PC's; the PC watched them take it. The NPC remembers every day; the PC remembers every day.
+  - id: the_one_who_keeps_your_real_name
+    tags: [name_keeper, only_copy, leverage_love, both_kept]
+    description: The NPC keeps the PC's real name — the one the PC doesn't carry anymore, because carrying it is too dangerous. The NPC is the only copy. The love and the leverage are the same thing.
+  - id: the_settlement_that_uses_your_face_on_its_recruitment_poster
+    tags: [recruitment_poster, used_face, unconsulted_hero, stranger_in_your_face]
+    description: The NPC is from a settlement the PC does not live in — a settlement that uses the PC's face on its recruitment posters, and that has not asked the PC's permission, and that the PC has not yet had the heart to disavow in person.
+
+pc_situation_schema:
+  - key: the_ship_that_keeps_a_record_you_cannot_erase
+    description: The PC's ship keeps something the PC cannot remove — a log entry, a hull stain, a name burned into a beam. What is it, and why can't the PC erase it?
+    required: false
+    persist: true
+  - key: the_port_that_knows_you_under_a_name_that_isnt_yours
+    description: The PC has a port that knows them by a name that is not the PC's. Whose name is it, why did the PC take it on, and who would the PC have to be to give it back?
+    required: false
+    persist: true
+  - key: the_thing_you_did_that_a_few_hundred_rim_worlders_decided_was_heroism
+    description: A few hundred Rim-worlders have decided something the PC did was heroism. What was the act, and what about it was not heroic?
+    required: false
+  - key: the_guild_or_flag_you_keep_pretending_you_left
+    description: The PC keeps papers in their pocket from a guild or flag they claim to have left. Which is it, and what do those papers still require of the PC?
+    required: false
+    persist: true
 
 scene_detail_bundles:
   - id: cargo_bay
-    items: [a grav pallet with a broken levitator, a hydro-spanner with an adaptive grip]
+    items: [a grav pallet with a broken levitator, a hydro-spanner with an adaptive grip, a manifest line for one passenger not currently in the bay]
     conditions: [the bay depressurized and cold, cargo netting loose and tangled]
     sensory: [the hum of emergency lighting, the hiss of atmosphere cycling through scrubbers]
   - id: town_street
-    items: [a holo-sign flickering between two advertisements, a freight droid powered down against a wall]
+    items: [a holo-sign flickering between two advertisements, a freight droid powered down against a wall, a storefront advertising a business that closed twelve years ago with a current-hours sign in the window]
     conditions: [the street half in shadow, market stalls abandoned mid-day]
     sensory: [the buzz of faulty lighting, the distant shriek of a ship's engines atmo-burn]
   - id: saloon_interior
-    items: [a card table with a marked deck in the discard, a synthesizer dispensing something brown into a chipped cup]
+    items: [a card table with a marked deck in the discard, a synthesizer dispensing something brown into a chipped cup, a glass poured at the empty seat refreshed every hour]
     conditions: [smoke from a hookah hanging in the air, a back door propped open]
     sensory: [the jangle of an out-of-tune piano, the hum of a cooler unit cycling]
   - id: desert_crossing
     items: [a rusted hull fragment half-buried in the dust, a cracked oxygen mask hanging from a post]
-    conditions: [the heat shimmer distorting the horizon, the trail marker knocked askew]
+    conditions: [the heat shimmer distorting the horizon, the trail marker knocked askew, a second set of footprints joining the PC's from a direction no one walked from]
     sensory: [the dry scrape of windblown sand, the creak of metal expanding in the heat]
   - id: mine_shaft
     items: [a drilling rig with the safety guard removed, a seismic charge with a dead trigger]
-    conditions: [the ventilation fan cycling unevenly, the shaft dimly lit]
+    conditions: [the ventilation fan cycling unevenly, the shaft dimly lit, scratching on the wall in a hand too small to reach]
     sensory: [the echo of dripping water from deep below, the grinding of ore carts on damaged track]
   - id: orbit_station
-    items: [an airlock with a jammed seal, a terminal showing docking fees overdue]
+    items: [an airlock with a jammed seal, a terminal showing docking fees overdue, a docked ship that hasn't moved in eleven years and is still on the registry]
     conditions: [the gravity cycling on and off, the corridor dimly lit with emergency strips]
     sensory: [the low hum of the station's reactors, the click of magnetic boots on grated flooring]
   - id: repair_bay
-    items: [a welding torch with a cracked lens, a diagnostic tablet showing red across the board]
+    items: [a welding torch with a cracked lens, a diagnostic tablet showing red across the board, a tool etched with a name that matches the PC's dead sibling's]
     conditions: [the bay cold from the vacuum seal broken, tools scattered across every surface]
     sensory: [the hiss of a plasma cutter, the ozone smell of a recent electrical fire]
