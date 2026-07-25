@@ -120,38 +120,6 @@ character_dynamics:
   - id: compromised_witness
     tags: [trauma, cooperation, vulnerability]
     incompatible_with: []
-moral_pressures:
-  - id: truth_vs_self_preservation
-    tags: [truth, self_preservation, risk_assessment]
-    incompatible_with: []
-  - id: institutional_corruption
-    tags: [institutional, corruption, system_failure]
-    incompatible_with: []
-  - id: collateral_damage
-    tags: [collateral, damage, innocent_suffering]
-    incompatible_with: []
-  - id: evidence_vs_justice
-    tags: [evidence, justice, procedural_morality]
-    incompatible_with: []
-  - id: professional_ethics
-    tags: [professional, ethics, code_of_conduct]
-    incompatible_with: []
-  - id: ends_vs_means
-    tags: [ends, means, moral_compromise]
-    incompatible_with: []
-  - id: client_deception
-    tags: [trust, betrayal, professional_code]
-    incompatible_with: []
-  - id: witness_intimidation
-    tags: [fear, justice, helplessness]
-    incompatible_with: []
-  - id: blood_money
-    tags: [compensation, ethics, dirty_money]
-    incompatible_with: []
-  - id: second_chance
-    tags: [redemption, past_mistakes, reform]
-    incompatible_with: []
-
 pc_situation_schema:
   - key: residence
     description: Where does the PC live or operate from? (apartment, boarding house, hotel room)

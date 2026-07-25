@@ -126,38 +126,6 @@ character_dynamics:
     tags: [trade, independence, mobility]
     incompatible_with: []
 
-moral_pressures:
-  - id: freedom_vs_security
-    tags: [frontier, autonomy, safety_tradeoff]
-    incompatible_with: []
-  - id: loyalty_to_rim
-    tags: [rebellion, frontier_identity, coalition_hostility]
-    incompatible_with: []
-  - id: independence_isolation
-    tags: [space, self_reliance, vulnerability]
-    incompatible_with: []
-  - id: frontier_code
-    tags: [frontier, honor, violence_justification]
-    incompatible_with: []
-  - id: survival_vs_principles
-    tags: [survival, ethics, moral_compromise]
-    incompatible_with: []
-  - id: old_loyalties_new_world
-    tags: [war_veteran, post_war_identity, shifting_alliances]
-    incompatible_with: []
-  - id: bounty_hunter_code
-    tags: [hunting, ethics, line_between_law_and_outlaw]
-    incompatible_with: []
-  - id: corporate_encroachment
-    tags: [corporations, colonization, exploitation]
-    incompatible_with: []
-  - id: terraform_failure
-    tags: [environment, survival, hubris]
-    incompatible_with: []
-  - id: first_contact_stakes
-    tags: [aliens, diplomacy, unknown]
-    incompatible_with: []
-
 pc_situation_schema:
   - key: vessel
     description: What vessel does the PC have? Name, type, condition, and features.

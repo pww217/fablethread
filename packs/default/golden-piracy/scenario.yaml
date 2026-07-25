@@ -129,38 +129,6 @@ character_dynamics:
     tags: [former_status, loss_of_power, adaptation_needed]
     incompatible_with: []
 
-moral_pressures:
-  - id: crew_loyalty_vs_self_preservation
-    tags: [crew_loyalty, self_preservation, conflict_of_interest]
-    incompatible_with: []
-  - id: mutiny_consequences
-    tags: [mutiny, consequences, rebellion_risk]
-    incompatible_with: []
-  - id: code_of_honor
-    tags: [code, honor, pirate_ethics]
-    incompatible_with: []
-  - id: power_concentration
-    tags: [power, concentration, authority_abuse]
-    incompatible_with: []
-  - id: freedom_vs_discipline
-    tags: [freedom, discipline, autonomy_conflict]
-    incompatible_with: []
-  - id: legitimate_governance
-    tags: [legitimate, governance, political_order]
-    incompatible_with: []
-  - id: marooned_survival
-    tags: [abandonment, survival, desperation]
-    incompatible_with: []
-  - id: captured_ship_dilemma
-    tags: [prize, claim, crew_decision]
-    incompatible_with: []
-  - id: coastal_raid
-    tags: [raiding, plunder, civilian_exposure]
-    incompatible_with: []
-  - id: press_gang_encounter
-    tags: [conscription, freedom, moral_line]
-    incompatible_with: []
-
 npc_bonds:
   - id: served_under
     tags: [crew, years_served_together]

@@ -129,38 +129,6 @@ character_dynamics:
     tags: [newcomer, inexperience, unit_integration]
     incompatible_with: []
 
-moral_pressures:
-  - id: survival_vs_duty
-    tags: [survival, duty, ethical_conflict]
-    incompatible_with: []
-  - id: following_orders_vs_conscience
-    tags: [chain_of_command, morality, insubordination]
-    incompatible_with: []
-  - id: protecting_squad_mates
-    tags: [unit_cohesion, sacrifice, loyalty]
-    incompatible_with: []
-  - id: war_dehumanization
-    tags: [enemy_treatment, hatred, moral_erosion]
-    incompatible_with: []
-  - id: home_front_expectations
-    tags: [civilian_support, honor, pressure_to_prove]
-    incompatible_with: []
-  - id: ending_the_war_at_any_cost
-    tags: [victory, extreme_measures, moral_compromise]
-    incompatible_with: []
-  - id: combat_exhaustion
-    tags: [psychological_stress, combat_fatigue, breakdown]
-    incompatible_with: []
-  - id: refugee_crisis
-    tags: [civilians, displacement, moral_complication]
-    incompatible_with: []
-  - id: captured_intelligence
-    tags: [interrogation, information, ethical_compromise]
-    incompatible_with: []
-  - id: friendly_fire_aftermath
-    tags: [grief, accountability, unit_guilt]
-    incompatible_with: []
-
 pc_situation_schema:
   - key: unit
     description: What unit or platoon is the PC assigned to, and what is its reputation?
