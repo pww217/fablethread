@@ -9,6 +9,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from jinja2 import Environment
+
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json
 from ccya.llm_client import chat_with_config as llm_chat
 from ccya.models import ArcThread, LongTermObjective, ProgressEntry, SanitizedWorldStateFact, ThreadResolution, ThreadUpdate, WorldState
@@ -126,7 +128,7 @@ async def _sanitize_threads_impl(
 
 
 def _build_messages(
-    env: Any,
+    env: Environment,
     state: WorldState,
     recent_turns: list[dict[str, Any]],
     prior_history: list[str],

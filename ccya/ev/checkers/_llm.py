@@ -75,7 +75,7 @@ def _call_llm_checker(
                 if parsed is not None:
                     return parsed
             except Exception:
-                pass
+                _log.debug("LLM retry parse failed")
             return {"error": "parse_failed", "raw": raw}
         return parsed
     except Exception as exc:

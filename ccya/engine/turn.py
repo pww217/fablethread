@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncIterator
 
+from jinja2 import Environment
+
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
 from ccya.engine.config import EngineConfig, _build_jinja_env
@@ -18,10 +20,11 @@ from ccya.engine.extraction import (
     _context_meta,
     _run_extraction_pipeline,
 )
+from ccya.engine.extraction.context import _PostDeltaContext
 from ccya.engine._pacing import (
     derive_allowed_beat_types,
 )
-from ccya.engine.turn_context import TurnContext, _is_cancel_requested
+from ccya.engine.turn_context import TurnContext, _is_cancel_requested, PacingContext
 from ccya.engine.thread_sanitizer import sanitize_threads
 from ccya.engine.turn_state import (
     _apply_state_updates,
@@ -41,6 +44,9 @@ from ccya.models import (
     WorldState,
     IntentEnvelope,
     RulesOutcome,
+    RecordResult,
+    SceneExtractResult,
+    Scene,
 )
 
 from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
@@ -65,13 +71,21 @@ async def run_turn(
     config: EngineConfig | None = None,
     *,
     template_dir: str | None = None,
-    pack_name_locales: list[dict[str, Any]] = [],
-    pack_narrator_rules: list[str] = [],
-    pack_world_rules: list[str] = [],
-    pack_factions: list[dict[str, str]] = [],
+    pack_name_locales: list[dict[str, Any]] | None = None,
+    pack_narrator_rules: list[str] | None = None,
+    pack_world_rules: list[str] | None = None,
+    pack_factions: list[dict[str, str]] | None = None,
 ) -> AsyncIterator[tuple[str, Any]]:
     if config is None:
         config = EngineConfig()
+    if pack_name_locales is None:
+        pack_name_locales = []
+    if pack_narrator_rules is None:
+        pack_narrator_rules = []
+    if pack_world_rules is None:
+        pack_world_rules = []
+    if pack_factions is None:
+        pack_factions = []
 
     template_dir = template_dir or str(Path(__file__).parent.parent / "prompts")
     env = _build_jinja_env(template_dir)
@@ -232,20 +246,32 @@ async def run_turn(
 
         # === Persistence + async cleanup ===
         _persist_result = PersistResult()
-        _persist_gen = _persist_and_async_cleanup(
-            ctx, save_dir, env, state, narrative, user_input,
-            _intent, _outcome, ruling_metrics,
-            rendered_ruling_system, rendered_ruling_user,
-            ruling_raw_response, ruling_parse_error,
-            ruling_trimmed, ruling_trimmed_chars,
-            _pc, applied, rejected,
-            thread_dedup_rejections, reconcile_warnings,
-            actions, outcome_summary, ext_metrics,
-            extraction_event, errors, trace_id, turn_no,
-            config, diff_lines, changes, metrics,
-            narr_metrics, rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars,
-            _persist_result, _saved_beat,
+        _persist_ctx = _TurnPersistContext(
+            ctx=ctx, save_dir=save_dir, env=env, state=state,
+            narrative=narrative, user_input=user_input,
+            intent=_intent, outcome=_outcome, ruling_metrics=ruling_metrics,
+            rendered_ruling_system=rendered_ruling_system,
+            rendered_ruling_user=rendered_ruling_user,
+            ruling_raw_response=ruling_raw_response,
+            ruling_parse_error=ruling_parse_error,
+            ruling_trimmed=ruling_trimmed, ruling_trimmed_chars=ruling_trimmed_chars,
+            pc=_pc, applied=applied, rejected=rejected,
+            thread_dedup_rejections=thread_dedup_rejections,
+            reconcile_warnings=reconcile_warnings,
+            actions=actions, outcome_summary=outcome_summary,
+            ext_metrics=ext_metrics,
+            extraction_event=extraction_event, errors=errors,
+            trace_id=trace_id, turn_no=turn_no,
+            config=config, diff_lines=diff_lines, changes=changes,
+            metrics=metrics,
+            narr_metrics=narr_metrics,
+            rendered_narr_system=rendered_narr_system,
+            rendered_narr_user=rendered_narr_user,
+            narr_trimmed=narr_trimmed, narr_trimmed_chars=narr_trimmed_chars,
+            persist_result=_persist_result,
+            saved_beat=_saved_beat,
         )
+        _persist_gen = _persist_and_async_cleanup(_persist_ctx)
         try:
             async for _item in _persist_gen:
                 yield _item
@@ -404,8 +430,26 @@ def _strip_fallback(narration: str, *, trace_id: str, turn: int) -> str:
     return "\n".join(clean)
 
 
+def _get_stream_field(data: dict[str, Any] | None, stream_key: str, field_key: str, default: Any = None) -> Any:
+    """Safely get field from a stream: data.get(stream_key, {}).get(field_key, default)."""
+    if data is None:
+        return default
+    stream_data = data.get(stream_key)
+    if stream_data is None:
+        return default
+    return stream_data.get(field_key, default)
+
+
+def _get_nested(data: dict[str, Any], outer: str, inner: str, default: Any = None) -> Any:
+    """Safely get a nested field: data.get(outer, {}).get(inner, default)."""
+    outer_data = data.get(outer)
+    if outer_data is None:
+        return default
+    return outer_data.get(inner, default)
+
+
 async def _extract_phase(
-    env: Any, state: WorldState, narrative: str, ctx: TurnContext,
+    env: Environment, state: WorldState, narrative: str, ctx: TurnContext,
     intent: IntentEnvelope, outcome: RulesOutcome, config: EngineConfig,
     trace_id: str, turn_no: int, recent_turns: list[dict[str, Any]],
     narr_metrics: dict[str, Any], errors: list[dict[str, Any]],
@@ -472,17 +516,12 @@ async def _extract_phase(
     ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
 
     # Roll up per-stream token counts for the metrics dict
-    _tokens_in = sum(
-        (extraction_event.get(s) or {}).get("tokens_in", 0)
-        for s in ("scene", "state", "record", "narrate", "world")
-    )
-    _tokens_out = sum(
-        (extraction_event.get(s) or {}).get("tokens_out", 0)
-        for s in ("scene", "state", "record", "narrate", "world")
-    )
+    _stream_keys = ("scene", "state", "record", "narrate", "world")
+    _tokens_in = sum(_get_stream_field(extraction_event, s, "tokens_in", 0) for s in _stream_keys)
+    _tokens_out = sum(_get_stream_field(extraction_event, s, "tokens_out", 0) for s in _stream_keys)
     # Build per-stream breakdown for UI display
     _streams = {}
-    for s in ("scene", "state", "record", "narrate", "world"):
+    for s in _stream_keys:
         ev = extraction_event.get(s)
         if ev:
             _streams[s] = {
@@ -491,18 +530,13 @@ async def _extract_phase(
                 "tokens_out": ev.get("tokens_out", 0),
                 "skipped": ev.get("skipped", False),
             }
+    _record_keys = ("scene", "state", "record")
     ext_metrics = {
         "total_ms": round(ext_ms, 1),
         "tokens_in": _tokens_in,
         "tokens_out": _tokens_out,
-        "retries": sum(
-            len((extraction_event.get(s) or {}).get("retry_errors", []))
-            for s in ("scene", "state", "record")
-        ),
-        "retry_errors_by_stream": {
-            s: (extraction_event.get(s) or {}).get("retry_errors", [])
-            for s in ("scene", "state", "record")
-        },
+        "retries": sum(len(_get_stream_field(extraction_event, s, "retry_errors", [])) for s in _record_keys),
+        "retry_errors_by_stream": {s: _get_stream_field(extraction_event, s, "retry_errors", []) for s in _record_keys},
         "streams": _streams,
     }
 
@@ -517,7 +551,7 @@ async def _extract_phase(
 
 
 def _apply_phase(
-    state: WorldState, delta: StateMerge | None, record_result: Any | None,
+    state: WorldState, delta: StateMerge | None, record_result: RecordResult | None,
     config: EngineConfig, trace_id: str, turn_no: int, save_dir_str: str,
     errors: list[dict[str, Any]], narrative: str,
 ) -> tuple[WorldState, WorldState, StateMerge | None, dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[str], str]:
@@ -555,14 +589,14 @@ def _apply_phase(
 
 @dataclass
 class NarrateResult:
-    pc: Any = None
+    pc: PacingContext | None = None
     narrative: str = ""
     narr_metrics: dict[str, Any] | None = None
     rendered_narr_system: str = ""
     rendered_narr_user: str = ""
     narr_trimmed: bool = False
     narr_trimmed_chars: int = 0
-    new_scene: Any = None
+    new_scene: Scene | None = None
     smoothed_convergence: float = 0.0
 
 
@@ -572,9 +606,9 @@ class ExtractionResult:
     actions: list[str] | None = None
     outcome_summary: str = ""
     extraction_event: dict[str, Any] | None = None
-    record_result: Any = None
-    scene_result: Any = None
-    extraction_ctx: Any = None
+    record_result: RecordResult | None = None
+    scene_result: SceneExtractResult | None = None
+    extraction_ctx: _PostDeltaContext | None = None
     ext_metrics: dict[str, Any] | None = None
 
 
@@ -586,34 +620,57 @@ class PersistResult:
     post_turn_pending_beat: dict[str, Any] | None = None
 
 
-async def _persist_and_async_cleanup(
-    ctx: TurnContext, save_dir: Path, env: Any, state: WorldState,
-    narrative: str, user_input: str,
-    intent: IntentEnvelope, outcome: RulesOutcome, ruling_metrics: dict[str, Any],
-    rendered_ruling_system: str, rendered_ruling_user: str,
-    ruling_raw_response: str, ruling_parse_error: str | None,
-    ruling_trimmed: bool, ruling_trimmed_chars: int,
-    pc: Any, applied: dict[str, Any], rejected: list[dict[str, Any]],
-    thread_dedup_rejections: list[dict[str, Any]], reconcile_warnings: list[str],
-    actions: list[str], outcome_summary: str, ext_metrics: dict[str, Any],
-    extraction_event: dict[str, Any], errors: list[dict[str, Any]], trace_id: str, turn_no: int,
-    config: EngineConfig, diff_lines: list[str], changes: dict[str, Any], metrics: dict[str, Any],
-    narr_metrics: dict[str, Any], rendered_narr_system: str, rendered_narr_user: str,
-    narr_trimmed: bool, narr_trimmed_chars: int,
-    persist_result: PersistResult, saved_beat: dict[str, Any] | None,
-) -> AsyncIterator[tuple[str, Any]]:
-    """Build event, yield complete, run async cleanup (sanitize + world + save).
+@dataclass
+class _TurnPersistContext:
+    """Carries all data needed for event building, persistence, and async cleanup."""
+    ctx: TurnContext
+    save_dir: Path
+    env: Environment
+    state: WorldState
+    narrative: str
+    user_input: str
+    intent: IntentEnvelope
+    outcome: RulesOutcome
+    ruling_metrics: dict[str, Any]
+    rendered_ruling_system: str
+    rendered_ruling_user: str
+    ruling_raw_response: str
+    ruling_parse_error: str | None
+    ruling_trimmed: bool
+    ruling_trimmed_chars: int
+    pc: PacingContext | None
+    applied: dict[str, Any]
+    rejected: list[dict[str, Any]]
+    thread_dedup_rejections: list[dict[str, Any]]
+    reconcile_warnings: list[str]
+    actions: list[str]
+    outcome_summary: str
+    ext_metrics: dict[str, Any]
+    extraction_event: dict[str, Any]
+    errors: list[dict[str, Any]]
+    trace_id: str
+    turn_no: int
+    config: EngineConfig
+    diff_lines: list[str]
+    changes: dict[str, Any]
+    metrics: dict[str, Any]
+    narr_metrics: dict[str, Any]
+    rendered_narr_system: str
+    rendered_narr_user: str
+    narr_trimmed: bool
+    narr_trimmed_chars: int
+    persist_result: PersistResult
+    saved_beat: dict[str, Any] | None
 
-    Yields: phase events and complete event.
-    Mutates persist_result with (result_obj, final_metrics, final_state).
-    """
-    # Turn increment (single source of truth: here)
-    state = state.set_turn(state.meta.turn + 1)
 
-    if _is_cancel_requested(ctx):
-        return
-
-    # === Write: events.jsonl → atomic state.yaml → chronicle.md ===
+def _build_ruling_event(
+    intent: IntentEnvelope,
+    outcome: RulesOutcome,
+    ruling_metrics: dict[str, Any],
+    selected_beat: dict[str, Any] | None,
+    outcome_summary: str,
+) -> dict[str, Any]:
+    """Build the ruling dict for the turn event."""
     ruling_event: dict[str, Any] = {
         "intent_verb": intent.intent_verb,
         "intent": intent.intent,
@@ -624,7 +681,7 @@ async def _persist_and_async_cleanup(
         "tokens_in": ruling_metrics.get("tokens_in", 0),
         "tokens_out": ruling_metrics.get("tokens_out", 0),
         "outcome_summary": outcome_summary,
-        "selected_beat": ctx._selected_beat,
+        "selected_beat": selected_beat,
     }
     if outcome.rolled:
         ruling_event.update({
@@ -639,20 +696,31 @@ async def _persist_and_async_cleanup(
             "final_total": outcome.final_total,
             "band": outcome.band,
         })
+    return ruling_event
 
+
+def _build_turn_event(
+    pctx: _TurnPersistContext,
+    state: WorldState,
+    ruling_event: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the full turn event dict for events.jsonl."""
     _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    # NPC updates from scene extraction (observability)
-    npc_updates = ((extraction_event.get("scene") or {}).get("output") or {}).get("compendium_npc_update") or []
+    extraction_event = pctx.extraction_event
+    pc = pctx.pc
+    scene_data = extraction_event.get("scene")
+    scene_output = scene_data.get("output") if scene_data else None
+    npc_updates = scene_output.get("compendium_npc_update") if scene_output else []
     event = {
         "ts": _ts,
-        "trace_id": trace_id,
+        "trace_id": pctx.trace_id,
         "turn": state.meta.turn,
         "type": "turn",
-        "input": user_input,
-        "applied": applied,
-        "rejected": rejected,
-        "thread_dedup_rejections": thread_dedup_rejections,
-        "actions": actions,
+        "input": pctx.user_input,
+        "applied": pctx.applied,
+        "rejected": pctx.rejected,
+        "thread_dedup_rejections": pctx.thread_dedup_rejections,
+        "actions": pctx.actions,
         "ruling": ruling_event,
         "pacing_context": {
             "directive": pc.directive if pc else "",
@@ -667,51 +735,62 @@ async def _persist_and_async_cleanup(
         },
         "beat_candidates": [],
         "npc_updates": npc_updates,
-        "post_turn_pending_beat": saved_beat,
+        "post_turn_pending_beat": pctx.saved_beat,
         "allowed_beat_types": derive_allowed_beat_types(
             state.scene.scene_phase,
             directive=pc.directive if pc else "",
         ),
         "post_turn_location_id": state.location.id,
         "scene_phase": state.scene.scene_phase,
-        "narrate": {**narr_metrics, "prose": narrative},
-        "scene": {"total_ms": round(extraction_event.get("scene", {}).get("ms", 0), 1)},
-        "state": {"total_ms": round(extraction_event.get("state", {}).get("ms", 0), 1)},
-        "record": {"total_ms": round(extraction_event.get("record", {}).get("ms", 0), 1)},
-        "extract": ext_metrics,
+        "narrate": {**pctx.narr_metrics, "prose": pctx.narrative},
+        "scene": {"total_ms": round(_get_nested(extraction_event, "scene", "ms", 0), 1)},
+        "state": {"total_ms": round(_get_nested(extraction_event, "state", "ms", 0), 1)},
+        "record": {"total_ms": round(_get_nested(extraction_event, "record", "ms", 0), 1)},
+        "extract": pctx.ext_metrics,
         "extraction": extraction_event,
-        "changes": changes,
-        "reconcile_warnings": reconcile_warnings,
-        # Prompt logging (for turn viewer)
+        "changes": pctx.changes,
+        "reconcile_warnings": pctx.reconcile_warnings,
         "ruling_prompt": {
-            "output": ruling_raw_response,
-            "parse_error": ruling_parse_error,
-            "context_meta": _context_meta(rendered_ruling_system, rendered_ruling_user, ruling_trimmed, ruling_trimmed_chars),
+            "output": pctx.ruling_raw_response,
+            "parse_error": pctx.ruling_parse_error,
+            "context_meta": _context_meta(pctx.rendered_ruling_system, pctx.rendered_ruling_user, pctx.ruling_trimmed, pctx.ruling_trimmed_chars),
         },
         "narrate_prompt": {
-            "output": narrative,
-            "context_meta": _context_meta(rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars),
+            "output": pctx.narrative,
+            "context_meta": _context_meta(pctx.rendered_narr_system, pctx.rendered_narr_user, pctx.narr_trimmed, pctx.narr_trimmed_chars),
         },
     }
+    return event
+
+
+def _persist_events(
+    pctx: _TurnPersistContext,
+    state: WorldState,
+    event: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Write event, prompts, and chronicle to disk. Returns prompts_list."""
+    _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    extraction_event = pctx.extraction_event
+
     # Write stripped prompts to prompts.jsonl
     prompts_list = [
         {
             "ts": _ts,
-            "trace_id": trace_id,
+            "trace_id": pctx.trace_id,
             "turn": state.meta.turn,
             "stream": "ruling",
-            "rendered_system": rendered_ruling_system,
-            "rendered_user": rendered_ruling_user,
-            "context_meta": _context_meta(rendered_ruling_system, rendered_ruling_user, ruling_trimmed, ruling_trimmed_chars),
+            "rendered_system": pctx.rendered_ruling_system,
+            "rendered_user": pctx.rendered_ruling_user,
+            "context_meta": _context_meta(pctx.rendered_ruling_system, pctx.rendered_ruling_user, pctx.ruling_trimmed, pctx.ruling_trimmed_chars),
         },
         {
             "ts": _ts,
-            "trace_id": trace_id,
+            "trace_id": pctx.trace_id,
             "turn": state.meta.turn,
             "stream": "narrate",
-            "rendered_system": rendered_narr_system,
-            "rendered_user": rendered_narr_user,
-            "context_meta": _context_meta(rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars),
+            "rendered_system": pctx.rendered_narr_system,
+            "rendered_user": pctx.rendered_narr_user,
+            "context_meta": _context_meta(pctx.rendered_narr_system, pctx.rendered_narr_user, pctx.narr_trimmed, pctx.narr_trimmed_chars),
         },
     ]
     # Add extraction stream prompts from context_meta
@@ -721,50 +800,73 @@ async def _persist_and_async_cleanup(
         if ctx_meta:
             prompts_list.append({
                 "ts": _ts,
-                "trace_id": trace_id,
+                "trace_id": pctx.trace_id,
                 "turn": state.meta.turn,
                 "stream": stream_name,
                 "rendered_system": ctx_meta.get("system_text", ""),
                 "rendered_user": ctx_meta.get("user_text", ""),
                 "context_meta": ctx_meta,
             })
-    append_prompts(save_dir, prompts_list)
+    append_prompts(pctx.save_dir, prompts_list)
 
     append_chronicle(
-        save_dir,
-        f"\n\n## Turn {state.meta.turn} — {user_input}\n\n{narrative.strip()}",
+        pctx.save_dir,
+        f"\n\n## Turn {state.meta.turn} — {pctx.user_input}\n\n{pctx.narrative.strip()}",
     )
 
-    # Deferred: prior_history + final save_state (sanitizer and World
-    # now run as end-of-turn async phases after yield("complete"))
-    if outcome_summary and outcome_summary.strip():
+    # Deferred: prior_history
+    if pctx.outcome_summary and pctx.outcome_summary.strip():
         turn_no = state.meta.turn
-        state = state.add_prior_history_bullet(f"- [T{turn_no}] {outcome_summary}")
+        state = state.add_prior_history_bullet(f"- [T{turn_no}] {pctx.outcome_summary}")
 
-    result_obj = TurnResult(
+    return prompts_list
+
+
+def _build_turn_result(
+    pctx: _TurnPersistContext,
+    state: WorldState,
+    ruling_event: dict[str, Any],
+) -> TurnResult:
+    """Build the TurnResult object yielded to the caller."""
+    pc = pctx.pc
+    return TurnResult(
         turn=state.meta.turn,
-        trace_id=trace_id,
-        narrative=narrative,
-        state_delta=applied,
-        applied=applied,
-        rejected=rejected,
-        actions=actions,
-        diff=diff_lines,
-        changes=changes,
-        metrics=metrics,
-        errors=errors,
+        trace_id=pctx.trace_id,
+        narrative=pctx.narrative,
+        state_delta=pctx.applied,
+        applied=pctx.applied,
+        rejected=pctx.rejected,
+        actions=pctx.actions,
+        diff=pctx.diff_lines,
+        changes=pctx.changes,
+        metrics=pctx.metrics,
+        errors=pctx.errors,
         ruling=ruling_event or {},
-        outcome_summary=outcome_summary,
+        outcome_summary=pctx.outcome_summary,
         outcome_hint=pc.outcome_hint if pc else None,
         scene_phase=state.scene.scene_phase,
         summary=pc.summary if pc else "",
-        ts=_ts,
+        ts=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         state_snapshot=state,
-        post_turn_pending_beat=saved_beat,
+        post_turn_pending_beat=pctx.saved_beat,
     )
-    yield ("complete", result_obj)
 
-    # --- End-of-turn async window (lock held until generator completes) ---
+
+async def _run_async_cleanup(
+    pctx: _TurnPersistContext,
+    state: WorldState,
+    event: dict[str, Any],
+    prompts_list: list[dict[str, Any]],
+) -> AsyncIterator[tuple[str, Any]]:
+    """Run end-of-turn async window (sanitize, world, save)."""
+    trace_id = pctx.trace_id
+    turn_no = pctx.turn_no
+    config = pctx.config
+    env = pctx.env
+    extraction_event = pctx.extraction_event
+    metrics = pctx.metrics
+    persist_result = pctx.persist_result
+
     _log.debug(
         "turn.pre_complete trace_id=%s turn=%d state_turn=%d",
         trace_id, turn_no, state.meta.turn,
@@ -779,7 +881,7 @@ async def _persist_and_async_cleanup(
     try:
         if config.sanitize_every > 0:
             state, sanitize_ran = await sanitize_threads(
-                save_dir, state, config, trace_id=trace_id,
+                pctx.save_dir, state, config, trace_id=trace_id,
             )
             sanitize_ms = (asyncio.get_event_loop().time() - t_sanitize) * 1000
             _log.debug("turn.sanitize_complete trace_id=%s turn=%d sanitize_ran=%s sanitize_ms=%.1f", trace_id, state.meta.turn, sanitize_ran, sanitize_ms)
@@ -810,7 +912,7 @@ async def _persist_and_async_cleanup(
     t_world = asyncio.get_event_loop().time()
     try:
         world_state, beat_candidates, world_system_text, world_user_text, world_raw_response, world_usage = await _run_world_step(
-            env, state, narrative, pc, config, trace_id, turn_no,
+            env, state, pctx.narrative, pctx.pc, config, trace_id, turn_no,
         )
     except Exception as exc:
         _log.warning("world step failed: %s", exc, extra={"trace_id": trace_id})
@@ -837,15 +939,15 @@ async def _persist_and_async_cleanup(
         "rendered_system": world_system_text,
         "rendered_user": world_user_text,
     })
-    append_prompts(save_dir, prompts_list)
+    append_prompts(pctx.save_dir, prompts_list)
 
     # Update beat_candidates in event from async world step output
     event["beat_candidates"] = beat_candidates or []
 
     # Save event/state AFTER async window (with world data included)
     event["last_turn_state"] = state.to_dict()
-    append_event(save_dir, event)
-    save_state(save_dir, state)
+    append_event(pctx.save_dir, event)
+    save_state(pctx.save_dir, state)
     _log.debug("turn.async_save_complete trace_id=%s turn=%d", trace_id, state.meta.turn)
     _log.info(
         "turn.complete trace_id=%s turn=%d",
@@ -870,9 +972,37 @@ async def _persist_and_async_cleanup(
 
     yield ("phase", {"phase": "world_done", "metrics": final_metrics, "state": state.to_dict()})
 
-    persist_result.result_obj = result_obj
+    persist_result.result_obj = _build_turn_result(pctx, state, event.get("ruling", {}))
     persist_result.final_metrics = final_metrics
     persist_result.final_state = state
+
+
+async def _persist_and_async_cleanup(pctx: _TurnPersistContext) -> AsyncIterator[tuple[str, Any]]:
+    """Build event, yield complete, run async cleanup (sanitize + world + save).
+
+    Yields: phase events and complete event.
+    Mutates persist_result with (result_obj, final_metrics, final_state).
+    """
+    # Turn increment (single source of truth: here)
+    state = pctx.state.set_turn(pctx.state.meta.turn + 1)
+
+    if _is_cancel_requested(pctx.ctx):
+        return
+
+    # === Build event dict ===
+    ruling_event = _build_ruling_event(pctx.intent, pctx.outcome, pctx.ruling_metrics, pctx.ctx._selected_beat, pctx.outcome_summary)
+    event = _build_turn_event(pctx, state, ruling_event)
+
+    # === Persist events to disk ===
+    prompts_list = _persist_events(pctx, state, event)
+
+    # === Yield complete to caller ===
+    result_obj = _build_turn_result(pctx, state, ruling_event)
+    yield ("complete", result_obj)
+
+    # --- End-of-turn async window (lock held until generator completes) ---
+    async for chunk in _run_async_cleanup(pctx, state, event, prompts_list):
+        yield chunk
 
 
 async def warmup(config: EngineConfig) -> None:
