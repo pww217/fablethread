@@ -1,9 +1,9 @@
 currency_id: dollars
 starting_currency_amount: 50
 world_facts:
-  - The city is gripped by corruption spanning police, politics, and organized crime that no reform can touch
-  - Prohibition has created a black market that funds everything from speakeasies to bootleg operations and smuggling rings
-  - The economic depression has driven desperate people to crime while the wealthy insulate themselves behind wealth and influence
+  - The city runs on violence and money — gangsters control the docks, the unions, and the night; the police take a cut; ask too many questions and you get a bullet or a frame-up. The system works because the system works.
+  - Every man has an angle, and the angle is often still the man you knew — the betrayal is the recognition, not the knife.
+  - The city at night is not a character; it is a witness — it arranges itself so the thing you didn't want to see is unavoidable.
 
 constraints:
   # required-presence
@@ -19,176 +19,175 @@ world_rules:
   - No supernatural, paranormal, or sci-fi phenomena exist in this setting. All technology and social conditions are grounded in the 1930s United States.
 
 situation_archetypes:
-  - id: murder_investigation
-    tags: [murder, investigation, crime_scene]
+  - id: witness_who_tried_to_confess
+    tags: [witness, confession, police_complicity, refused_testimony]
     incompatible_with: []
-  - id: kidnapping
-    tags: [kidnapping, abduction, time_pressure]
+  - id: scandal_that_never_breaks
+    tags: [scandal, press_complicity, public_silence, known_truth]
     incompatible_with: []
-  - id: gang_war
-    tags: [gang, war, territorial_conflict]
+  - id: heist_that_wasnt_the_crime
+    tags: [heist, misdirection, simultaneous_crime, real_target]
     incompatible_with: []
-  - id: corruption_discovery
-    tags: [corruption, discovery, hidden_truth]
+  - id: murder_the_city_doesnt_want_solved
+    tags: [murder, sanctioned_killing, institutional_interest, closed_case]
     incompatible_with: []
-  - id: witness_protection
-    tags: [witness, protection, vulnerability]
+  - id: judge_who_kept_two_verdicts
+    tags: [judge, sealed_verdict, courthouse altar, sealed_record]
     incompatible_with: []
-  - id: heist_aftermath
-    tags: [heist, aftermath, crime_consequences]
+  - id: the_case_you_didnt_take
+    tags: [refused_case, returning_problem, recurring_file, unsought_work]
     incompatible_with: []
-  - id: blackmail
-    tags: [blackmail, leverage, coercion]
+  - id: the_informant_who_keeps_sending_notes
+    tags: [dead_informant, posthumous_contact, missing_person_mail]
     incompatible_with: []
-  - id: political_scandal
-    tags: [political, scandal, public_exposure]
+  - id: evidence_that_names_you
+    tags: [self_incriminating, victim_library, planted_or_chosen, dead_mans_letters]
     incompatible_with: []
-  - id: media_manipulation
-    tags: [media, manipulation, information_control]
+  - id: the_suspect_you_let_walk
+    tags: [prior_mercy, present_cost, returned_favor, framed_clear]
     incompatible_with: []
-  - id: judicial_rigging
-    tags: [judicial, rigging, system_abuse]
+  - id: the_one_honest_cop_in_the_precinct_with_a_reason_to_lie
+    tags: [honest_cop, necessary_lie, pressured_integrity, clean_room_dirty_corner]
     incompatible_with: []
+
 arc_categories:
-  - id: organized_crime_power_struggle
-    tags: [organized_crime, power_struggle, gang_conflict]
+  - id: the_reform_that_was_the_trap
+    tags: [reform, trap, folded_investigation, false_progress]
     incompatible_with: []
-  - id: institutional_corruption
-    tags: [institutional, corruption, systemic_rot]
+  - id: the_rot_that_passes_for_weather
+    tags: [inertia, background_corruption, no_conspiracy, ambient_rot]
     incompatible_with: []
-  - id: gang_territory_dispute
-    tags: [gang, territory, dispute_boundary]
+  - id: the_loyalty_that_costs_more_than_betrayal
+    tags: [loyalty, costly_binding, refusing_to_betray, weight_of_fidelity]
     incompatible_with: []
-  - id: political_conspiracy
-    tags: [political, conspiracy, hidden_agenda]
+  - id: the_story_the_paper_already_wrote_before_it_happened
+    tags: [press, prepared_narrative, mismatched_record, prewritten_news]
     incompatible_with: []
-  - id: underworld_betrayal
-    tags: [underworld, betrayal, loyalty_breakdown]
+  - id: the_turf_war_no_one_will_admit_is_over
+    tags: [turf_war, settled_quietly, fait_accompli, public_pretense]
     incompatible_with: []
-  - id: media_manipulation
-    tags: [media, manipulation, public_opinion_control]
+  - id: the_evidence_that_keeps_coming_back
+    tags: [destroyed_evidence, recurring_object, persistent_material, returns]
     incompatible_with: []
-  - id: judicial_rigging
-    tags: [judicial, rigging, system_abuse]
+  - id: the_witness_who_was_the_perpetrator
+    tags: [witness, hidden_role, inverting_testimony, complicit_witness]
     incompatible_with: []
-  - id: witness_intimidation
-    tags: [witness, intimidation, silence_threat]
+  - id: the_judge_with_two_verdicts
+    tags: [judge, sealed_verdict, dual_record, courthouse_secret]
     incompatible_with: []
-  - id: evidence_tampering
-    tags: [evidence, tampering, cover_up]
+  - id: the_racket_that_is_also_a_service
+    tags: [racket, working_service, institutional_care, extortion_and_aid]
     incompatible_with: []
-  - id: political_shakedown
-    tags: [political, shakedown, extortion]
+  - id: the_union_that_voted_against_itself
+    tags: [union, manipulated_vote, members_betrayed, rigged_referendum]
     incompatible_with: []
-  - id: union_infiltration
-    tags: [union, infiltration, labor_manipulation]
+  - id: the_cop_who_keeps_his_cut_in_a_church_envelope
+    tags: [cop, tithe, clean_dirty_mix, ritualized_corruption]
     incompatible_with: []
-  - id: police_compromise
-    tags: [police, compromise, ethical_erosion]
+  - id: the_shakedown_that_keeps_hands_off_the_one_thing
+    tags: [shakedown, off_limits_item, protected_secret, named_leverage]
     incompatible_with: []
-  - id: media_shakedown
-    tags: [media, shakedown, press_leverage]
+  - id: the_ward_boss_who_will_not_say_your_fathers_name
+    tags: [ward_boss, family_secret, held_name, forbearance_as_threat]
     incompatible_with: []
-  - id: racketeering_conspiracy
-    tags: [racketeering, conspiracy, organized_crime]
+  - id: the_suppression_that_targets_the_witness_not_the_evidence
+    tags: [suppression, witness_targeted, evidence_preserved, threat_to_person]
     incompatible_with: []
-  - id: witness_suppression
-    tags: [witness, suppression, intimidation_campaign]
-    incompatible_with: []
+
 character_dynamics:
-  - id: embedded_investigator
-    tags: [institutional_access, insider_knowledge, system_participant]
-    incompatible_with: [outsider_with_access, free_agent]
-  - id: outsider_with_access
-    tags: [external_perspective, limited_resources, outside_looking_in]
-    incompatible_with: [embedded_investigator, compromised_professional]
-  - id: compromised_professional
-    tags: [ethical_corruption, system_participant, moral_erosion]
-    incompatible_with: [outsider_with_access, free_agent]
-  - id: free_agent
-    tags: [independent, unaligned, self_reliant]
-    incompatible_with: [embedded_investigator, established_authority]
-  - id: established_authority
-    tags: [police_rank, political_power, institutional_control]
-    incompatible_with: [outsider_with_access, free_agent]
-  - id: information_broker
-    tags: [connected, secretive, leverage_holding]
+  - id: cop_with_one_clean_case_left
+    tags: [police, single_clean_record, last_integrity, isolated_loyalty]
+    incompatible_with: [the_one_outsider_the_city_lets_in, free_agent_who_keeps_getting_handed_the_same_case]
+  - id: the_one_outsider_the_city_lets_in
+    tags: [outsider, permitted_access, city_consent, conditional_inside]
+    incompatible_with: [cop_with_one_clean_case_left, professional_who_already_paid_off_the_debt]
+  - id: professional_who_already_paid_off_the_debt
+    tags: [professional, paid_in_full, prior_compromise, settled_account]
+    incompatible_with: [the_one_outsider_the_city_lets_in, free_agent_who_keeps_getting_handed_the_same_case]
+  - id: broker_who_believes_their_own_lies
+    tags: [broker, internalized_cover, self_deception, information_economy]
     incompatible_with: []
-  - id: displaced_elite
-    tags: [former_status, loss_of_power, adaptation_needed]
+  - id: authority_who_fears_their_own_rank
+    tags: [authority, rank_burden, promotion_trap, command_fear]
+    incompatible_with: [the_one_outsider_the_city_lets_in, free_agent_who_keeps_getting_handed_the_same_case]
+  - id: the_reformed_something
+    tags: [reformed, former_role, displaced_identity, prior_life]
     incompatible_with: []
-  - id: compromised_witness
-    tags: [trauma, cooperation, vulnerability]
+  - id: the_one_witness_left_breathing
+    tags: [witness, sole_survivor, kept_alive, conditional_life]
     incompatible_with: []
-pc_situation_schema:
-  - key: residence
-    description: Where does the PC live or operate from? (apartment, boarding house, hotel room)
-    required: false
-    persist: true
-  - key: office_location
-    description: Where is the PC's detective agency or office, and what shape is it in?
-    required: false
-    persist: true
-  - key: reputation
-    description: How is the PC known or unknown? To cops, criminals, or the press?
-    required: false
-  - key: family
-    description: What is the PC's family situation? (nearby, in another city, estranged, deceased)
-    required: false
+  - id: free_agent_who_keeps_getting_handed_the_same_case
+    tags: [independent, recurring_assignment, unsought_specialty, returned_work]
+    incompatible_with: [cop_with_one_clean_case_left, authority_who_fears_their_own_rank]
 
 npc_bonds:
   - id: former_partner
-    tags: [partnership, shared_history, trust]
-    description: The NPC was the PC's detective partner before the split — they know each other's tells, codes, and the case that ended the partnership.
-  - id: childhood_friend
-    tags: [youth, neighborhood, personal_history]
-    description: The NPC grew up with the PC on the same streets. They both got out different ways, but the old connection still carries weight.
-  - id: locked_up_together
-    tags: [prison, shared_confinement, cell_block]
-    description: The NPC and PC shared a cell block or holding cell. What passed between them there binds them still.
-  - id: debt_to_informant
-    tags: [underground, information, leverage]
-    description: The NPC is a former informant who saved the PC's skin on a dockyard case. The PC owes a favor that keeps getting called.
-  - id: old_war_buddy
-    tags: [war, veteran, trench]
-    description: The NPC served in the same unit as the PC overseas. The war is over but the habits — and the trust — stayed.
+    tags: [partnership, recurrence, unfinished_case]
+    description: The NPC was the PC's detective partner before the split — they know each other's tells, codes, and the case that ended the partnership. That case is back on one of their desks; neither will say which one of them wanted the other to take it.
   - id: corrupted_witness
-    tags: [testimony, corruption, court_case]
-    description: The NPC was a witness in a case the PC worked. The testimony fell apart, the case collapsed, and the PC still doesn't know whose hand was in it.
+    tags: [testimony, bribery, mutual_complicity, recurring_pressure]
+    description: The NPC was a witness in a case the PC worked; the PC paid to make the testimony fall apart. Now the witness wants paying again, and the price is no longer money. The proof of the bond is the crime.
+  - id: old_war_buddy
+    tags: [war, veteran, shared_change, mutual_silence]
+    description: The NPC served in the same unit as the PC overseas. One of them came back different; both know which one. Neither has said since.
+  - id: locked_up_together
+    tags: [prison, sacrifice, unequal_sentence, unspoken_debt]
+    description: The NPC and PC shared a cell block — and at sentencing the NPC took the months that should have been the PC's. They've both been out for years. Neither mentions it.
+  - id: debt_to_informant
+    tags: [informant, love_as_leverage, escalating_debt, dependency]
+    description: The NPC is a former informant who saved the PC's skin on a dockyard case. The informant loves the PC, which is why the favor keeps getting called in, and why each call costs more than the last.
+  - id: childhood_friend
+    tags: [childhood, prior_self, exposed_continuity, vulnerability]
+    description: The NPC grew up with the PC on the same streets and got out a different way. They are the only person in the city who knew the PC before the city made the PC what the PC is. Their continued existence is the PC's exposure.
   - id: family_connection
-    tags: [family, obligation, blood_tie]
-    description: The NPC is connected to the PC through family — a cousin, an in-law, a parent's old friend. The tie is personal, not professional.
+    tags: [family, prior_cover, debt_repayment, loved_target]
+    description: The NPC is connected to the PC through family — and the family once covered for the PC, which the PC will now be asked to repay against someone the PC loves more.
   - id: case_from_before
-    description: The NPC and PC crossed paths on a previous case — one helped, one hindered.
-    tags: [previous_case, shared_history]
-    incompatible_with: []
+    tags: [prior_case, polite_enmity, shared_record, known_history]
+    description: The NPC and PC crossed paths on a previous case — one helped, one hindered. Both know perfectly well which did which. Both intend to keep pretending it's a polite question when they meet again.
 
 scene_detail_bundles:
   - id: back_alley
-    items: [a fire escape ladder bolted to the brickwork, a payphone with the receiver dangling]
+    items: [a fire escape ladder bolted to the brickwork, a payphone with the receiver dangling, a child's shoe placed sole-up beneath the dial]
     conditions: [wet from last night's rain, the streetlamp out]
     sensory: [the hiss of a flickering neon sign, footsteps echoing from the next block]
   - id: police_precinct
-    items: [a typewriter with a stuck 'e' key, a filing cabinet with the bottom drawer padlocked]
+    items: [a typewriter with a stuck 'e' key, a filing cabinet with the bottom drawer padlocked, a duty board with one name scraped off with a knife — the names above and below are clean]
     conditions: [the floor slick from tracked-in rain, smoke hanging under the ceiling lights]
     sensory: [the clatter of a teletype machine, the smell of stale coffee and cheap tobacco]
   - id: speakeasy
-    items: [a brass rail worn smooth by shoe leather, a glass with lipstick on the rim]
+    items: [a brass rail worn smooth by shoe leather, a glass with lipstick on the rim, a phonograph cylinder labeled in a hand the PC recognizes as their mother's]
     conditions: [the room hazy with cigarette smoke, the music from the phonograph skipping]
     sensory: [the low laughter from a back room, the clink of glasses behind the bar]
   - id: hotel_room
-    items: [a telephone with the cord cut, a hat left on the bedpost]
+    items: [a telephone with the cord cut, a hat left on the bedpost, a second hat on the other bedpost identical to the PC's — which the PC has not yet removed from their own head]
     conditions: [the radiator knocking, the window onto a fire escape that doesn't reach the ground]
     sensory: [the drip of a leaky faucet, voices from the room next door through thin walls]
   - id: dockyard
-    items: [a crane with its load suspended halfway, a Customs manifest with a page torn out]
+    items: [a crane with its load suspended halfway, a Customs manifest page folded into a paper bird and set on the bollard]
     conditions: [thick fog rolling off the water, the pier slick with oil]
     sensory: [the clang of metal on metal from a warehouse, the deep horn of a departing freighter]
   - id: rooftop_chase
     items: [a water tower with a loose ladder, a fire escape that ends six feet short]
-    conditions: [the tar roof blistering in the sun, the gap between buildings wider than it looks]
+    conditions: [the tar roof blistering in the sun, the gap between buildings wider than it looks, the ladder's rungs missing every third one in a pattern as if someone climbed who already knew]
     sensory: [the wail of a siren from the street below, the clatter of a loose antenna in the wind]
   - id: morgue_basement
-    items: [a body drawer half-open with a tag attached, a dictaphone with a half-finished recording]
+    items: [a body drawer half-open with a tag attached, a dictaphone with a half-finished recording, a toe tag written out with the PC's home address]
     conditions: [the fluorescent light buzzing, the floor drain stained]
     sensory: [the sharp smell of formaldehyde, the hum of the refrigeration unit]
+
+pc_situation_schema:
+  - key: the_address_you_dont_give_cabbies
+    description: Where does the PC actually sleep, and why won't they say it to a stranger? (Apartment, boarding house, hotel room — and what the silence around the address is for.)
+    required: false
+    persist: true
+  - key: the_room_where_you_take_cases_you_shouldnt
+    description: Where does the PC take the work they won't take downtown — what's painted on the door, and what's not on the lease?
+    required: false
+    persist: true
+  - key: the_name_the_city_uses_for_you_when_its_talking_to_itself
+    description: Not how cops greet the PC to their face, but what the city calls the PC when the city is talking to itself.
+    required: false
+  - key: the_people_who_would_be_safer_if_you_hadnt_known_them
+    description: Whose name has been made more dangerous by association with the PC? (Family, lover, partner, witness — and which of them is still alive.)
+    required: false
