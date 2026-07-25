@@ -165,7 +165,7 @@ def _record_fallback() -> None:
 
 
 async def _check_health(host: str) -> bool:
-    """Check if LLM host is healthy via /health endpoint. Results cached for 30s."""
+    """Check if LLM host is healthy via /v1/models endpoint. Results cached for 30s."""
     now = time.monotonic()
     if host in _health_cache:
         last_time, healthy = _health_cache[host]
@@ -179,8 +179,8 @@ async def _check_health(host: str) -> bool:
             url = url[:-4]
         timeout = httpx.Timeout(connect=2.0, read=3.0, write=5.0, pool=10.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.get(f"{url}/health")
-        healthy = resp.status_code == 200
+            resp = await client.get(f"{url}/v1/models")
+        healthy = resp.status_code == 200 and "data" in (resp.json() or {})
         _health_cache[host] = (now, healthy)
         return healthy
     except Exception:
