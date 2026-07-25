@@ -17,12 +17,11 @@ Generate a SeedState JSON for a new playthrough. Wrap your entire response in a 
 
 {% if pool_selection %}
 ## Seeded context
-Four independently selected narrative dimensions. They are NOT a menu — weave them into something coherent. Tension between them is expected.
+Three independently selected narrative dimensions. They are NOT a menu — weave them into something coherent. Tension between them is expected.
 
 - **SITUATION ARCHETYPE** (`{{ pool_selection.situation.id }}`): The pressure or tension they walk into.
 - **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Longer-term narrative direction. Scaffold the `long_term_objective` around this category's pattern — shape its stakes, escalation mechanism, and resolution structure to match. Not a label; a structural constraint. The objective should be unrecognizable if you swapped it for a different arc_category.
 - **CHARACTER DYNAMIC** (`{{ pool_selection.character_dynamic.id }}`): {pc.name}'s position relative to power structures. Their bio must be consistent with this (trusted_insider → show community ties; free_agent → show independence).
-- **MORAL PRESSURE** (`{{ pool_selection.moral_pressure.id }}`): The ethical dilemma driving immediate personal stakes.
 {% endif %}
 
 ## Schema

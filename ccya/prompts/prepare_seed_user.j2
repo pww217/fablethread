@@ -64,7 +64,6 @@ Only generate compendium NPCs when they serve a necessary narrative function tie
 SITUATION ARCHETYPE: {{ pool_selection.situation.id }} (tags: {{ pool_selection.situation.tags | join(", ") }})
 ARC CATEGORY: {{ pool_selection.arc.id }} (tags: {{ pool_selection.arc.tags | join(", ") }})
 CHARACTER DYNAMIC: {{ pool_selection.character_dynamic.id }} (tags: {{ pool_selection.character_dynamic.tags | join(", ") }})
-MORAL PRESSURE: {{ pool_selection.moral_pressure.id }} (tags: {{ pool_selection.moral_pressure.tags | join(", ") }})
 {% if pool_selection and pool_selection.npc_bond %}
 NPC BOND (create a unique description — do not use the raw template text): {{ pool_selection.npc_bond.description }}
 {% endif %}
@@ -75,7 +74,7 @@ SCENE BUNDLE "{{ pool_selection["scene_bundle"]["id"] }}":
     Sensory: {{ pool_selection["scene_bundle"]["sensory"] | join(", ") }}
 {% endif %}
 
-These four elements shape your generation. The situation archetype defines the opening moment's pressure type; arc category shapes longer-term narrative direction with escalation potential; character dynamic places the PC within power structures and relationships; moral pressure creates immediate ethical tension that informs the campaign arc.
+These three elements shape your generation. The situation archetype defines the opening moment's pressure type; arc category shapes longer-term narrative direction with escalation potential; character dynamic places the PC within power structures and relationships.
 
 Recent events should naturally lead into the situation archetype — they are days/weeks before the opening, showing what just shifted in this world. World state must establish permanent pressures relevant to arc category (not nebulous lore; each fact should affect gameplay choices like border closures, banned technologies, faction blockades).
 {% endif %}

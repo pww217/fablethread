@@ -144,7 +144,7 @@ class PcSituationSchemaEntry(BaseModel):
 
 
 class PoolEntry(BaseModel):
-    """Base entry for archetype pools (situation, arc, character, moral, npc_bond)."""
+    """Base entry for archetype pools (situation, arc, character, npc_bond)."""
 
     id: str
     tags: list[str] = Field(default_factory=list)
@@ -188,7 +188,6 @@ class ScenarioBrief(BaseModel):
     situation_archetypes: list[PoolEntry] = Field(default_factory=list, max_length=16)
     arc_categories: list[PoolEntry] = Field(default_factory=list, max_length=20)
     character_dynamics: list[PoolEntry] = Field(default_factory=list, max_length=12)
-    moral_pressures: list[PoolEntry] = Field(default_factory=list, max_length=10)
     npc_bonds: list[PoolEntry] = Field(default_factory=list, max_length=8)
     scene_detail_bundles: list[SceneDetailBundle] = Field(default_factory=list, max_length=8)
     currency_id: str = ""
@@ -372,7 +371,6 @@ def validate_pack(pack: Pack, pack_id: str | None = None) -> None:
         ("situation_archetypes", pack.scenario.situation_archetypes if pack.scenario else []),
         ("arc_categories", pack.scenario.arc_categories if pack.scenario else []),
         ("character_dynamics", pack.scenario.character_dynamics if pack.scenario else []),
-        ("moral_pressures", pack.scenario.moral_pressures if pack.scenario else []),
         ("npc_bonds", pack.scenario.npc_bonds if pack.scenario else []),
     ]
     for pool_name, entries in pool_fields:

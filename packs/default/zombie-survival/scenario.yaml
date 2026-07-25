@@ -120,38 +120,6 @@ character_dynamics:
     tags: [former_status, loss_of_power, adaptation_needed]
     incompatible_with: []
 
-moral_pressures:
-  - id: survival_vs_humanity
-    tags: [survival, humanity, moral_cost]
-    incompatible_with: []
-  - id: protect_the_vulnerable
-    tags: [protection, vulnerability, sacrifice]
-    incompatible_with: []
-  - id: resource_allocation
-    tags: [resource, allocation, fairness]
-    incompatible_with: []
-  - id: truth_control
-    tags: [truth, control, information_power]
-    incompatible_with: []
-  - id: leadership_burden
-    tags: [leadership, burden, responsibility_weight]
-    incompatible_with: []
-  - id: trust_dynamics
-    tags: [trust, dynamics, relationship_risk]
-    incompatible_with: []
-  - id: quarantine_choice
-    tags: [isolation, protection, ethics_of_exclusion]
-    incompatible_with: []
-  - id: cure_or_supplies
-    tags: [resources, hope, pragmatism]
-    incompatible_with: []
-  - id: stranger_at_the_gate
-    tags: [trust, mercy, security]
-    incompatible_with: []
-  - id: last_stand_decision
-    tags: [sacrifice, defense, survival_of_group]
-    incompatible_with: []
-
 npc_bonds:
   - id: settlement_founder
     tags: [community, founding, shared_labor]
