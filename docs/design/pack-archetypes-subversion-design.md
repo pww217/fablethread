@@ -1,6 +1,6 @@
 # Pack Archetype Subversion — Compelling Rewrite — Design Document
 
-> **Status:** scoping
+> **Status:** implemented
 > **Source of truth:** [docs/findings/pack-archetypes-inspiration.md](../../findings/pack-archetypes-inspiration.md) (inventory of current state)
 > **Related tickets:**
 > - [I-43: Subvert and sharpen seed pools across all 5 default packs with maximum per-entry diversity](../../roadmap/improvements/I-43-pack-archetypes-subversion.md)

@@ -1,6 +1,6 @@
 ---
 title: "Subvert and sharpen seed pools across all 5 default packs with maximum per-entry diversity"
-status: scoping
+status: done
 urgency: 3
 size: medium
 created: 2026-07-25
