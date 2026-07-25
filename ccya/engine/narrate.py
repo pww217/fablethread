@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from jinja2 import Environment
+
 from ccya.engine.config import _render
 from ccya.engine.turn_context import _is_cancel_requested
 from ccya.engine.names import generate_npc_names_split
@@ -28,27 +30,38 @@ _log = logging.getLogger(__name__)
 
 
 def _narrate_messages(
-    env: Any,
+    env: Environment | None,
     state: WorldState,
     user_input: str,
     *,
-    recent_turns: list[dict[str, Any]] = [],
-    narrator_rules: list[str] = [],
-    world_rules: list[str] = [],
+    recent_turns: list[dict[str, Any]] | None = None,
+    narrator_rules: list[str] | None = None,
+    world_rules: list[str] | None = None,
     rules_outcome: "RulesOutcome | None" = None,
-    npc_name_pool: dict[str, list[str]] = {},
+    npc_name_pool: dict[str, list[str]] | None = None,
     pending_beat: dict[str, Any] | None = None,
     pacing_context: "PacingContext | None" = None,
     ages: dict[str, int] | None = None,
     pc_allegiance: str | None = None,
     turn_no: int = 0,
-    world_factions: list[dict[str, str]] = [],
+    world_factions: list[dict[str, str]] | None = None,
     npc_roster: list[dict[str, Any]] | None = None,
     arc_ttl: int = 3,
     thread_ttl: int = 3,
 ) -> list[dict[str, str]]:
     if npc_roster is None:
         npc_roster = build_npc_roster({nid: entry.model_dump() for nid, entry in (state.compendium.npcs or {}).items()}, turn_no=turn_no)
+    if recent_turns is None:
+        recent_turns = []
+    if narrator_rules is None:
+        narrator_rules = []
+    if world_rules is None:
+        world_rules = []
+    if npc_name_pool is None:
+        npc_name_pool = {}
+    if world_factions is None:
+        world_factions = []
+    assert env is not None, "Jinja Environment must be set before calling _narrate_messages"
     _log.debug(
         "narrate entry turn=%d npc_roster_len=%d",
         turn_no, len(npc_roster),

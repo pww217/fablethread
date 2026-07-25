@@ -148,9 +148,9 @@ def _list_saves() -> list[dict[str, Any]]:
                                 if evt.get("ts"):
                                     last_modified = evt.get("ts")
                             except json.JSONDecodeError:
-                                pass
+                                _log.debug("Skipping malformed event in save listing")
             except OSError:
-                pass
+                _log.debug("Save dir entry unreadable: %s", entry)
 
         from ccya.state.io import load_state
         try:
@@ -574,7 +574,7 @@ def _resolve_npc_ties(state: WorldState) -> WorldState:
         if scenario and scenario.npc_bonds:
             tie_lookup = {b.id: b.description for b in scenario.npc_bonds if b.description}
     except Exception:
-        pass
+        _log.debug("Failed to build NPC tie lookup from pack")
 
     updated: dict[str, NPCEntry] = {}
     for key, entry in npcs.items():
@@ -699,6 +699,7 @@ async def new_game_generate_pack(request: Request):
         tags = _json.loads(tone_tags_raw)
         rules = _json.loads(world_rules_raw)
     except Exception:
+        _log.debug("Failed to parse tone_tags/world_rules, using defaults")
         tags = []
         rules = []
 

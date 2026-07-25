@@ -24,7 +24,7 @@ _log = logging.getLogger(__name__)
 
 
 def _ruling_messages(
-    env: Environment,
+    env: Environment | None,
     state: WorldState,
     user_input: str,
     *,
@@ -36,6 +36,7 @@ def _ruling_messages(
     beat_candidates: list[dict[str, Any]] | None = None,
     allowed_beat_types: list[str] | None = None,
 ) -> list[dict[str, str]]:
+    assert env is not None, "Jinja Environment must be set before calling _ruling_messages"
     pc = state.pc
     location = state.location
     system_text = _render(env, "ruling_system.j2", {})

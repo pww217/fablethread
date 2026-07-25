@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+
+from jinja2 import Environment
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +30,7 @@ class TurnContext:
     packing: dict[str, Any]
 
     # Internal tracking (set during setup, consumed by phases)
-    _env: Any = None  # Jinja env built in run_turn
+    _env: Environment | None = None  # Jinja env built in run_turn
     _rendered_ruling_system: str = ""
     _rendered_ruling_user: str = ""
     _ruling_raw_response: str = ""

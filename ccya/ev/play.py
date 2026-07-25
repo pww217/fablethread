@@ -670,11 +670,12 @@ def _llm_session(
                 import subprocess
                 git_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()[:7]
             except Exception:
-                pass
+                _log.debug("Failed to get git SHA")
             try:
                 import subprocess
                 git_branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()
             except Exception:
+                _log.debug("Failed to get git branch")
                 pass
             report_ctx = {
                 "pack": pack or "unknown",
