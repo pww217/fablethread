@@ -248,6 +248,8 @@ async def get_turn(input: str = ""):
 
     async def event_stream():
         try:
+            # Clear any previous result for this turn
+            _app_mod._set_turn_result(None)
             run_turn_generator = run_turn(
                 _app_mod.SAVE_DIR,
                 user_input,
@@ -305,6 +307,28 @@ async def get_turn(input: str = ""):
                     ch = result.changes if isinstance(result.changes, dict) else {}
                     # Format ts field for display (engine stores UTC ISO, UI gets human-readable)
                     _ts_display = _format_ts(result.ts)
+                    # Store result for mobile reconnect/resume
+                    _app_mod._set_turn_result({
+                        "turn": result.turn,
+                        "trace_id": result.trace_id,
+                        "narrative": result.narrative,
+                        "actions": result.actions,
+                        "rejected": result.rejected,
+                        "errors": result.errors,
+                        "diff": result.diff,
+                        "changes": ch,
+                        "change_lines": format_change_lines(ch),
+                        "state": result.state_snapshot.to_dict(),
+                        "metrics": result.metrics,
+                        "ruling": result.ruling,
+                        "outcome_summary": result.outcome_summary,
+                        "debug_mode": _app_mod.engine_config.debug_mode,
+                        "outcome_hint": result.outcome_hint,
+                        "scene_phase": result.scene_phase,
+                        "summary": result.summary,
+                        "post_turn_pending_beat": result.post_turn_pending_beat,
+                        "ts": _ts_display,
+                    })
                     yield {
                         "event": "turn_complete",
                         "data": json.dumps(
@@ -387,6 +411,17 @@ async def delete_last_turn():
 
     _log.info("delete_last_turn turn=%s", last_event.get("turn"))
     return JSONResponse({"actions": actions, "turn": last_event.get("turn")})
+
+
+@_app_mod.app.get("/turn/status")
+def get_turn_status():
+    """Return status of the current/last turn for mobile reconnect/resume."""
+    if _app_mod._is_turn_in_progress():
+        return JSONResponse({"status": "running"})
+    result = _app_mod._get_turn_result()
+    if result is not None:
+        return JSONResponse({"status": "completed", "result": result})
+    return JSONResponse({"status": "idle"})
 
 
 
