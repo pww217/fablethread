@@ -10,7 +10,7 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig, _find_json
 from ccya.llm_client import chat_with_config as llm_chat, strip_thinking
-from ccya.models import CompendiumNpcUpdate
+from ccya.models import CompendiumNpcAdd, CompendiumNpcUpdate
 
 _log = logging.getLogger(__name__)
 
@@ -86,20 +86,30 @@ def _capitalize_inventory_names(items: list[Any]) -> None:
 
 
 def _dedup_compendium_update(
-    proposed: "CompendiumNpcUpdate",
+    proposed: "CompendiumNpcAdd | CompendiumNpcUpdate",
     existing_npcs: list[dict[str, Any]],
     existing_ids: set[str] | None = None,
-) -> "CompendiumNpcUpdate":
+) -> "CompendiumNpcAdd | CompendiumNpcUpdate":
     """
     If proposed.name matches any existing NPC's name (case-insensitive),
     redirect proposed.id to the existing NPC's id. If proposed.id already
     exists in the compendium, redirect to it. Otherwise return proposed unchanged.
+    
+    For CompendiumNpcUpdate (which has no name field), only checks if
+    proposed.id already exists in the compendium.
     """
-    if not proposed.name:
+    # Get name if available (CompendiumNpcAdd has it, CompendiumNpcUpdate doesn't)
+    proposed_name = getattr(proposed, "name", None)
+    
+    if not proposed_name:
+        # No name to match on — only check if id already exists
+        proposed_id = getattr(proposed, "id", "").lower().strip()
+        if existing_ids and proposed_id in existing_ids:
+            return proposed.model_copy(update={"id": proposed_id})
         return proposed
 
-    candidate = proposed.name.strip().lower()
-    proposed_id = proposed.id.lower().strip()
+    candidate = proposed_name.strip().lower()
+    proposed_id = getattr(proposed, "id", "").lower().strip()
 
     # Check 1: proposed.id already exists in compendium → redirect
     if existing_ids and proposed_id in existing_ids:
@@ -134,6 +144,19 @@ def _coerce_scene_json(j: dict[str, Any]) -> dict[str, Any]:
             else:
                 coerced.append(item)
         j["compendium_npc_update"] = coerced
+
+    # Coerce compendium_npc_add entries that are strings to dicts
+    if isinstance(j.get("compendium_npc_add"), list):
+        coerced = []
+        for item in j["compendium_npc_add"]:
+            if isinstance(item, str):
+                coerced.append({"id": item.lower().replace(" ", "_").strip()})
+            elif isinstance(item, dict) and "id" not in item:
+                name = item.get("name", "") or str(item).lower()
+                coerced.append({"id": name.replace(" ", "_").strip(), **item})
+            else:
+                coerced.append(item)
+        j["compendium_npc_add"] = coerced
 
     # Coerce malformed thread_add (LLM returns [] or {} when no new thread)
     if isinstance(j.get("thread_add"), list):

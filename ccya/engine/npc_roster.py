@@ -91,7 +91,7 @@ def _compute_npc_score(entry: dict[str, Any], comp: dict[str, Any], turn_no: int
     else:
         recency = 0
     richness = 0
-    for field in ("motivation", "fear", "leverage", "tie"):
+    for field in ("motivation", "fear", "leverage", "disposition", "tie"):
         val = entry.get(field)
         if val and val != "unknown":
             richness += 1
@@ -142,6 +142,7 @@ def build_npc_roster(
                 "name": name,
                 "title": _strip_non_ascii(entry.get("title") or ""),
                 "bio": (entry.get("bio") or "").strip() or None,
+                "disposition": entry.get("disposition") or None,
                 "presence": presence,
                 "motivation": entry.get("motivation") or None,
                 "fear": entry.get("fear") or None,

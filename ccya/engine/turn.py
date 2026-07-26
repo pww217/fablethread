@@ -710,7 +710,7 @@ def _build_turn_event(
     pc = pctx.pc
     scene_data = extraction_event.get("scene")
     scene_output = scene_data.get("output") if scene_data else None
-    npc_updates = scene_output.get("compendium_npc_update") if scene_output else []
+    npc_updates = (scene_output.get("compendium_npc_add") or []) + (scene_output.get("compendium_npc_update") or []) if scene_output else []
     event = {
         "ts": _ts,
         "trace_id": pctx.trace_id,

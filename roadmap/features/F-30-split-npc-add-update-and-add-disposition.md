@@ -1,6 +1,6 @@
 ---
 title: "Split NPC Add/Update ops and add disposition field"
-status: idea
+status: testing
 urgency: 2
 size: medium
 created: 2026-07-05
@@ -8,6 +8,8 @@ ticket_id: F-30
 labels:
   - engine
   - npc
+design: docs/design/F-30-split-npc-add-update-and-disposition.md
+plan: plans/F-30-split-npc-add-update-and-disposition.md
 ---
 
 ## Problem

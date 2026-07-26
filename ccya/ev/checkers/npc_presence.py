@@ -13,7 +13,7 @@ VALID_PRESENCE = {"present", "nearby", "known", "departed", "archived", None}
 
 @register_checker(
     "npc_presence", "deterministic",
-    requires_fields=["applied.compendium_npc_update"],
+    requires_fields=["applied.compendium_npc_add", "applied.compendium_npc_update"],
     description="NPC presence validity, departed field compliance, scene cap",
 )
 def npc_presence(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:

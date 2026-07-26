@@ -28,34 +28,49 @@ Decision rule: spatially proximate → `nearby`; physically left → `known`; ca
 
 ```json
 {
-   "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "motivation": "...", "fear": "...", "leverage": "...", "tie": "...", "presence": "present|nearby|known|departed", "position": "...", "last_seen_location": "optional location name"}]
+    "compendium_npc_add": [{"id": "...", "name": "...", "title": "...", "bio": "...", "disposition": "...", "motivation": "...", "fear": "...", "leverage": "...", "tie": "..."}],
+    "compendium_npc_update": [{"id": "...", "bio": "...", "disposition": "...", "presence": "present|nearby|known|departed", "position": "...", "last_seen_location": "optional location name"}]
 }
 ```
 
-## Field rules
+## Two-channel NPC extraction
 
-`compendium_npc_update`: **UNIVERSAL NPC CHANNEL** — use for ALL NPC changes. Each update carries the full set of fields that have new information:
+Use these two channels to emit NPC changes:
 
-- `id`: snake_case_id
-- `name`: Display Name (omit if unchanged). Must be first name + surname (at least two words, no titles/prefixes).
-- `title`: Optional title (omit if unchanged).
-- `bio`: TWO SENTENCES: (1) appearance and demeanor — how they are physically presented, bearing/posture/expression. (2) tangible facts about who they are as a person — background details, habits, reputation. Must be relevant to the story, not generic filler like "is a merchant". Omit if unchanged.
+- **compendium_npc_add** — NEW NPCs only. If the NPC is not in `known_characters`, put them here. This channel carries the full write-once set: identity + disposition + psychological fields.
+- **compendium_npc_update** — EXISTING NPCs only. If the NPC exists in the compendium, put them here. This channel carries only updatable fields: bio, disposition, presence, position, departure info.
+
+**The rule is simple:** If the NPC is not in `known_characters`, put them in `compendium_npc_add`. If they exist in the compendium, put them in `compendium_npc_update`. Never put the same NPC in both channels.
+
+### compendium_npc_add fields (write-once)
+
+- `id`: snake_case_id (mandatory)
+- `name`: Display Name (mandatory for new NPCs). Must be first name + surname (at least two words, no titles/prefixes).
+- `title`: Optional title.
+- `bio`: TWO SENTENCES: (1) appearance and demeanor — how they are physically presented, bearing/posture/expression. (2) tangible facts about who they are as a person — background details, habits, reputation. Must be relevant to the story, not generic filler like "is a merchant".
+- `disposition`: 2-3 freeform adjectives describing speech style, demeanor, and posture. Examples: "Elderly, gravelly voice, hunches forward" or "Sharp-eyed, speaks rapidly, fidgets with hands". Give them something specific.
 - `motivation`: what this NPC fundamentally wants. Mandatory for every character.
 - `fear`: what this NPC is most afraid of.
 - `leverage`: what this NPC can offer, threaten, or withhold.
 - `tie`: durable personal history — to the PC, or between two NPCs (name both parties).
+
+### compendium_npc_update fields (updatable)
+
+- `id`: snake_case_id (mandatory — use existing NPC ID from compendium)
+- `bio`: Updated bio (omit if unchanged).
+- `disposition`: Updated disposition (omit if unchanged).
 - `presence`: present|nearby|known|departed. REQUIRED for every NPC update — never omit it.
 - `position`: Where the NPC is spatially in the scene. 5-7 words max. Only spatial location — not what they're doing. Include spatial barriers and visibility constraints (e.g., 'behind a door, not visible', 'across the bar', 'standing in doorway blocking exit', 'at player's elbow'). Update when narration changes the NPC's spatial location.
-- `last_seen_location`: Only set when the narration explicitly places the NPC in a location different from their last. Omit if the NPC is at their last known location — the engine will handle location tracking. This field is how indicate an NPC followed you to a new scene (e.g., "goes with the player to", "follows the player to", "is at the new scene with").
-- `departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. If the narration doesn't specify a reason, infer from context (e.g., "unknown — No clear explanation found in narration; NPC left without farewell."). Examples: "killed in battle — Caught in the crossfire defending the village gates.", "sailed away — Booked passage on the evening tide, destination unknown."
+- `last_seen_location`: Only set when the narration explicitly places the NPC in a location different from their last. Omit if the NPC is at their last known location — the engine will handle location tracking.
+- `departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. If the narration doesn't specify a reason, infer from context.
 
-### How to use compendium_npc_update
+### How to use the two channels
 
-- **NPC enters scene:** Set `presence: "present"`. For first-time NPCs, include `name`, `bio` (mandatory), and optionally `title`. For known NPCs, only set `presence`/`position`.
-- **NPC behavior changes:** Update `position` only when the NPC's spatial location changes.
-- **Durable identity updates:** Update `name`, `title`, `bio`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
-- **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes. **EXCEPTION:** If an NPC was previously absent or known and the narration now places them in the scene or nearby, you MUST emit an update even if their other fields haven't changed.
-- **Re-promotion:** If narration places an NPC in the scene (e.g., "Elara Vance is already there, waiting by the door"), set `presence: "present"` regardless of their current value. Do NOT create a new entry — update the existing one.
+- **New NPC enters scene:** Put in `compendium_npc_add` with `name`, `bio` (mandatory), `disposition`, and `motivation`. Optionally include `fear`, `leverage`, `tie` if narration reveals them.
+- **Known NPC enters scene:** Put in `compendium_npc_update` with `presence: "present"` and optionally `position`. Do NOT include write-once fields (name, motivation, fear, leverage, tie).
+- **Known NPC behavior changes:** Put in `compendium_npc_update` with `position` only when spatial location changes.
+- **New facts about known NPC:** Put in `compendium_npc_update` with updated `bio`, `disposition`, or other updatable fields. Do NOT include write-once fields.
+- **Known NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes. **EXCEPTION:** If an NPC was previously absent or known and the narration now places them in the scene or nearby, you MUST emit an update even if their other fields haven't changed.
 
 
 
@@ -65,14 +80,14 @@ Decision rule: spatially proximate → `nearby`; physically left → `known`; ca
 - For new NPCs, generate a stable `snake_case` ID from their name/title. Examples: `"scarred_tough"`, `"guard_captain_renn"`.
 - If an NPC is known from the compendium, use their existing compendium ID — do NOT create a new ID.
 - When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC.**
-- **Dedup — mandatory pre-check:** Before emitting `compendium_npc_update`, check the `known_characters` compendium. If the NPC's name or title matches an existing entry (case-insensitive), use that entry's ID. NEVER create a new entry for an NPC that already exists.
+- **Dedup — mandatory pre-check:** Before emitting `compendium_npc_add` or `compendium_npc_update`, check the `known_characters` compendium. If the NPC's name or title matches an existing entry (case-insensitive), use that entry's ID. NEVER create a new entry for an NPC that already exists.
 - **SAME ENTITY, DIFFERENT NAMES:** When narration mentions multiple names/titles that refer to the same entity, create ONE compendium entry with the most specific identifier. Do NOT create separate entries for what is clearly the same person.
-
+- **Dedup — disposition:** If an NPC already has a disposition and the narration doesn't reveal new information about it, don't re-emit it in `compendium_npc_update`.
 
 ## NPC field requirements
 
-- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `bio` + `motivation` + 2 of {fear, leverage, tie} = 4 fields minimum. On first entry, aim for all 4 fields. Motivation is mandatory for every character.
-- **Unnamed NPCs (name does not look like a proper name — fewer than 2 words, or first/last not both capitalized):** `bio` + `motivation`. Do NOT add fear, leverage, or tie. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace."
+- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `bio` + `disposition` + `motivation` + 2 of {fear, leverage, tie} = 5 fields minimum. On first entry, aim for all 5 fields. Motivation is mandatory for every character.
+- **Unnamed NPCs (name does not look like a proper name — fewer than 2 words, or first/last not both capitalized):** `bio` + `disposition` + `motivation`. Do NOT add fear, leverage, or tie. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace."
 
 ## Passive NPC extraction
 

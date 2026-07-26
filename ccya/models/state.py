@@ -78,6 +78,7 @@ class NPCEntry(BaseModel):
     name: str = ""
     title: str | None = None
     bio: str | None = None
+    disposition: str | None = None
     motivation: str | None = None
     fear: str | None = None
     leverage: str | None = None

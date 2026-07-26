@@ -267,6 +267,7 @@ def apply_delta(
     # --- NPC scene management (extracted to state/npcs.py) ---
     from ccya.state.npcs import apply_npc_scene_management
     state = apply_npc_scene_management(state, SceneExtractResult(
+        compendium_npc_add=delta.compendium_npc_add or [],
         compendium_npc_update=delta.compendium_npc_update or [],
     ), current_turn_no=current_turn, trace_id=trace_id)
 
