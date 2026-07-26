@@ -1,10 +1,19 @@
 # Location Expansion Design
 
-> **Status:** scoping
+> **Status:** reviewed
 > **Related tickets:**
-> - [F-31: Location expansion](../../roadmap/features/F-31-location-expansion.md) — seed-declared location opportunities (actions/narrative nodes), first-visit flag, NPC location pinning
-> - [F-32: Scene inventory](../../roadmap/features/F-32-scene-inventory.md) — seed-declared location items as physical objects (separate concern; F-32 is about objects that can be picked up, not action opportunities)
-> - [F-33: Location threads](../../roadmap/features/F-33-location-threads.md) — dormant seed-declared threads that activate on location arrival (deferred)
+> - [F-31: Location expansion](../../roadmap/features/F-31-location-expansion.md) — seed-declared location threads, first-visit flag, NPC location pinning
+> - [F-32: Scene inventory](../../roadmap/features/F-32-scene-inventory.md) — seed-declared location details/items (separate concern; builds on this design)
+> - [F-33: Location threads](../../roadmap/features/F-33-location-threads.md) — **merged into this design** per design review (see `to_scope/location-threads.md` for history)
+>
+> **Design review decisions incorporated:**
+> 1. One hook mechanism: seed-declared location threads. The earlier `location_opportunities` concept (actions as plain strings) is retired — opportunities were a placeholder for threads.
+> 2. No `scope` field on ArcThread. Threads are threads. Activated location threads affect convergence, ruling, and directive exactly like any other thread.
+> 3. Activation is engine-driven and synchronous, in the delta builder at location arrival. No LLM call, no async window.
+> 4. Seed-declared urgency is background or normal only — never urgent. Escalation happens via Record's normal mechanics.
+> 5. Resolved threads drop out of narrator context — real state signal for revisits, replacing the earlier "opportunities may have changed" soft-consistency model.
+> 6. Location threads bias toward `type=opportunity` (locations primarily offer things to pursue); other types allowed for variety. Locations mentioned in or required for the long-term objective carry threads that flesh out, gate, or complicate that objective.
+> 7. Thread cap semantics confirmed against source: the cap (`thread_max_active`, default 5) counts active/non-dormant threads only. Eviction (demote stalest active) is currently inlined in turn_state.py's record `thread_add` path and must be extracted into a shared helper so activation can apply it. Freshly activated threads are never the eviction victim — evictions always hit older campaign threads, and the dormant-pool cull can cascade an evicted thread to "abandoned."
 
 ## Problem
 
@@ -14,144 +23,207 @@ Locations are an afterthought in seed generation. Each seed produces:
 
 The key locations exist as seed-declared world map data but are never shown to the narrator, never referenced by ruling, and serve no function beyond being seed-declared facts. Players have no incentive to visit them. Location changes only replace `state.location` — there's no memory of visited places, no exposition about what's interesting at a location, and no narrator guidance toward exploring.
 
-Currently the narrator only describes the current location's seed description string. There's no structured seed data about what makes a location interesting or worth visiting.
+Worse, when the player arrives at a new location, no new narrative pressure or context emerges from the location itself. Location changes feel like set changes — the narrator describes the new place, but no threads emerge from it.
 
 ## Design Principles
 
-**Seed-declared only.** All location data is seed-declared. No runtime extraction. No LLM-generated location opportunities at runtime. This keeps extraction pipeline unchanged and seed dimensionality manageable.
+**Seed-declared only.** All location thread data is seed-declared. No runtime thread generation at locations. This keeps seed dimensionality manageable and avoids extraction complexity.
 
-**Current location only.** Never show all key locations in every turn's prompt. Only the current location's seed data is shown. This prevents linear context bloat as more locations are visited.
+**One hook mechanism.** Location threads are the single seed-declared per-location narrative hook. There is no separate "opportunities" concept — anything a location offers the player is a thread.
 
-**Permanent context.** Location opportunities are always shown as context when at a key location. They don't expire or fade. Opportunities are a permanent piece of the world's narrative fabric at that location.
+**Engine-activated, not LLM-activated.** Thread activation is deterministic delta-builder logic triggered by location arrival. The LLM generates threads at seed time and manages them after activation (Record escalates/resolves; narrator weaves them in), but the activation decision belongs to the engine.
 
-**Minimal model changes.** One seed model field. One state flag. No extraction schema changes. No delta builder changes beyond one boolean flag. No ruling logic changes.
+**No scope field.** `ArcThread` does not regain a `scope` field (the unify-threads simplification stands). Activated location threads are ordinary threads: they count toward the thread cap, affect convergence/ruling/directive per normal rules, and follow the normal lifecycle including arc boundaries.
 
-**Thread-path, not thread-yet.** Opportunities preview the thread system without integrating with it directly. Record extractor should naturally recognize opportunities as potential thread content during narration. Explicit thread integration happens later if needed.
+**Never urgent at seed.** Seed-declared location threads start at background or normal urgency. Arriving at a location never instantly spikes convergence; escalation to urgent takes turns via Record. This is the pacing guardrail.
+
+**Current location only.** Never show all key locations in every turn's prompt. Only the current location's seed data is shown.
+
+**Resolution-aware context.** Narrator context shows the location's activated, unresolved threads. Resolved threads drop out of the section — the world's state, not narrator self-correction, signals what has changed on revisit.
+
+**Minimal model changes.** One seed model (SeedThread), one field on KeyLocation, one state flag. No extraction schema changes. No convergence/ruling/directive filtering.
 
 ## Target State
 
 ### Model Changes
 
-**Seed model:** One field on `KeyLocation`:
+**Seed model:** New model + one field on `KeyLocation`:
 ```python
-location_opportunities: list[str] = Field(default_factory=list, max_length=3)
+class SeedThread(BaseModel):
+    id: str
+    summary: str
+    type: Literal["threat", "opportunity", "complication", "revelation"] | None = None
+    initial_urgency: Literal["background", "normal"] = "background"
+    # Never urgent at seed — pacing guardrail
+    activated: bool = False  # set by engine on location arrival
 ```
-Just strings. Not a model. Not items with IDs. Three short phrases seed-declared at seed time (e.g., "scout from watchtower to survey terrain", "talk to the town alderman about rumors", "visit the local tavern for gossip"). Each ~20-30 chars. Total ~90 tokens max.
+
+Seed threads are simpler than full `ArcThread` — no progress entries, resolution state, or turn tracking at seed time. Those populate at activation.
+
+```python
+class KeyLocation(BaseModel):
+    # ... existing fields ...
+    location_threads: list[SeedThread] = Field(default_factory=list, max_length=2)
+```
+
+0-2 threads per location (not every location needs threads). Type biased toward `opportunity`, other types allowed for variety (see Seed Prompt Change). Seed prompt must avoid duplicating seed-declared campaign thread content, and thread IDs must be unique against campaign thread IDs.
 
 **State model:** One field on `state.scene`:
 ```python
-first_visit_location: bool = False
+location_arrived: bool = False
 ```
-Set to `True` on location change if location ID differs from previous location's ID. Same place where `turn_entered` and `location_entered_turn` are already set. Used as a signal to the narrator to introduce opportunities into narration.
+Set to `True` on any location change, in the same delta-builder block that sets `turn_entered`/`location_entered_turn` (delta_builder.py:208-232). **Note:** the delta builder applies `location_change` only when the ID differs from the current location — this fires on *every* move, including revisits. This is an **arrival detector, not a first-visit detector**. True first-visit tracking requires a visited-ID list, which remains deferred; the flag's original name (`first_visit_location`) was retired because it stated semantics the spec couldn't deliver.
+
+**Unified KeyLocation target schema.** This design owns `location_threads`. Two further fields land via follow-up designs and are recorded here so the seed schema evolves once, not three times:
+- `scene_details: list[str]` — location details/items, via [F-32 Scene Inventory](to_scope/scene-inventory.md)
+- `faction_presence: list[str]` — faction IDs (0-2), via [Dynamic Factions](to_scope/dynamic-factions-redesign.md)
+
+### Thread Activation
+
+**When:** In the delta builder, at location change — the same code path that sets `location_arrived` and `turn_entered`. Location changes are detected by step2b extraction; activation lands in the same apply phase as the location change itself. The narrator sees the new location and its activated threads together on the first turn at the new location — single-turn choreography, no async window, no event plumbing.
+
+**How:** For each SeedThread on the new location where `activated=False`:
+- Create an `ArcThread`: same id, summary, type; `dormant=False`; `urgency=initial_urgency`; `added_turn=current turn`; `last_updated_turn=current turn`
+- Set `activated=True` on the SeedThread (prevents re-activation on revisit)
+- Log activation for event recording
+
+**Why sync:** Activation is a pure state mutation keyed off a location change the delta builder already detects. There is no LLM call to defer, so the async World-step window buys nothing and costs a one-turn delay.
+
+**After activation:** The thread is an ordinary thread. Record escalates or resolves it via normal mechanics (`ThreadUpdate.urgency` exists; the sanitizer can also change urgency/dormancy). If Record promotes it to urgent, it affects convergence and directive like any urgent thread — this is intended. No special arc-boundary handling.
+
+**Sanitizer interaction (verified against `sanitize_thread.j2`):** The sanitizer targets 3-4 threads and consolidates aggressively, but explicitly *never* abandons, dormants, or culls "threads that have never been updated (no turns-ago suffix)." Freshly activated location threads have no progress entries, so they are protected by that existing rule until they see narrative activity.
+
+**Thread cap interaction:** The cap (`thread_max_active`, default 5) counts **active (non-dormant) threads only**; dormant threads are culled when their count reaches 3 (oldest dormant moved to completed as "abandoned" — effective dormant max 2). **Verified against source:** the eviction logic is currently **inlined in turn_state.py's record `thread_add` path only** (turn_state.py:603-615) — it does not fire for engine-side thread creation. Activation must extract that logic into a shared helper and apply it. Eviction demotes the stalest active thread by `last_updated_turn`; freshly activated threads are stamped with the current turn, so they are **never** the eviction victim — the victim is always an older campaign thread. Cascade to note: an arrival eviction grows the dormant pool, and the engine cull (>=3 dormant, runs every turn) can then permanently move a dormant campaign thread to completed/"abandoned" as a side effect of walking into a location. Accepted behavior under "threads are threads," covered by eval.
+
+**Decided (review):** Activation applies eviction **immediately** — the inlined eviction logic in turn_state.py is extracted into a shared helper that both the record `thread_add` path and delta-builder activation call. The cap is never violated, and arrival-triggered demotions are deterministic and logged at the moment they happen.
+
+**Dedup:** Seed prompt avoids duplicating campaign threads. Runtime overlap is handled by Record's normal progress dedup.
 
 ### Seed Prompt Change
 
-Add one instruction to seed generation: "For each key location, list up to 3 narrative opportunities a player might pursue (short phrases, 20-30 chars each). These should be concrete actions or events available at the location, grounded in the location's purpose and the world's theme. Examples: 'scout from watchtower to survey terrain', 'talk to town alderman about rumors', 'listen to tavern gossip about nearby events.'"
+Add instruction to seed generation covering three rules:
+
+1. **Baseline:** "For each key location, optionally declare 0-2 narrative threads tied to this place (id, summary, type, initial urgency of background or normal — never urgent). Threads must be grounded in the location's purpose and the world's theme, must not duplicate the campaign threads, and thread IDs must be unique."
+2. **Type bias:** "Bias location threads toward type=opportunity — locations primarily offer things to pursue. Complication, threat, and revelation are allowed for variety, but most location threads should be opportunities."
+3. **Objective linkage:** "If a key location is mentioned in or required for the long-term objective, it should carry at least one thread that fleshes out, gates, or complicates that objective — any type as appropriate. Example: for objective 'reach the radio tower and broadcast a signal,' the tower might get a complication 'the broadcast array is damaged' plus an opportunity 'scavenged amplifier parts could boost signal range.' Objective-critical locations should feel central, not decorative."
+
+Example of a baseline thread: a revelation thread "decrypted radio signals point to a survivor camp" at a radio station.
+
+**Separate pool, explicitly:** Location threads live in a per-location field and do **not** count toward the seed's arc-thread constraints (exactly 2 non-dormant, ≥2 dormant, 4-5 total, ≥1 threat). The seed prompt must say so — otherwise the LLM will try to satisfy both constraint sets in one pool.
 
 ### Prompt Context Management
 
-**Narrate prompt:** One new section (after existing `_location.j2`):
+**Narrate prompt:** One "Location Context" section (after existing `_location.j2`), **aggregate cap ~150 tokens**, shared by this design and F-32:
 ```
 ## This Location
 {seed description}
 
-Opportunities:
-- {opportunity 1}
-- {opportunity 2}
+{scene_details — via F-32, filtered against taken_location_items}
+{faction_presence — via Dynamic Factions: names of factions present here}
 
-{if first_visit_location: "Weave some opportunities into narration when relevant — not a list."}
-{if not first_visit_location: "These opportunities may have changed since your arrival."}
+Threads here:
+- {activated, unresolved thread summary}
+- ...
+
+{if location_arrived: "Weave 1-2 of these into narration naturally — not a list."}
 ```
 
-~90 tokens max (2 opportunities × ~30 chars). Current location only. Never show all key locations.
+Rendering rules:
+- Current location only. Never all key locations.
+- **Description precedence:** when the current location ID matches a KeyLocation, render that KeyLocation's seed description **instead of** `_location.j2`'s LocationRef description for that turn. Seed is ground truth; `LocationRef.description` is extractor-written on moves (extract_state_system.j2) and can diverge — the existing `location_description_consistency` checker already watches this property. Fall back to `_location.j2` when no KeyLocation matches.
+- Threads shown = the location's SeedThreads where `activated=True`, minus any whose ArcThread is resolved (join by thread id).
+- On revisit, resolved threads are simply absent — state, not narrator memory, reflects what changed.
 
-**Ruling prompt:** No change. Location opportunities are context for exposition. Ruling already handles NPC impossibility via existing rules ("Punch X NPC — NPC is not in scene/location").
+**Ruling prompt:** No change in this design. (F-32 adds location-item awareness for the impossibility check.)
 
 ### Extraction Context
 
-No change. Location opportunities feed the seed → narrate pipeline; no runtime extraction is required. If Record naturally recognizes opportunity-related content as thread-worthy during narration, that's emergent integration handled by Record's normal behavior. Explicit extraction changes for opportunities are scoped out.
+No change in this design. Record naturally recognizes activated thread content during narration — threads are real ArcThreads, so Record's normal thread handling applies with no emergent-integration gap.
 
 ### Collision Analysis
 
 | System | Collision | Mitigation |
 |--------|-----------|------------|
-| **Seed generation** | One new field on seed output | Seed already generates location data; additive, not structural |
-| **Narrator prompt** | One new section, ~90 tokens | Current location only. No change to existing sections |
-| **Ruling prompt** | None | No ruling prompt change in this design |
-| ****Extraction schema** | None | No new extraction fields for opportunities. Record behavior is unchanged |
-| **Delta builder** | One boolean flag | Same place where `turn_entered` is already set |
-| **Convergence/phase** | None | No thread involvement in this phase |
-| **Event recording** | One boolean in event dict | Same as `post_turn_location_id` |
+| **Seed generation** | SeedThread model + one field on KeyLocation | 0-2 threads per location, simple schema |
+| **Narrator prompt** | One section, ~150 token aggregate cap shared with F-32 | Current location only; resolved threads filtered |
+| **Ruling prompt** | None | F-32 owns the only ruling change |
+| **Extraction schema** | None | Threads are ordinary ArcThreads after activation |
+| **Delta builder** | One boolean flag + activation logic | Same code path as `turn_entered` |
+| **Convergence/ruling/directive** | None — deliberately | No filtering; activated threads behave normally by design |
+| **Thread cap** | Activated threads count toward the active-only cap (`thread_max_active`, default 5) | Eviction rule is inlined in turn_state.py's record path — extract to shared helper and apply at activation; cull cascade documented (see Thread cap interaction) |
+| **Arc resolution** | None | Normal thread lifecycle, no drop rule |
+| **Event recording** | Activation logged | Same pattern as `post_turn_location_id` |
 
 ### Interaction with Pacing
 
-**Risk:** Location opportunities may trigger more location changes as players follow interesting content. This resets scene age more often (location change resets `turn_entered` and `location_entered_turn`), potentially preventing the directive from reaching "Scene Imperative" threshold (5 turns), keeping the scene in lighter directive territory.
+**Convergence:** Activated location threads affect convergence exactly like campaign threads — with one component asymmetry verified against source (`_pacing.py:75-126`). Only the `urgent_thread` component is urgency-gated. The `threat_thread` component (+1) counts **any** non-dormant threat-type thread regardless of urgency, so a threat-type location thread adds +1 immediately on activation (convergence threshold default 2). `threat_density` (+1) requires 3 active threat threads (`threat_density_threshold` default 3), so location threads alone are unlikely to trip it. This makes the seed-time **opportunity-type bias load-bearing for pacing**, not just flavor: opportunity/complication/revelation threads contribute nothing until Record escalates them to urgent, while threat threads apply immediate arrival pressure. "Never urgent at seed" is the escalation guardrail; the type bias is the arrival-shock guardrail. Eval covers: arriving at a location never causes an immediate phase transition.
 
-**Mitigation:** Opportunities should encourage exploration through interesting content, not explicit direction. No explicit "you should go to X" — only natural exposition that might suggest interesting places ("The radio crackles with a distant transmission from the eastern line..."). This is narrator guidance, not engine enforcement.
+**Scene age:** Location changes reset scene age (existing behavior), which can keep scenes in lighter directive territory. Thread activation itself does NOT reset scene age — it's a state change within the location, not a location change.
 
-**Convergence:** Location expansion does NOT directly affect convergence score. Convergence is driven by thread urgency, beat streaks, roll starvation, and threat density. Location changes reset scene age but don't modify convergence directly. If location changes cause more frequent scene age resets, the directive computation may stay at lighter levels longer, which could indirectly affect beat type selection in World step. This is acceptable — lighter directive territory is fine for exploratory scenes.
-
-### Location Change Detection
-
-No change needed. Step2b already detects location changes via movement verbs and destination language. The extractor emits `location_change` as it does now. The delta builder's existing NPC presence management and timestamp resets apply as they do now. `first_visit_location` flag is set in the same delta builder code path.
+**Directive:** Driven by campaign thread urgency and scene age; location threads participate only through their normal urgency.
 
 ### NPC Location Pinning
 
 This design includes location pinning — `last_seen_location` on NPCEntry becomes the canonical anchor point after location changes. When `state.location` changes, NPCs at the old location are demoted to `nearby` with their `last_seen_location` pinned. When the extractor detects narration indicating an NPC moved to a new location, it overrides the pin.
 
-This is a behavior change, not a model change: NPCEntry already has `last_seen_location` for tracking. The pinning is just tightening the semantic meaning: `last_seen_location` is not just "where they were last mentioned" but "where they actually are, unless the extractor explicitly moves them."
+This is a behavior change, not a model change: NPCEntry already has `last_seen_location`. The pinning tightens the semantic meaning: `last_seen_location` is not just "where they were last mentioned" but "where they actually are, unless the extractor explicitly moves them." Extractor guidance: `last_seen_location` should only change when an NPC actually moves, not every time they're mentioned.
 
-### Soft Consistency Model
-
-Seed-declared opportunities are the ground truth shown every turn as context. On first visit, narrator introduces them into narration. On revisits, narrator should note opportunities may have changed if the player interacted with them via prompt guidance.
-
-The seed data is shown every turn as context — if the narrator previously described the player walking into the alderman's office and getting new intelligence, the oppo "talk to alderman for rumors" might be different next time. The narrator should self-correct based on prior narration. Seed data is always shown as context — it won't disappear or change, but the narrator should adapt.
+(Faction-owned NPCs get a natural anchor once `faction_presence` lands — see Dynamic Factions design.)
 
 ### Implementation Phases
 
 **Phase 1: Model + seed changes**
-- Add `location_opportunities: list[str]` field to `KeyLocation` (max_length=2)
-- Update seed prompt (`prepare_seed_system.j2`) to generate location_opportunities for each key location
-- Add `first_visit_location: bool` to `state.scene`
-- Delta builder sets `first_visit_location` on location change (same place as `turn_entered`)
+- Add `SeedThread` model; add `location_threads` to `KeyLocation` (max_length=2)
+- Update seed prompt to generate location threads (0-2, background/normal only, varied types, no campaign duplication, unique IDs)
+- Add `location_arrived: bool` to `state.scene`
+- Delta builder: set `location_arrived` on location change; activate seed threads on arrival (same code path)
 
 **Phase 2: Prompt integration**
-- Add location context section to narrate prompt (seed-declared opportunities + first_visit flag)
-- Narrator guidance: weave some opportunities naturally into narration when relevant, not a list
-- Narrator guidance: note opportunities may have changed on revisit
+- Add Location Context section to narrate prompt (description + activated unresolved threads + first_visit guidance), ~150 token aggregate cap
+- Narrator guidance: weave threads naturally into narration on first visit, not a list
 
 **Phase 3: NPC location pinning**
 - Tighten `last_seen_location` semantics: canonical anchor point, authoritative but overrideable
 - Delta builder pin behavior for NPC demotion on location change
-- Extractor guidance: `last_seen_location` should only change when an NPC actually moves (not every time they're mentioned)
+- Extractor guidance: pin only changes when an NPC actually moves
 
 **Phase 4: Validation + testing**
-- Checker: seed locations have location_opportunities populated (where appropriate)
-- Checker: first_visit_location flag set correctly on location change
-- Eval: narrator exposition quality at new locations
-- Eval: opportunities woven naturally into narration, not presented as a list
-- Eval: NPC location pinning works correctly across location changes
+- Checker: seed locations have location_threads populated (where appropriate), background/normal only, unique IDs
+- Checker: threads activate exactly once on first arrival, not on revisit
+- Checker: location_arrived set correctly on location change (fires on every arrival, including revisits)
+- Checker: activated location threads counted in thread cap
+- Eval: narrator exposition quality at new locations; threads woven naturally, not listed
+- Eval: arriving at a location never causes an immediate phase transition
+- Eval: activation overflow evicts the oldest active thread per the existing eviction path (including the edge case of a just-activated thread being evicted)
+- Eval: objective-linked locations carry objective-relevant threads; type bias toward opportunity holds
+- Eval: NPC location pinning across location changes
+- Docs: update `docs/architecture/state-models.md` (SeedThread, KeyLocation.location_threads, Scene.location_arrived), `docs/architecture/pacing-systems.md` (threat-component asymmetry), `docs/repomap.md`
+
+**State mutator note (per AGENTS.md):** Activation mutates `world.locations` (SeedThread.activated) — a new runtime mutation site; nothing mutates `world.locations` today. All mutations go through typed mutator methods returning a new `WorldState`, never dict assignment.
 
 ### Risks
 
-1. **Seed complexity:** Adding `location_opportunities` to seed generation increases seed dimensionality. Mitigation: max 2 short strings per location, seed prompt should give clear examples.
+1. **Thread cap pressure.** Activated location threads count toward the active-thread cap (default 5, non-dormant only). Mitigation: activation only on visit (most playthroughs visit few locations); overflow is handled by the existing eviction path (oldest active demoted to dormant), not new machinery; `thread_cap_eviction` checker plus an overflow eval monitor it.
 
-2. **Prompt context bloat:** One section, ~90 tokens max per turn. Mitigation: cap at 2 opportunities, keep them concise. Measure token delta during implementation.
+2. **Seed complexity.** Location threads add seed dimensionality. Mitigation: 0-2 per location, simple schema (id/summary/type/urgency), clear examples in seed prompt.
 
-3. **Revisit handling:** On revisit, seed opportunities are still shown (they're seed-declared). Mitigation: narrator prompt should note "these opportunities may have changed if the player interacted with them" — narrator should self-correct based on prior narration. Soft consistency model.
+3. **Prompt context bloat.** One section, ~150 token aggregate cap shared with F-32. Mitigation: current location only, resolved threads filtered, measure token delta during implementation.
 
-4. **Record awareness of opportunities:** If Record doesn't naturally recognize opportunity-related narration as thread-worthy, the opportunities don't contribute to campaign narrative. Mitigation: this is an emergent integration, not enforced. The opportunities do help the narrator generate richer narration, which Record picks up without explicit thread handling. If Record misses the signal after testing, explicit integration can be added later (F-33).
+4. **Convergence surprise.** Two paths: threat-type location threads add +1 immediately via the `threat_thread` component regardless of urgency, and Record may escalate any thread to urgent over turns. Mitigation: opportunity-type bias is the arrival-shock guardrail (non-threat types contribute nothing until urgent); `threat_density` needs 3 active threats (default) so location threads alone can't trip it; eval checks no immediate phase transition on arrival.
+
+5. **Seed thread dedup edge cases.** Location threads might overlap campaign threads. Mitigation: explicit seed prompt guidance + unique IDs; Record's normal progress dedup as fallback.
 
 ### Deferred Items
 
-- **Scene inventory as structured model** (F-32): seed-declared physical items at locations (objects that can be picked up via extraction). This is a separate concern — F-31 is actions/opportunities, not objects.
-- **Location-scoped threads** (F-33): seed-declared dormant threads that activate on location arrival. Opportunities may naturally become thread content through Record extraction, but explicit thread integration should only happen if opportunities alone don't provide enough incentive for location exploration.
-- **List of visited location IDs:** boolean flag is sufficient; if visited location history is needed later, add as separate ticket
-- **UI changes:** turn viewer sidebar location panel may need updates later but not in this design
-- **Dynamic location generation:** all locations seed-declared, no lazy generation on first visit
-- **Player steering via narration:** opportunities should encourage exploration through interesting content, not explicit direction; if explicit steering is desired later, add as separate ticket
+- **Scene inventory** (F-32): seed-declared location details/items as physical objects — separate design building on this one
+- **Faction presence**: `faction_presence` on KeyLocation — see Dynamic Factions design
+- **List of visited location IDs:** `location_arrived` (arrival detector) is sufficient; add as a separate ticket if true first-visit semantics are ever needed
+- **UI changes:** turn viewer sidebar location panel may need updates later
+- **Dynamic location generation:** all locations seed-declared, no lazy generation
+- **Player steering via narration:** threads encourage exploration through content, not explicit direction
 
 ### Dependencies on Other Designs
 
-- **Seed Two-Step Design:** seed generation pipeline that `location_opportunities` extends
+- **Seed Two-Step Design:** seed generation pipeline that `location_threads` extends
 - **Seed Worldbuilding Redesign:** funnel ordering, key locations seed generation
+- **Unify Threads Plan:** removed thread scope; this design deliberately preserves that removal — location threads are ordinary threads
