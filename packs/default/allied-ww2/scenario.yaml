@@ -171,30 +171,23 @@ pc_situation_schema:
 
 scene_detail_bundles:
   - id: bombed_out_village
-    items: [a church bell lying in the rubble, a field kitchen with its stove still warm, a child's coat on a chair still buttoned]
     conditions: [rubble-choked streets, smoke haze from a recent fire]
     sensory: [the echo of boots on broken stone, the creak of a half-collapsed beam]
   - id: command_post
-    items: [a map table with unit positions in grease pencil, a field telephone with the wire trailing out the door, a child's letter in the trash addressed to a name no officer will claim as theirs]
     conditions: [papers strewn across the floor, hastily evacuated]
     sensory: [the drone of distant bombers, the crackle of a radio left on]
   - id: field_hospital
-    items: [a triage table with blood-soaked sawdust on the floor, a clipboard of morphine doses signed by different hands, a triage order written in a dead doctor's hand with today's date]
     conditions: [low on supplies, lantern light flickering]
     sensory: [the hiss of a low-fuel lantern, the moan of wounded men through canvas]
   - id: trench_line
-    items: [a periscope rifle propped against the parapet, a signal flare pistol with three rounds left, a photo of a German family pinned to the parapet facing the German side]
     conditions: [mud-choked duckboards, crumbling sandbag parapet]
     sensory: [the thump of distant artillery, the sharp smell of cordite and wet earth]
   - id: supply_depot
-    items: [a pallet of ammunition crates with different unit codes, a typewriter on a crate with a half-typed inventory sheet, a crate marked with the dead replacement's name unopened]
     conditions: [crates stacked haphazardly in the rain, fuel drums with slow leaks]
     sensory: [the smell of petrol and damp canvas, the clatter of a loose shutter in the wind]
   - id: destroyed_farmhouse
-    items: [a piano with a bullet through its frame, a cellar door half-open, a meal still on the table with only one chair knocked over]
     conditions: [the roof collapsed in the center, a dead cow in the yard]
     sensory: [the buzz of flies, the smell of burnt hay]
   - id: river_crossing
-    items: [a pontoon bridge anchored with ropes, a crate of waterproofed flares, a body floating downstream in friendly uniform with no bullet wound]
     conditions: [the current running fast, the fog lying low over the water]
     sensory: [the rush of the river, the creak of ropes under tension]

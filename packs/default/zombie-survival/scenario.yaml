@@ -161,30 +161,23 @@ pc_situation_schema:
 
 scene_detail_bundles:
   - id: abandoned_hospital
-    items: [a gurney with torn restraints, a syringe half-filled with something dark, a wall calendar with today's date circled in fresh ink]
     conditions: [the power flickering on backup battery, patient charts water-damaged into illegibility]
     sensory: [the hum of a surgical light on backup power, the smell of rot from a locked ward]
   - id: settlement_wall
-    items: [a guard post with a periscope and a cracked optic, a cache of molotov cocktails wrapped in newspaper]
     conditions: [the wall patched in three places, gravel piled for quick fills, a name carved into the inside of the wall and defaced]
     sensory: [the constant low moan from beyond the wall, the creak of the watchtower ladder under weight]
   - id: overgrown_street
-    items: [a burned-out car with saplings growing through the chassis, a row of mailboxes all still labeled and still being filled, a crate of bottled water]
     conditions: [a mattress dragged halfway across the intersection, the grocery store windows boarded but the door swinging]
     sensory: [the buzz of flies over something unseen, glass crunching underfoot with every step]
   - id: underground_bunker
-    items: [a military radio tuned to static, a loaded pistol left on the table, a chair still warm with no one sitting in it]
     conditions: [the water filtration pump with a cracked housing, the air stale and metallic]
     sensory: [the echo of footsteps down the corridor, the drip of condensation from a pipe overhead]
   - id: quarantine_zone
-    items: [a decontamination tent with the flap torn, a loudspeaker on a pole repeating a recorded warning]
     conditions: [the fence layered with biohazard tape, the bedding pile abandoned, the warning loop in a voice the PC recognizes]
     sensory: [the endless loop of a recorded warning echoing off concrete, the acrid smell of bleach concentrate]
   - id: radio_station
-    items: [a broadcast microphone with the foam chewed off, a stack of records with hand-painted labels, a child's drawing pinned to the wall — the family in it has too many members]
     conditions: [the window boarded but light coming through the cracks, the transmitter humming but untuned]
     sensory: [the crackle of static, the echo of footsteps on the tiled floor]
   - id: farm_outskirts
-    items: [a tractor with the battery pulled, a root cellar door bolted from the outside]
     conditions: [the field overgrown with thistle, the fence line down in three places, the cattle arranged in a circle standing dead]
     sensory: [the low of cattle left untended, the rustle of dry corn stalks in the wind]

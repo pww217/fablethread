@@ -171,30 +171,23 @@ pc_situation_schema:
 
 scene_detail_bundles:
   - id: quarterdeck
-    items: [a compass in a gimbaled brass mount, a swivel gun loaded with grapeshot, a name scratched into the rail that no current crewman answers to]
     conditions: [the deck slick with spray, the rigging humming under strain]
     sensory: [the snap of canvas overhead, the creak of the helm under pressure]
   - id: orlop_deck
-    items: [a surgeon's saw with a stained handle, a lantern swinging with the ship's roll, a surgery ledger with the date of an operation not yet performed]
     conditions: [oppressively dark, the air thick with bilge and salt]
     sensory: [the groan of the hull timbers, the scurrying of rats in the dark]
   - id: captains_cabin
-    items: [a sea chart with course corrections in red ink, a brace of pistols in a felt-lined case, a child's drawing tucked in the chart-easel]
     conditions: [the cabin listing to starboard, the lock on the dispatch box scratched]
     sensory: [the tang of gunpowder and Madeira, the drip of water through a deck seam]
   - id: galley
-    items: [an iron kettle over a low fire, a cleaver worn thin from sharpening, a tin cup with a woman's name etched polished back into visibility]
     conditions: [greasy and close, the fire smoking badly]
     sensory: [the sizzle of hardtack frying, the smell of rancid cooking oil]
   - id: cargo_hold
-    items: [barrels of salt pork stamped with a naval mark, a broken musket discarded in a corner, a single set of women's shoes paired and set down rather than thrown]
     conditions: [the hold half-flooded, crates shifted and splintered]
     sensory: [the slosh of bilgewater against the hull, the smell of damp timber and spoiled provisions]
   - id: beach_cove
-    items: [a longboat pulled up on the sand, a sea chest with the lock smashed, a second longboat burned to the waterline and still warm]
     conditions: [the tide coming in fast, the cove sheltered from the wind]
     sensory: [the hiss of waves on shingle, the cry of gulls overhead]
   - id: warehouse_district
-    items: [a hoist with a frayed rope, a ledger open to a page of false weights, a manifest line in a child's hand for "Ma, Pa, self."]
     conditions: [the air thick with dust from spice sacks, a lantern burning low in a wall sconce]
     sensory: [the skitter of rats in the rafters, the muffled shouts from the street outside]
