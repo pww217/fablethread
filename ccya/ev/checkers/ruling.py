@@ -27,7 +27,6 @@ def ruling_reason_quality(events: list[dict[str, Any]], *, config: Any = None) -
     all_passed = True
 
     cfg = EngineConfig().checkers
-    reason_keywords = ("because", "since", "due to", "as")
     min_words = cfg.min_reason_words
     max_words = getattr(cfg, "max_reason_words", 7)
 
@@ -65,12 +64,12 @@ def ruling_reason_quality(events: list[dict[str, Any]], *, config: Any = None) -
             all_passed = False
             continue
 
-        has_keyword = any(re.search(rf"\b{re.escape(kw)}\b", reason.lower()) for kw in reason_keywords)
-        if not has_keyword:
+        has_structured = bool(re.match(r"^(trivial|easy|normal|hard|extreme)\s*;\s*\S", reason, re.IGNORECASE))
+        if not has_structured:
             findings.append({
                 "turn": ev.get("turn"),
-                "check": "reason_has_keyword",
-                "detail": f"ruling.reason lacks causal keyword (because/since/due to/as): {reason!r}",
+                "check": "reason_format",
+                "detail": f"ruling.reason must be structured [difficulty]; [condition/inventory]: {reason!r}",
             })
             all_passed = False
 

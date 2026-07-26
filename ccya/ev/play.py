@@ -297,7 +297,7 @@ def _ensure_seed_generated(
                 {"key": s.key, "description": s.description, "required": s.required, "persist": s.persist}
                 for s in p.scenario.pc_situation_schema
             ]
-        init_save_dir(save_dir, WorldState.from_dict(seed_dict))
+        init_save_dir(save_dir, WorldState.from_dict(seed_dict), opening=final_envelope.opening_narrative)
 
     return load_state(save_dir)
 

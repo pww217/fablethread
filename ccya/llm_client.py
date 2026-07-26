@@ -11,6 +11,7 @@ No keep_alive, no format/grammar constraints.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -148,6 +149,23 @@ def _is_retryable(exc: BaseException) -> bool:
     return False
 
 
+def _is_model_not_loaded(exc: BaseException) -> bool:
+    """Return True if the error is a 'No models loaded' transient state from any backend."""
+    msg = str(exc).lower()
+    if "no models loaded" in msg:
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        if exc.response.status_code == 400:
+            try:
+                body = exc.response.json()
+                inner = body.get("error", {}).get("message", "")
+                if "no models loaded" in inner.lower():
+                    return True
+            except Exception:
+                pass
+    return False
+
+
 def _should_fallback(fallback_host: str, cooldown_s: int) -> bool:
     """Return True if we should attempt the fallback host."""
     if not fallback_host:
@@ -245,6 +263,21 @@ async def _chat_with_fallback(
     except Exception as exc:
         primary_failed = True
         primary_exc = exc
+        if _is_model_not_loaded(exc):
+            _log.info(
+                "Primary 'No models loaded' — waiting 30s for model to load, then retrying",
+            )
+            await asyncio.sleep(30.0)
+            try:
+                return await _try_host(
+                    host, model, messages, t0,
+                    temperature=temperature, max_tokens=max_tokens,
+                    timeout=timeout, top_p=top_p,
+                    frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                )
+            except Exception as exc2:
+                primary_exc = exc2
+
         if not _is_retryable(exc):
             _log.debug("Non-retryable error from primary: %s", exc)
 
@@ -342,6 +375,23 @@ async def _chat_stream_with_fallback(
     except Exception as exc:
         primary_failed = True
         primary_exc = exc
+        if _is_model_not_loaded(exc):
+            _log.info(
+                "Primary 'No models loaded' — waiting 30s for model to load, then retrying",
+            )
+            await asyncio.sleep(30.0)
+            try:
+                async for chunk in _try_host_stream(
+                    host, model, messages,
+                    temperature=temperature, timeout=timeout,
+                    stream_stats=stream_stats, top_p=top_p,
+                    frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                ):
+                    yield chunk
+                return
+            except Exception as exc2:
+                primary_exc = exc2
+
         if not _is_retryable(exc):
             _log.debug("Non-retryable error from primary stream: %s", exc)
 

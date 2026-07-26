@@ -32,6 +32,14 @@ Both NPCs exist in relation to the PC. They don't interact with each other. The 
 
 The two present NPCs are already in tension. The PC walks into an existing moment, not a staged introduction. The relationship gives the narrator material to work with — the NPCs have history, they have friction, they have something to *do* with each other. The PC's position in the scene becomes meaningful because of what's happening between the NPCs, not just what they think of the PC.
 
+### Motivation from playtest feedback (2026-07-26)
+
+After playing a recent game on main, the core complaint was that "characters feel lifeless." The fix is: every NPC needs a specific motivation — something they're trying to get or do. Not abstract faction goals, but named individuals with concrete leverage.
+
+NPC relationships are the mechanism for this. When two NPCs have a documented relationship (tension, alliance, debt, rivalry), the narrator has material to make them *do* things with each other. The PC walks into an existing moment with real dynamics, not a staged introduction.
+
+This also ties into I-33's world-building specificity: relationships give the narrator concrete details to work with ("Voss hasn't forgotten that Kren treated the officer's men first") rather than vague abstractions ("there's tension between the NPCs").
+
 ### Schema
 
 ```json
