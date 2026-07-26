@@ -73,7 +73,7 @@ class SeedState(BaseModel):
     scene: SeedScene
     compendium: SeedCompendium = Field(default_factory=SeedCompendium)
     long_term_objective: LongTermObjective | None = None
-    arc_origin: str = ""
+    arc_origin: str = Field(min_length=1)
     actions: list[str] = Field(default_factory=list)
     world: dict[str, Any] = Field(default_factory=dict)
 
@@ -90,7 +90,7 @@ class SeedStateEnvelope(BaseModel):
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
     long_term_objective: LongTermObjective | None = None
-    arc_origin: str = ""
+    arc_origin: str = Field(min_length=1)
     pool_selection: dict[str, Any] | None = None
 
 
@@ -108,7 +108,7 @@ class SeedEnvelope(BaseModel):
     opening_narrative: str = Field(min_length=1500)
     actions: list[str] = Field(min_length=4, max_length=4)
     long_term_objective: LongTermObjective | None = None
-    arc_origin: str = ""
+    arc_origin: str = Field(min_length=1)
     outcome_summary: str = ""
 
 

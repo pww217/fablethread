@@ -111,6 +111,7 @@ class LongTermObjective(BaseModel):
     resolved_turn: int | None = None
     last_thread_created_turn: int = 0
     started_turn: int | None = None
+    arc_origin: str = ""
 
 
 class WorldState(BaseModel):
@@ -148,6 +149,12 @@ class WorldState(BaseModel):
                 merged[field_name] = []
         if merged.get("long_term_objective") is None:
             merged["long_term_objective"] = LongTermObjective()
+        if "arc_origin" in merged:
+            lo = merged["long_term_objective"]
+            if isinstance(lo, dict):
+                lo.setdefault("arc_origin", merged.pop("arc_origin"))
+            else:
+                lo.arc_origin = merged.pop("arc_origin")
 
         # Initialize last_seen_location for NPCs that are present/nearby but don't have one
         # (turn-0 seed data may not have it set)
