@@ -105,7 +105,7 @@ class SeedEnvelope(BaseModel):
     """
 
     seed_state: SeedState
-    opening_narrative: str = Field(min_length=50)
+    opening_narrative: str = Field(min_length=1500)
     actions: list[str] = Field(min_length=4, max_length=4)
     long_term_objective: LongTermObjective | None = None
     arc_origin: str = ""

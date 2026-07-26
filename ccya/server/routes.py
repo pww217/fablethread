@@ -83,8 +83,6 @@ def _apply_seed_to_save_dir(
     seed_dict.setdefault("meta", {})["model"] = _app_mod.engine_config.model
     if pack_source is not None:
         seed_dict.setdefault("meta", {})["pack_source"] = pack_source
-    if opening_narrative is not None:
-        seed_dict.setdefault("pc", {}).setdefault("situation", {})["opening"] = opening_narrative
     if opening_narrative is not None or actions is not None:
         seed_dict["seed_meta"] = {
             "actions": actions or [],
