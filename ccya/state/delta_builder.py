@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import copy
 import logging
-import re
 from typing import Any
 
+from ccya.engine.utils import strip_non_ascii as _strip_non_ascii
 from ccya.errors import ErrorKind
 from ccya.models import Condition, InventoryItem, LongTermObjective, NpcPresence, SceneExtractResult, StateMerge, WorldState
 from ccya.state.inventory import (
@@ -18,17 +18,9 @@ from ccya.state.inventory import (
     resolve_inventory_remove_target,
 )
 
-_NAME_RE = re.compile(r"[^\x00-\x7F]")
 _DEFAULT_CONDITION_TTL = 10
 
 _log = logging.getLogger(__name__)
-
-
-def _strip_non_ascii(text: str) -> str:
-    if not text:
-        return text
-    result = _NAME_RE.sub("", text).strip()
-    return result
 
 
 def _item_to_dict(item: Any) -> dict[str, Any]:

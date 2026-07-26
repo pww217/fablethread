@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import re
 from typing import Any
 
+from ccya.engine.utils import is_named as _is_named, strip_non_ascii as _strip_non_ascii
 from ccya.models import NpcPresence
 
 _log = logging.getLogger(__name__)
@@ -70,18 +70,6 @@ def generate_item_color(item_id: str) -> str:
 
 
 _generate_item_color = generate_item_color
-
-
-def _is_named(name: str) -> bool:
-    """Heuristic: a proper name has 2+ words with first and last capitalized."""
-    if not name:
-        return False
-    words = name.strip().split()
-    if len(words) < 2:
-        return False
-    first_word = words[0]
-    last_word = words[-1]
-    return bool(first_word and first_word[0].isupper() and last_word and last_word[0].isupper())
 
 
 def _compute_npc_score(entry: dict[str, Any], comp: dict[str, Any], turn_no: int) -> int:
@@ -184,9 +172,3 @@ def build_npc_roster(
     result = result[:max_entries]
     _log.debug("build_npc_roster roster=%d", len(result))
     return result
-
-
-def _strip_non_ascii(text: str) -> str:
-    if not text:
-        return text
-    return re.compile(r"[^\x00-\x7F]").sub("", text).strip()

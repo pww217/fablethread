@@ -3,26 +3,14 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any
 
 from ccya.engine.npc_roster import generate_npc_color
+from ccya.engine.utils import is_named as _is_named, strip_non_ascii as _strip_non_ascii
 from ccya.models import NPCEntry, NpcPresence, SceneExtractResult, WorldState
 from ccya.state.inventory import normalize_inventory_id
 
 _log = logging.getLogger(__name__)
-
-
-def _is_named(name: str) -> bool:
-    """Heuristic: a proper name has 2+ words with first and last capitalized."""
-    if not name:
-        return False
-    words = name.strip().split()
-    if len(words) < 2:
-        return False
-    first_word = words[0]
-    last_word = words[-1]
-    return bool(first_word and first_word[0].isupper() and last_word and last_word[0].isupper())
 
 
 def touch_compendium_order(state: WorldState, npc_id: str) -> WorldState:
@@ -33,13 +21,6 @@ def touch_compendium_order(state: WorldState, npc_id: str) -> WorldState:
     order.append(nid)
     _log.debug("touch_compendium_order npc=%s order_len=%d", npc_id, len(order))
     return state.set_compendium_touch_order(order)
-
-
-def _strip_non_ascii(text: str) -> str:
-    """Strip non-ASCII characters from text."""
-    if not text:
-        return text
-    return re.compile(r"[^\x00-\x7F]").sub("", text).strip()
 
 
 def apply_npc_scene_management(
