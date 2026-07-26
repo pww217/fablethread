@@ -150,19 +150,19 @@ npc_bonds:
     description: The NPC is from a settlement the PC does not live in — a settlement that uses the PC's face on its recruitment posters, and that has not asked the PC's permission, and that the PC has not yet had the heart to disavow in person.
 
 pc_situation_schema:
-  - key: the_ship_that_keeps_a_record_you_cannot_erase
-    description: The PC's ship keeps something the PC cannot remove — a log entry, a hull stain, a name burned into a beam. What is it, and why can't the PC erase it?
+  - key: vessel
+    description: What vessel does the PC have? Name, type, condition, and features.
     required: false
     persist: true
-  - key: the_port_that_knows_you_under_a_name_that_isnt_yours
-    description: The PC has a port that knows them by a name that is not the PC's. Whose name is it, why did the PC take it on, and who would the PC have to be to give it back?
+  - key: home_port
+    description: What port or station does the PC dock or claim as home?
     required: false
     persist: true
-  - key: the_thing_you_did_that_a_few_hundred_rim_worlders_decided_was_heroism
-    description: A few hundred Rim-worlders have decided something the PC did was heroism. What was the act, and what about it was not heroic?
+  - key: reputation
+    description: How is the PC known or unknown? Feared, respected, or just another face?
     required: false
-  - key: the_guild_or_flag_you_keep_pretending_you_left
-    description: The PC keeps papers in their pocket from a guild or flag they claim to have left. Which is it, and what do those papers still require of the PC?
+  - key: filiation
+    description: What faction or guild is the PC aligned with or registered under?
     required: false
     persist: true
 

@@ -177,17 +177,17 @@ scene_detail_bundles:
     sensory: [the sharp smell of formaldehyde, the hum of the refrigeration unit]
 
 pc_situation_schema:
-  - key: the_address_you_dont_give_cabbies
-    description: Where does the PC actually sleep, and why won't they say it to a stranger? (Apartment, boarding house, hotel room — and what the silence around the address is for.)
+  - key: residence
+    description: Where does the PC live or operate from? (apartment, boarding house, hotel room)
     required: false
     persist: true
-  - key: the_room_where_you_take_cases_you_shouldnt
-    description: Where does the PC take the work they won't take downtown — what's painted on the door, and what's not on the lease?
+  - key: office_location
+    description: Where is the PC's detective agency or office, and what shape is it in?
     required: false
     persist: true
-  - key: the_name_the_city_uses_for_you_when_its_talking_to_itself
-    description: Not how cops greet the PC to their face, but what the city calls the PC when the city is talking to itself.
+  - key: reputation
+    description: How is the PC known or unknown? To cops, criminals, or the press?
     required: false
-  - key: the_people_who_would_be_safer_if_you_hadnt_known_them
-    description: Whose name has been made more dangerous by association with the PC? (Family, lover, partner, witness — and which of them is still alive.)
+  - key: family
+    description: What is the PC's family situation? (nearby, in another city, estranged, deceased)
     required: false

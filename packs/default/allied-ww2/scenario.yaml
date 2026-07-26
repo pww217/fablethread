@@ -153,18 +153,19 @@ npc_bonds:
     description: The NPC has already written the letter to the PC's next of kin. The NPC carries it in their pocket. The PC knows the NPC carries it; the NPC knows the PC knows. The bond is that this is not an insult — it is, in the squad's accounting, a kindness.
 
 pc_situation_schema:
-  - key: the_section_that_has_the_real_body_count_your_commander_does_not
-    description: The PC's section has the real body count, which is not the number the commander has. What is the difference between the two numbers, and which of those numbers is the PC's name on?
+  - key: unit
+    description: What unit or platoon is the PC assigned to, and what is its reputation?
     required: false
     persist: true
-  - key: the_place_you_will_eventually_have_to_describe_to_someone_who_was_not_there
-    description: The PC has been in a place they will eventually have to describe to someone who was not there. Which place, who is the person who will ask, and what version of it does the PC currently plan to tell?
+  - key: theater
+    description: Where has the PC been deployed? (North Africa, Normandy, Pacific island, etc.)
     required: false
-  - key: the_person_who_writes_you_letters_about_a_war_they_believe_you_are_winning
-    description: The PC is being written to by someone back home who believes the PC is winning the war they describe. Who is writing, what war do they think it is, and what does the PC not say back?
+    persist: true
+  - key: family_back_home
+    description: Who is the PC's family back home, and where are they located? Include names and town.
     required: false
-  - key: the_officer_you_obey_because_the_section_will_not_openly_disobey_them
-    description: The PC obeys a specific officer, not because the orders are right — the section knows they are not — but because the section will not openly disobey them. Who is the officer, what is the order the PC has the most difficulty obeying, and what would the section do if the PC stopped obeying?
+  - key: chain_of_command
+    description: Who is the PC's commanding officer, and does the PC respect or distrust them?
     required: false
     persist: true
 

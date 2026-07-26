@@ -153,19 +153,19 @@ npc_bonds:
     description: The NPC knows which cargo in the PC's hold came from a slaver ship — and divides every share with that knowledge. The proof of the bond is that the NPC has never reported it.
 
 pc_situation_schema:
-  - key: the_ship_whose_previous_captain_was_kept_or_killed_by_you
-    description: The PC's current vessel had a previous captain, and the transition was not Articles-clean. Did the PC keep the captain, kill the captain, or stand aside while someone did — and what does the crew that watched it happen aboard now say about it to each other?
+  - key: vessel
+    description: The PC's ship or vessel. Name, type, condition, and armament.
     required: false
     persist: true
-  - key: the_port_that_will_hang_you_or_drink_with_you_depending_on_the_messenger
-    description: The PC has a home port. The same port will hang the PC or drink with the PC depending on which message arrived most recently from elsewhere — and the PC does not always know which one arrived.
+  - key: home_port
+    description: Where is the PC based? Who controls it, and are they welcome there?
     required: false
     persist: true
-  - key: the_thing_you_did_under_articles_that_made_a_stranger_call_you_pirate_like_it_was_a_name
-    description: The PC did something under the Articles — within them, technically — that made a stranger call the PC "pirate" like it was the PC's name. What was the act, and what made it not technically a violation?
+  - key: reputation
+    description: How is the PC known or unknown? Feared, respected, or unknown?
     required: false
-  - key: the_empire_whose_pardon_letter_is_in_your_sea_chest_unsigned
-    description: The PC keeps a pardon letter in their sea chest from an empire that has not yet been answered. Which empire, what did the PC do to be offered it, and why has the PC not yet signed it?
+  - key: alliance_status
+    description: Who does the PC sail under or with? (pirate fleet, navy, independent, merchant guild)
     required: false
     persist: true
 
