@@ -45,6 +45,15 @@ def _sanitize_seed_state(seed_state: SeedState) -> SeedState:
     seed_state.meta["session_name"] = _strip_non_ascii(
         seed_state.meta.get("session_name", "")
     )
+    # Strip rogue prose fields from pc.situation. prepare_seed LLM sometimes
+    # emits 'opening' / 'description' / 'narrative' despite the prompt saying
+    # not to. These belong to narrate_seed, not prepare_seed — drop them so
+    # the wasted tokens never enter the seed state.
+    seed_state.pc.situation = {
+        k: v
+        for k, v in seed_state.pc.situation.items()
+        if k not in {"opening", "description", "narrative"}
+    }
     for evt in seed_state.scene.world_state:
         if isinstance(evt, str):
             seed_state.scene.world_state[seed_state.scene.world_state.index(evt)] = _strip_non_ascii(evt)
@@ -589,8 +598,8 @@ async def narrate_seed(
                 actions = actions[:4]
             
             opening_narrative = j.get("opening_narrative", "")
-            if len(opening_narrative) < 50:
-                raise ValueError(f"opening_narrative must be at least 50 characters, got {len(opening_narrative)}")
+            if len(opening_narrative) < 1500:
+                raise ValueError(f"opening_narrative must be at least 1500 characters, got {len(opening_narrative)}")
             
             outcome_summary = j.get("outcome_summary", "")
 
