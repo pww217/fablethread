@@ -1,6 +1,6 @@
 ---
-title: "Location expansion — seed-declared opportunities, first-visit flag, NPC location pinning"
-status: idea
+title: "Location expansion — seed-declared location threads, arrival flag, NPC location pinning"
+status: up-next
 urgency: 3
 size: large
 created: 2026-07-06
@@ -11,6 +11,7 @@ labels:
   - seed
   - narration
   - npc
+  - threads
 ---
 
 ## Problem
@@ -21,33 +22,34 @@ Locations are an afterthought in seed generation. Each seed produces:
 
 The key locations exist as seed-declared world map data but are never shown to the narrator, never referenced by ruling, and serve no function beyond being seed-declared facts. Players have no incentive to visit them. Location changes only replace `state.location` — there's no memory of visited places, no exposition about what's interesting at a location, and no narrator guidance toward exploring.
 
-Currently the narrator only describes the current location's seed description string. There's no structured seed data about what makes a location interesting or worth visiting.
+Worse, arriving at a new location introduces no new narrative pressure — no threads emerge from the location itself. Location changes feel like set changes.
 
 ## Goals
 
-1. **Seed-declared location opportunities:** Each key location gets a `location_opportunities: list[str]` field (1-2 items). These are narrative opportunities/things the player can do at the location (e.g., "scout from watchtower to survey terrain", "talk to the town alderman about rumors", "visit the local tavern for gossip"). Each ~20-30 chars. Distinct from scene inventory — these are actions/narrative nodes, not physical objects.
+1. **Seed-declared location threads:** Each key location gets `location_threads: list[SeedThread]` (0-2; id/summary/type/initial_urgency). Never urgent at seed. Type biased toward `opportunity` (other types allowed); locations tied to the long-term objective carry threads that flesh out, gate, or complicate it. This subsumes F-33 — opportunities and threads are one mechanism (threads were the intent; "opportunities" was a placeholder).
 
-2. **First-visit flag:** Track whether the player's current location is a first visit via a boolean flag `first_visit_location: bool` on `state.scene`. Set to `True` on location change if location ID differs from previous location's ID. Same place where `turn_entered` and `location_entered_turn` are already stamped. Used as a signal to the narrator to introduce opportunities into narration when relevant.
+2. **Sync engine activation:** The delta builder activates a location's seed threads at location change — same code path as `turn_entered` (delta_builder.py:208-232). No LLM call, no async window. Activated threads are ordinary ArcThreads: no `scope` field, normal lifecycle, count toward `thread_max_active`. Eviction logic (currently inlined in turn_state.py's record `thread_add` path) is extracted to a shared helper and applied at activation.
 
-3. **Narrator exposition guidance:** Narrate prompt includes a new location context section showing seed-declared opportunities + first_visit flag. Opportunities are permanent context when at a key location — shown on every turn at that location. On first visit (flag True): narrator weaves some opportunities naturally into narration as relevant, not a list. On retrieval (flag False): narrator may note opportunities if narratively appropriate.
+3. **Arrival flag:** `location_arrived: bool` on `state.scene`, set on any location change (arrival detector, not first-visit — renamed from `first_visit_location` in design review). Signals the narrator to weave activated threads into narration naturally.
 
-4. **NPC location pinning:** `last_seen_location` pinned to `state.location` on state change — NPCs anchored to where they were last seen, won't auto-move when the PC moves. When the extractor detects narration indicating an NPC moved, it overrides the pin and updates `last_seen_location` accordingly. Pin is authoritative but overrideable.
+4. **Resolution-aware narrator context:** One "Location Context" section (~150 token aggregate cap, shared with F-32) showing the KeyLocation seed description (takes precedence over extractor-written LocationRef.description) + activated, unresolved threads. Resolved threads drop out — real state signal on revisit.
+
+5. **NPC location pinning:** `last_seen_location` becomes the canonical anchor point after location changes — NPCs demoted to `nearby` with the pin when the PC moves; extractor overrides only when an NPC actually moves.
 
 ## Scope Decisions
 
 - **Key locations = spatial boundary.** Sub-areas handled through description granularity, not separate location IDs.
-- **No extraction schema changes.** Location opportunities feed the seed → narrate pipeline; no runtime extraction.
-- **No global extraction changes.** The field is for key locations only.
+- **No extraction schema changes.** Threads are ordinary ArcThreads after activation; Record handles them normally.
+- **No convergence/ruling/directive filtering.** Activated threads behave like any thread. Note: the `threat_thread` convergence component is not urgency-gated — the opportunity-type bias is the arrival-shock guardrail.
+- **No ruling prompt change** (F-32 owns the only ruling change).
 - **No UI changes in this phase.**
-- **Location pinning = one trailing field behavior change.** `last_seen_location` becomes the canonical anchor point for NPCs after location changes.
-- **No ruling prompt change.**
 
 ## Design
 
-Full design doc: [docs/design/location-expansion.md](../design/location-expansion.md)
+Full design doc (status: reviewed): [docs/design/location-expansion.md](../design/location-expansion.md)
 
 ## Related Tickets
 
-- [F-32: Scene inventory](../features/F-32-scene-inventory.md) — seed-declared location items as strings (builds on this foundation)
-- [F-33: Location threads](../features/F-33-location-threads.md) — dormant seed-declared threads that activate on location arrival (deferred; seed-declared opportunities alone should make locations feel alive)
+- [F-32: Scene inventory](../features/F-32-scene-inventory.md) — seed-declared location details/items (builds on this foundation; owns `scene_details` + ruling change)
+- [F-33: Location threads](../features/F-33-location-threads.md) — **canceled: merged into this ticket** per design review
 - [B-1: Location description overwritten by empty location_change delta](../bugs/B-1.md) — fixed, guard condition prevents empty deltas from overwriting seed data
