@@ -148,6 +148,18 @@ class WorldState(BaseModel):
                 merged[field_name] = []
         if merged.get("long_term_objective") is None:
             merged["long_term_objective"] = LongTermObjective()
+
+        # Initialize last_seen_location for NPCs that are present/nearby but don't have one
+        # (turn-0 seed data may not have it set)
+        comp = merged.get("compendium") or {}
+        npcs = comp.get("npcs") or {}
+        location_name = merged.get("location", {}).get("name") if merged.get("location") else None
+        for npc_id, npc_data in npcs.items():
+            if isinstance(npc_data, dict):
+                presence = npc_data.get("presence", "known")
+                if presence in ("present", "nearby") and not npc_data.get("last_seen_location"):
+                    npc_data["last_seen_location"] = location_name
+
         return cls.model_validate(merged)
 
     def to_dict(self) -> dict[str, Any]:
