@@ -465,6 +465,45 @@ function _dismissExtractionRow() {
     }, 300);
 }
 
+function _showPreStreamBar(payload, block) {
+    var existing = block.querySelector('.pre-stream-bar');
+    if (existing) { existing.remove(); }
+    var bar = document.createElement('div');
+    bar.className = 'pre-stream-bar';
+    bar.innerHTML = '<span class="progress-label">Determining Outcome…</span>' +
+        '<div class="progress-bar"><div class="progress-bar-fill"></div></div>' +
+        '<span class="progress-elapsed">0.0s</span>';
+    block.appendChild(bar);
+    var fill = bar.querySelector('.progress-bar-fill');
+    var elapsedEl = bar.querySelector('.progress-elapsed');
+    var expectedMs = payload.expected_ms || _getPreStreamFallbackMs();
+    bar._phaseStart = Date.now();
+    bar._expectedMs = expectedMs;
+    bar._tick = setInterval(function() {
+        var elapsed = Date.now() - bar._phaseStart;
+        var s = elapsed / 1000;
+        elapsedEl.textContent = s.toFixed(1) + 's';
+        var pct = Math.min(100, (elapsed / expectedMs) * 100);
+        fill.style.width = pct + '%';
+    }, 100);
+}
+
+function _dismissPreStreamBar() {
+    var blocks = document.querySelectorAll('.narrative-block');
+    var lastBlock = blocks[blocks.length - 1];
+    var bar = lastBlock ? lastBlock.querySelector('.pre-stream-bar') : null;
+    if (!bar) return;
+    if (bar._tick) clearInterval(bar._tick);
+    bar.style.animation = 'fadeOutCard 0.3s ease-out forwards';
+    setTimeout(function() {
+        if (bar.parentNode) bar.parentNode.removeChild(bar);
+    }, 300);
+}
+
+function _getPreStreamFallbackMs() {
+    return 5000;
+}
+
 function applyCardOpenStateFromStorage() {
     document.querySelectorAll('aside.sidebar details.sidebar-card[data-card]').forEach((d) => {
         const v = localStorage.getItem(CCYA_CARD_KEY(d.dataset.card));

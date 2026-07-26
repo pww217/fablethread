@@ -860,12 +860,14 @@ function game() {
                 const chunk = data.chunk || '';
                 streamBuf            += chunk;
                 drainState.pendingQueue += chunk;
+                _dismissPreStreamBar();
                 _startDisplayDrain(drainState, _drainRenderFn);
             });
 
             es.addEventListener('phase', (e) => {
                 const payload = JSON.parse(e.data);
                 if (payload && payload.phase === 'narrate_done') {
+                    _dismissPreStreamBar();
                     _stopDisplayDrain();
                     drainState.displayBuf   += drainState.pendingQueue;
                     drainState.pendingQueue  = '';
@@ -912,8 +914,17 @@ function game() {
                         setTimeout(() => document.getElementById('player-input')?.focus(), 100);
                     }
                 }
-                if (payload && (payload.phase === 'sanitize_start' || payload.phase === 'world_start' || payload.phase === 'ruling_start' || payload.phase === 'narrate_start')) {
-                    // No progress UI for these phases; extraction row is shown at narrate_done.
+                if (payload && payload.phase === 'ruling_start') {
+                    _showPreStreamBar({ expected_ms: payload.pre_stream_expected_ms || 0 }, block);
+                    return;
+                }
+                if (payload && payload.phase === 'narrate_start') {
+                    return;
+                }
+                if (payload && payload.phase === 'narrate_first_token') {
+                    return;
+                }
+                if (payload && (payload.phase === 'sanitize_start' || payload.phase === 'world_start')) {
                     return;
                 }
             });
@@ -1105,6 +1116,7 @@ function game() {
                 self._turnEs = null;
                 self._turnCancel = null;
                 _dismissExtractionRow();
+                _dismissPreStreamBar();
                 const data = JSON.parse(e.data);
                 textDiv.innerHTML =
                     `<span style="color:var(--accent-error)">${_escapeHtml(data.error || 'Unknown error')}</span>`;
@@ -1120,6 +1132,7 @@ function game() {
                 self._turnCancel = null;
                 if (this.submitting) {
                     _dismissExtractionRow();
+                    _dismissPreStreamBar();
                     // Mobile reconnect: poll /turn/status to check if turn completed
                     // while the tab was in the background
                     const reconnectCheck = () => {
