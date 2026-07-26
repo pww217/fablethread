@@ -149,10 +149,9 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - At least one thread must have `type == "threat"`. At least one thread must have `type != "threat"`.
 - **CRITICAL:** Every thread MUST have a `type` field in the JSON. Omitting `type` will cause the seed to be rejected with a retry request.
 **Thread count (hard limits at game start):**
-- Exactly 1–2 threads with `"dormant": false` — prefer 1 if unsure. Never more than 2.
-- All other threads with `"dormant": true`.
-- Up to 3 dormant threads (`"dormant": true`).
-- Total: 4–5 threads (minimum 3, maximum 6).
+- Exactly 2 threads with `"dormant": false`.
+- At least 2 dormant threads (`"dormant": true`).
+- Total: 4–5 threads.
 - Non-dormant threads: urgency `"normal"` or `"urgent"` (prefer `"normal"`).
 - Dormant threads: urgency `"background"`. Never `"urgent"`.
 **Thread quality:** Each thread must be a medium-term tension capable of sustaining 5–10 turns — a situation with inherent escalation, not a single event, person, or goal. If your thread would resolve after one interaction, it belongs in the opening scene, not the arc. Thread summaries are seeds for the narrator, not scripted plot — describe a situation; do not specify events. Do not generate threads from incidental narration details.
