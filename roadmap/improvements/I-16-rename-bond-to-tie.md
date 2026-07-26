@@ -1,6 +1,6 @@
 ---
 title: "Rename bond → tie across the codebase"
-status: idea
+status: done
 urgency: 3
 size: medium
 created: 2026-06-29

@@ -1,10 +1,11 @@
 ---
 title: "Optimize narrator context — what each narrator receives from world, inspiration, and arc"
-status: idea
+status: up-next
 urgency: 3
 size: medium
 created: 2026-07-09
 ticket_id: I-33
+design: docs/design/I-33-narrator-context-optimization-design.md
 labels:
   - engine
   - prompts

@@ -48,7 +48,7 @@ scene:
   turn_entered: int            # when the current scene was entered (set on location change, used by _compute_ages())
   location_entered_turn: int   # when location was last changed
 
-compendium.npcs: dict[id] → {name, title, bio, presence: str | "present"|"nearby"|"known"|"departed"|"archived", position: str | None, motivation: str | None, fear: str | None, leverage: str | None, tie: str | None, tie_label: str, party: bool | None, first_seen_turn: int | None, last_presence_turn: int | None, last_seen_location: str | None, departed_reason: str | None, departed_turn: int | None, color: str | None}
+compendium.npcs: dict[id] → {name, title, bio, disposition: str | None, presence: str | "present"|"nearby"|"known"|"departed"|"archived", position: str | None, motivation: str | None, fear: str | None, leverage: str | None, tie: str | None, tie_label: str, party: bool | None, first_seen_turn: int | None, last_presence_turn: int | None, last_seen_location: str | None, departed_reason: str | None, departed_turn: int | None, color: str | None}
 
 world.factions: list[dict], world.locations: list[KeyLocation]
 ```
@@ -59,7 +59,9 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 
 - **IntentEnvelope**: `intent`, `intent_verb`, `target`, `check` (RulesCheck), `impossible`, `reason`, `scene_motion: Literal["hold", "advance", "transition"]`
 - **RulesOutcome**: `rolled`, `skill`, `difficulty`, `original_difficulty`, `stat_value`, `stat_mod`, `diff_mod`, `dice`, `raw_total`, `final_total`, `band`, `directive`, `intent`, `intent_verb`, `impossible`, `reason`, `difficulty_adjustment`
-- **SceneExtractResult**: `compendium_npc_update`
+- **SceneExtractResult**: `compendium_npc_add` (new NPCs, write-once fields), `compendium_npc_update` (existing NPCs, updatable fields only)
+- **CompendiumNpcAdd** (write-once): `id`, `name`, `title`, `bio`, `disposition`, `motivation`, `fear`, `leverage`, `tie`, `party`, `first_seen_turn`. Used for seed data and first-appearance extraction.
+- **CompendiumNpcUpdate** (updatable): `id`, `bio`, `disposition`, `presence`, `position`, `departed_reason`, `departed_turn`, `last_seen_location`. Used for subsequent scene extraction updates.
 - **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`, `location_change`, `location_description`
 - **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (dict | None, applied directly to arc dict), `arc_resolve` (ArcResolution | None), `thread_resolve` (with outcome sentence + world_state_candidate), `thread_add`, `actions`, `outcome_summary`. **The `gm_beat` field has been removed** — beat generation moved to Step 2d (World), beat selection to Step 0 (Ruling). The Pydantic class name is preserved (`StorytellerResult`); only the field is gone.
 - **SeedEnvelope**: `seed_state: SeedState`, `opening_narrative`, `actions`, `arc: LongTermObjective | None` (unified `threads[]` with `major_updates: list[ProgressEntry]`, `completed_threads[]`)

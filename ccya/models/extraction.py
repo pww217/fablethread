@@ -15,21 +15,29 @@ from ccya.models.state import (
 _log = logging.getLogger(__name__)
 
 
-class CompendiumNpcUpdate(BaseModel):
+class CompendiumNpcAdd(BaseModel):
     id: str
     name: str | None = None
     title: str | None = None
     bio: str | None = None
+    disposition: str | None = None
     motivation: str | None = None
     fear: str | None = None
     leverage: str | None = None
-    presence: str | None = None  # "present" | "nearby" | "known" | "departed" — scene extractor sets this
-    position: str | None = None   # spatial position in current scene
-    first_seen_turn: int | None = None  # set by engine on initial entry creation
-    tie: str | None = None          # durable personal history — human-readable description
-    departed_reason: str | None = None     # combined: "short label — prose" describing the departure
-    departed_turn: int | None = None       # set by engine on first presence:"departed"
-    last_seen_location: str | None = None  # set by extractor when NPC moves to a different location than their last known
+    tie: str | None = None
+    party: bool = False
+    first_seen_turn: int | None = None
+
+
+class CompendiumNpcUpdate(BaseModel):
+    id: str
+    bio: str | None = None
+    disposition: str | None = None
+    presence: str | None = None
+    position: str | None = None
+    departed_reason: str | None = None
+    departed_turn: int | None = None
+    last_seen_location: str | None = None
 
 
 def _coerce_inventory_remove_item(v: Any) -> Any:
@@ -89,6 +97,7 @@ class StateMerge(BaseModel):
     location_description: str | None = None
     pc_condition_add: list[ConditionAdd] = Field(default_factory=list, max_length=6)
     pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
+    compendium_npc_add: list[CompendiumNpcAdd] = Field(default_factory=list, max_length=6)
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
@@ -107,6 +116,7 @@ class StateMerge(BaseModel):
 
 
 class SceneExtractResult(BaseModel):
+    compendium_npc_add: list[CompendiumNpcAdd] = Field(default_factory=list, max_length=6)
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )

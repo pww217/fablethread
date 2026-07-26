@@ -44,6 +44,7 @@ def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
             "title": ndata.get("title", ""),
             "presence": presence,
             "bio": bio,
+            "disposition": ndata.get("disposition", ""),
             "notes": ndata.get("notes", ndata.get("position", "")),
             "position": ndata.get("position", ""),
             "motivation": ndata.get("wants", ""),

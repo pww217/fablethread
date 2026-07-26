@@ -11,8 +11,8 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "compendium_lifecycle", "deterministic",
-    requires_fields=["applied.compendium_npc_update", "last_turn_state"],
-    description="NPCs added via compendium_npc_update appear in state.compendium.npcs",
+    requires_fields=["applied.compendium_npc_add", "applied.compendium_npc_update", "last_turn_state"],
+    description="NPCs added/updated via compendium_npc_add and compendium_npc_update appear in state.compendium.npcs",
 )
 def compendium_lifecycle(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
@@ -20,9 +20,10 @@ def compendium_lifecycle(events: list[dict[str, Any]], *, config: Any = None) ->
 
     for ev in events:
         applied = ev.get("applied") or {}
+        npc_adds = applied.get("compendium_npc_add") or []
         npc_updates = applied.get("compendium_npc_update") or []
 
-        if not npc_updates:
+        if not npc_adds and not npc_updates:
             continue
 
         snap = extract_field(ev, "last_turn_state") or {}
@@ -32,7 +33,7 @@ def compendium_lifecycle(events: list[dict[str, Any]], *, config: Any = None) ->
         if not isinstance(npcs, dict):
             continue
 
-        for update in npc_updates:
+        for update in npc_adds + npc_updates:
             if not isinstance(update, dict):
                 continue
 
@@ -41,10 +42,11 @@ def compendium_lifecycle(events: list[dict[str, Any]], *, config: Any = None) ->
                 continue
 
             if npc_id not in npcs:
+                channel = "compendium_npc_add" if update in npc_adds else "compendium_npc_update"
                 findings.append({
                     "turn": ev.get("turn"),
                     "check": "npc_in_state",
-                    "detail": f"NPC {npc_id!r} added via compendium_npc_update but not found in state.compendium.npcs",
+                    "detail": f"NPC {npc_id!r} added via {channel} but not found in state.compendium.npcs",
                 })
                 all_passed = False
 

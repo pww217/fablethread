@@ -1,6 +1,6 @@
 ---
 title: "Choice grounding priority"
-status: scoping
+status: done
 urgency: 3
 size: small
 created: 2026-07-09
