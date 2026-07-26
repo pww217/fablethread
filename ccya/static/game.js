@@ -783,6 +783,7 @@ function game() {
             block.appendChild(echo);
             block.appendChild(textDiv);
             np.appendChild(block);
+            _showPreStreamBar({ expected_ms: 0 }, block);
 
             // One-time scroll so the fresh turn block starts in view.
             np.scrollTo({ top: np.scrollHeight, behavior: 'instant' });
@@ -915,7 +916,7 @@ function game() {
                     }
                 }
                 if (payload && payload.phase === 'ruling_start') {
-                    _showPreStreamBar({ expected_ms: payload.pre_stream_expected_ms || 0 }, block);
+                    _updatePreStreamExpectedMs(payload.pre_stream_expected_ms);
                     return;
                 }
                 if (payload && payload.phase === 'narrate_start') {

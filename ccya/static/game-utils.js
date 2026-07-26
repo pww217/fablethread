@@ -465,6 +465,8 @@ function _dismissExtractionRow() {
     }, 300);
 }
 
+var _preStreamLastExpectedMs = 0;
+
 function _showPreStreamBar(payload, block) {
     var existing = block.querySelector('.pre-stream-bar');
     if (existing) { existing.remove(); }
@@ -476,16 +478,24 @@ function _showPreStreamBar(payload, block) {
     block.appendChild(bar);
     var fill = bar.querySelector('.progress-bar-fill');
     var elapsedEl = bar.querySelector('.progress-elapsed');
-    var expectedMs = payload.expected_ms || _getPreStreamFallbackMs();
     bar._phaseStart = Date.now();
-    bar._expectedMs = expectedMs;
+    bar._expectedMs = payload.expected_ms || _preStreamLastExpectedMs || _getPreStreamFallbackMs();
     bar._tick = setInterval(function() {
         var elapsed = Date.now() - bar._phaseStart;
         var s = elapsed / 1000;
         elapsedEl.textContent = s.toFixed(1) + 's';
-        var pct = Math.min(100, (elapsed / expectedMs) * 100);
+        var pct = Math.min(100, (elapsed / bar._expectedMs) * 100);
         fill.style.width = pct + '%';
     }, 100);
+}
+
+function _updatePreStreamExpectedMs(newExpectedMs) {
+    if (!newExpectedMs) return;
+    _preStreamLastExpectedMs = newExpectedMs;
+    var blocks = document.querySelectorAll('.narrative-block');
+    var lastBlock = blocks[blocks.length - 1];
+    var bar = lastBlock ? lastBlock.querySelector('.pre-stream-bar') : null;
+    if (bar) bar._expectedMs = newExpectedMs;
 }
 
 function _dismissPreStreamBar() {

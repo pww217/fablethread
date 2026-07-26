@@ -767,8 +767,12 @@ def _persist_events(
     pctx: _TurnPersistContext,
     state: WorldState,
     event: dict[str, Any],
-) -> list[dict[str, Any]]:
-    """Write event, prompts, and chronicle to disk. Returns prompts_list."""
+) -> tuple[WorldState, list[dict[str, Any]]]:
+    """Write event, prompts, and chronicle to disk.
+
+    Returns (state, prompts_list) so the caller can use the post-bullet state
+    for the yielded TurnResult and the async cleanup window.
+    """
     _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     extraction_event = pctx.extraction_event
 
@@ -819,7 +823,7 @@ def _persist_events(
         turn_no = state.meta.turn
         state = state.add_prior_history_bullet(f"- [T{turn_no}] {pctx.outcome_summary}")
 
-    return prompts_list
+    return state, prompts_list
 
 
 def _build_turn_result(
@@ -994,7 +998,7 @@ async def _persist_and_async_cleanup(pctx: _TurnPersistContext) -> AsyncIterator
     event = _build_turn_event(pctx, state, ruling_event)
 
     # === Persist events to disk ===
-    prompts_list = _persist_events(pctx, state, event)
+    state, prompts_list = _persist_events(pctx, state, event)
 
     # === Yield complete to caller ===
     result_obj = _build_turn_result(pctx, state, ruling_event)
