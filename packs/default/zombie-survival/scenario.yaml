@@ -144,19 +144,19 @@ npc_bonds:
     description: The NPC lived three doors down from the PC before the collapse. Both remember each other's before-names. Both pretend not to recognize each other — because the things they did to survive are easier done among strangers.
 
 pc_situation_schema:
-  - key: the_settlement_that_does_not_know_what_you_did_before_you_came
-    description: The settlement the PC lives in does not know what the PC did to get there. What did the PC do, and why have they not said it?
+  - key: home_settlement
+    description: What settlement, if any, does the PC call home?
     required: false
     persist: true
-  - key: the_vehicle_you_did_not_earn
-    description: The PC has a vehicle — a bike, a truck, a horse, a working pair of boots. How did the PC come by it, and what happened to the person who had it before?
+  - key: transport
+    description: What is the PC's mode of transport, if any? ("nothing" is valid)
     required: false
     persist: true
-  - key: the_place_you_left_in_a_hurry
-    description: What did the PC leave behind to come here — and is whatever chased the PC out of there still following, still searching, or already inside this place?
+  - key: nearby_area
+    description: What's beyond the PC's home settlement? Neighboring settlements, hordes, or other threats.
     required: false
-  - key: the_person_you_are_going_to_find_dead_or_kill
-    description: One name. The PC already knows whether they are going to find this person dead, kill them, or be killed trying. Which is it, and do they have it right?
+  - key: family_status
+    description: Who from the PC's family survived or didn't, and where are they?
     required: false
 
 scene_detail_bundles:
