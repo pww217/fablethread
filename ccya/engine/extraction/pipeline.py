@@ -18,7 +18,6 @@ from ccya.engine.extraction.scene import _extract_scene_messages
 from ccya.engine.extraction.state import _extract_state_messages
 from ccya.engine.extraction.record import _record_messages
 from ccya.engine.extraction.utils import _avg_event_ms, _call_stream, _capitalize_inventory_names, _context_meta, _dedup_compendium_update
-from ccya.state import apply_delta
 from ccya.errors import ErrorKind, LlmcTimeout
 from ccya.llm_client import trim_messages
 from ccya.models import (
@@ -32,6 +31,12 @@ from ccya.models import (
 )
 
 _log = logging.getLogger(__name__)
+
+
+def _apply_delta_lazy(s: WorldState, merge: StateMerge, trace_id: str) -> WorldState:
+    """Lazy import wrapper to avoid circular import between ccya.engine.extraction and ccya.state."""
+    from ccya.state import apply_delta
+    return apply_delta(s, merge, trace_id=trace_id)
 
 
 @dataclass
@@ -271,7 +276,7 @@ async def _scene_stream(
         build_messages=lambda s: _extract_scene_messages(env, narration, s, turn_no=turn_no),
         build_messages_kwargs={},
         strip_keys=(),
-        preview_builder=lambda s, r: apply_delta(s.model_copy(), StateMerge(compendium_npc_update=r.compendium_npc_update or []), trace_id=trace_id),
+        preview_builder=lambda s, r: _apply_delta_lazy(s.model_copy(), StateMerge(compendium_npc_update=r.compendium_npc_update or []), trace_id=trace_id),
         panel_builder=lambda s: {
             "npcs": {nid: entry.model_dump() for nid, entry in s.compendium.npcs.items()},
             "location": s.location.model_dump(),
@@ -295,7 +300,7 @@ async def _state_stream(
         build_messages=lambda s: _extract_state_messages(env, narration, s, intent=intent, turn_no=turn_no, pack_inventory=(packing or {}).get("inventory") or []),
         build_messages_kwargs={},
         strip_keys=("_reasoning",),
-        preview_builder=lambda s, r: apply_delta(s.model_copy(), StateMerge(
+        preview_builder=lambda s, r: _apply_delta_lazy(s.model_copy(), StateMerge(
             inventory_add=r.inventory_add or [],
             inventory_remove=r.inventory_remove or [],
             inventory_update=r.inventory_update or [],

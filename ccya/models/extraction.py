@@ -11,7 +11,6 @@ from ccya.models.state import (
     ArcThread, ArcResolution, LongTermObjective, ConditionAdd, ConditionRemove,
     InventoryItem, InventoryRemove, InventoryUpdate, LocationRef, ThreadResolution, ThreadUpdate,
 )
-from ccya.engine.utils import coerce_condition_str as _coerce_condition_str
 
 _log = logging.getLogger(__name__)
 
@@ -50,7 +49,8 @@ def _coerce_condition_add_item(v: Any) -> Any:
     """Normalize condition_add entries using _coerce_condition_str."""
     if not v:
         return v
-    return [_coerce_condition_str(x) for x in v]
+    from ccya.engine.utils import coerce_condition_str
+    return [coerce_condition_str(x) for x in v]
 
 
 _PUNCTUATION_STRIP = frozenset(("*", "_", "`", ".", ",", ";", ":", "!", "?"))
