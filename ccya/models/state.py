@@ -334,16 +334,6 @@ class Condition(BaseModel):
         return v
 
 
-def _coerce_condition_str(v: Any) -> Any:
-    if isinstance(v, str):
-        cid = v.lower().strip().replace(" ", "_")
-        for ch in ("*", "_", "`", ".", ",", ";", ":", "!", "?"):
-            cid = cid.replace(ch, "")
-        cid = "_".join(cid.split()) or "condition"
-        return {"id": cid, "label": v.strip()}
-    return v
-
-
 class ConditionAdd(BaseModel):
     id: str
     label: str
