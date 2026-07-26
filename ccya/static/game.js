@@ -1006,8 +1006,7 @@ function game() {
                 }
             });
 
-            es.addEventListener('turn_complete', (e) => {
-                const result = JSON.parse(e.data);
+            const _applyTurnResult = (result, block) => {
                 this.turnNum = result.turn || this.turnNum;
                 _dismissExtractionRow();
 
@@ -1025,7 +1024,6 @@ function game() {
                 met.textContent = _formatMetricsRow(result.metrics);
                 textDiv.after(met);
 
-                // Outcome badge then inline change summary — both after narrative text.
                 let lastInserted = met;
                 const ruling = result.ruling || {};
                 if (ruling.rolled || result.outcome_summary) {
@@ -1037,9 +1035,6 @@ function game() {
                 const changes = _buildTurnChanges(result.change_lines || []);
                     if (changes) { lastInserted.after(changes); lastInserted = changes; }
 
-                // Thread progress is now included in the main change line.
-
-                // Debug-mode metadata row.
                 if (result.debug_mode) {
                     const debugDiv = document.createElement('div');
                     debugDiv.className = 'debug-metadata-row';
@@ -1051,7 +1046,6 @@ function game() {
                     lastInserted.after(debugDiv);
                     lastInserted = debugDiv;
 
-                    // Persist debug metadata for restoration on page refresh.
                     try {
                         const saveKey = result.state?.meta?.session_name || 'default';
                         localStorage.setItem('ccya_debug_' + saveKey, JSON.stringify({
@@ -1099,6 +1093,11 @@ function game() {
                     setTimeout(() => document.getElementById('player-input')?.focus(), 100);
                 }
                 _bindTooltips(document);
+            };
+
+            es.addEventListener('turn_complete', (e) => {
+                const result = JSON.parse(e.data);
+                _applyTurnResult(result, block);
             });
 
             es.addEventListener('turn_error', (e) => {
@@ -1121,10 +1120,28 @@ function game() {
                 self._turnCancel = null;
                 if (this.submitting) {
                     _dismissExtractionRow();
-                    textDiv.insertAdjacentHTML('beforeend',
-                        '<span style="color:var(--accent-error)"> [connection\u00a0lost\u00a0\u2014 try again]</span>');
-                    document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = false; });
-                    this.submitting = false;
+                    // Mobile reconnect: poll /turn/status to check if turn completed
+                    // while the tab was in the background
+                    const reconnectCheck = () => {
+                        fetch('/turn/status')
+                            .then(r => r.json())
+                            .then(status => {
+                                if (status.status === 'completed') {
+                                    _applyTurnResult(status.result, block);
+                                } else if (status.status === 'running') {
+                                    setTimeout(reconnectCheck, 2000);
+                                } else {
+                                    textDiv.insertAdjacentHTML('beforeend',
+                                        '<span style="color:var(--accent-error)"> [connection\u00a0lost\u00a0\u2014 try again]</span>');
+                                    document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = false; });
+                                    this.submitting = false;
+                                }
+                            })
+                            .catch(() => {
+                                setTimeout(reconnectCheck, 2000);
+                            });
+                    };
+                    reconnectCheck();
                 }
             };
         },
