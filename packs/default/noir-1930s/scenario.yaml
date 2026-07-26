@@ -148,31 +148,24 @@ npc_bonds:
 
 scene_detail_bundles:
   - id: back_alley
-    items: [a fire escape ladder bolted to the brickwork, a payphone with the receiver dangling, a child's shoe placed sole-up beneath the dial]
     conditions: [wet from last night's rain, the streetlamp out]
     sensory: [the hiss of a flickering neon sign, footsteps echoing from the next block]
   - id: police_precinct
-    items: [a typewriter with a stuck 'e' key, a filing cabinet with the bottom drawer padlocked, a duty board with one name scraped off with a knife — the names above and below are clean]
     conditions: [the floor slick from tracked-in rain, smoke hanging under the ceiling lights]
     sensory: [the clatter of a teletype machine, the smell of stale coffee and cheap tobacco]
   - id: speakeasy
-    items: [a brass rail worn smooth by shoe leather, a glass with lipstick on the rim, a phonograph cylinder labeled in a hand the PC recognizes as their mother's]
     conditions: [the room hazy with cigarette smoke, the music from the phonograph skipping]
     sensory: [the low laughter from a back room, the clink of glasses behind the bar]
   - id: hotel_room
-    items: [a telephone with the cord cut, a hat left on the bedpost, a second hat on the other bedpost identical to the PC's — which the PC has not yet removed from their own head]
     conditions: [the radiator knocking, the window onto a fire escape that doesn't reach the ground]
     sensory: [the drip of a leaky faucet, voices from the room next door through thin walls]
   - id: dockyard
-    items: [a crane with its load suspended halfway, a Customs manifest page folded into a paper bird and set on the bollard]
     conditions: [thick fog rolling off the water, the pier slick with oil]
     sensory: [the clang of metal on metal from a warehouse, the deep horn of a departing freighter]
   - id: rooftop_chase
-    items: [a water tower with a loose ladder, a fire escape that ends six feet short]
     conditions: [the tar roof blistering in the sun, the gap between buildings wider than it looks, the ladder's rungs missing every third one in a pattern as if someone climbed who already knew]
     sensory: [the wail of a siren from the street below, the clatter of a loose antenna in the wind]
   - id: morgue_basement
-    items: [a body drawer half-open with a tag attached, a dictaphone with a half-finished recording, a toe tag written out with the PC's home address]
     conditions: [the fluorescent light buzzing, the floor drain stained]
     sensory: [the sharp smell of formaldehyde, the hum of the refrigeration unit]
 

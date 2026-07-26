@@ -422,7 +422,7 @@ All packs use identical pool sizes. The only structural difference is inventory_
 - All have exactly 14 arc_categories, 8 character_dynamics, 8 npc_bonds, 7 scene_detail_bundles, 4 pc_situation_schema fields
 - All use `min_objectives_per_quest: 2`, `starting_quest_count: 1`
 - All prose range is 530–930 words
-- All scene bundles follow same 3-field structure (items, conditions, sensory)
+- All scene bundles follow same 2-field structure (conditions, sensory)
 - All NPC bonds follow same pattern: id, tags, description
 > **Note:** `moral_pressures` was removed in July 2025 — it was passed to the seed LLM with no structured place to use it (the `thematic_question` field it was supposed to feed into was removed). The pool was dead weight.
 

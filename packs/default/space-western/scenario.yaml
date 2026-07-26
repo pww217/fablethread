@@ -168,30 +168,23 @@ pc_situation_schema:
 
 scene_detail_bundles:
   - id: cargo_bay
-    items: [a grav pallet with a broken levitator, a hydro-spanner with an adaptive grip, a manifest line for one passenger not currently in the bay]
     conditions: [the bay depressurized and cold, cargo netting loose and tangled]
     sensory: [the hum of emergency lighting, the hiss of atmosphere cycling through scrubbers]
   - id: town_street
-    items: [a holo-sign flickering between two advertisements, a freight droid powered down against a wall, a storefront advertising a business that closed twelve years ago with a current-hours sign in the window]
     conditions: [the street half in shadow, market stalls abandoned mid-day]
     sensory: [the buzz of faulty lighting, the distant shriek of a ship's engines atmo-burn]
   - id: saloon_interior
-    items: [a card table with a marked deck in the discard, a synthesizer dispensing something brown into a chipped cup, a glass poured at the empty seat refreshed every hour]
     conditions: [smoke from a hookah hanging in the air, a back door propped open]
     sensory: [the jangle of an out-of-tune piano, the hum of a cooler unit cycling]
   - id: desert_crossing
-    items: [a rusted hull fragment half-buried in the dust, a cracked oxygen mask hanging from a post]
     conditions: [the heat shimmer distorting the horizon, the trail marker knocked askew, a second set of footprints joining the PC's from a direction no one walked from]
     sensory: [the dry scrape of windblown sand, the creak of metal expanding in the heat]
   - id: mine_shaft
-    items: [a drilling rig with the safety guard removed, a seismic charge with a dead trigger]
     conditions: [the ventilation fan cycling unevenly, the shaft dimly lit, scratching on the wall in a hand too small to reach]
     sensory: [the echo of dripping water from deep below, the grinding of ore carts on damaged track]
   - id: orbit_station
-    items: [an airlock with a jammed seal, a terminal showing docking fees overdue, a docked ship that hasn't moved in eleven years and is still on the registry]
     conditions: [the gravity cycling on and off, the corridor dimly lit with emergency strips]
     sensory: [the low hum of the station's reactors, the click of magnetic boots on grated flooring]
   - id: repair_bay
-    items: [a welding torch with a cracked lens, a diagnostic tablet showing red across the board, a tool etched with a name that matches the PC's dead sibling's]
     conditions: [the bay cold from the vacuum seal broken, tools scattered across every surface]
     sensory: [the hiss of a plasma cutter, the ozone smell of a recent electrical fire]

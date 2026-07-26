@@ -154,7 +154,6 @@ class PoolEntry(BaseModel):
 
 class SceneDetailBundle(BaseModel):
     id: str
-    items: list[str] = Field(default_factory=list, max_length=3)
     conditions: list[str] = Field(default_factory=list, max_length=3)
     sensory: list[str] = Field(default_factory=list, max_length=3)
 
