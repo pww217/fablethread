@@ -163,6 +163,7 @@ def _apply_thread_automatics(
             updated = t.model_copy(update={
                 "dormant": True,
                 "urgency": "background",
+                "urgency_set_turn": turn_no,
                 "last_updated_turn": turn_no,
             })
             threads[i] = updated
@@ -180,6 +181,7 @@ def _apply_thread_automatics(
         if t.dormant and t.urgency != "background":
             updated_dormant = t.model_copy(update={
                 "urgency": "background",
+                "urgency_set_turn": turn_no,
             })
             threads[i] = updated_dormant
             mutated = True

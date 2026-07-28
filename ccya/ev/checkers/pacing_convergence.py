@@ -180,6 +180,9 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
     cfg = EngineConfig()
     filtered = filter_turn_events(events)
 
+    # Track smoothed values across turns for EMA validation
+    prev_smoothed = 0.0
+
     for i, ev in enumerate(filtered):
         pc = extract_field(ev, "pacing_context") or {}
         raw_components = pc.get("convergence_components") or {}
@@ -307,18 +310,24 @@ def convergence_recompute(events: list[dict[str, Any]], *, config: Any = None) -
                 })
                 all_passed = False
 
-        # Compute expected total score (6 components, no stall_floor)
-        expected_score = sum(components.values())
-
+        # EMA validation: verify convergence_score = int(alpha * raw_sum + (1-alpha) * prev_smoothed)
         if convergence_score is not None:
-            diff = abs(expected_score - convergence_score)
-            if diff > 0.01:
+            alpha = cfg.convergence_alpha
+            expected_score = sum(components.values())
+            # Derive prev_smoothed from the smoothing formula
+            # smoothed = alpha * raw + (1-alpha) * prev_smoothed
+            # prev_smoothed = (smoothed - alpha * raw) / (1-alpha)
+            # We don't have prev_smoothed directly, but we can track it across turns
+            expected_smoothed = alpha * expected_score + (1 - alpha) * prev_smoothed
+            expected_int = int(expected_smoothed)
+            if convergence_score != expected_int:
                 findings.append({
                     "turn": turn_no,
-                    "check": "score_mismatch",
-                    "detail": f"expected {expected_score}, got {convergence_score} (diff={diff:.2f})",
+                    "check": "ema_smoothed",
+                    "detail": f"expected int(smoothed)={expected_int}, got {convergence_score} (raw={expected_score}, prev_smoothed={prev_smoothed:.2f}, smoothed={expected_smoothed:.2f})",
                 })
                 all_passed = False
+            prev_smoothed = expected_smoothed
 
     if not all_passed:
         return CheckerResult(

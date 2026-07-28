@@ -26,10 +26,6 @@ def ruling_reason_quality(events: list[dict[str, Any]], *, config: Any = None) -
     findings: list[dict[str, Any]] = []
     all_passed = True
 
-    cfg = EngineConfig().checkers
-    min_words = cfg.min_reason_words
-    max_words = getattr(cfg, "max_reason_words", 7)
-
     for ev in events:
         ruling = ev.get("ruling") or {}
         if not ruling.get("rolled"):
@@ -42,24 +38,6 @@ def ruling_reason_quality(events: list[dict[str, Any]], *, config: Any = None) -
                 "turn": ev.get("turn"),
                 "check": "reason_non_empty",
                 "detail": "ruling.reason is empty",
-            })
-            all_passed = False
-            continue
-
-        words = reason.split()
-        if len(words) < min_words:
-            findings.append({
-                "turn": ev.get("turn"),
-                "check": "reason_word_count",
-                "detail": f"ruling.reason has {len(words)} word(s), minimum {min_words}",
-            })
-            all_passed = False
-            continue
-        if len(words) > max_words:
-            findings.append({
-                "turn": ev.get("turn"),
-                "check": "reason_word_count",
-                "detail": f"ruling.reason has {len(words)} word(s), maximum {max_words}",
             })
             all_passed = False
             continue

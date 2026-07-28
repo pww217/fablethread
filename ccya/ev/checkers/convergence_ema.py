@@ -12,15 +12,19 @@ _log = logging.getLogger(__name__)
 @register_checker(
     "convergence_ema", "deterministic",
     requires_fields=["pacing_context.convergence_score", "pacing_context.convergence_components"],
-    description="Verify convergence score components sum matches stored score, valid range [0-6]",
+    description="Verify convergence score EMA smoothing is consistent across turns",
 )
 def convergence_ema(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     filtered = filter_turn_events(events)
 
-    # Track convergence_score values across turns to compute expected EMA
-    prev_raw = None
+    from ccya.engine.config import EngineConfig
+    cfg = EngineConfig()
+    alpha = cfg.convergence_alpha
+
+    # Track smoothed values across turns to validate EMA relationship
+    prev_smoothed = 0.0
 
     for i, ev in enumerate(filtered):
         pc = extract_field(ev, "pacing_context") or {}
@@ -31,11 +35,9 @@ def convergence_ema(events: list[dict[str, Any]], *, config: Any = None) -> Chec
         if convergence_score is None or not convergence_components:
             continue
 
-        raw = convergence_score
+        raw_sum = sum(convergence_components.values())
 
-        # Validate components exist and sum matches score
-        # Components: urgent_thread (0-2), threat_thread (0-1), beat_streak (0-1),
-        # roll_starvation (0-1), threat_density (0-1)
+        # Validate components exist and have correct keys
         valid_keys = {"urgent_thread", "threat_thread", "beat_streak", "roll_starvation", "threat_density"}
         invalid_keys = {k for k in convergence_components if k not in valid_keys}
         if invalid_keys:
@@ -43,15 +45,6 @@ def convergence_ema(events: list[dict[str, Any]], *, config: Any = None) -> Chec
                 "turn": turn_no,
                 "check": "valid_component_keys",
                 "detail": f"unexpected component keys: {sorted(invalid_keys)}",
-            })
-            all_passed = False
-
-        component_sum = sum(convergence_components.values())
-        if component_sum != raw:
-            findings.append({
-                "turn": turn_no,
-                "check": "components_sum_match_score",
-                "detail": f"components sum={component_sum} != convergence_score={raw}",
             })
             all_passed = False
 
@@ -76,19 +69,28 @@ def convergence_ema(events: list[dict[str, Any]], *, config: Any = None) -> Chec
                 all_passed = False
 
         # Score range check
-        if raw < 0 or raw > 6:
+        if convergence_score < 0 or convergence_score > 6:
             findings.append({
                 "turn": turn_no,
                 "check": "score_range",
-                "detail": f"convergence_score={raw} not in valid range [0,6]",
+                "detail": f"convergence_score={convergence_score} not in valid range [0,6]",
             })
             all_passed = False
 
-        # EMA stream: first turn uses raw as initial smoothed, subsequent uses EMA
-        if prev_raw is not None:
-            prev_raw = raw
-        else:
-            prev_raw = raw
+        # EMA validation: smoothed = alpha * raw_sum + (1-alpha) * prev_smoothed
+        # convergence_score stores int(smoothed)
+        expected_smoothed = alpha * raw_sum + (1 - alpha) * prev_smoothed
+        expected_int = int(expected_smoothed)
+
+        if convergence_score != expected_int:
+            findings.append({
+                "turn": turn_no,
+                "check": "ema_smoothed",
+                "detail": f"expected int(smoothed)={expected_int}, got {convergence_score} (raw={raw_sum}, prev_smoothed={prev_smoothed:.2f}, smoothed={expected_smoothed:.2f})",
+            })
+            all_passed = False
+
+        prev_smoothed = expected_smoothed
 
     if not all_passed:
         return CheckerResult(
