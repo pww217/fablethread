@@ -19,7 +19,7 @@ class CheckerConfig:
     max_reason_words: int = 10
     band_skew_ratio: float = 0.8
     location_min_sentences: int = 1
-    location_min_words: int = 15
+    location_min_words: int = 8
     world_state_fact_min_chars: int = 10
 
 
