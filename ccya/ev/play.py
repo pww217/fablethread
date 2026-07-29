@@ -43,6 +43,7 @@ def play_turn(
     pack_narrator_rules: list[str] | None = None,
     pack_world_rules: list[str] | None = None,
     pack_factions: list[dict[str, str]] | None = None,
+    pack_use_male_only_names: bool = False,
 ) -> dict[str, Any]:
     loop = _get_play_loop()
     coro = _run_turn_async(
@@ -51,6 +52,7 @@ def play_turn(
         pack_narrator_rules=pack_narrator_rules,
         pack_world_rules=pack_world_rules,
         pack_factions=pack_factions,
+        pack_use_male_only_names=pack_use_male_only_names,
     )
     return loop.run_until_complete(coro)
 
@@ -65,6 +67,7 @@ async def _run_turn_async(
     pack_narrator_rules: list[str] | None = None,
     pack_world_rules: list[str] | None = None,
     pack_factions: list[dict[str, str]] | None = None,
+    pack_use_male_only_names: bool = False,
 ) -> dict[str, Any]:
     if not (save_dir / "state.yaml").exists():
         init_save_dir(save_dir, state)
@@ -82,6 +85,7 @@ async def _run_turn_async(
             pack_narrator_rules=pack_narrator_rules or [],
             pack_world_rules=pack_world_rules or [],
             pack_factions=pack_factions or [],
+            pack_use_male_only_names=pack_use_male_only_names,
         ):
             if kind == "token":
                 narrative_chunks.append(payload)
@@ -417,26 +421,27 @@ def _build_play_config(flags: dict[str, str], session_config: dict[str, Any] | N
     return config
 
 
-def _load_pack_params(pack_id: str | None, packs_dir: Path | None = None) -> tuple[None, list[dict[str, Any]], list[str], list[str], list[dict[str, str]], str | None, str | None]:
+def _load_pack_params(pack_id: str | None, packs_dir: Path | None = None) -> tuple[None, list[dict[str, Any]], list[str], list[str], list[dict[str, str]], str | None, str | None, bool]:
     if not pack_id:
-        return None, [], [], [], [], None, None
+        return None, [], [], [], [], None, None, False
 
     packs_dir = packs_dir or Path("packs")
     p = load_pack(pack_id, packs_dir)
     scenario = p.scenario
     return (
         None,
-        scenario.name_locales if scenario else p.manifest.name_locales,
+        (scenario.name_locales if scenario else None) or p.manifest.name_locales,
         scenario.narrator_rules if scenario else [],
         scenario.world_rules if scenario else [],
         [f.model_dump() for f in (scenario.factions if scenario else [])],
         p.opening_scene,
         p.style,
+        p.manifest.use_male_only_names,
     )
 
 
 def _interactive_session(config: EngineConfig, pack: str | None = None) -> None:
-    _, name_locales, narrator_rules, world_rules, factions, _, _ = _load_pack_params(pack)
+    _, name_locales, narrator_rules, world_rules, factions, _, _, use_male_only = _load_pack_params(pack)
     session_dir = _create_play_session(pack=pack)
     state = _ensure_seed_generated(session_dir, pack, config)
 
@@ -465,6 +470,7 @@ def _interactive_session(config: EngineConfig, pack: str | None = None) -> None:
             pack_narrator_rules=narrator_rules,
             pack_world_rules=world_rules,
             pack_factions=factions,
+            pack_use_male_only_names=use_male_only,
         )
         turns_played += 1
         trace_ids.append(result.get("trace_id", ""))
@@ -500,7 +506,7 @@ def _llm_session(
     persona: str | None = None,
     custom_persona: str | None = None,
 ) -> None:
-    _, name_locales, narrator_rules, world_rules, factions, _, style = _load_pack_params(pack)
+    _, name_locales, narrator_rules, world_rules, factions, _, style, use_male_only = _load_pack_params(pack)
 
     if save_dir is not None:
         state = load_state(save_dir)
@@ -583,6 +589,7 @@ def _llm_session(
             pack_narrator_rules=narrator_rules,
             pack_world_rules=world_rules,
             pack_factions=factions,
+            pack_use_male_only_names=use_male_only,
         )
         turns_played += 1
         trace_ids.append(result.get("trace_id", ""))
@@ -805,7 +812,7 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
         _print_missing_pack_error(flags)
         sys.exit(1)
 
-    _, name_locales, narrator_rules, world_rules, factions, _, _ = _load_pack_params(pack_id)
+    _, name_locales, narrator_rules, world_rules, factions, _, _, use_male_only = _load_pack_params(pack_id)
     config = _build_play_config(flags)
 
     if "save-dir" in flags:
@@ -826,6 +833,7 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
         pack_narrator_rules=narrator_rules,
         pack_world_rules=world_rules,
         pack_factions=factions,
+        pack_use_male_only_names=use_male_only,
     )
 
     if result.get("errors"):

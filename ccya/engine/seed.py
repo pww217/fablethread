@@ -36,8 +36,24 @@ def _strip_non_ascii(text: str) -> str:
     return result
 
 
-def _sanitize_seed_state(seed_state: SeedState) -> SeedState:
+def _replace_names_with_pool(seed_state: SeedState, pool: dict[str, list[str]]) -> SeedState:
+    """Replace LLM-generated names with names from the pool."""
+    import random
+    pc_names = pool.get("pc", [])
+    npc_names = pool.get("npc", [])
+    if pc_names and seed_state.pc.name:
+        seed_state.pc.name = random.choice(pc_names)
+    for npc_id, npc_data in seed_state.compendium.npcs.items():
+        if npc_data.name and npc_names:
+            npc_data.name = random.choice(npc_names)
+    return seed_state
+
+
+def _sanitize_seed_state(seed_state: SeedState, pool: dict[str, list[str]] | None = None) -> SeedState:
     """Strip non-ASCII from all name fields as a safety net."""
+    # Replace names with pool names if pool is provided
+    if pool is not None:
+        seed_state = _replace_names_with_pool(seed_state, pool)
     seed_state.pc.name = _strip_non_ascii(seed_state.pc.name)
     seed_state.location.name = _strip_non_ascii(seed_state.location.name)
     for item in seed_state.inventory:
@@ -169,19 +185,30 @@ def _build_prepare_seed_messages(
     env: Environment,
     pack: Pack,
     overrides: PlayerOverrides | None = None,
-) -> tuple[list[dict[str, str]], dict[str, Any] | None]:
+) -> tuple[list[dict[str, str]], dict[str, Any] | None, dict[str, list[str]]]:
     import random
     scenario = pack.scenario
     locales = scenario.name_locales if scenario else pack.manifest.name_locales
     name_pool = generate_name_pool(locales)
     # Male-only name pool for historical combat genres via manifest config
     use_male = pack.manifest.use_male_only_names
-    male_npc_pool = generate_npc_names(locales, count=10, gender="male") if use_male else None
-    if male_npc_pool:
-        # Replace the mixed npc and pc pools with male-only names
+    if use_male:
+        # 40 male names for male-only genres
+        male_npc_pool = generate_npc_names(locales, count=40, gender="male")
         name_pool = {
             "pc": male_npc_pool,
             "npc": male_npc_pool,
+            "location": name_pool["location"],
+            "inventory": name_pool["inventory"],
+        }
+    else:
+        # 20 male + 20 female for mixed genres
+        male_pool = generate_npc_names(locales, count=20, gender="male")
+        female_pool = generate_npc_names(locales, count=20, gender="female")
+        mixed_pool = male_pool + female_pool
+        name_pool = {
+            "pc": mixed_pool,
+            "npc": mixed_pool,
             "location": name_pool["location"],
             "inventory": name_pool["inventory"],
         }
@@ -207,7 +234,7 @@ def _build_prepare_seed_messages(
     return [
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
-    ], pool_selection
+    ], pool_selection, name_pool
 
 
 async def prepare_seed(
@@ -232,7 +259,7 @@ async def prepare_seed(
         extra={"trace_id": trace_id},
     )
 
-    messages, pool_selection = _build_prepare_seed_messages(env, pack, overrides)
+    messages, pool_selection, name_pool = _build_prepare_seed_messages(env, pack, overrides)
     messages, _, _ = trim_messages(messages, config.context_window)
 
     for attempt in range(1 + config.max_llm_retries):
@@ -306,7 +333,7 @@ async def prepare_seed(
                         arc["threads"] = []
 
             state_envelope = SeedStateEnvelope(**j)
-            state_envelope.seed_state = _sanitize_seed_state(state_envelope.seed_state)
+            state_envelope.seed_state = _sanitize_seed_state(state_envelope.seed_state, name_pool)
             _validate_seed_state(state_envelope.seed_state)
 
         except Exception as exc:
@@ -453,7 +480,7 @@ def _build_narrate_seed_messages(
     seed_state: SeedState,
     pool_selection: dict[str, Any] | None = None,
     pack: Pack | None = None,
-) -> tuple[list[dict[str, str]], dict[str, Any] | None]:
+) -> tuple[list[dict[str, str]], dict[str, Any]]:
     """Build prompt for narrate_seed from filtered SeedState context.
     
     Context passed to template (focused on what player needs at turn 0):

@@ -1,9 +1,9 @@
 currency_id: doubloons
 starting_currency_amount: 25
 world_facts:
-  - The seas are controlled by powerful pirate fleets and colonial navies clashing over trade routes and island holdings — and the two empires agree on one thing: people are cargo.
-  - Caribbean island settlements trade in rum, spices, and stolen cargo, with loyalty bought by shares of plunder — and with the lives of those who were cargo before they were crew.
-  - Mutiny is common on every vessel, captain's authority depends on keeping crew fed and motivated — and ironically the Articles hold best when the pressure on them is greatest.
+  - "The seas are controlled by powerful pirate fleets and colonial navies clashing over trade routes and island holdings — and the two empires agree on one thing: people are cargo."
+  - "Caribbean island settlements trade in rum, spices, and stolen cargo, with loyalty bought by shares of plunder — and with the lives of those who were cargo before they were crew."
+  - "Mutiny is common on every vessel, captain's authority depends on keeping crew fed and motivated — and ironically the Articles hold best when the pressure on them is greatest."
 
 constraints:
    # required-presence

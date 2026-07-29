@@ -5,8 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ccya.engine.npc_roster import generate_npc_color
-from ccya.engine.utils import is_named as _is_named, strip_non_ascii as _strip_non_ascii
+from ccya.state.utils import is_named as _is_named, strip_non_ascii as _strip_non_ascii
 from ccya.models import NPCEntry, NpcPresence, SceneExtractResult, WorldState
 from ccya.state.inventory import normalize_inventory_id
 
@@ -51,6 +50,7 @@ def apply_npc_scene_management(
         updates["first_seen_turn"] = current_turn_no or 0
         updates["last_presence_turn"] = current_turn_no or 0
         updates["last_seen_location"] = state.location.name or ""
+        from ccya.engine.npc_roster import generate_npc_color
         updates["color"] = generate_npc_color(nid)
 
         if comp_add.name is not None:
@@ -103,6 +103,7 @@ def apply_npc_scene_management(
                 upd["first_seen_turn"] = current_turn_no
                 upd["last_presence_turn"] = current_turn_no
                 upd["last_seen_location"] = state.location.name or ""
+                from ccya.engine.npc_roster import generate_npc_color
                 upd["color"] = generate_npc_color(resolved_id)
 
             if comp_upd.bio is not None:

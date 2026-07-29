@@ -114,13 +114,12 @@ Full 3-phase evaluation (Phase 1: 5t → Phase 2: 15t → Phase 3: 25t) with all
 ### Deep-Dive Reviews
 
 #### I-42 (Narration Name Pool Directive)
-- **Status:** NOT FIXED — name pool IS rendered in prompts with Faker names, but LLM ignores directive
-- Evidence: Noir run shows name pool with names like "Giacinto Gotti", "Logan Hicks", "Brittany Cole" in prompts, but compendium contains generic Anglo names (Adam Brooks, Dustin Hill, Ryan Benson)
-- Pool changes each turn (different Faker names), confirming rendering works
-- LLM generates names from its own training distribution instead of using the pool
-- **Root cause:** Pool is in user prompt (buried deep after roster/world state), directive is in system prompt. Attention distance between directive and pool is large. Model treats pool as reference, not constraint.
-- **Fix direction:** Move pool to system prompt for higher attention weight, or add few-shot examples showing pool name usage
-- Verdict: I-42 remains **unresolved**
+- **Status:** NOT FIXED — repositioning pool near end of prompt did not help
+- Previous finding: Pool rendered in prompts with Faker names, but LLM ignores directive
+- **New test:** 25-turn noir run with pool at ~85% through prompt (moved from ~50%)
+- Result: Zero pool names in narration or compendium. LLM generates generic Anglo names (Arthur Penn, Christopher Stanley, Devin Scott, Elias Thorne, Elias Valentine, James Moore, Silas Vance)
+- Pool names generated: Giacinto Gotti, Logan Hicks, William Mcdonald, Brittany Cole, Rhonda Harvey, Nedda Spadafora — none used
+- Verdict: I-42 remains **unresolved**. Simple repositioning is insufficient. Need stronger intervention (few-shot examples, system prompt inclusion, or post-narration validation).
 
 #### F-30 (NPC Split + Disposition)
 - **Status:** CONFIRMED WORKING

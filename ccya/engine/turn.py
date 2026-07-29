@@ -75,6 +75,7 @@ async def run_turn(
     pack_narrator_rules: list[str] | None = None,
     pack_world_rules: list[str] | None = None,
     pack_factions: list[dict[str, str]] | None = None,
+    pack_use_male_only_names: bool = False,
 ) -> AsyncIterator[tuple[str, Any]]:
     if config is None:
         config = EngineConfig()
@@ -115,6 +116,7 @@ async def run_turn(
                 "narrator_rules": pack_narrator_rules, "world_rules": pack_world_rules,
                 "factions": pack_factions,
                 "inventory": state.inventory,
+                "use_male_only_names": pack_use_male_only_names,
             }, _env=env, _cancel_event=_cancel_event,
         )
 
