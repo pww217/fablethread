@@ -1,6 +1,6 @@
 ---
 title: "Narration prompt lacks directive to use NPC name pool for new characters"
-status: reviewed
+status: testing
 urgency: 1
 size: small
 created: 2025-07-21
@@ -12,6 +12,24 @@ pr:
   url:
   branch: pending-names-roster
 ---
+
+## Implementation Summary (2026-07-29)
+
+**Squashed commit:** `575a08f` on branch `pending-names-roster`
+
+### Seed names (40-name pool)
+- `_replace_names_with_pool()` post-processes LLM output, replacing PC/NPC names with pool names
+- Pool: 40 male names (`use_male_only_names=True`) or 20M+20F (`False`)
+- Verified: all seed names come from pool
+
+### Turn engine (use_male_only_names)
+- Added `pack_use_male_only_names` to `run_turn()`, `TurnContext.packing`, server/routes.py, ev/play.py
+- Adjusts `male_count`/`female_count` in `generate_npc_names_split()`: 6M/0F when True, 3M/3F when False
+- Pending names mechanism (1-2 specific names) already verified working for new NPCs
+
+### Status
+- Seed: working (names replaced from 40-name pool)
+- Turn: working (pending names mechanism + male_only flag respected)
 
 ## Problem
 
