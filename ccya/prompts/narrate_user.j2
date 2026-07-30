@@ -92,6 +92,10 @@ Narrate the attempt and its natural failure. Do NOT write a version where the ac
 {{ user_input }}
 === END PLAYER INPUT ===
 
+{% if pending_new_character_name -%}
+**NARRATION REQUIREMENT:** In your narration this turn, you MUST use the name "{{ pending_new_character_name }}" for the first new character you introduce. Do not invent names. Do not use generic Anglo names.
+{% endif %}
+
 {% if pending_beat and pending_beat.type -%}
 
 **Beat:** {{ pending_beat.type | replace('_', ' ') | upper }} — {{ pending_beat.effect }}. Use mechanism tags as creative guidance — generate prose that weaves the mechanism into the scene naturally, grounded in the actual NPC fields in the roster.

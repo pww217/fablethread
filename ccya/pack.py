@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from ccya.models import LongTermObjective, InventoryItem, WorldStateFact
 
@@ -89,9 +89,14 @@ class SeedStateEnvelope(BaseModel):
     opening_narrative: str = ""
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
-    long_term_objective: LongTermObjective | None = None
-    arc_origin: str = Field(min_length=1)
+    arc_origin: str = ""
     pool_selection: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def _derive_arc_origin(self) -> "SeedStateEnvelope":
+        if not self.arc_origin and self.seed_state.arc_origin:
+            object.__setattr__(self, "arc_origin", self.seed_state.arc_origin)
+        return self
 
 
 class SeedEnvelope(BaseModel):

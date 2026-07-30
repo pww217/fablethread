@@ -33,6 +33,7 @@ class Meta(BaseModel):
     last_condition_change_reason: str | None = None
     last_rules_outcome: dict[str, Any] | None = None
     last_arc_resolve_turn: int | None = None
+    pending_names_used: int = 0
 
 
 class PC(BaseModel):

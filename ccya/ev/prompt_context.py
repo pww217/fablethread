@@ -209,7 +209,6 @@ def build_prompt_context(
             "prior_history": list((meta.get("prior_history") or [])[:-1]),
             "recent_turns": [],
             "rules_outcome": _build_rules_outcome(turn_ev),
-            "npc_name_pool": {},
             "user_input": "",
             "pending_beat": prev_meta.get("pending_gm_beat"),
             "pacing_context": turn_ev.get("pacing_context") or {},

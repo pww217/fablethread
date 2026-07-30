@@ -10,7 +10,7 @@ from jinja2 import Environment
 from ccya.engine.config import _render
 from ccya.engine.turn_context import _is_cancel_requested
 from ccya.engine.names import generate_npc_names_split
-from ccya.engine.npc_roster import build_npc_roster
+from ccya.engine.npc_roster import build_npc_roster, build_pending_roster_entries
 from ccya.engine._pacing import (
     _compute_pacing_context,
     _compute_scene_phase,
@@ -38,7 +38,6 @@ def _narrate_messages(
     narrator_rules: list[str] | None = None,
     world_rules: list[str] | None = None,
     rules_outcome: "RulesOutcome | None" = None,
-    npc_name_pool: dict[str, list[str]] | None = None,
     pending_beat: dict[str, Any] | None = None,
     pacing_context: "PacingContext | None" = None,
     ages: dict[str, int] | None = None,
@@ -48,6 +47,8 @@ def _narrate_messages(
     npc_roster: list[dict[str, Any]] | None = None,
     arc_ttl: int = 3,
     thread_ttl: int = 3,
+    _npc_name_pool: dict[str, list[str]] | None = None,
+    pending_new_character_name: str | None = None,
 ) -> list[dict[str, str]]:
     if npc_roster is None:
         npc_roster = build_npc_roster({nid: entry.model_dump() for nid, entry in (state.compendium.npcs or {}).items()}, turn_no=turn_no)
@@ -57,8 +58,6 @@ def _narrate_messages(
         narrator_rules = []
     if world_rules is None:
         world_rules = []
-    if npc_name_pool is None:
-        npc_name_pool = {}
     if world_factions is None:
         world_factions = []
     assert env is not None, "Jinja Environment must be set before calling _narrate_messages"
@@ -103,7 +102,6 @@ def _narrate_messages(
         "prior_history": list(state.meta.prior_history)[:-1],
         "recent_turns": recent_turns,
         "rules_outcome": rules_outcome,
-        "npc_name_pool": npc_name_pool,
         "user_input": user_input,
         "pending_beat": pending_beat,
         "pacing_context": pacing_context,
@@ -121,6 +119,7 @@ def _narrate_messages(
         "inventory": [it.model_dump() for it in state.inventory],
         "location": state.location.model_dump(),
         "conditions": [c.model_dump() for c in state.pc.conditions],
+        "pending_new_character_name": pending_new_character_name,
     }
 
     system_text = _render(env, "narrate_system.j2", {
@@ -164,9 +163,12 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any, Any, float]:
     # Rolling NPC name pool for mid-game cultural anchoring (split by gender)
     _npc_name_pool: dict[str, list[str]] = {}
     if ctx.packing.get("name_locales"):
+        use_male_only = ctx.packing.get("use_male_only_names", False)
+        male_count = 3 if not use_male_only else 6
+        female_count = 0 if use_male_only else 3
         _npc_name_pool = generate_npc_names_split(
             ctx.packing["name_locales"],
-            male_count=5, female_count=5, seed=state.meta.turn,
+            male_count=male_count, female_count=female_count, seed=state.meta.turn,
         )
 
     # pending_gm_beat from this turn's ruling is read here to set
@@ -239,16 +241,32 @@ async def _narrate_setup(ctx: "TurnContext") -> tuple[Any, Any, Any, float]:
     _pc.convergence_components = _convergence_components
     _pc.convergence_threads = _raw_thread_dicts
 
+    pending_entries = build_pending_roster_entries(_npc_name_pool, turn_no=turn_no) if _npc_name_pool else []
+    used = state.meta.pending_names_used
+    pending_name: str | None = None
+    if _npc_name_pool and pending_entries:
+        all_pool_names = []
+        for gender in ("male", "female"):
+            all_pool_names.extend(_npc_name_pool.get(gender, []))
+        if all_pool_names:
+            pending_name = all_pool_names[used % len(all_pool_names)]
+        else:
+            pending_name = pending_entries[0].get("name") if pending_entries else None
+    else:
+        pending_name = pending_entries[0].get("name") if pending_entries else None
+    npc_roster = pending_entries + [n for n in build_npc_roster({nid: entry.model_dump() for nid, entry in (state.compendium.npcs or {}).items()}, turn_no=turn_no) if n.get("presence") in ("present", "new")]
+
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
         recent_turns=ctx.recent_turns[-1:],
         narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
-        rules_outcome=ctx.outcome, npc_name_pool=_npc_name_pool,
+        rules_outcome=ctx.outcome,
         pending_beat=_pending_gm_beat,
         pacing_context=_pc, ages=ctx._ages, pc_allegiance=_pc_allegiance, turn_no=turn_no,
         world_factions=_world_factions,
-        npc_roster=[n for n in build_npc_roster({nid: entry.model_dump() for nid, entry in (state.compendium.npcs or {}).items()}, turn_no=turn_no) if n.get("presence") == "present"],
-        arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
+        npc_roster=npc_roster,
+        _npc_name_pool=_npc_name_pool,
+        pending_new_character_name=pending_name,
     )
 
     return _pc, narr_messages, new_scene, smoothed_convergence

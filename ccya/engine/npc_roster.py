@@ -6,7 +6,7 @@ import hashlib
 import logging
 from typing import Any
 
-from ccya.engine.utils import is_named as _is_named, strip_non_ascii as _strip_non_ascii
+from ccya.state.utils import is_named as _is_named, strip_non_ascii as _strip_non_ascii
 from ccya.models import NpcPresence
 
 _log = logging.getLogger(__name__)
@@ -172,4 +172,43 @@ def build_npc_roster(
 
     result = result[:max_entries]
     _log.debug("build_npc_roster roster=%d", len(result))
+    return result
+
+
+def build_pending_roster_entries(
+    pool: dict[str, list[str]],
+    *,
+    turn_no: int = 0,
+) -> list[dict[str, Any]]:
+    """Build roster-shaped entries from a name pool with presence='pending'.
+
+    Each entry matches the dict shape from build_npc_roster() but with all
+    optional fields set to None and presence='pending'. IDs are derived from
+    the name (snake_case). Colors are generated via generate_npc_color().
+    """
+    if not pool:
+        return []
+    result: list[dict[str, Any]] = []
+    for gender in ("male", "female"):
+        names = pool.get(gender, [])
+        for name in names:
+            nid = _strip_non_ascii(name).lower().replace(" ", "_")
+            result.append({
+                "id": f"pending_{nid}",
+                "name": name,
+                "title": None,
+                "bio": "Unknown person. Appearance and background not yet established.",
+                "disposition": None,
+                "presence": "new",
+                "motivation": "Unknown — to be determined by the scene.",
+                "fear": None,
+                "leverage": None,
+                "tie": None,
+                "notes": None,
+                "last_presence_turn": None,
+                "last_seen_location": None,
+                "departed_reason": None,
+                "color": _generate_npc_color(f"pending_{nid}"),
+            })
+    _log.debug("build_pending_roster_entries count=%d", len(result))
     return result

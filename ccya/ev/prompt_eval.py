@@ -27,10 +27,43 @@ from ccya.ev.events import find_turn, load_events, load_prompts
 from ccya.ev.prompt_context import build_prompt_context
 from ccya.ev.scenario import PromptEvalScenario, load_prompt_scenario
 from ccya.engine.seed import _build_prepare_seed_messages
+from ccya.engine.names import generate_npc_names_split
+from ccya.engine.npc_roster import build_pending_roster_entries
 
 PROMPTS_DIR = str(Path(__file__).parent.parent / "prompts")
 
 _log = logging.getLogger(__name__)
+
+
+def _inject_pending_names(ctx: dict[str, Any], save_dir: Path, turn_no: int) -> None:
+    """Inject pending name pool entries into the narrate roster and set pending_new_character_name."""
+    try:
+        state_path = save_dir / "state.yaml"
+        if not state_path.exists():
+            return
+        import yaml
+        with open(state_path) as f:
+            state = yaml.safe_load(f)
+        pack_id = state.get("meta", {}).get("setting_pack", "")
+        if not pack_id:
+            return
+        pack = load_pack(pack_id, Path(__file__).parent.parent.parent / "packs")
+        locales = pack.manifest.name_locales
+        if not locales:
+            return
+        pool = generate_npc_names_split(locales, male_count=3, female_count=3, seed=turn_no)
+        pending = build_pending_roster_entries(pool, turn_no=turn_no)
+        if pending and "npc_roster" in ctx:
+            ctx["npc_roster"] = ctx["npc_roster"] + pending
+        # Inject the pending new character name (rotated by pending_names_used)
+        used = state.get("meta", {}).get("pending_names_used", 0)
+        all_pool_names = []
+        for gender in ("male", "female"):
+            all_pool_names.extend(pool.get(gender, []))
+        if all_pool_names and "npc_roster" in ctx:
+            ctx["pending_new_character_name"] = all_pool_names[used % len(all_pool_names)]
+    except Exception as e:
+        _log.debug("Failed to inject pending names: %s", e)
 
 
 def _get_template_name(stream: str) -> str:
@@ -175,7 +208,7 @@ def cmd_prompt_eval_seed(
     pack = load_pack(pack_id, packs_dir)
 
     env = _build_jinja_env(PROMPTS_DIR)
-    messages, _ = _build_prepare_seed_messages(env, pack)
+    messages, _, pool = _build_prepare_seed_messages(env, pack)
 
     from ccya.llm_client import chat_with_config as llm_chat
 
@@ -223,6 +256,7 @@ def cmd_prompt_eval_seed(
             print(f"  seed_state keys: {', '.join(ss.keys())}")
 
 
+
 def cmd_prompt_eval_call(
     events: list[dict[str, Any]],
     save_dir: Path,
@@ -243,6 +277,9 @@ def cmd_prompt_eval_call(
     else:
         env = _build_jinja_env(PROMPTS_DIR)
         ctx = build_prompt_context(events, scenario.turn, scenario.stream)
+        # Inject pending name pool entries into the roster for narrate streams
+        if scenario.stream == "narrate":
+            _inject_pending_names(ctx, save_dir, scenario.turn)
         system_template = _get_system_template_name(scenario.stream)
         user_template = _get_template_name(scenario.stream)
         rendered_system = _render(env, system_template, ctx)

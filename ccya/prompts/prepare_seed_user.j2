@@ -35,11 +35,12 @@
 {% endif %}{% if overrides.free_form %}- other: {{ overrides.free_form }}
 {% endif %}{% endif %}
 {% if name_pool %}
-## name_pool (sampled from this setting's locales — use at least one per category)
+## REQUIRED NAME POOL — USE THESE NAMES
+You MUST use names from the lists below. Do NOT invent new names.
 name_seed: {{ name_seed }} (not a JSON key — just a value)
-- pc candidates (male names only for this genre): {{ name_pool.pc | join(", ") }}
-- npc candidates (male names only for this genre): {{ name_pool.npc | join(", ") }}
-- place name inspiration: {{ name_pool.location | join(", ") }}
+PC names (pick one): {{ name_pool.pc | join(", ") }}
+NPC names (pick from these): {{ name_pool.npc | join(", ") }}
+Place names (pick from these): {{ name_pool.location | join(", ") }}
 {% endif %}
 {% if scenario and scenario.factions %}
 ## npc_generation_context
