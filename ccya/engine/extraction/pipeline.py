@@ -18,10 +18,10 @@ from ccya.engine.extraction.scene import _extract_scene_messages
 from ccya.engine.extraction.state import _extract_state_messages
 from ccya.engine.extraction.record import _record_messages
 from ccya.engine.extraction.utils import _avg_event_ms, _call_stream, _capitalize_inventory_names, _context_meta, _dedup_compendium_update
-from ccya.state import apply_delta
 from ccya.errors import ErrorKind, LlmcTimeout
 from ccya.llm_client import trim_messages
 from ccya.models import (
+    CompendiumNpcAdd,
     CompendiumNpcUpdate,
     IntentEnvelope,
     SceneExtractResult,
@@ -32,6 +32,12 @@ from ccya.models import (
 )
 
 _log = logging.getLogger(__name__)
+
+
+def _apply_delta_lazy(s: WorldState, merge: StateMerge, trace_id: str) -> WorldState:
+    """Lazy import wrapper to avoid circular import between ccya.engine.extraction and ccya.state."""
+    from ccya.state import apply_delta
+    return apply_delta(s, merge, trace_id=trace_id)
 
 
 @dataclass
@@ -214,9 +220,8 @@ async def _run_extraction_pipeline(
             compendium_dedup_redirects.append({
                 "original_id": original_id,
                 "redirected_to": deduped.id,
-                "name": deduped.name,
             })
-        deduped_compendium.append(deduped)
+        deduped_compendium.append(deduped)  # type: ignore[arg-type]
     if compendium_dedup_redirects:
         _log.debug(
             "extraction.dedup: compendium dedup redirected %d entries", len(compendium_dedup_redirects),
@@ -224,6 +229,27 @@ async def _run_extraction_pipeline(
         )
         extraction_event["compendium_dedup_redirects"] = compendium_dedup_redirects
     scene_result = scene_result.model_copy(update={"compendium_npc_update": deduped_compendium})
+
+    # --- Dedup compendium_add entries ---
+    deduped_add: list[CompendiumNpcAdd] = []
+    compendium_add_dedup_redirects: list[dict[str, Any]] = []
+    for ca in (scene_result.compendium_npc_add or []):
+        original_id = ca.id
+        deduped = _dedup_compendium_update(ca, existing_npcs, existing_ids)
+        if deduped.id != original_id:
+            compendium_add_dedup_redirects.append({
+                "original_id": original_id,
+                "redirected_to": deduped.id,
+                "name": ca.name,
+            })
+        deduped_add.append(deduped)  # type: ignore[arg-type]
+    if compendium_add_dedup_redirects:
+        _log.debug(
+            "extraction.dedup: compendium add redirected %d entries", len(compendium_add_dedup_redirects),
+            extra={"turn": turn_no, "trace_id": trace_id},
+        )
+        extraction_event["compendium_add_dedup_redirects"] = compendium_add_dedup_redirects
+    scene_result = scene_result.model_copy(update={"compendium_npc_add": deduped_add})
 
     # --- Capitalize inventory item names ---
     _capitalize_inventory_names(state_result.inventory_add)
@@ -234,6 +260,7 @@ async def _run_extraction_pipeline(
     )
     # --- Merge into single StateMerge ---
     merged = StateMerge(
+        compendium_npc_add=scene_result.compendium_npc_add,
         compendium_npc_update=scene_result.compendium_npc_update,
         location_change=state_result.location_change,
         location_description=state_result.location_description,
@@ -271,7 +298,7 @@ async def _scene_stream(
         build_messages=lambda s: _extract_scene_messages(env, narration, s, turn_no=turn_no),
         build_messages_kwargs={},
         strip_keys=(),
-        preview_builder=lambda s, r: apply_delta(s.model_copy(), StateMerge(compendium_npc_update=r.compendium_npc_update or []), trace_id=trace_id),
+        preview_builder=lambda s, r: _apply_delta_lazy(s.model_copy(), StateMerge(compendium_npc_add=r.compendium_npc_add or [], compendium_npc_update=r.compendium_npc_update or []), trace_id=trace_id),
         panel_builder=lambda s: {
             "npcs": {nid: entry.model_dump() for nid, entry in s.compendium.npcs.items()},
             "location": s.location.model_dump(),
@@ -295,7 +322,7 @@ async def _state_stream(
         build_messages=lambda s: _extract_state_messages(env, narration, s, intent=intent, turn_no=turn_no, pack_inventory=(packing or {}).get("inventory") or []),
         build_messages_kwargs={},
         strip_keys=("_reasoning",),
-        preview_builder=lambda s, r: apply_delta(s.model_copy(), StateMerge(
+        preview_builder=lambda s, r: _apply_delta_lazy(s.model_copy(), StateMerge(
             inventory_add=r.inventory_add or [],
             inventory_remove=r.inventory_remove or [],
             inventory_update=r.inventory_update or [],

@@ -6,7 +6,7 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig
 from ccya.ev.checkers import CheckerResult, register_checker
-from ccya.ev.events import extract_field
+from ccya.ev.events import extract_field, filter_turn_events
 
 _log = logging.getLogger(__name__)
 
@@ -25,8 +25,9 @@ def location_description_consistency(events: list[dict[str, Any]], *, config: An
     all_passed = True
 
     cfg = EngineConfig().checkers
+    filtered = filter_turn_events(events)
 
-    for ev in events:
+    for ev in filtered:
         last_turn_state = extract_field(ev, "last_turn_state") or {}
         location = last_turn_state.get("location") or {}
         description = location.get("description") or ""

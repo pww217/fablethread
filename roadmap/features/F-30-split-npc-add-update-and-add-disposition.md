@@ -1,6 +1,6 @@
 ---
 title: "Split NPC Add/Update ops and add disposition field"
-status: idea
+status: testing
 urgency: 2
 size: medium
 created: 2026-07-05
@@ -8,6 +8,9 @@ ticket_id: F-30
 labels:
   - engine
   - npc
+design: docs/design/F-30-split-npc-add-update-and-disposition.md
+plan: plans/F-30-split-npc-add-update-and-disposition.md
+pr: https://github.com/anomalyco/opencode/issues/F-30
 ---
 
 ## Problem
@@ -87,3 +90,19 @@ Add `disposition: str | None = None` to `NPCEntry` in `ccya/models/state.py`.
 - Unnamed guard strips disposition (and other write-once fields) from unnamed NPCs
 - `make check` passes (lint + typecheck)
 - Docs updated (state-models.md, repomap.md)
+
+---
+
+## Eval Verification (E-17, 2026-07-28)
+
+**Status: CONFIRMED WORKING**
+
+All 5 Phase 3 runs validated:
+- All new NPC Add operations include disposition field (7 adds in noir-1930s verified)
+- Add/Update routing is correct — new NPCs get CompendiumNpcAdd, existing get CompendiumNpcUpdate
+- No write-once mutations detected
+- Disposition values are descriptive prose (e.g., "Trembling, breathless, collapsed posture")
+- All NPCs in compendium have disposition field present
+
+**Evidence:** Noir-1930s:driven 25t run — 7 new NPC adds all include disposition, 26 updates route correctly.
+

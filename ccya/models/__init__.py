@@ -7,7 +7,7 @@ from ccya.models.state import (
     WorldState as WorldState, WorldStateFact as WorldStateFact,
 )
 from ccya.models.extraction import (
-    CompendiumNpcUpdate as CompendiumNpcUpdate, GMBeat as GMBeat, SceneExtractResult as SceneExtractResult,
+    CompendiumNpcAdd as CompendiumNpcAdd, CompendiumNpcUpdate as CompendiumNpcUpdate, GMBeat as GMBeat, SceneExtractResult as SceneExtractResult,
     StateMerge as StateMerge, StateExtractResult as StateExtractResult, RecordResult as RecordResult,
 )
 from ccya.models.rules import IntentEnvelope as IntentEnvelope, RulesCheck as RulesCheck, RulesOutcome as RulesOutcome

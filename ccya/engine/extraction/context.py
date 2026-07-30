@@ -44,6 +44,7 @@ def _build_post_delta_context(
     from ccya.state.delta_builder import apply_delta
 
     combined_delta = StateMerge(
+        compendium_npc_add=list(scene_result.compendium_npc_add or []),
         compendium_npc_update=list(scene_result.compendium_npc_update or []),
         location_change=state_result.location_change,
         inventory_add=list(state_result.inventory_add or []),

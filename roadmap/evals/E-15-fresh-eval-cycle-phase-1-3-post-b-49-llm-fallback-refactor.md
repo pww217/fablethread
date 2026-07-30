@@ -1,6 +1,6 @@
 ---
 title: "Fresh eval cycle Phase 1-3 post-B-49-llm-fallback-refactor"
-status: active
+status: done
 urgency: 3
 size: medium
 created: 2026-07-17

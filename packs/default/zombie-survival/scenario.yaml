@@ -1,9 +1,9 @@
 currency_id: credits
 starting_currency_amount: 0
 world_facts:
-  - The world was overrun by an infected plague that turned most of the population into mindless attackers
-  - Settlements survive behind fortified walls and checkpoints, with rationing controlled by whoever holds supply routes
-  - The infected are drawn to sound and movement but avoid fire and loud mechanical noise
+  - The infection is no longer a plague to be survived; it is a rearranged ecosystem the survivors must live inside, and the infected are partly the people they were.
+  - Settlements persist as confederations of guilt — each member did something to still be here, and the settlement holds because admitting the alternative is the death of the group.
+  - The mycelium is not spreading randomly; it is organizing. Roads form where there were none. The infected gather in patterns that resemble congregation more than hunt.
 
 constraints:
    # required-presence
@@ -16,168 +16,132 @@ constraints:
   required_inventory_kinds: [weapon, consumable]
 
 situation_archetypes:
-  - id: infrastructure_failure
-    tags: [infrastructure, collapse, repair]
+  - id: the_well_that_drinks_people
+    tags: [water_source, tainted_ground, slow_death, kept_mercy]
     incompatible_with: []
-  - id: social_betrayal
-    tags: [community, betrayal, trust_breakdown]
+  - id: the_mother_who_rations_her_own_child_last
+    tags: [ration_order, family_secret, public_kindness_private_cruelty]
     incompatible_with: []
-  - id: supply_crisis
-    tags: [supply, scarcity, desperation]
+  - id: the_uninfected_quarantine
+    tags: [unbitten_survivor, record_of_survival, quarantined_clean]
     incompatible_with: []
-  - id: faction_conflict
-    tags: [faction, conflict, power_struggle]
+  - id: the_winter_we_ate_the_seed_corn
+    tags: [consumed_future, spring_came, no_crop_now, fait_accompli]
     incompatible_with: []
-  - id: discovery
-    tags: [discovery, revelation, hidden_truth]
+  - id: the_council_that_keeps_voting_the_way_the_gun_wants
+    tags: [gun_council, voted_vote, coerced_democracy, armed_quorum]
     incompatible_with: []
-  - id: moral_compromise
-    tags: [moral, compromise, ethical_dilemma]
+  - id: the_settlement_that_wasnt_supposed_to_still_be_there
+    tags: [off_map, smoke_says_otherwise, unrecognized_survivor]
     incompatible_with: []
-  - id: survival_dilemma
-    tags: [survival, dilemma, impossible_choice]
+  - id: the_two_settlements_that_share_a_wall
+    tags: [shared_wall, mutual_misread, mirror_threat, divided_perception]
     incompatible_with: []
-  - id: community_fracture
-    tags: [community, fracture, division]
+  - id: the_gates_that_someone_keeps_opening
+    tags: [gates_opening, inside_saboteur, not_infected, nominate_within]
     incompatible_with: []
-  - id: infrastructure_sabotage
-    tags: [infrastructure, sabotage, deliberate_damage]
+  - id: the_gospel_of_the_bloom
+    tags: [voluntary_infection, infect_as_worship, bloom_recruitment]
     incompatible_with: []
-  - id: resource_rationing
-    tags: [resource, rationing, scarcity_management]
+  - id: the_child_who_remembers_the_before
+    tags: [child_memory, before_world_knowledge, untaught_recollection]
     incompatible_with: []
 
 arc_categories:
-  - id: power_struggle
-    tags: [power, struggle, leadership_conflict]
+  - id: the_quiet_coup_with_a_gun_at_the_family
+    tags: [coup, family_pressure, coerced_authority, settled_force]
     incompatible_with: []
-  - id: resource_scarcity
-    tags: [resource, scarcity, survival_pressure]
+  - id: the_hunger_you_can_walk_faster_than
+    tags: [hunger, walking_away_consequence, slow_catch, future_cost]
     incompatible_with: []
-  - id: collapse_conspiracy
-    tags: [collapse, conspiracy, hidden_agenda]
+  - id: the_reunion_of_people_who_pretend_they_dont_know_each_other
+    tags: [reunion, denied_acquaintance, false_strangers, common_past]
     incompatible_with: []
-  - id: leadership_challenge
-    tags: [leadership, challenge, authority_questioned]
+  - id: the_return_of_the_unburied
+    tags: [unburied, returned_body, missing_rites, bloom_returns_dead]
     incompatible_with: []
-  - id: quarantine_breakdown
-    tags: [quarantine, breakdown, infection_threat]
+  - id: the_bloom_that_learns_to_wait
+    tags: [bloom_learns, patient_infection, deferred_bloom, network_intelligence]
     incompatible_with: []
-  - id: territory_dispute
-    tags: [territory, dispute, boundary_conflict]
+  - id: the_quarantine_that_was_already_broken
+    tags: [broken_quarantine, silent_breach, known_inside, kept_secret]
     incompatible_with: []
-  - id: outside_threat_escalation
-    tags: [outside, threat, escalation]
+  - id: the_vote_no_one_will_hold_while_the_food_is_low
+    tags: [delayed_vote, food_pressure, deferred_governance, food_before_consent]
     incompatible_with: []
-  - id: cult_emergence
-    tags: [cult, emergence, radical_belief]
+  - id: the_thing_everyone_did_that_no_one_names
+    tags: [shared_thing, collective_unspoken, common_act, named_aloud_breach]
     incompatible_with: []
-  - id: information_warfare
-    tags: [information, warfare, intelligence_manipulation]
+  - id: the_supply_route_that_came_back_under_a_different_name
+    tags: [route_returned, renamed_route, recurring_supply, false_newness]
     incompatible_with: []
-  - id: infrastructure_rebuilding
-    tags: [infrastructure, rebuilding, reconstruction]
+  - id: the_leader_who_stepped_down_voluntarily
+    tags: [leader_quit, voluntary_resignation, gun_behind_them, succession_pressure]
     incompatible_with: []
-  - id: faction_defection
-    tags: [faction, defection, loyalty_shift]
+  - id: the_pact_with_the_both_sides_true
+    tags: [shared_lie, mutual_covered, both_protecting, two_guilties]
     incompatible_with: []
-  - id: infection_evolution
-    tags: [infection, evolution, new_threat]
+  - id: the_child_who_says_the_names_aloud
+    tags: [child_recites, untaught_names, named_unburied, refuses_silence]
     incompatible_with: []
-  - id: settlement_politics
-    tags: [settlement, politics, governance]
+  - id: the_quarantine_that_was_supposed_to_keep_them_in
+    tags: [quarantine_inverted, kept_inside, kept_from_leaving, kept_safe_or_kept]
     incompatible_with: []
-  - id: supply_route_control
-    tags: [supply, route, control]
-    incompatible_with: []
-  - id: moral_decay
-    tags: [moral, decay, ethical_erosion]
+  - id: the_returning_one_brought_something_back
+    tags: [returned_brought, follower_return, came_back_with, returned_with_other]
     incompatible_with: []
 
 character_dynamics:
-  - id: trusted_insider
-    tags: [community, leadership, responsibility]
-    incompatible_with: [pariah, free_agent]
-  - id: reluctant_outsider
-    tags: [marginalized, independent, distrustful]
-    incompatible_with: [trusted_insider, disgraced_leader]
-  - id: rising_challenger
-    tags: [ambitious, disruptive, emerging_power]
-    incompatible_with: [free_agent]
-  - id: disgraced_leader
-    tags: [fallen_status, redemption_needed, community_ties]
-    incompatible_with: [trusted_insider, free_agent]
-  - id: free_agent
-    tags: [independent, unaligned, self_reliant]
-    incompatible_with: [trusted_insider]
-  - id: pariah
-    tags: [outcast, hunted, isolated]
-    incompatible_with: [trusted_insider, reluctant_outsider]
-  - id: information_broker
-    tags: [connected, secretive, leverage_holding]
+  - id: the_one_who_keeps_the_settlements_secret
+    tags: [secret_keeper, settlement_conscience, burdened_keeper, compromised_confidant]
+    incompatible_with: [the_one_the_settlement_does_not_admit_it_exiled, the_one_who_buried_the_first_dead]
+  - id: the_one_who_knows_where_the_roads_go
+    tags: [mycelium_roads, knows_routes, has_traveled, comes_back_mapping]
+    incompatible_with: [the_one_who_keeps_the_settlements_secret, the_leader_who_stepped_down_voluntarily]
+  - id: the_one_who_says_aloud_that_the_founder_failed
+    tags: [founder_failure, public_naming, breaks_silence, uneasy_truth]
+    incompatible_with: [the_one_who_buried_the_first_dead]
+  - id: the_leader_who_stepped_down_voluntarily
+    tags: [ex_leader, voluntary_resignation, gun_resignation, displaced_conscience]
+    incompatible_with: [the_one_who_keeps_the_settlements_secret, the_one_who_buried_the_first_dead]
+  - id: the_one_the_settlement_does_not_admit_it_exiled
+    tags: [exiled_unacknowledged, returned_unofficially, denied_banishment, faces_back]
+    incompatible_with: [the_one_who_keeps_the_settlements_secret, the_one_who_knows_where_the_roads_go]
+  - id: the_quartermaster_who_knows_the_real_numbers
+    tags: [quartermaster, real_numbers, hidden_ledger, count_against_words]
     incompatible_with: []
-  - id: displaced_elite
-    tags: [former_status, loss_of_power, adaptation_needed]
+  - id: the_returning_one
+    tags: [returning, left_came_back, returned_with_other, left_behind_now_back]
     incompatible_with: []
-
-moral_pressures:
-  - id: survival_vs_humanity
-    tags: [survival, humanity, moral_cost]
-    incompatible_with: []
-  - id: protect_the_vulnerable
-    tags: [protection, vulnerability, sacrifice]
-    incompatible_with: []
-  - id: resource_allocation
-    tags: [resource, allocation, fairness]
-    incompatible_with: []
-  - id: truth_control
-    tags: [truth, control, information_power]
-    incompatible_with: []
-  - id: leadership_burden
-    tags: [leadership, burden, responsibility_weight]
-    incompatible_with: []
-  - id: trust_dynamics
-    tags: [trust, dynamics, relationship_risk]
-    incompatible_with: []
-  - id: quarantine_choice
-    tags: [isolation, protection, ethics_of_exclusion]
-    incompatible_with: []
-  - id: cure_or_supplies
-    tags: [resources, hope, pragmatism]
-    incompatible_with: []
-  - id: stranger_at_the_gate
-    tags: [trust, mercy, security]
-    incompatible_with: []
-  - id: last_stand_decision
-    tags: [sacrifice, defense, survival_of_group]
-    incompatible_with: []
+  - id: the_one_who_buried_the_first_dead
+    tags: [first_burial, unrepeatable_rite, original_grave, singular_duty]
+    incompatible_with: [the_one_who_keeps_the_settlements_secret]
 
 npc_bonds:
-  - id: settlement_founder
-    tags: [community, founding, shared_labor]
-    description: The NPC helped build the settlement the PC lives in. They dug the first well, stood the first wall, buried the first dead together.
-  - id: scavenging_partner
-    tags: [scavenging, survival, daily_risk]
-    description: The NPC has run dozens of scavenging runs with the PC. They know each other's signals, limits, and what the other will carry out.
   - id: saved_from_infected
-    tags: [rescue, life_debt, crisis]
-    description: The NPC pulled the PC out of a horde encounter. The debt is not discussed but it is understood by both.
-  - id: before_world_neighbor
-    tags: [before, shared_history, loss]
-    description: The NPC lived three doors down from the PC before the collapse. They remember each other's before-names and before-lives.
+    tags: [rescue, displaced_cost, secret_life_debt, hidden_payment]
+    description: The NPC pulled the PC out of a horde encounter. The debt is not discussed. The repayment was someone else's life; that person does not know.
   - id: lost_child_found
-    tags: [family, protection, found_family]
-    description: The NPC is a child the PC found and has been protecting. The bond is parental, even if neither uses the word.
+    tags: [found_child, false_match, protective_pretense, mutual_complicity]
+    description: The NPC is a child the PC found and has been protecting. The child is not the child the PC was looking for. The child knows this. The child is pretending not to.
   - id: ration_debt
-    tags: [survival, obligation, debt]
-    description: The NPC kept the PC alive through a bad winter by sharing rations. The debt is material and neither has forgotten.
+    tags: [winter_debt, witnessed_theft, kept_secret, ration_origin]
+    description: The NPC kept the PC alive through a bad winter by sharing rations — and the ration the NPC shared was a theft the PC witnessed and did not report, which is the proof of the bond.
   - id: faction_double_agent
-    tags: [faction, divided_loyalty, secrets]
-    description: The NPC is part of a faction the PC distrusts, but there is a personal bond between them that crosses the faction line.
+    tags: [double_agent, faction_knows, undecided_faction, personal_across_line]
+    description: The NPC is part of a faction the PC distrusts. The faction knows the bond is there; the faction has not decided what to do with that knowledge yet, and the NPC knows that the faction has not decided.
   - id: held_a_gate_together
-    description: The NPC and PC once held a breach together while others fled. The memory is one of mutual reliance.
-    tags: [shared_defense, trust, combat_bond]
-    incompatible_with: []
+    tags: [shared_defense, one_held_one_ran, both_alive, mutual_witness]
+    description: The NPC and PC once held a breach together while others fled. One of them held; one of them ran. Both are alive. Both know which one did which.
+  - id: settlement_founder
+    tags: [founder, displaced_builder, continuation_threat, lost_control]
+    description: The NPC helped build the settlement the PC lives in — dug the first well, stood the first wall, buried the first dead. Whoever took the settlement took it from them; their continued existence is now the threat to that person.
+  - id: scavenging_partner
+    tags: [scavenging, mutual_origin_knowledge, unspoken_source, shared_secret]
+    description: The NPC has run dozens of scavenging runs with the PC. Both know where the things they scavenged came from. Neither says.
+  - id: before_world_neighbor
+    tags: [before_world, mutual_recognition, pretended_strangers, chosen_anonymity]
+    description: The NPC lived three doors down from the PC before the collapse. Both remember each other's before-names. Both pretend not to recognize each other — because the things they did to survive are easier done among strangers.
 
 pc_situation_schema:
   - key: home_settlement
@@ -197,30 +161,23 @@ pc_situation_schema:
 
 scene_detail_bundles:
   - id: abandoned_hospital
-    items: [a gurney with torn restraints, a syringe half-filled with something dark]
     conditions: [the power flickering on backup battery, patient charts water-damaged into illegibility]
     sensory: [the hum of a surgical light on backup power, the smell of rot from a locked ward]
   - id: settlement_wall
-    items: [a guard post with a periscope and a cracked optic, a cache of molotov cocktails wrapped in newspaper]
-    conditions: [the wall patched in three places, gravel piled for quick fills]
+    conditions: [the wall patched in three places, gravel piled for quick fills, a name carved into the inside of the wall and defaced]
     sensory: [the constant low moan from beyond the wall, the creak of the watchtower ladder under weight]
   - id: overgrown_street
-    items: [a burned-out car with saplings growing through the chassis, a crate of bottled water]
     conditions: [a mattress dragged halfway across the intersection, the grocery store windows boarded but the door swinging]
     sensory: [the buzz of flies over something unseen, glass crunching underfoot with every step]
   - id: underground_bunker
-    items: [a military radio tuned to static, a loaded pistol left on the table]
     conditions: [the water filtration pump with a cracked housing, the air stale and metallic]
     sensory: [the echo of footsteps down the corridor, the drip of condensation from a pipe overhead]
   - id: quarantine_zone
-    items: [a decontamination tent with the flap torn, a loudspeaker on a pole repeating a recorded warning]
-    conditions: [the fence layered with biohazard tape, the bedding pile abandoned]
+    conditions: [the fence layered with biohazard tape, the bedding pile abandoned, the warning loop in a voice the PC recognizes]
     sensory: [the endless loop of a recorded warning echoing off concrete, the acrid smell of bleach concentrate]
   - id: radio_station
-    items: [a broadcast microphone with the foam chewed off, a stack of records with hand-painted labels]
     conditions: [the window boarded but light coming through the cracks, the transmitter humming but untuned]
     sensory: [the crackle of static, the echo of footsteps on the tiled floor]
   - id: farm_outskirts
-    items: [a tractor with the battery pulled, a root cellar door bolted from the outside]
-    conditions: [the field overgrown with thistle, the fence line down in three places]
+    conditions: [the field overgrown with thistle, the fence line down in three places, the cattle arranged in a circle standing dead]
     sensory: [the low of cattle left untended, the rustle of dry corn stalks in the wind]

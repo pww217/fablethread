@@ -258,7 +258,6 @@ class NarratorBoundary(BaseModel):
     meta: dict[str, int]
     pc_allegiance: str | None = None
     world_factions: list[dict[str, str]]
-    npc_name_pool: dict[str, list[str]]
     resolved_arcs: list[dict[str, Any]] = Field(default_factory=list)
 
 class SceneExtractBoundary(BaseModel):

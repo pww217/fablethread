@@ -158,7 +158,12 @@ async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], f
     turn_no = state.meta.turn + 1
 
     exp_ruling_ms = _avg_event_ms(ctx.save_dir, "ruling.total_ms")
-    phase_events: list[tuple[str, Any]] = [("phase", {"phase": "ruling_start", "expected_ms": exp_ruling_ms})]
+    exp_ttft_ms = _avg_event_ms(ctx.save_dir, "narrate.first_token_ms")
+    phase_events: list[tuple[str, Any]] = [("phase", {
+        "phase": "ruling_start",
+        "expected_ms": exp_ruling_ms,
+        "pre_stream_expected_ms": exp_ruling_ms + exp_ttft_ms,
+    })]
     t_rules = asyncio.get_event_loop().time()
 
     # Build ruling messages

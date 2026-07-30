@@ -33,6 +33,7 @@ class Meta(BaseModel):
     last_condition_change_reason: str | None = None
     last_rules_outcome: dict[str, Any] | None = None
     last_arc_resolve_turn: int | None = None
+    pending_names_used: int = 0
 
 
 class PC(BaseModel):
@@ -78,6 +79,7 @@ class NPCEntry(BaseModel):
     name: str = ""
     title: str | None = None
     bio: str | None = None
+    disposition: str | None = None
     motivation: str | None = None
     fear: str | None = None
     leverage: str | None = None
@@ -111,6 +113,7 @@ class LongTermObjective(BaseModel):
     resolved_turn: int | None = None
     last_thread_created_turn: int = 0
     started_turn: int | None = None
+    arc_origin: str = ""
 
 
 class WorldState(BaseModel):
@@ -148,6 +151,24 @@ class WorldState(BaseModel):
                 merged[field_name] = []
         if merged.get("long_term_objective") is None:
             merged["long_term_objective"] = LongTermObjective()
+        if "arc_origin" in merged:
+            lo = merged["long_term_objective"]
+            if isinstance(lo, dict):
+                lo.setdefault("arc_origin", merged.pop("arc_origin"))
+            else:
+                lo.arc_origin = merged.pop("arc_origin")
+
+        # Initialize last_seen_location for NPCs that are present/nearby but don't have one
+        # (turn-0 seed data may not have it set)
+        comp = merged.get("compendium") or {}
+        npcs = comp.get("npcs") or {}
+        location_name = merged.get("location", {}).get("name") if merged.get("location") else None
+        for npc_id, npc_data in npcs.items():
+            if isinstance(npc_data, dict):
+                presence = npc_data.get("presence", "known")
+                if presence in ("present", "nearby") and not npc_data.get("last_seen_location"):
+                    npc_data["last_seen_location"] = location_name
+
         return cls.model_validate(merged)
 
     def to_dict(self) -> dict[str, Any]:
@@ -320,16 +341,6 @@ class Condition(BaseModel):
         if v is None:
             return 0
         return v
-
-
-def _coerce_condition_str(v: Any) -> Any:
-    if isinstance(v, str):
-        cid = v.lower().strip().replace(" ", "_")
-        for ch in ("*", "_", "`", ".", ",", ";", ":", "!", "?"):
-            cid = cid.replace(ch, "")
-        cid = "_".join(cid.split()) or "condition"
-        return {"id": cid, "label": v.strip()}
-    return v
 
 
 class ConditionAdd(BaseModel):

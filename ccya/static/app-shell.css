@@ -298,10 +298,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 10px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
 }
 .extraction-bar {
   height: 32px;
@@ -341,6 +337,41 @@ body {
 .extraction-bar--record { background: color-mix(in srgb, var(--stage-record) 15%, transparent); }
 .extraction-bar--record .progress-bar { border-color: var(--stage-record); }
 .extraction-bar--record .progress-bar-fill { background: var(--stage-record); }
+
+/* =========================================================
+    PRE-STREAM BAR (ruling + narrate TTFT)
+    ========================================================= */
+
+.pre-stream-bar {
+  margin-top: 10px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 0.79rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+.pre-stream-bar .progress-bar {
+  flex: 1;
+  height: 8px;
+  background: transparent;
+  border: 1px solid;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.pre-stream-bar .progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 0.25s linear;
+}
+.pre-stream-bar[data-complete="true"] .progress-bar-fill {
+  width: 100% !important;
+}
+.pre-stream-bar .progress-bar { border-color: var(--stage-narrate); }
+.pre-stream-bar .progress-bar-fill { background: var(--stage-narrate); }
 
 @keyframes fadeOutCard {
   from { opacity: 1; transform: translateY(-8px); }
