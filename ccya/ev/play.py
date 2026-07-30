@@ -1,3 +1,16 @@
+"""Play command: single-turn, interactive, and LLM modes.
+
+In LLM mode, the PC receives context each turn:
+- Inventory (item names)
+- Arc goal (from state.long_term_objective)
+- Recent turns (last 2-3 actions + outcome summaries)
+- Latest narrative prose
+- "What do you do?" prompt
+
+The recent turns section gives the PC memory of past actions and outcomes,
+enabling it to avoid repeating failed approaches and make informed decisions.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -548,6 +561,20 @@ def _llm_session(
         if goal:
             context_parts.append(f"Goal: {goal}")
 
+        # Recent turns (last 2-3 turns with actions + outcomes)
+        if recent_turns:
+            recent_ctx_lines = []
+            for t in recent_turns[-3:]:
+                turn_input = t.get("input", "").strip()
+                turn_outcome = t.get("outcome", "").strip()
+                turn_num = t.get("turn", "?")
+                if turn_input and turn_outcome:
+                    recent_ctx_lines.append(f"- T{turn_num}: {turn_input}. Outcome: {turn_outcome}.")
+                elif turn_input:
+                    recent_ctx_lines.append(f"- T{turn_num}: {turn_input}.")
+            if recent_ctx_lines:
+                context_parts.append("Recent turns:\n" + "\n".join(recent_ctx_lines))
+
         # Current narrative (what just happened)
         if recent_turns and recent_turns[-1].get("narrative"):
             context_parts.append(recent_turns[-1]["narrative"])
@@ -611,7 +638,7 @@ def _llm_session(
 
         # Store this turn for next iteration
         narrative = result.get("narrative", "")
-        recent_turns.append({"input": player_input, "narrative": narrative})
+        recent_turns.append({"input": player_input, "narrative": narrative, "outcome": outcome, "turn": turn_num})
 
         state = load_state(save_dir)
 

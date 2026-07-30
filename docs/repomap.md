@@ -47,8 +47,8 @@
 | `ccya/ev/inspect.py` | Inspection commands: summary, timing, turn, prompt |
 | `ccya/ev/deltas.py` | Deltas and mechanics commands |
 | `ccya/ev/state_tools.py` | State commands: state, diff, trace, search, threads, beats |
-| `ccya/ev/play.py` | Play command: single-turn/interactive/LLM modes |
-| `ccya/ev/persona.py` | 8 persona presets + custom |
+| `ccya/ev/play.py` | Play command: single-turn/interactive/LLM modes. PC prompt includes inventory, arc goal, recent turns (last 2-3 actions + outcomes), latest narrative |
+| `ccya/ev/persona.py` | 9 persona presets + custom. Aggressive, cautious, absurd, explorer, driven, opportunist, completionist, speedrunner, custom. Each includes arc goal priority, self-preservation, concrete action rule, decision framework, persona-specific style, explicit repetition-avoidance rule |
 | `ccya/ev/session_config.py` | Session config: ev.yaml loading, flag resolution |
 | `ccya/ev/init.py` | Creates save dir + ev.yaml |
 | `ccya/ev/status.py` | Session dashboard from state.yaml + ev.yaml |
