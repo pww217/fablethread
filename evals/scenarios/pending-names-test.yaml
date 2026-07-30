@@ -1,0 +1,7 @@
+id: pending-names-test
+description: "Test pending names in roster for new character naming"
+save: evals/runs/2026-07-28_0.32.2-20-g6254885c_6254885c/1615_noir-1930s_3t
+turn: 1
+stream: narrate
+temp: 0.7
+checks: []

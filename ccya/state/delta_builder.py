@@ -9,7 +9,7 @@ import copy
 import logging
 from typing import Any
 
-from ccya.engine.utils import strip_non_ascii as _strip_non_ascii
+from ccya.state.utils import strip_non_ascii as _strip_non_ascii
 from ccya.errors import ErrorKind
 from ccya.models import Condition, InventoryItem, LongTermObjective, NpcPresence, SceneExtractResult, StateMerge, WorldState
 from ccya.state.inventory import (
@@ -266,10 +266,17 @@ def apply_delta(
 
     # --- NPC scene management (extracted to state/npcs.py) ---
     from ccya.state.npcs import apply_npc_scene_management
+    new_npcs_added = len(delta.compendium_npc_add or [])
     state = apply_npc_scene_management(state, SceneExtractResult(
         compendium_npc_add=delta.compendium_npc_add or [],
         compendium_npc_update=delta.compendium_npc_update or [],
     ), current_turn_no=current_turn, trace_id=trace_id)
+
+    # --- Increment pending names counter when new NPCs are added ---
+    if new_npcs_added > 0:
+        state = state.model_copy(update={
+            "meta": state.meta.model_copy(update={"pending_names_used": state.meta.pending_names_used + new_npcs_added}),
+        })
 
     # --- Arc update: merge arc_update into state arc ---
     if delta.arc_update is not None:
