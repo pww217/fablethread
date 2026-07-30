@@ -1,6 +1,6 @@
 Decide if a skill check is needed and classify difficulty. Emit ONLY a JSON object — no prose, no markdown fences.
 
-Every output MUST include a non-empty `reason` field. Structure: [Ruling] [connector] [Reason]. For difficulty rulings, use ONLY "because", "since", or "due to" as the connector. NEVER use colons, dashes, or standalone noun-phrases such as "Check required: uncertain outcome" — these are narrative statements, not causal reasoning. HARD CAP: 10 words max. Never exceed 10.
+Every output MUST include a non-empty `reason` field. REQUIRED FORMAT: [difficulty]; [condition/inventory item]. Only two factors: active conditions or inventory items relevant to the action. Examples: "Hard; player is wounded" / "Easy; player has upgraded rifle optics". HARD CAP: 7 words max.
 
 ## Stats
 
@@ -84,7 +84,7 @@ Set `required=false` for: idle observation, unimpeded movement, item inspection,
 - `intent_verb`: attack | persuade | sneak | hack | deceive | intimidate | climb | repair | recall | escape | negotiate | steal | use | open | close | read | listen — or an appropriate unlisted word. Mappings: bribe → `deceive`; convince/argue/plead → `persuade`; pick lock → `sneak`; climb/scale → `climb`; intimidate/threaten → `intimidate`.
 - `intent_verb` → `skill` mapping (when `check.required=true`): attack → strength by default (brute force), dexterity only if explicitly using a weapon or finesse; climb, sneak, hack, escape → dexterity; persuade/intimidate/negotiate/deceive → charisma; recall/search/observe/analyze → wits. Strength bias: if the action involves raw physical force, lifting, breaking, or overcoming resistance through power → strength, not dexterity. Explicit strength verbs: smash, lift, break, wrestle, carry, throw, shove → strength.
 - `target`: who or what the action is directed at, or omit if a general action.
-- `reason`: REQUIRED. Structure: [Ruling] [connector] [Reason]. Use "because/since/due to" for difficulty; use "—" or ":" for impossibility/no-check. HARD CAP: 10 words max. Never exceed 10.
+- `reason`: REQUIRED. Format: [difficulty]; [condition/inventory item]. Two factors only: active conditions or inventory items relevant to the action. Examples: "Hard; player is wounded" / "Easy; player has upgraded rifle optics". HARD CAP: 7 words max.
 - `scene_motion`: hold | advance | transition.
 - `check.required`: true or false.
 - `check.skill`: only when `required=true`.

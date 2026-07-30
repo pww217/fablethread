@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import re
 from typing import Any
 
+from ccya.state.utils import is_named as _is_named, strip_non_ascii as _strip_non_ascii
 from ccya.models import NpcPresence
 
 _log = logging.getLogger(__name__)
@@ -72,18 +72,6 @@ def generate_item_color(item_id: str) -> str:
 _generate_item_color = generate_item_color
 
 
-def _is_named(name: str) -> bool:
-    """Heuristic: a proper name has 2+ words with first and last capitalized."""
-    if not name:
-        return False
-    words = name.strip().split()
-    if len(words) < 2:
-        return False
-    first_word = words[0]
-    last_word = words[-1]
-    return bool(first_word and first_word[0].isupper() and last_word and last_word[0].isupper())
-
-
 def _compute_npc_score(entry: dict[str, Any], comp: dict[str, Any], turn_no: int) -> int:
     raw = comp.get(entry.get("id", ""), {})
     if raw.get("party") is True:
@@ -103,7 +91,7 @@ def _compute_npc_score(entry: dict[str, Any], comp: dict[str, Any], turn_no: int
     else:
         recency = 0
     richness = 0
-    for field in ("motivation", "fear", "leverage", "tie"):
+    for field in ("motivation", "fear", "leverage", "disposition", "tie"):
         val = entry.get(field)
         if val and val != "unknown":
             richness += 1
@@ -154,6 +142,7 @@ def build_npc_roster(
                 "name": name,
                 "title": _strip_non_ascii(entry.get("title") or ""),
                 "bio": (entry.get("bio") or "").strip() or None,
+                "disposition": entry.get("disposition") or None,
                 "presence": presence,
                 "motivation": entry.get("motivation") or None,
                 "fear": entry.get("fear") or None,
@@ -186,7 +175,40 @@ def build_npc_roster(
     return result
 
 
-def _strip_non_ascii(text: str) -> str:
-    if not text:
-        return text
-    return re.compile(r"[^\x00-\x7F]").sub("", text).strip()
+def build_pending_roster_entries(
+    pool: dict[str, list[str]],
+    *,
+    turn_no: int = 0,
+) -> list[dict[str, Any]]:
+    """Build roster-shaped entries from a name pool with presence='pending'.
+
+    Each entry matches the dict shape from build_npc_roster() but with all
+    optional fields set to None and presence='pending'. IDs are derived from
+    the name (snake_case). Colors are generated via generate_npc_color().
+    """
+    if not pool:
+        return []
+    result: list[dict[str, Any]] = []
+    for gender in ("male", "female"):
+        names = pool.get(gender, [])
+        for name in names:
+            nid = _strip_non_ascii(name).lower().replace(" ", "_")
+            result.append({
+                "id": f"pending_{nid}",
+                "name": name,
+                "title": None,
+                "bio": "Unknown person. Appearance and background not yet established.",
+                "disposition": None,
+                "presence": "new",
+                "motivation": "Unknown — to be determined by the scene.",
+                "fear": None,
+                "leverage": None,
+                "tie": None,
+                "notes": None,
+                "last_presence_turn": None,
+                "last_seen_location": None,
+                "departed_reason": None,
+                "color": _generate_npc_color(f"pending_{nid}"),
+            })
+    _log.debug("build_pending_roster_entries count=%d", len(result))
+    return result

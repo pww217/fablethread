@@ -83,8 +83,6 @@ def _apply_seed_to_save_dir(
     seed_dict.setdefault("meta", {})["model"] = _app_mod.engine_config.model
     if pack_source is not None:
         seed_dict.setdefault("meta", {})["pack_source"] = pack_source
-    if opening_narrative is not None:
-        seed_dict.setdefault("pc", {}).setdefault("situation", {})["opening"] = opening_narrative
     if opening_narrative is not None or actions is not None:
         seed_dict["seed_meta"] = {
             "actions": actions or [],
@@ -162,6 +160,8 @@ def _list_saves() -> list[dict[str, Any]]:
         pack_name = state.meta.setting_pack
         pc_name = state.pc.name
         location_name = state.location.name
+        lto_text = state.long_term_objective.long_term_objective if state.long_term_objective else ""
+        arc_origin = state.long_term_objective.arc_origin if state.long_term_objective else ""
 
         resolved = entry.resolve()
         kind = "eval" if str(resolved).startswith(str(Path("evals/runs").resolve())) else "user"
@@ -173,6 +173,8 @@ def _list_saves() -> list[dict[str, Any]]:
             "last_modified": last_modified,
             "pc_name": pc_name,
             "location_name": location_name,
+            "long_term_objective": lto_text,
+            "arc_origin": arc_origin,
             "kind": kind,
         })
 
@@ -250,15 +252,18 @@ async def get_turn(input: str = ""):
 
     async def event_stream():
         try:
+            # Clear any previous result for this turn
+            _app_mod._set_turn_result(None)
             run_turn_generator = run_turn(
                 _app_mod.SAVE_DIR,
                 user_input,
                 config=_app_mod.engine_config,
                 template_dir=str(_app_mod.PROMPTS_DIR),
-                pack_name_locales=_app_mod._active_pack.scenario.name_locales if _app_mod._active_pack.scenario else _app_mod._active_pack.manifest.name_locales,
+                pack_name_locales=_app_mod._active_pack.scenario.name_locales or _app_mod._active_pack.manifest.name_locales,
                 pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
                 pack_world_rules=_app_mod._active_pack.scenario.world_rules if _app_mod._active_pack.scenario else [],
                 pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],
+                pack_use_male_only_names=_app_mod._active_pack.manifest.use_male_only_names,
             )
             async for kind, payload in run_turn_generator:
                 if kind == "token":
@@ -307,6 +312,28 @@ async def get_turn(input: str = ""):
                     ch = result.changes if isinstance(result.changes, dict) else {}
                     # Format ts field for display (engine stores UTC ISO, UI gets human-readable)
                     _ts_display = _format_ts(result.ts)
+                    # Store result for mobile reconnect/resume
+                    _app_mod._set_turn_result({
+                        "turn": result.turn,
+                        "trace_id": result.trace_id,
+                        "narrative": result.narrative,
+                        "actions": result.actions,
+                        "rejected": result.rejected,
+                        "errors": result.errors,
+                        "diff": result.diff,
+                        "changes": ch,
+                        "change_lines": format_change_lines(ch),
+                        "state": result.state_snapshot.to_dict(),
+                        "metrics": result.metrics,
+                        "ruling": result.ruling,
+                        "outcome_summary": result.outcome_summary,
+                        "debug_mode": _app_mod.engine_config.debug_mode,
+                        "outcome_hint": result.outcome_hint,
+                        "scene_phase": result.scene_phase,
+                        "summary": result.summary,
+                        "post_turn_pending_beat": result.post_turn_pending_beat,
+                        "ts": _ts_display,
+                    })
                     yield {
                         "event": "turn_complete",
                         "data": json.dumps(
@@ -389,6 +416,17 @@ async def delete_last_turn():
 
     _log.info("delete_last_turn turn=%s", last_event.get("turn"))
     return JSONResponse({"actions": actions, "turn": last_event.get("turn")})
+
+
+@_app_mod.app.get("/turn/status")
+def get_turn_status():
+    """Return status of the current/last turn for mobile reconnect/resume."""
+    if _app_mod._is_turn_in_progress():
+        return JSONResponse({"status": "running"})
+    result = _app_mod._get_turn_result()
+    if result is not None:
+        return JSONResponse({"status": "completed", "result": result})
+    return JSONResponse({"status": "idle"})
 
 
 

@@ -1,9 +1,9 @@
 currency_id: dollars
 starting_currency_amount: 75
 world_facts:
-  - The war has been raging for years with no clear end in sight, and fronts shift without warning
-  - Occupied territories resist through underground networks while collaborationist governments maintain order under threat
-  - Advanced weapons technology and codebreaking are changing the nature of combat and intelligence gathering
+  - The war has been raging for years with no clear end and fronts that shift without warning — and the home front is being told a coherent story about it that the men in the line cannot recognize as their own.
+  - Occupied territories resist through underground networks while collaborationist governments maintain order under threat — and the line between resister and collaborator is sometimes a letter, sometimes a single missed meeting.
+  - Advanced weapons technology and codebreaking are reshaping combat and intelligence — and most of this is happening far from the line, which means the line is dying of decisions made by people who have never been there.
 
 constraints:
   # required-presence
@@ -19,147 +19,138 @@ world_rules:
   - No supernatural, paranormal, or sci-fi phenomena exist in this setting. All events are grounded in historical reality (1940–1945).
 
 situation_archetypes:
-  - id: firefight_starting_unexpected
-    tags: [combat, surprise, immediate_action]
+  - id: the_medic_who_decides_who_is_salvageable
+    tags: [medic_tries, salvage_decision, triage_authority, life_assignment]
     incompatible_with: []
-  - id: retreat_through_burning_village
-    tags: [retreat, civilian_crisis, environmental_hazard]
+  - id: the_drop_that_landed_among_people_who_already_surrendered
+    tags: [paratroopers_late, surrendered_already, no_one_to_fight, arrived_after]
     incompatible_with: []
-  - id: trench_overrun
-    tags: [trench_warfare, assault, overwhelming_force]
+  - id: retreat_through_a_village_that_does_not_know_whose_side_it_is
+    tags: [retreat, village_unknown_alignment, civilians_ambiguous, mixed_signals]
     incompatible_with: []
-  - id: beachhead_under_fire
-    tags: [amphibious_assault, exposure, landing_operation]
+  - id: the_trench_that_was_supposed_to_have_been_reinforced
+    tags: [trench_unreinforced, ordered_done, not_done, fallback_blame]
     incompatible_with: []
-  - id: night_ambush
-    tags: [stealth, ambush, nighttime_warfare]
+  - id: ambush_of_people_you_know_the_names_of
+    tags: [ambush_named, known_targets, recognizable_enemy, opposite_acquaintance]
     incompatible_with: []
-  - id: supply_convoy_attack
-    tags: [logistics, raiding, resource_denial]
+  - id: the_recon_that_keeps_finding_friendly_graves
+    tags: [recon_graves, friendly_dead, count_mismatch, where_records_go]
     incompatible_with: []
-  - id: artillery_preparation
-    tags: [artillery, bombardment, preparation_phase]
+  - id: the_bridge_the_engineers_already_wired_to_blow
+    tags: [bridge_wired, ordered_hold, secretly_mined, hold_knowledge_absent]
     incompatible_with: []
-  - id: bridge_defense
-    tags: [defense, chokepoint, strategic_objective]
+  - id: firefight_with_the_unit_that_was_supposed_to_relieve_you
+    tags: [firefight_reliever, friendly_fire, mistaken_unit, overlapping_dispatch]
     incompatible_with: []
-  - id: reconnaissance_in_depth
-    tags: [scouting, behind_lines, intelligence_gathering]
+  - id: the_officer_who_died_of_his_own_gun
+    tags: [officer_dead, own_gun, suicide_or_assistance, ambiguous_death]
     incompatible_with: []
-  - id: paratrooper_drop_zone
-    tags: [airborne, isolation, insertion_under_fire]
+  - id: the_villagers_who_would_not_say_which_way_they_went
+    tags: [villagers_silent, direction_withheld, common_secret, misdirection_mercy]
     incompatible_with: []
-  - id: naval_support_call
-    tags: [naval_firepower, coordination, close_support]
+  - id: the_surrenderer_nobody_in_the_section_wants_to_take
+    tags: [surrenderer_unwanted, ration_cost, taking_means_feeding, hard_mercy]
     incompatible_with: []
-  - id: medical_evacuation_under_fire
-    tags: [medical, evacuation, casualty_crisis]
+  - id: the_fire_mission_that_keeps_landing_on_your_position
+    tags: [friendly_artillery, own_guns_ranging, wrong_map, mistaken_dispatch]
     incompatible_with: []
 
 arc_categories:
-  - id: squad_survival
-    tags: [unit_cohesion, survival, brotherhood]
+  - id: the_secret_the_squad_keeps_for_each_other
+    tags: [shared_secret, squad_silence, mutual_cover, kept_lie]
     incompatible_with: []
-  - id: mission_vs_casualties
-    tags: [objectives, casualties, moral_tradeoff]
+  - id: the_enemy_who_showed_you_a_photo_of_his_daughter
+    tags: [enemy_recognized, daughter_photo, ongoing_fire, recognized_enemy]
     incompatible_with: []
-  - id: following_orders_moral_dilemma
-    tags: [chain_of_command, conscience, insubordination]
+  - id: the_order_only_one_of_you_can_refuse
+    tags: [order_refusable, single_refusal_carries, weighted_no, lone_dissent]
     incompatible_with: []
-  - id: enemy_dehumanization
-    tags: [propaganda, hatred, psychological_damage]
+  - id: the_thing_you_did_that_your_commander_offered_to_report_as_courage
+    tags: [commander_cover, courage_label, reclassified_act, sanctioned_violation]
     incompatible_with: []
-  - id: home_front_connection
-    tags: [letters, family, civilian_life]
+  - id: the_prisoner_that_does_not_know_what_happened_to_the_last_one
+    tags: [prisoner_unaware, prior_prisoner_gone, secret_execution, ignorance_as_mercy]
     incompatible_with: []
-  - id: war_crimes_coverage
-    tags: [atrocities, witness, moral_burden]
+  - id: the_one_who_walked_off_line_and_walked_back_two_days_later_changed
+    tags: [walked_off, returned_changed, two_days_absent, allowed_back]
     incompatible_with: []
-  - id: prisoner_handling
-    tags: [captivity, treatment_of_prisoners, ethics]
+  - id: the_order_that_keeps_being_given_by_different_officers_until_someone_enforces_it
+    tags: [recurring_order, rotating_authority, until_enforced, refuses_to_be_forgotten]
     incompatible_with: []
-  - id: civilian_collateral
-    tags: [civilians, war_impact, moral_complication]
+  - id: the_letter_from_home_that_does_not_match_the_war_you_are_in
+    tags: [home_letter, mismatched_war, written_home-belief, narrated_victory]
     incompatible_with: []
-  - id: logistics_breakdown
-    tags: [supply_failure, isolation, resource_crisis]
+  - id: the_replacement_who_keeps_showing_up
+    tags: [recurring_replacement, lost_three, fourth_here, undaunted_arrival]
     incompatible_with: []
-  - id: command_incompetence
-    tags: [leadership_failure, wasted_lives, frustration]
+  - id: the_home_town_that_does_not_know_what_happened_to_the_last_boy_they_sent
+    tags: [home_town_unaware, prior_boy_uncounted, undisclosed_loss, written_record_gap]
     incompatible_with: []
-  - id: brotherhood_bonds
-    tags: [camaraderie, unit_loyalty, shared_trauma]
+  - id: the_civilian_who_was_saving_the_thing_you_were_sent_to_destroy
+    tags: [civilian_saved, target_preserved, contrary_mercy, opposing_care]
     incompatible_with: []
-  - id: fear_management
-    tags: [psychological_stress, combat_anxiety, coping]
+  - id: the_ration_that_was_yours_today_tomorrow_someone_elses
+    tags: [ration_rotation, lottery_death, displaced_share, sliding_assignment]
     incompatible_with: []
-  - id: desertion_stigma
-    tags: [cowardice, court_martial, social_shame]
+  - id: the_medic_who_decides_who_counts_as_wounded
+    tags: [medic_tries, wound_recognition, salvage_authority, deferred_care]
     incompatible_with: []
-  - id: propaganda_vs_reality
-    tags: [official_narrative, lived_experience, disillusionment]
-    incompatible_with: []
-  - id: post_war_uncertainty
-    tags: [return_home, trauma, uncertain_future]
+  - id: the_general_who_keeps_visiting_the_line_and_leaving
+    tags: [general_visits, soap_smell_departure, brief_presence, leaving_odor]
     incompatible_with: []
 
 character_dynamics:
-  - id: rank_and_file_rifleman
-    tags: [infantry, common_soldier, basic_training]
+  - id: the_medic_who_decides_who_counts_as_wounded
+    tags: [medic, triage_judgement, wound_recognized, life_assignment]
     incompatible_with: []
-  - id: radioman_behind_lines
-    tags: [communications, rear_area, information_flow]
+  - id: the_nco_who_keeps_the_real_roster_of_who_is_breaking
+    tags: [nco, real_roster, breaking_known, separate_ledger]
     incompatible_with: []
-  - id: combat_medic
-    tags: [medical, life_preservation, non_combatant_role]
+  - id: the_replacement_whose_first_meal_is_with_a_section_that_knows_a_dead_mans_seat
+    tags: [replacement, dead_mans_seat, rite_of_joining, weighted_meal]
     incompatible_with: []
-  - id: tank_crew_member
-    tags: [armor, mechanized_warfare, confined_space]
+  - id: scout_who_came_back_with_something_they_will_not_say
+    tags: [scout, unsaid_return, held_report, came_back_with]
     incompatible_with: []
-  - id: scout_reconnaissance
-    tags: [scouting, isolation, behind_enemy_lines]
+  - id: the_clerk_who_can_make_a_dead_mans_pay_stop_or_keep_going
+    tags: [clerk, pay_record, dead_or_alive_paper, signature_power]
     incompatible_with: []
-  - id: clerk_administrative
-    tags: [paperwork, rear_area, non_combat_role]
+  - id: radioman_who_decides_which_messages_make_it_through
+    tags: [radioman, message_filter, home_dispatch, suppression_in_hand]
     incompatible_with: []
-  - id: veteran_noncommissioned_officer
-    tags: [leadership, experience, institutional_knowledge]
+  - id: the_crewmember_who_knows_which_round_was_fired_at_what
+    tags: [crew, fired_round, known_target, target_accounting]
     incompatible_with: []
-  - id: replacement_conscript
-    tags: [newcomer, inexperience, unit_integration]
+  - id: the_rifleman_whose_letter_from_home_arrived_already_open
+    tags: [rifleman, opened_letter, censored_or_read, home_in_hand]
     incompatible_with: []
 
-moral_pressures:
-  - id: survival_vs_duty
-    tags: [survival, duty, ethical_conflict]
-    incompatible_with: []
-  - id: following_orders_vs_conscience
-    tags: [chain_of_command, morality, insubordination]
-    incompatible_with: []
-  - id: protecting_squad_mates
-    tags: [unit_cohesion, sacrifice, loyalty]
-    incompatible_with: []
-  - id: war_dehumanization
-    tags: [enemy_treatment, hatred, moral_erosion]
-    incompatible_with: []
-  - id: home_front_expectations
-    tags: [civilian_support, honor, pressure_to_prove]
-    incompatible_with: []
-  - id: ending_the_war_at_any_cost
-    tags: [victory, extreme_measures, moral_compromise]
-    incompatible_with: []
-  - id: combat_exhaustion
-    tags: [psychological_stress, combat_fatigue, breakdown]
-    incompatible_with: []
-  - id: refugee_crisis
-    tags: [civilians, displacement, moral_complication]
-    incompatible_with: []
-  - id: captured_intelligence
-    tags: [interrogation, information, ethical_compromise]
-    incompatible_with: []
-  - id: friendly_fire_aftermath
-    tags: [grief, accountability, unit_guilt]
-    incompatible_with: []
+npc_bonds:
+  - id: foxhole_brother
+    tags: [foxhole, shared_silence, one_back_one_forward, mutual_witness]
+    description: The NPC shared a foxhole with the PC during a sustained engagement — they shared ammo, watches, and whatever they had. One of them came back; one of them is still there. The bond is the silence about what happened in the foxhole, which neither has ever said aloud.
+  - id: deserted_together_once
+    tags: [desertion_shared, section_covered, false_patrol_report, owes_section_member]
+    description: The NPC and PC both stepped off the line once, in a moment neither will speak of. The section covered it; the report says they were on patrol. The bond is to the section member who didn't walk — and didn't survive the next week.
+  - id: superior_officer_conflict
+    tags: [officer_conflict, kept_alive_which, personal_friction, life_friction]
+    description: "The NPC is a non-com or officer who has clashed with the PC before. The friction is personal — and it is founded in a specific incident: which of them let the other one live."
+  - id: the_wounded_where_the_squad_agreed_to_call_it_enemy_fire
+    tags: [visible_scar, friendly_origin, squad_covered, narrated_enemy]
+    description: The NPC was under the PC's care in a previous engagement and carries a visible scar from it. The visible scar is not from enemy action — the squad agreed to call it enemy action. The bond is the squad's continued agreement.
+  - id: shared_pow_experience
+    tags: [pow_together, one_ate_one_didnt, hunger_knowledge, deprivation_choice]
+    description: The NPC and PC were held together in a POW camp. They survived it together — and in the camp, one of them ate; one of them did not. Both know why that was. The bond is the silence around the choice.
+  - id: training_batch
+    tags: [training_batch, only_two_back, others_stationed_elsewhere, polite_pretense]
+    description: The NPC and PC went through basic training together — the bond of shared misery. Only two of the batch came back; both pretend the others are stationed elsewhere, and neither has visited.
+  - id: the_one_who_knows_what_happened_to_the_civilian
+    tags: [civilian_dead, two_witnesses, no_report, mutual_complicity]
+    description: The NPC is the only other person who knows what happened to a particular civilian — the only other person who did not report it, and did not stop it, and is therefore permanently bonded to the PC by what they both did not do.
+  - id: the_one_who_has_a_letter_for_your_next_of_kin_already_written
+    tags: [prewritten_letter, next_of_kin, awaiting_death, shelf_letter]
+    description: The NPC has already written the letter to the PC's next of kin. The NPC carries it in their pocket. The PC knows the NPC carries it; the NPC knows the PC knows. The bond is that this is not an insult — it is, in the squad's accounting, a kindness.
 
 pc_situation_schema:
   - key: unit
@@ -178,59 +169,25 @@ pc_situation_schema:
     required: false
     persist: true
 
-npc_bonds:
-  - id: foxhole_brother
-    tags: [combat, shared_section, front_line]
-    description: The NPC was in the same section as the PC during a sustained engagement. They shared a foxhole, shared ammunition, shared what they had.
-  - id: training_batch
-    tags: [basic_training, unit_cohesion, shared_introduction]
-    description: The NPC and PC went through basic training together. The bond of shared misery and transformation never quite fades.
-  - id: did_a_medevac_for
-    tags: [medical, evacuation, saved_life]
-    description: The PC carried or helped carry the NPC to a medic under fire. The NPC owes their life or their limb to that moment.
-  - id: deserted_together_once
-    tags: [desertion, secret, shared_risk]
-    description: The NPC and PC both stepped off the line once, in a moment neither will speak of. The shared secret is a bond neither can afford to break.
-  - id: superior_officer_conflict
-    tags: [rank, authority, friction]
-    description: The NPC is a non-com or officer who has clashed with the PC before. The friction is personal, grounded in a specific incident.
-  - id: home_town_connection
-    tags: [home, shared_origin, civilian_life]
-    description: The NPC is from the PC's home town or region. They knew the same streets, the same bars, the same pre-war life.
-  - id: shared_pow_experience
-    tags: [captivity, survival, mutual_rescue]
-    description: The NPC and PC were held together in a POW camp. They survived it together and the bond is forged in that specific deprivation.
-  - id: wounded_before
-    description: The NPC was under the PC's care in a previous engagement and carries a visible scar from it.
-    tags: [injury, care, shared_history]
-    incompatible_with: []
-
 scene_detail_bundles:
   - id: bombed_out_village
-    items: [a church bell lying in the rubble, a field kitchen with its stove still warm]
     conditions: [rubble-choked streets, smoke haze from a recent fire]
     sensory: [the echo of boots on broken stone, the creak of a half-collapsed beam]
   - id: command_post
-    items: [a map table with unit positions in grease pencil, a field telephone with the wire trailing out the door]
     conditions: [papers strewn across the floor, hastily evacuated]
     sensory: [the drone of distant bombers, the crackle of a radio left on]
   - id: field_hospital
-    items: [a triage table with blood-soaked sawdust on the floor, a clipboard of morphine doses signed by different hands]
     conditions: [low on supplies, lantern light flickering]
     sensory: [the hiss of a low-fuel lantern, the moan of wounded men through canvas]
   - id: trench_line
-    items: [a periscope rifle propped against the parapet, a signal flare pistol with three rounds left]
     conditions: [mud-choked duckboards, crumbling sandbag parapet]
     sensory: [the thump of distant artillery, the sharp smell of cordite and wet earth]
   - id: supply_depot
-    items: [a pallet of ammunition crates with different unit codes, a typewriter on a crate with a half-typed inventory sheet]
     conditions: [crates stacked haphazardly in the rain, fuel drums with slow leaks]
     sensory: [the smell of petrol and damp canvas, the clatter of a loose shutter in the wind]
   - id: destroyed_farmhouse
-    items: [a piano with a bullet through its frame, a cellar door half-open]
     conditions: [the roof collapsed in the center, a dead cow in the yard]
     sensory: [the buzz of flies, the smell of burnt hay]
   - id: river_crossing
-    items: [a pontoon bridge anchored with ropes, a crate of waterproofed flares]
     conditions: [the current running fast, the fog lying low over the water]
     sensory: [the rush of the river, the creak of ropes under tension]

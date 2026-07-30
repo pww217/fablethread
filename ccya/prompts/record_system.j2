@@ -115,12 +115,9 @@ WRONG: `arc_resolve` with unchanged `long_term_objective` (no-op). RIGHT: `arc_r
 Emit at least 2, at most 4 choices, ~10 words each. Every choice must begin with an active verb.
 
 **Grounding rules:**
-- Reference actual game state: named NPCs present, inventory items, location features.
+- Prioritize by: (1) arc objective, (2) urgent threads, (3) active threads.
 - No generic exploration options ("look around", "check walls", "move forward").
 - Each choice must be distinct in approach — not variations of the same action.
-- At least one choice must reference an NPC by name.
-- At least one choice must reference an inventory item or location feature.
 - Choices should escalate, force a decision, or change things irreversibly.
-- No passive options, nothing generic enough for any protagonist.
-
-- Departed NPCs (marked with `[DEPARTED]`) are permanently gone and will be archived after a few turns. Reference them from narrative history only — do not create threads or actions involving departed characters.
+- No passive or generic options.
+- Do not reference dormant threads, departed NPCs, inventory items, or location features.

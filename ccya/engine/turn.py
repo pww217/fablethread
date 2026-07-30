@@ -75,6 +75,7 @@ async def run_turn(
     pack_narrator_rules: list[str] | None = None,
     pack_world_rules: list[str] | None = None,
     pack_factions: list[dict[str, str]] | None = None,
+    pack_use_male_only_names: bool = False,
 ) -> AsyncIterator[tuple[str, Any]]:
     if config is None:
         config = EngineConfig()
@@ -115,6 +116,7 @@ async def run_turn(
                 "narrator_rules": pack_narrator_rules, "world_rules": pack_world_rules,
                 "factions": pack_factions,
                 "inventory": state.inventory,
+                "use_male_only_names": pack_use_male_only_names,
             }, _env=env, _cancel_event=_cancel_event,
         )
 
@@ -710,7 +712,7 @@ def _build_turn_event(
     pc = pctx.pc
     scene_data = extraction_event.get("scene")
     scene_output = scene_data.get("output") if scene_data else None
-    npc_updates = scene_output.get("compendium_npc_update") if scene_output else []
+    npc_updates = (scene_output.get("compendium_npc_add") or []) + (scene_output.get("compendium_npc_update") or []) if scene_output else []
     event = {
         "ts": _ts,
         "trace_id": pctx.trace_id,
@@ -767,8 +769,12 @@ def _persist_events(
     pctx: _TurnPersistContext,
     state: WorldState,
     event: dict[str, Any],
-) -> list[dict[str, Any]]:
-    """Write event, prompts, and chronicle to disk. Returns prompts_list."""
+) -> tuple[WorldState, list[dict[str, Any]]]:
+    """Write event, prompts, and chronicle to disk.
+
+    Returns (state, prompts_list) so the caller can use the post-bullet state
+    for the yielded TurnResult and the async cleanup window.
+    """
     _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     extraction_event = pctx.extraction_event
 
@@ -819,7 +825,7 @@ def _persist_events(
         turn_no = state.meta.turn
         state = state.add_prior_history_bullet(f"- [T{turn_no}] {pctx.outcome_summary}")
 
-    return prompts_list
+    return state, prompts_list
 
 
 def _build_turn_result(
@@ -994,7 +1000,7 @@ async def _persist_and_async_cleanup(pctx: _TurnPersistContext) -> AsyncIterator
     event = _build_turn_event(pctx, state, ruling_event)
 
     # === Persist events to disk ===
-    prompts_list = _persist_events(pctx, state, event)
+    state, prompts_list = _persist_events(pctx, state, event)
 
     # === Yield complete to caller ===
     result_obj = _build_turn_result(pctx, state, ruling_event)

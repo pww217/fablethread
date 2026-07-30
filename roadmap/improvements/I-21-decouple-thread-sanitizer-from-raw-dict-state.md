@@ -1,6 +1,6 @@
 ---
 title: "Decouple thread sanitizer from raw dict state"
-status: open
+status: done
 type: improvement
 urgency: 3
 size: medium

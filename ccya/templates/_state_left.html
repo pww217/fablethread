@@ -95,8 +95,8 @@
         {% set _goal = _arc.long_term_objective %}
 
         {% if _goal %}
-        <div class="arc-goal">
-            {{ _goal }}
+        <div class="arc-goal{% if _arc.arc_origin %} has-tooltip{% endif %}">
+            {{ _goal }}{% if _arc.arc_origin %}<div class="tooltip-body">{{ _arc.arc_origin }}</div>{% endif %}
         </div>
         {% endif %}
 

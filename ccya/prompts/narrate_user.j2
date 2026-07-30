@@ -20,21 +20,12 @@
 {% include "sections/_world_state.j2" %}
 {% endif -%}
 
-{% if world_factions or npc_name_pool %}
+{% if world_factions %}
 ## Immutable Reference
 {% if world_factions -%}
 ### Known Factions
 {% for f in world_factions %}- **{{ f.name }}** ({{ f.disposition }}){% if f.disposition == "friendly" and pc_allegiance == f.id %} — your faction{% endif %}
 {% endfor -%}
-{% endif -%}
-{% if npc_name_pool -%}
-### Required Name Pool for New Characters
-The names below are available names — NOT active characters. When introducing a new character or revealing a character's name, pick one from this list. Do not invent names outside this list.
-{% if npc_name_pool.male -%}
-**Male:** {{ npc_name_pool.male | join(' · ') }}
-{% endif %}{% if npc_name_pool.female -%}
-**Female:** {{ npc_name_pool.female | join(' · ') }}
-{% endif %}
 {% endif -%}
 {% endif %}
 
@@ -85,6 +76,10 @@ Narrate the attempt and its natural failure. Do NOT write a version where the ac
 === PLAYER INPUT ===
 {{ user_input }}
 === END PLAYER INPUT ===
+
+{% if pending_new_character_name -%}
+**NARRATION REQUIREMENT:** In your narration this turn, you MUST use the name "{{ pending_new_character_name }}" for the first new character you introduce. Do not invent names. Do not use generic Anglo names.
+{% endif %}
 
 {% if pending_beat and pending_beat.type -%}
 

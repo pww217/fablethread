@@ -1,10 +1,11 @@
 ---
 title: "Optimize narrator context — what each narrator receives from world, inspiration, and arc"
-status: idea
+status: up-next
 urgency: 3
 size: medium
 created: 2026-07-09
 ticket_id: I-33
+design: docs/design/I-33-narrator-context-optimization-design.md
 labels:
   - engine
   - prompts
@@ -60,6 +61,22 @@ World_state starts with baseline facts (injected from world_facts at seed time, 
 ### World_state anchoring:
 - Baseline facts should be preserved in world_state permanently (they already have `permanent=True`, but need to be visible in narrator context every turn, not just in world_state which can be overwritten)
 - Consider injecting world_facts directly into narrator context (like narrator_rules) in addition to world_state, so the narrator always has the baseline canon visible
+
+### World-building detail and specificity (2026-07-26 playtest feedback)
+
+After playing a recent game on main, the core complaint was: "we just need more details and more specifics." The narrator underutilizes every opportunity for world-building. This should be one of the narrator's top priorities.
+
+**Specificity requirements:**
+- When the narrator encounters something strange (a ritual, a weird occurrence), it should describe *what it is*, not just "there's a ritual." If it's "a ritual to trade X for Y," that should be explicit — what is being traded, for what, and why.
+- If the narrator doesn't know what's going on, it should say so: keep it ambiguous so the player can discover it. "We don't know" is better than vague abstraction.
+- If the player *should* know something, it needs to be specific: not "the ritual" or "the war" but concrete details. Every faction, every entity, every character needs a specific motivation — something they're trying to get or do.
+
+**Character motivation problem:**
+- "Characters feel lifeless because they just kind of [exist]." They need concrete leverage, specific goals.
+- Not "the cartel did this" — named individuals with specific motivations. "The cartel's enforcer wants X because Y."
+- People act, not abstract forces. The world needs to feel alive through individual character motivations, not faction-level abstractions.
+
+This ties directly into the arc/threads concern above: threads should be the mechanism that gives characters their specific motivations and goals.
 
 ### Action anchoring to arc:
 - The user's concern about actions being "grounded, not hallucinated, tied to pursuing threads and arcs" applies to both the opening actions (4 choices) and the beat generation (World step)

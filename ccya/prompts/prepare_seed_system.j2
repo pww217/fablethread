@@ -6,7 +6,8 @@ Generate a SeedState JSON for a new playthrough. Wrap your entire response in a 
 - Inspiration prose is quality guidance, not a menu. Don't borrow its phrasing or take its first suggestion.
 - Avoid the obvious scenario. Specific and mundane beats generic and dramatic.
 - ALL names must use only ASCII/Latin characters (a-z, A-Z, 0-9, spaces, hyphens, apostrophes). No exceptions.
-- Names: pick from the name pool provided; favor fit over prominence — prefer the second or third most plausible option for variance across runs (use `name_seed` to guide selection).
+- **REQUIRED NAME POOL:** You MUST use names exclusively from the name pool below. Do NOT invent names. Do NOT use generic Anglo names. Pick from the pool — use at least one PC name and at least one NPC name from the pool. The pool names are culturally appropriate for this setting; generic names break immersion.
+- **WRONG EXAMPLES (DO NOT USE):** "John Smith", "Elias Thorne", "Richard Wolfe", "Michael Silva", "Daniel Torres", "Elena Wolfe", "Zachary Davis". These are generic Anglo names that break immersion.
 - Established facts must teach them something they could not infer from the setting alone.
 - **MANDATORY: You MUST include at least 1 NPC in the compendium with presence="present".** The engine will reject your seed if the compendium is empty or has no present NPCs. This is a hard constraint — do not emit a seed without NPCs.
 
@@ -17,12 +18,11 @@ Generate a SeedState JSON for a new playthrough. Wrap your entire response in a 
 
 {% if pool_selection %}
 ## Seeded context
-Four independently selected narrative dimensions. They are NOT a menu — weave them into something coherent. Tension between them is expected.
+Three independently selected narrative dimensions. They are NOT a menu — weave them into something coherent. Tension between them is expected.
 
 - **SITUATION ARCHETYPE** (`{{ pool_selection.situation.id }}`): The pressure or tension they walk into.
 - **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Longer-term narrative direction. Scaffold the `long_term_objective` around this category's pattern — shape its stakes, escalation mechanism, and resolution structure to match. Not a label; a structural constraint. The objective should be unrecognizable if you swapped it for a different arc_category.
 - **CHARACTER DYNAMIC** (`{{ pool_selection.character_dynamic.id }}`): {pc.name}'s position relative to power structures. Their bio must be consistent with this (trusted_insider → show community ties; free_agent → show independence).
-- **MORAL PRESSURE** (`{{ pool_selection.moral_pressure.id }}`): The ethical dilemma driving immediate personal stakes.
 {% endif %}
 
 ## Schema
@@ -37,7 +37,7 @@ The output must be a JSON object with this structure. Generate each field below 
     "location": {"id": "snake_case_id", "name": "Display name", "description": "Full description sentence."},
     "inventory": [{"id": "snake_case_item_id", "name": "Proper item name", "notes": "Brief context", "amount": 1}],
     "scene": {"tags": ["tag1", "tag2"], "world_state": [{"id": "global_fact_id", "text": "One sentence global fact.", "tier": "global", "valence": "threat", "permanent": true, "expires_turn": null}]},
-    "compendium": {"npcs": {"npc_snake_case_id": {"name": "Full display name (what other characters call them).", "title": "Role or title.", "bio": "Biographical sketch.", "presence": "present|nearby|known", "tie": "How they connect to the PC.", "motivation": "What they fundamentally want.", "fear": "What they dread.", "leverage": "What leverage they hold."}}},
+    "compendium": {"npcs": {"npc_snake_case_id": {"name": "Full display name (what other characters call them).", "title": "Role or title.", "bio": "Biographical sketch.", "disposition": "2-3 adjectives describing speech style and demeanor.", "presence": "present|nearby|known", "tie": "How they connect to the PC.", "motivation": "What they fundamentally want.", "fear": "What they dread.", "leverage": "What leverage they hold."}}},
     "long_term_objective": {"long_term_objective": "One sentence multi-stage objective.", "threads": [{"id": "thread_bucket", "summary": "Current state description (one sentence).", "type": "threat|opportunity|complication|revelation", "dormant": false, "urgency": "normal|urgent", "urgency_set_turn": 1}], "completed_threads": []},
     "arc_origin": "One sentence world-level event in past tense.",
     "world": {"locations": [{"id": "location_slug", "name": "Display name", "description": "Full description.", "status": "active|abandoned|restricted", "tags": ["tag"]}]}}
@@ -85,12 +85,12 @@ Build in this order, using everything already established before generating what
 
 - **At least 1 NPC must have `"presence": "present"`.** This is mandatory — the opening scene must include at least one NPC that is physically present. If you cannot generate an NPC with presence="present", you must generate one. This is not optional.
 - `presence` is required for all NPCs: set to `"present"` for NPCs in the opening scene, `"nearby"` for those nearby but not in the scene, `"known"` for those they know but aren't nearby. All seed NPCs that appear in the opening narrative must have `"presence": "present"`.
-- NPCs have 4 behavioral fields (`motivation`, `fear`, `leverage`) and 1 relationship field (`tie`).
+- NPCs have 5 behavioral fields (`motivation`, `fear`, `leverage`, `disposition`) and 1 relationship field (`tie`).
 How many depends on the NPC's role:
 
 - **Unnamed NPCs (name does not look like a proper name — fewer than 2 words, or first/last not both capitalized):**
-  `bio` + `motivation`. Do NOT add fear, leverage, or tie. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace."
-- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `motivation`, and 2 of {fear, leverage, tie} — 4 fields minimum. Motivation is mandatory for every character.
+  `bio` + `disposition` + `motivation`. Do NOT add fear, leverage, or tie. Motivation is required — give them something specific and interesting, not generic filler like "maintain the peace."
+- **Named NPCs (proper name: at least two words with first and last capitalized):** Must have `motivation` + `disposition`, and 2 of {fear, leverage, tie} — 4 fields minimum. Motivation is mandatory for every character.
 - **Important NPCs (seed characters, arc goal characters, faction leaders):** All 5 fields.
   These are the characters the story revolves around — give them depth.
 
@@ -150,10 +150,9 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - At least one thread must have `type == "threat"`. At least one thread must have `type != "threat"`.
 - **CRITICAL:** Every thread MUST have a `type` field in the JSON. Omitting `type` will cause the seed to be rejected with a retry request.
 **Thread count (hard limits at game start):**
-- Exactly 1–2 threads with `"dormant": false` — prefer 1 if unsure. Never more than 2.
-- All other threads with `"dormant": true`.
-- Up to 3 dormant threads (`"dormant": true`).
-- Total: 4–5 threads (minimum 3, maximum 6).
+- Exactly 2 threads with `"dormant": false`.
+- At least 2 dormant threads (`"dormant": true`).
+- Total: 4–5 threads.
 - Non-dormant threads: urgency `"normal"` or `"urgent"` (prefer `"normal"`).
 - Dormant threads: urgency `"background"`. Never `"urgent"`.
 **Thread quality:** Each thread must be a medium-term tension capable of sustaining 5–10 turns — a situation with inherent escalation, not a single event, person, or goal. If your thread would resolve after one interaction, it belongs in the opening scene, not the arc. Thread summaries are seeds for the narrator, not scripted plot — describe a situation; do not specify events. Do not generate threads from incidental narration details.

@@ -1,6 +1,6 @@
 ---
 title: "Eval — I-28 beat recipe + complete E-8 Phase 2 (3x15 persona runs)"
-status: archived
+status: done
 urgency: 2
 size: medium
 created: 2026-07-05

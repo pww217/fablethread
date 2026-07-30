@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from ccya.models import LongTermObjective, InventoryItem, WorldStateFact
 
@@ -73,7 +73,7 @@ class SeedState(BaseModel):
     scene: SeedScene
     compendium: SeedCompendium = Field(default_factory=SeedCompendium)
     long_term_objective: LongTermObjective | None = None
-    arc_origin: str = ""
+    arc_origin: str = Field(min_length=1)
     actions: list[str] = Field(default_factory=list)
     world: dict[str, Any] = Field(default_factory=dict)
 
@@ -89,9 +89,14 @@ class SeedStateEnvelope(BaseModel):
     opening_narrative: str = ""
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
-    long_term_objective: LongTermObjective | None = None
     arc_origin: str = ""
     pool_selection: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def _derive_arc_origin(self) -> "SeedStateEnvelope":
+        if not self.arc_origin and self.seed_state.arc_origin:
+            object.__setattr__(self, "arc_origin", self.seed_state.arc_origin)
+        return self
 
 
 class SeedEnvelope(BaseModel):
@@ -105,10 +110,10 @@ class SeedEnvelope(BaseModel):
     """
 
     seed_state: SeedState
-    opening_narrative: str = Field(min_length=50)
+    opening_narrative: str = Field(min_length=1500)
     actions: list[str] = Field(min_length=4, max_length=4)
     long_term_objective: LongTermObjective | None = None
-    arc_origin: str = ""
+    arc_origin: str = Field(min_length=1)
     outcome_summary: str = ""
 
 
@@ -144,7 +149,7 @@ class PcSituationSchemaEntry(BaseModel):
 
 
 class PoolEntry(BaseModel):
-    """Base entry for archetype pools (situation, arc, character, moral, npc_bond)."""
+    """Base entry for archetype pools (situation, arc, character, npc_bond)."""
 
     id: str
     tags: list[str] = Field(default_factory=list)
@@ -154,9 +159,8 @@ class PoolEntry(BaseModel):
 
 class SceneDetailBundle(BaseModel):
     id: str
-    items: list[str] = Field(default_factory=list, max_length=2)
-    conditions: list[str] = Field(default_factory=list, max_length=2)
-    sensory: list[str] = Field(default_factory=list, max_length=2)
+    conditions: list[str] = Field(default_factory=list, max_length=3)
+    sensory: list[str] = Field(default_factory=list, max_length=3)
 
 
 class ScenarioBrief(BaseModel):
@@ -188,7 +192,6 @@ class ScenarioBrief(BaseModel):
     situation_archetypes: list[PoolEntry] = Field(default_factory=list, max_length=16)
     arc_categories: list[PoolEntry] = Field(default_factory=list, max_length=20)
     character_dynamics: list[PoolEntry] = Field(default_factory=list, max_length=12)
-    moral_pressures: list[PoolEntry] = Field(default_factory=list, max_length=10)
     npc_bonds: list[PoolEntry] = Field(default_factory=list, max_length=8)
     scene_detail_bundles: list[SceneDetailBundle] = Field(default_factory=list, max_length=8)
     currency_id: str = ""
@@ -372,7 +375,6 @@ def validate_pack(pack: Pack, pack_id: str | None = None) -> None:
         ("situation_archetypes", pack.scenario.situation_archetypes if pack.scenario else []),
         ("arc_categories", pack.scenario.arc_categories if pack.scenario else []),
         ("character_dynamics", pack.scenario.character_dynamics if pack.scenario else []),
-        ("moral_pressures", pack.scenario.moral_pressures if pack.scenario else []),
         ("npc_bonds", pack.scenario.npc_bonds if pack.scenario else []),
     ]
     for pool_name, entries in pool_fields:

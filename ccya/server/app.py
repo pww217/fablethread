@@ -30,6 +30,7 @@ SAVE_DIR: Path | None = None
 _turn_lock: asyncio.Lock | None = None
 _cancel_event: asyncio.Event | None = None
 _turn_done_event: asyncio.Event | None = None
+_turn_result: dict[str, Any] | None = None
 
 
 def _start_turn() -> tuple[asyncio.Lock, asyncio.Event, asyncio.Event]:
@@ -41,7 +42,7 @@ def _start_turn() -> tuple[asyncio.Lock, asyncio.Event, asyncio.Event]:
 
 
 def _signal_turn_done() -> None:
-    global _turn_lock, _cancel_event, _turn_done_event
+    global _turn_lock, _cancel_event, _turn_done_event, _turn_result
     if _turn_done_event:
         _turn_done_event.set()
     if _cancel_event:
@@ -49,6 +50,7 @@ def _signal_turn_done() -> None:
     if _turn_lock:
         _turn_lock.release()
     _turn_lock = _cancel_event = _turn_done_event = None
+    _turn_result = None
 
 
 def _is_cancel_requested() -> bool:
@@ -67,6 +69,15 @@ async def _await_turn_done(timeout: float = 30.0) -> bool:
         return True
     except asyncio.TimeoutError:
         return False
+
+
+def _set_turn_result(result: dict[str, Any]) -> None:
+    global _turn_result
+    _turn_result = result
+
+
+def _get_turn_result() -> dict[str, Any] | None:
+    return _turn_result
 
 
 def _find_all_save_dirs(limit: int | None = None) -> list[Path]:

@@ -40,6 +40,9 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     for c in applied.get("pc_condition_remove") or []:
         cid = c.get("id") or str(c) if isinstance(c, dict) else str(c)
         lines.append(f"- {cid}")
+    for a in applied.get("compendium_npc_add") or []:
+        if isinstance(a, dict) and a.get("id"):
+            lines.append(f"+ Dossier: {a['id']}")
     for u in applied.get("compendium_npc_update") or []:
         if isinstance(u, dict) and u.get("id"):
             lines.append(f"~ Dossier: {u['id']}")

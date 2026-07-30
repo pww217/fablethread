@@ -182,6 +182,7 @@ Defined in full in global AGENTS.md. Key rules:
 - **review-code** → review a diff or PR for ccya (correctness, contracts, quality); creates PR after review passes
 - **ev-run** → iterative eval: 1-5 turns (critical), 10 turns (intermediate), 20-25 turns (balance); phase-gated, skips if no issues found
 - **ev-review** → targeted deep dive on specific mechanics, not full rubric pass
+- **ev** → general-purpose eval/inspect CLI signpost for ev.py
 - **bug-triage** → validate bug candidates, reproduce, assess severity, set `validated` or `canceled`
 - **ticket** → create, update, validate, and audit roadmap tickets with enforced standards
 - **customize-opencode** → editing opencode's own config/agents/skills/plugins only (not user app code)
@@ -198,10 +199,10 @@ Cross-cutting tasks:
 - Modify turn pipeline → read `docs/architecture/OVERVIEW.md` (pipeline overview) + subdocs (`step0-ruling.md`, `step1-narrate.md`, etc.) for design details; `docs/repomap.md` (5-call pipeline section) for code-level mapping
 - Turn pipeline structure: `run_turn()` orchestrator in `turn.py` (~210 lines, down from 667) calls extracted subroutines: `_narrate_phase()` (narration streaming), `_extract_phase()` (extraction pipeline + metrics), `_apply_phase()` (delta application + rejection), `_persist_and_async_cleanup()` (event building, prompt logging, async sanitize/world, save); pipeline order: rules→narrate→extract→apply→persist; end-of-turn async phases (Sanitize + World) after yield("complete")
 - Add new config option → read `docs/architecture/OVERVIEW.md` (config section)
-- Debug extraction → read `docs/architecture/OVERVIEW.md` (quick reference table) + relevant step subdoc (`step2a-scene.md`, etc.); `docs/repomap.md` (extraction field routing section) for code-level mapping
+- Debug extraction → read `docs/architecture/OVERVIEW.md` (quick reference table) + relevant step subdoc (`step2a-scene.md`, etc.); `docs/repomap.md` (two-channel NPC extraction routing) for code-level mapping
 - Debug/inspect events → read `docs/ev/COMMANDS.md` for ev.py commands; `docs/ev/EVAL-RUNS.md` for eval run storage; `docs/ev/CHECKERS.md` for checker docs
 - Fast prompt testing → `ev.py prompt-eval dump <save-dir> --turn N --stream STREAM [--from-events]` (render only), `ev.py prompt-eval call <scenario.yaml> [--from-events]` (render + LLM + check; `--from-events` uses stored output, no LLM call); during turns `expected_ms` in `extract_stream_done` events comes from `_avg_event_ms()` reading last 5 entries per stream in `events.jsonl`; first-turn frontend uses fallback estimates: scene 3s, state 3s, record 6s
-- Conversation references → `ccya/static/game-utils.js` has extraction row lifecycle: `_showExtractionRow()` (renders 3-bar extraction row), `_activateExtractionBar()` (starts a bar's tick timer), `_completeExtractionBar()` (fills a bar to 100%), `_dismissExtractionRow()` (removes row); `ccya/static/game.js` SSE phase handler dispatches narrate_done → show extraction row, extract_stream_start → activate bar, extract_stream_done → complete bar
-- Run eval scenarios → read `scripts/debug/README.md` (eval command section) + `docs/ev/CHECKERS.md`
+- Conversation references → `ccya/static/game-utils.js` has extraction row lifecycle: `_showExtractionRow()` (renders 3-bar extraction row), `_activateExtractionBar()` (starts a bar's tick timer), `_completeExtractionBar()` (fills a bar to 100%), `_dismissExtractionRow()` (removes row); pre-stream bar lifecycle: `_showPreStreamBar()` (shows single bar on submit), `_updatePreStreamExpectedMs()` (updates bar's expected duration on `ruling_start`), `_dismissPreStreamBar()` (removes bar on first `narrative_token`); `ccya/static/game.js` SSE phase handler dispatches narrative_token → dismiss pre-stream bar, narrate_done → show extraction row, extract_stream_start → activate bar, extract_stream_done → complete bar; extraction row no longer has an outer grey wrapper (de-wrappered in I-44)
+- Run eval scenarios → load `ev` skill for CLI + docs pointers
 
 Any observed inaccuracies in the repomap or documentation should be corrected immediately in the same commit.

@@ -130,7 +130,7 @@ def world_state_ttl(events: list[dict[str, Any]], *, config: Any = None) -> Chec
 
 @register_checker(
     "npc_presence_decay", "deterministic",
-    requires_fields=["last_turn_state", "applied.compendium_npc_update"],
+    requires_fields=["last_turn_state", "applied.compendium_npc_add", "applied.compendium_npc_update"],
     description="Verify NPC presence decay: location-change auto-demotion for non-party NPCs",
 )
 def npc_presence_decay(events: list[dict[str, Any]], *, config: Any = None) -> CheckerResult:
