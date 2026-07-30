@@ -1,10 +1,11 @@
 ---
 title: "Narration prompt lacks directive to use NPC name pool for new characters"
-status: testing
+status: done
 urgency: 1
 size: small
 created: 2025-07-21
 ticket_id: I-42
+completed: 2026-07-29
 labels: [narration, prompts, npc-names]
 design:
 plan: plans/pending-names-roster-plan.md
