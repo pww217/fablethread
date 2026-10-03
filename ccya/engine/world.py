@@ -95,6 +95,9 @@ async def _run_world_step(
                 top_p=config.extract_top_p,
                 timeout=60.0,  # asyncio.timeout() handles wall-clock timeout
                 num_ctx=config.num_ctx,
+                enable_thinking=False,
+                reasoning_effort="none",
+                thinking_budget=0,
             )
         _log.debug("world.step_llm_complete trace_id=%s turn=%d", trace_id, turn_no)
     except TimeoutError:

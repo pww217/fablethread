@@ -7,7 +7,7 @@
 ## Runtime context
 
 - **Game server:** `localhost:8765` — turn reviewer at `localhost:8765/turn_reviewer`
-- **LLM backend (primary):** `10.75.100.51:1234` — LMStudio, OpenAI-compatible API, `google/gemma-4-26b-a4b-it` on RTX 5070 Ti
+- **LLM backend (primary):** `localhost:1234` — LMStudio, OpenAI-compatible API, `google/gemma-4-26b-a4b-it`
 - **LLM backend (fallback):** `localhost:8000` — OpenAI-compatible API, Gemma 4-26B via OMLX
 - **Makefile:** primary reference for build/lint/run targets
 

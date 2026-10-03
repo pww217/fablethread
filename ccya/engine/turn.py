@@ -367,6 +367,9 @@ async def _narrate_phase(ctx: TurnContext, narrate_result: NarrateResult) -> Asy
         timeout=float(config.request_timeout_s),
         stream_stats=narr_stream_stats,
         num_ctx=config.num_ctx,
+        enable_thinking=False,
+        reasoning_effort="none",
+        thinking_budget=0,
     ):
         narrative_chunks.append(chunk)
         if first_visible:

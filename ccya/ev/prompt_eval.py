@@ -26,7 +26,8 @@ from ccya.ev.checkers import CheckerResult
 from ccya.ev.events import find_turn, load_events, load_prompts
 from ccya.ev.prompt_context import build_prompt_context
 from ccya.ev.scenario import PromptEvalScenario, load_prompt_scenario
-from ccya.engine.seed import _build_prepare_seed_messages
+from ccya.engine.seed import _build_prepare_seed_messages, _build_narrate_seed_messages
+from ccya.pack import SeedState
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.npc_roster import build_pending_roster_entries
 
@@ -254,7 +255,126 @@ def cmd_prompt_eval_seed(
         if "seed_state" in parsed:
             ss = parsed["seed_state"]
             print(f"  seed_state keys: {', '.join(ss.keys())}")
+        # Save seed state for narrate-seed testing
+        seed_dir = Path(f"saves/prompt-eval-seed-{pack.manifest.id}-{temp}")
+        seed_dir.mkdir(parents=True, exist_ok=True)
+        with open(seed_dir / "seed.json", "w") as f:
+            json.dump(ss, f, indent=2)
+        print(f"  Seed state saved to: {seed_dir / 'seed.json'}")
 
+
+def cmd_prompt_eval_narrate_seed(
+    save_dir: Path,
+    model: str | None = None,
+    temp: float | None = None,
+    pack: str | None = None,
+) -> None:
+    """Render narrate_seed prompt from a saved seed state, call LLM, check output.
+
+    Accepts either:
+    - A directory containing seed.json (from prepare_seed output)
+    - A directory with state.yaml (extracts seed fields)
+    """
+    raw_cfg = load_config()
+    config = build_engine_config(raw_cfg)
+    model = model or config.model
+    temp = temp if temp is not None else 0.7
+
+    # Try seed.json first (cleanest source)
+    seed_path = save_dir / "seed.json"
+    if seed_path.exists():
+        import yaml as _yaml
+        with open(seed_path) as f:
+            seed_data = json.load(f)
+        seed_state = SeedState.model_validate(seed_data)
+    else:
+        # Fall back to state.yaml — extract only SeedState fields
+        state_path = save_dir / "state.yaml"
+        if not state_path.exists():
+            print(f"Error: no seed.json or state.yaml at {save_dir}", file=sys.stderr)
+            sys.exit(1)
+
+        with open(state_path) as f:
+            state_data = _yaml.safe_load(f)
+
+        # Extract only the fields SeedState needs, stripping turn-added data
+        import yaml
+        seed_data = {
+            "meta": state_data.get("meta", {}),
+            "pc": state_data.get("pc", {}),
+            "location": state_data.get("location", {}),
+            "inventory": state_data.get("inventory", []),
+            "scene": state_data.get("scene", {}),
+            "compendium": state_data.get("compendium", {}),
+            "long_term_objective": state_data.get("long_term_objective"),
+            "arc_origin": state_data.get("arc_origin", ""),
+            "actions": state_data.get("actions", []),
+            "world": state_data.get("world", {}),
+        }
+        seed_state = SeedState.model_validate(seed_data)
+
+    # Load pack for setting_info
+    pack_id = pack or seed_state.meta.get("setting_pack", "") or seed_state.meta.get("pack_source", "")
+    if not pack_id:
+        print("Error: could not determine pack_id from seed state or --pack flag", file=sys.stderr)
+        sys.exit(1)
+
+    packs_dir = Path(__file__).parent.parent.parent / "packs"
+    pack = load_pack(pack_id, packs_dir)
+
+    # Build narrate_seed messages
+    env = _build_jinja_env(PROMPTS_DIR)
+    messages, ctx = _build_narrate_seed_messages(env, seed_state, pack=pack)
+
+    from ccya.llm_client import chat_with_config as llm_chat
+
+    try:
+        llm_result = asyncio.run(llm_chat(
+            config,
+            messages=messages,
+            temperature=temp,
+            timeout=180.0,
+            num_ctx=config.num_ctx,
+        ))
+        output = llm_result.content
+    except Exception as exc:
+        print(f"Error: LLM call failed: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"=== Narrate Seed — {pack.manifest.id} ===\n")
+    print("--- SYSTEM ---")
+    print(messages[0]["content"])
+    print()
+    print("--- OUTPUT ---")
+    print(output)
+    print()
+
+    # Check JSON format
+    from ccya.engine.config import _find_json
+    parsed = _find_json(output)
+    if parsed is None:
+        print("## JSON format: FAIL")
+        print("  Could not extract valid JSON from output")
+        failed_dir = Path("saves") / "narrate_seed_failures"
+        failed_dir.mkdir(parents=True, exist_ok=True)
+        failed_file = failed_dir / f"prompt-eval_{save_dir.name}_{os.urandom(4).hex()}.txt"
+        failed_file.write_text(output)
+        print(f"  Full response saved to: {failed_file}")
+    else:
+        print("## JSON format: PASS")
+        print(f"  Extracted JSON with keys: {', '.join(parsed.keys())}")
+        # Check opening narrative length
+        opening = parsed.get("opening_narrative", "")
+        if opening:
+            print(f"  opening_narrative length: {len(opening)} chars")
+            if len(opening) < 1500:
+                print(f"  WARNING: opening_narrative below 1500 chars (got {len(opening)})")
+        else:
+            print("  WARNING: no opening_narrative in output")
+        actions = parsed.get("actions", [])
+        print(f"  actions count: {len(actions)}")
+        outcome = parsed.get("outcome_summary", "")
+        print(f"  outcome_summary: {outcome[:80]}..." if len(outcome) > 80 else f"  outcome_summary: {outcome}")
 
 
 def cmd_prompt_eval_call(
@@ -477,6 +597,20 @@ def cmd_prompt_eval(flags: dict[str, str], args: list[str]) -> None:
         print("      --all             Render all streams")
         print("      --user-only       Show only user prompts")
         print()
+        print("  seed <pack> [--model MODEL] [--temp TEMP]")
+        print("    Render prepare_seed prompt, call LLM, check JSON output.")
+        print()
+        print("    Flags:")
+        print("      --model MODEL     Override model")
+        print("      --temp TEMP       Override temperature")
+        print()
+        print("  narrate-seed <save-dir> [--model MODEL] [--temp TEMP]")
+        print("    Render narrate_seed prompt from saved state, call LLM, check output.")
+        print()
+        print("    Flags:")
+        print("      --model MODEL     Override model")
+        print("      --temp TEMP       Override temperature")
+        print()
         print("  call <scenario.yaml> [--from-events]")
         print("    Render prompts from a scenario, optionally call LLM and check results.")
         print()
@@ -485,9 +619,10 @@ def cmd_prompt_eval(flags: dict[str, str], args: list[str]) -> None:
         sys.exit(0)
 
     if len(args) < 2:
-        print("Usage: ev.py prompt-eval <seed|dump|call> [args...]", file=sys.stderr)
+        print("Usage: ev.py prompt-eval <seed|narrate-seed|dump|call> [args...]", file=sys.stderr)
         print("\nSubcommands:")
         print("  seed <pack> [--model MODEL] [--temp TEMP]")
+        print("  narrate-seed <save-dir> [--model MODEL] [--temp TEMP]")
         print("  dump <save-dir> --turn N [--stream STREAM] [--all] [--user-only] [--from-events]")
         print("  call <scenario.yaml> [--from-events]")
         sys.exit(1)
@@ -503,6 +638,16 @@ def cmd_prompt_eval(flags: dict[str, str], args: list[str]) -> None:
         model = flags.get("model")
         temp = float(flags["temp"]) if "temp" in flags else None
         cmd_prompt_eval_seed(pack_id, model, temp)
+
+    elif subcmd == "narrate-seed":
+        if len(args) < 2:
+            print("Usage: ev.py prompt-eval narrate-seed <save-dir> [--model MODEL] [--temp TEMP] [--pack PACK]", file=sys.stderr)
+            sys.exit(1)
+        save_dir = Path(args[1])
+        model = flags.get("model")
+        temp = float(flags["temp"]) if "temp" in flags else None
+        pack = flags.get("pack")
+        cmd_prompt_eval_narrate_seed(save_dir, model, temp, pack)
 
     elif subcmd == "dump":
         if len(args) < 2:

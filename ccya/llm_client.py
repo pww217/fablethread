@@ -2,8 +2,9 @@
 
 Wire protocol: /v1/chat/completions (OpenAI-compatible).
 
-Primary backend: LMStudio on 10.75.100.51:1234 (google/gemma-4-26b-a4b-it).
-Configurable fallback via `llm.fallback_host` in config.yaml.
+Primary backend: configurable via ``llm.host`` in config.yaml
+(defaults to local LMStudio on port 1234).
+Configurable fallback via ``llm.fallback_host`` in config.yaml.
 
 num_ctx controls the server-side input context window (passed via extra_body).
 No keep_alive, no format/grammar constraints.
@@ -64,11 +65,15 @@ async def _try_host(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
+    enable_thinking: bool | None = None,
+    reasoning_effort: str | None = None,
+    thinking_budget: int | None = None,
 ) -> LLMResult:
     """Make a single LLM call to the given host. Re-raises on failure."""
     return await _chat_openai_compat(
         host, model, messages, t0, temperature, max_tokens, top_p,
-        frequency_penalty, seed, num_ctx, timeout,
+        frequency_penalty, seed, num_ctx, timeout, enable_thinking,
+        reasoning_effort, thinking_budget,
     )
 
 
@@ -84,6 +89,9 @@ async def _try_host_stream(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
+    enable_thinking: bool | None = None,
+    reasoning_effort: str | None = None,
+    thinking_budget: int | None = None,
 ) -> AsyncIterator[str]:
     """Stream from the given host. Re-raises on failure."""
     client = _get_client(host)
@@ -98,6 +106,9 @@ async def _try_host_stream(
     kwargs.update(_build_chat_kwargs(
         temperature=temperature, top_p=top_p,
         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+        enable_thinking=enable_thinking,
+        reasoning_effort=reasoning_effort,
+        thinking_budget=thinking_budget,
     ))
     stream = await client.chat.completions.create(**kwargs)
     try:
@@ -120,6 +131,9 @@ def _build_chat_kwargs(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
+    enable_thinking: bool | None = None,
+    reasoning_effort: str | None = None,
+    thinking_budget: int | None = None,
 ) -> dict[str, Any]:
     """Build LLM chat kwargs/payload from common parameters."""
     kwargs: dict[str, Any] = {}
@@ -131,8 +145,17 @@ def _build_chat_kwargs(
         kwargs["frequency_penalty"] = float(frequency_penalty)
     if seed is not None:
         kwargs["seed"] = int(seed)
+    extra: dict[str, Any] = {}
     if num_ctx is not None:
-        kwargs["extra_body"] = {"num_ctx": num_ctx}
+        extra["num_ctx"] = num_ctx
+    if enable_thinking is not None:
+        extra["enable_thinking"] = enable_thinking
+    if reasoning_effort is not None:
+        extra["reasoning_effort"] = reasoning_effort
+    if thinking_budget is not None:
+        extra["thinking_budget"] = thinking_budget
+    if extra:
+        kwargs["extra_body"] = extra
     return kwargs
 
 
@@ -220,6 +243,9 @@ async def _chat_with_fallback(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
+    enable_thinking: bool | None = None,
+    reasoning_effort: str | None = None,
+    thinking_budget: int | None = None,
 ) -> LLMResult:
     """Call LLM with single attempt on primary and fallback to secondary if primary is down.
 
@@ -246,6 +272,9 @@ async def _chat_with_fallback(
                         temperature=temperature, max_tokens=max_tokens,
                         timeout=timeout, top_p=top_p,
                         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                        enable_thinking=enable_thinking,
+                        reasoning_effort=reasoning_effort,
+                        thinking_budget=thinking_budget,
                     )
         except Exception:
             _log.debug("Health check failed, trying primary anyway")
@@ -259,6 +288,9 @@ async def _chat_with_fallback(
             temperature=temperature, max_tokens=max_tokens,
             timeout=timeout, top_p=top_p,
             frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+            enable_thinking=enable_thinking,
+            reasoning_effort=reasoning_effort,
+            thinking_budget=thinking_budget,
         )
     except Exception as exc:
         primary_failed = True
@@ -274,6 +306,9 @@ async def _chat_with_fallback(
                     temperature=temperature, max_tokens=max_tokens,
                     timeout=timeout, top_p=top_p,
                     frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                    enable_thinking=enable_thinking,
+                    reasoning_effort=reasoning_effort,
+                    thinking_budget=thinking_budget,
                 )
             except Exception as exc2:
                 primary_exc = exc2
@@ -295,6 +330,9 @@ async def _chat_with_fallback(
                     temperature=temperature, max_tokens=max_tokens,
                     timeout=timeout, top_p=top_p,
                     frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                    enable_thinking=enable_thinking,
+                    reasoning_effort=reasoning_effort,
+                    thinking_budget=thinking_budget,
                 )
             except Exception as exc:
                 _log.warning(
@@ -356,19 +394,27 @@ async def _chat_stream_with_fallback(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
+    enable_thinking: bool | None = None,
+    reasoning_effort: str | None = None,
+    thinking_budget: int | None = None,
 ) -> AsyncIterator[str]:
     """Stream LLM response with single attempt on primary and fallback to secondary.
 
     Same retry/fallback logic as _chat_with_fallback but for streaming.
     """
+    _stream_kwargs: dict[str, Any] = dict(
+        temperature=temperature, timeout=timeout,
+        stream_stats=stream_stats, top_p=top_p,
+        frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+        enable_thinking=enable_thinking,
+        reasoning_effort=reasoning_effort,
+        thinking_budget=thinking_budget,
+    )
     primary_failed = False
     primary_exc: Exception | None = None
     try:
         async for chunk in _try_host_stream(
-            host, model, messages,
-            temperature=temperature, timeout=timeout,
-            stream_stats=stream_stats, top_p=top_p,
-            frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+            host, model, messages, **_stream_kwargs,
         ):
             yield chunk
         return
@@ -382,10 +428,7 @@ async def _chat_stream_with_fallback(
             await asyncio.sleep(30.0)
             try:
                 async for chunk in _try_host_stream(
-                    host, model, messages,
-                    temperature=temperature, timeout=timeout,
-                    stream_stats=stream_stats, top_p=top_p,
-                    frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                    host, model, messages, **_stream_kwargs,
                 ):
                     yield chunk
                 return
@@ -404,10 +447,7 @@ async def _chat_stream_with_fallback(
             _record_fallback()
             try:
                 async for chunk in _try_host_stream(
-                    fallback_host, model, messages,
-                    temperature=temperature, timeout=timeout,
-                    stream_stats=stream_stats, top_p=top_p,
-                    frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                    fallback_host, model, messages, **_stream_kwargs,
                 ):
                     yield chunk
                 return
@@ -423,18 +463,12 @@ async def _chat_stream_with_fallback(
             if not await _check_health(host):
                 _log.debug("Primary /health check failed, using fallback %s", fallback_host)
                 async for chunk in _try_host_stream(
-                    fallback_host, model, messages,
-                    temperature=temperature, timeout=timeout,
-                    stream_stats=stream_stats, top_p=top_p,
-                    frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                    fallback_host, model, messages, **_stream_kwargs,
                 ):
                     yield chunk
                 return
             async for chunk in _try_host_stream(
-                host, model, messages,
-                temperature=temperature, timeout=timeout,
-                stream_stats=stream_stats, top_p=top_p,
-                frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+                host, model, messages, **_stream_kwargs,
             ):
                 yield chunk
             return
@@ -569,6 +603,9 @@ async def chat_stream(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
+    enable_thinking: bool | None = None,
+    reasoning_effort: str | None = None,
+    thinking_budget: int | None = None,
 ) -> AsyncIterator[str]:
     if _MOCK_MODE:
         async for chunk in _mock_stream():
@@ -584,6 +621,9 @@ async def chat_stream(
         temperature=temperature, timeout=timeout,
         stream_stats=stream_stats, top_p=top_p,
         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+        enable_thinking=enable_thinking,
+        reasoning_effort=reasoning_effort,
+        thinking_budget=thinking_budget,
     ):
         yield chunk
 
@@ -602,6 +642,9 @@ async def chat(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
+    enable_thinking: bool | None = None,
+    reasoning_effort: str | None = None,
+    thinking_budget: int | None = None,
 ) -> LLMResult:
     """Call LLM and return standardized LLMResult with normalized metrics.
 
@@ -627,6 +670,9 @@ async def chat(
             temperature=temperature, max_tokens=max_tokens,
             timeout=timeout, top_p=top_p,
             frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+            enable_thinking=enable_thinking,
+            reasoning_effort=reasoning_effort,
+            thinking_budget=thinking_budget,
         )
         return result
     except TimeoutError as exc:
@@ -661,6 +707,9 @@ async def _chat_openai_compat(
     t0: float, temperature: float | None, max_tokens: int | None,
     top_p: float | None, frequency_penalty: float | None,
     seed: int | None, num_ctx: int | None, timeout: float,
+    enable_thinking: bool | None = None,
+    reasoning_effort: str | None = None,
+    thinking_budget: int | None = None,
 ) -> LLMResult:
     """Call via OpenAI-compatible /v1/chat/completions endpoint."""
     client = _get_client(host)
@@ -675,6 +724,9 @@ async def _chat_openai_compat(
     kwargs.update(_build_chat_kwargs(
         temperature=temperature, top_p=top_p,
         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
+        enable_thinking=enable_thinking,
+        reasoning_effort=reasoning_effort,
+        thinking_budget=thinking_budget,
     ))
     _log.debug("chat: request sent, waiting for response...")
     resp = await client.chat.completions.create(**kwargs)
@@ -714,6 +766,9 @@ async def chat_with_config(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
+    enable_thinking: bool | None = None,
+    reasoning_effort: str | None = None,
+    thinking_budget: int | None = None,
 ) -> LLMResult:
     """Call LLM with fallback logic, extracting host/model/fallback from EngineConfig."""
     return await chat(
@@ -729,6 +784,9 @@ async def chat_with_config(
         frequency_penalty=frequency_penalty,
         seed=seed,
         num_ctx=num_ctx,
+        enable_thinking=enable_thinking,
+        reasoning_effort=reasoning_effort,
+        thinking_budget=thinking_budget,
     )
 
 
@@ -743,6 +801,9 @@ async def chat_stream_with_config(
     frequency_penalty: float | None = None,
     seed: int | None = None,
     num_ctx: int | None = None,
+    enable_thinking: bool | None = None,
+    reasoning_effort: str | None = None,
+    thinking_budget: int | None = None,
 ) -> AsyncIterator[str]:
     """Stream LLM response with fallback logic, extracting host/model/fallback from EngineConfig."""
     async for chunk in chat_stream(
@@ -758,5 +819,8 @@ async def chat_stream_with_config(
         frequency_penalty=frequency_penalty,
         seed=seed,
         num_ctx=num_ctx,
+        enable_thinking=enable_thinking,
+        reasoning_effort=reasoning_effort,
+        thinking_budget=thinking_budget,
     ):
         yield chunk

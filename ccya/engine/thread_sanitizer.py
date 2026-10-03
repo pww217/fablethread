@@ -71,6 +71,9 @@ async def _sanitize_threads_impl(
             temperature=config.sanitize_temperature,
             timeout=float(config.request_timeout_s),
             num_ctx=config.num_ctx,
+            enable_thinking=False,
+            reasoning_effort="none",
+            thinking_budget=0,
         )
         response_text = resp.content
     except Exception as exc:

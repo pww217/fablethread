@@ -2,31 +2,54 @@
 
 A choose-your-own-adventure game backed by a local **mlx-lm** model served over an OpenAI-compatible API. Each run generates a fresh scenario from a **world pack** — the LLM seeds the character, location, NPCs, quest, and opening narrative from a world bible + scenario constraints.
 
-## Setup
-
-The default config uses LMStudio on `10.75.100.51:1234`. To use a local model instead:
-
-1. **Install mlx-lm** (Apple Silicon required):
-    ```bash
-    pip install --user mlx-lm
-    # or via uv:
-    uv tool install mlx-lm
-    ```
-2. **Start mlx_lm.server**:
-    ```bash
-    mlx_lm.server \
-        --model mlx-community/Qwen3.6-27B-4bit \
-        --host 127.0.0.1 --port 8000
-    ```
-3. **Update config** — set `llm.host` in `config.yaml` to `http://127.0.0.1:8000/v1`.
-
-## Run
+## Quick Start
 
 ```bash
+# Install dependencies
+make install
+
+# Configure your LLM backend
+cp config.yaml.example config.yaml
+# Edit config.yaml → set llm.host and llm.model for your setup
+
+# Start the server
 make run
 ```
 
-The server starts at `http://127.0.0.1:8765` (terminal may show a clickable OSC 8 link when using `python -m ccya`).
+The server starts at `http://127.0.0.1:8765`.
+
+## Setup
+
+### LLM Backend
+
+ccya works with any OpenAI-compatible API server. Popular options:
+
+**LMStudio** (cross-platform):
+```bash
+pip install lmstudio
+lmstudio server --model mlx-community/gemma-4-26b-a4b-it-OptiQ-4bit \
+    --host 127.0.0.1 --port 1234
+```
+
+**OMLX** (Apple Silicon, MLX):
+```bash
+# Load a model in OMLX, then:
+curl http://127.0.0.1:8000/v1/models  # verify model is loaded
+```
+
+Set `llm.host` in `config.yaml` to your backend's URL.
+
+### Configuration
+
+Copy `config.yaml.example` to `config.yaml` and edit:
+
+- `llm.host` — your LLM backend URL (default `http://127.0.0.1:1234/v1`)
+- `llm.model` — model identifier (must match what your backend exposes)
+- `llm.num_ctx` — context window size (default 16384)
+- `llm.*.temperature` — per-phase temperature knobs
+- `server.bind_port` — web server port (default 8765)
+
+All template values in `config.yaml.example` are sensible defaults. The example uses LMStudio on port 1234 as the default backend.
 
 ## Mock Mode
 
@@ -104,30 +127,30 @@ See `packs/AUTHORING.md` for the full pack spec.
 ## File layout
 
 ```
-config.yaml              # Server, LLM, and game config
-ccya/                    # Python package
-  engine/                # Turn pipeline (rules + narrate + extract)
-  rules.py               # Pure-Python dice resolver (1d12 PbtA, no LLM)
-  pack.py                # Pack loader, manifest schema, list_packs()
-  llm_client.py          # Thin async OpenAI-compatible client (mlx_lm.server)
-  state.py               # YAML + JSONL state I/O
-  server.py              # FastAPI routes + SSE
-  models.py              # Pydantic models + config loader
-  logging_setup.py       # JSONL logging
-   prompts/               # Jinja prompt templates (rules, narrate, extract, seed)
-  templates/             # HTMX/Alpine HTML templates
-  static/                # CSS + vendored JS (htmx, alpine, marked)
-saves/default/           # Game save (state.yaml, events.jsonl, chronicle.md)
-packs/                   # World packs
-logs/                    # JSONL turn logs
-tests/                   # Smoke tests
+config.yaml.example          # Template — copy to config.yaml for your setup
+config.yaml                  # Your config (not tracked in git)
+ccya/                        # Python package
+  engine/                    # Turn pipeline (rules + narrate + extract)
+  rules.py                   # Pure-Python dice resolver (1d12 PbtA, no LLM)
+  pack.py                    # Pack loader, manifest schema, list_packs()
+  llm_client.py              # Thin async OpenAI-compatible client
+  state.py                   # YAML + JSONL state I/O
+  server.py                  # FastAPI routes + SSE
+  models.py                  # Pydantic models + config loader
+  logging_setup.py           # JSONL logging
+  prompts/                   # Jinja prompt templates (rules, narrate, extract, seed)
+  templates/                 # HTMX/Alpine HTML templates
+  static/                    # CSS + vendored JS (htmx, alpine, marked)
+saves/default/               # Game save (state.yaml, events.jsonl, chronicle.md)
+packs/                       # World packs
+logs/                        # JSONL turn logs (not tracked)
 ```
 
 ## Config
 
-Edit `config.yaml` to change the model, port, or other settings. Key sections:
+Edit `config.yaml` (copy from `config.yaml.example`) to change the model, port, or other settings. Key sections:
 
-- `llm` — `host` (default `http://10.75.100.51:1234/v1` for LMStudio), `model`, request timeout, narrate/extract temperatures, retry budget, optional `fallback_host` for secondary LLM, optional `enable_extract_thinking` / `enable_narrate_thinking` toggles for the Qwen3.x `/think` `/no_think` soft switches
+- `llm` — `host` (default `http://127.0.0.1:1234/v1` for LMStudio), `model`, request timeout, narrate/extract temperatures, retry budget, optional `fallback_host` for secondary LLM
 - `rules` — `temperature` (default 0.2) and `max_retries` (default 1) for the rules/intent Call 0
 - `game` — save slot, setting pack, turn window size
 - `server` — bind address and port

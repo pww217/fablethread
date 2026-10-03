@@ -105,6 +105,9 @@ async def generate_pack_from_brief(
                 top_p=config.pack_generation_top_p,
                 timeout=300.0,
                 num_ctx=config.num_ctx,
+                enable_thinking=False,
+                reasoning_effort="none",
+                thinking_budget=0,
             )
 
             raw = response_text.content

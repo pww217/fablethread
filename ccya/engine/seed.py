@@ -273,6 +273,9 @@ async def prepare_seed(
                 top_p=config.prepare_seed_top_p,
                 timeout=float(config.request_timeout_s),
                 num_ctx=config.num_ctx,
+                enable_thinking=False,
+                reasoning_effort="none",
+                thinking_budget=0,
             )
         except LlmcTimeout:
             _log.error(
@@ -433,6 +436,14 @@ async def prepare_seed(
             1 for npc in state_envelope.seed_state.compendium.npcs.values()
             if npc.presence == "present"
         )
+        _log.info(
+            "prepare_seed NPC check pack=%s total_npcs=%d present_count=%d compendium_keys=%s",
+            pack.manifest.id,
+            len(state_envelope.seed_state.compendium.npcs),
+            present_count,
+            list(state_envelope.seed_state.compendium.npcs.keys())[:5],
+            extra={"trace_id": trace_id},
+        )
         if present_count == 0:
             # Safety net: force first NPC to present if compendium is non-empty
             if state_envelope.seed_state.compendium.npcs:
@@ -585,6 +596,9 @@ async def narrate_seed(
                 top_p=config.narrate_top_p,
                 timeout=float(config.request_timeout_s),
                 num_ctx=config.num_ctx,
+                enable_thinking=False,
+                reasoning_effort="none",
+                thinking_budget=0,
             )
         except LlmcTimeout:
             _log.error(

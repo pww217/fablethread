@@ -36,7 +36,7 @@ class EngineConfig:
     #   runtime mutable:   Fields that can be changed mid-session via UI
     #                      config panels (future use). Currently none.
     #
-    host: str = "http://10.75.100.51:1234/v1"
+    host: str = "http://127.0.0.1:1234/v1"
     model: str = "google/gemma-4-26b-a4b-it"
     num_ctx: int = 16384
     request_timeout_s: int = 1200
@@ -143,7 +143,7 @@ def build_engine_config(
     Single source of truth for all field mappings. Both the server
     and the eval harness call this function.
 
-    Defaults: host=http://10.75.100.51:1234/v1,     model=google/gemma-4-26b-a4b-it.
+    Defaults: host=http://127.0.0.1:1234/v1, model=google/gemma-4-26b-a4b-it.
 
     Args:
         cfg: Raw config dict (output of ``load_config``).
@@ -186,7 +186,7 @@ def build_engine_config(
         _log.warning("build_engine_config: llm.model not configured, using default")
 
     return EngineConfig(
-        host=str(llm.get("host", "http://10.75.100.51:1234/v1")),
+        host=str(llm.get("host", "http://127.0.0.1:1234/v1")),
         model=str(llm.get("model", "google/gemma-4-26b-a4b-it")),
         num_ctx=int(llm.get("num_ctx", 16384)),
         context_window=int(llm.get("context_window", 16384)),
@@ -306,6 +306,39 @@ def _find_json(text: str) -> dict[str, Any] | None:
         r'"\1": \2',
         fixed,
     )
+    # Fix unquoted keys followed by colon + quoted value: key: "val" -> "key": "val"
+    fixed = re.sub(r'(?<=\n)\s*([a-z_][a-z0-9_]*):\s+"', r'"\1": "', fixed, flags=re.MULTILINE)
+    # Fix unquoted values: "key": value -> "key": "value"
+    # Handles cases like "tier": global -> "tier": "global"
+    fixed = re.sub(r'("(\w+)"):\s*([a-zA-Z][a-zA-Z0-9_]*)([,}\]])', r'\1: "\3"\4', fixed)
+    # Fix stray letter prefix on JSON key lines: s   "key" -> "key"
+    fixed = re.sub(r'^\s*[a-z]+\s+("[^"]+":)', r'\1', fixed, flags=re.MULTILINE)
+    # Fix stray letter prefix on array elements: s    "value" -> "value"
+    fixed = re.sub(r'^\s*[a-z]+\s+("[^"]*")', r'\1', fixed, flags=re.MULTILINE)
+    # Fix stray letter + underscore prefix: s_tags" -> "tags", da_dormant" -> "dormant"
+    fixed = re.sub(r'^\s*[a-z]+\s*_([a-z_]+)":', r'"\1":', fixed, flags=re.MULTILINE)
+    # Fix stray letter + unquoted key: s_key: val -> "key": val, da_key: val -> "key": val
+    fixed = re.sub(r'^\s*[a-z]+\s*_?([a-z_]+):\s*', r'"\1": ', fixed, flags=re.MULTILINE)
+    # Fix stray bullet prefix: whitespace + - "key" -> "key"
+    fixed = re.sub(r'^\s*-\s+("[^"]+":)', r'\1', fixed, flags=re.MULTILINE)
+    # Fix underscore prefix on keys: _tags" -> "tags"
+    fixed = re.sub(r'^\s*_([a-z_]+)":', r'"\1":', fixed, flags=re.MULTILINE)
+    # Fix underscore prefix + unquoted key: _key: value -> "key": value
+    fixed = re.sub(r'^\s*_([a-z_]+):\s*', r'"\1": ', fixed, flags=re.MULTILINE)
+    # Fix ]_keyname" -> ],\n  "keyname" (model concatenates ] with next key)
+    fixed = re.sub(r'(\]),\s*_([a-z_]+)":', r'\1,\n  "\2":', fixed, flags=re.MULTILINE)
+    # Fix single-letter keys like "x" that should be "id" (LLM hallucination)
+    # Model sometimes writes x": " instead of "id": "
+    fixed = re.sub(r'x":\s+"', '"id": "', fixed)
+    # Fix phantom backslash escapes before quotes: \ "key" -> "key"
+    # Model sometimes inserts literal backslashes before JSON quotes
+    fixed = re.sub(r'\\+\s*"', '"', fixed)
+    # Fix Unicode smart quotes/apostrophes in string values: ' " ' ' -> ' " ' '
+    fixed = fixed.replace('\u2018', "'").replace('\u2019', "'").replace('\u201c', '"').replace('\u201d', '"')
+    fixed = fixed.replace('\u2026', '...')
+    # Fix trailing commas before closing braces/arrays: ,} -> } and ,] -> ]
+    fixed = re.sub(r',\s*}', '}', fixed)
+    fixed = re.sub(r',\s*]', ']', fixed)
     if fixed != text:
         text = fixed
 

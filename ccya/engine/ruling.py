@@ -108,6 +108,9 @@ async def _call_ruling(
                 top_p=config.ruling_top_p,
                 timeout=float(config.request_timeout_s),
                 num_ctx=config.num_ctx,
+                enable_thinking=False,
+                reasoning_effort="none",
+                thinking_budget=0,
             )
             raw = result.content
             usage = result.usage

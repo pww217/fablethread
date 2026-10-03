@@ -39,5 +39,19 @@ evals/runs/**/prompts.jsonl
 evals/runs/**/state.yaml
 evals/runs/**/chronicle.md
 evals/runs/**/run-meta.yaml
+evals/runs/2026-*/
 .run/
 .eval-tmp/
+
+# Server errors (contain turn context)
+saves/server_errors.jsonl
+
+# Prompt evaluation outputs
+saves/prompt-eval-*/
+saves/prompt-eval-seed-*/
+
+# Seed generation failures
+saves/prepare_seed_failures/
+
+# Backup files
+*.bak
