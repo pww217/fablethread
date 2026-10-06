@@ -1,4 +1,4 @@
-# ccya
+# Fablethread
 
 A choose-your-own-adventure game backed by a local **mlx-lm** model served over an OpenAI-compatible API. Each run generates a fresh scenario from a **world pack** — the LLM seeds the character, location, NPCs, quest, and opening narrative from a world bible + scenario constraints.
 
@@ -26,7 +26,7 @@ The server starts at `http://127.0.0.1:8765`.
 
 ### LLM Backend
 
-ccya works with any OpenAI-compatible API server. Popular options:
+Fablethread works with any OpenAI-compatible API server. Popular options:
 
 **LMStudio** (cross-platform):
 ```bash
@@ -133,7 +133,7 @@ See `packs/AUTHORING.md` for the full pack spec.
 ```
 config.yaml.example          # Template — copy to config.yaml for your setup
 config.yaml                  # Your config (not tracked in git)
-ccya/                        # Python package
+fablethread/                        # Python package
   engine/                    # Turn pipeline (rules + narrate + extract)
   rules.py                   # Pure-Python dice resolver (1d12 PbtA, no LLM)
   pack.py                    # Pack loader, manifest schema, list_packs()

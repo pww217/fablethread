@@ -111,14 +111,14 @@ See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for full details on
 
 ## LLM Backend
 
-The engine uses an OpenAI-compatible chat API (`/v1/chat/completions`). The client (`ccya/llm_client.py`) supports both backends via `LLMResult` wrapper (frozen dataclass with `content`, `usage` normalized dict, `elapsed_ms`). Both backends use the `openai` Python SDK with `api_key="local"`. `num_ctx` is passed via `extra_body`. Default `num_ctx=16384`. Client-side token trimming via `trim_messages()` preserves 2000 head + 500 tail tokens; system messages are never dropped.
+The engine uses an OpenAI-compatible chat API (`/v1/chat/completions`). The client (`fablethread/llm_client.py`) supports both backends via `LLMResult` wrapper (frozen dataclass with `content`, `usage` normalized dict, `elapsed_ms`). Both backends use the `openai` Python SDK with `api_key="local"`. `num_ctx` is passed via `extra_body`. Default `num_ctx=16384`. Client-side token trimming via `trim_messages()` preserves 2000 head + 500 tail tokens; system messages are never dropped.
 
 | Backend | Host | Model | Hardware | Speed |
 |---|---|---|---|---|
 | **Primary (preferred)** | `127.0.0.1:1234` (LMStudio, OpenAI compat) | `google/gemma-4-26b-a4b-it` | Fast |
 | Fallback | `127.0.0.1:8000` (OpenAI compat) | Gemma 4-26B | MacBook (MLX) | Slower |
 
-Configured in `config.yaml` under `llm.host`, `llm.model`, `llm.num_ctx`, and `llm.context_window`. The client (`ccya/llm_client.py`) uses a single OpenAI-compatible path for both backends. `num_ctx` is passed to control the server-side input context window. `context_window` controls client-side trimming via `trim_messages()` — must be ≤ `num_ctx` to avoid sending more tokens than the server can handle.
+Configured in `config.yaml` under `llm.host`, `llm.model`, `llm.num_ctx`, and `llm.context_window`. The client (`fablethread/llm_client.py`) uses a single OpenAI-compatible path for both backends. `num_ctx` is passed to control the server-side input context window. `context_window` controls client-side trimming via `trim_messages()` — must be ≤ `num_ctx` to avoid sending more tokens than the server can handle.
 
 ## Key Models Glossary
 

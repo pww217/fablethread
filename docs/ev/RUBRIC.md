@@ -479,15 +479,15 @@ When reviewing an eval group for testing items (bugs in `testing` status awaitin
 Before running full rubric, assess changes since last eval to focus attention:
 
 ```bash
-git log --oneline <prior_sha>..<current_sha> -- ccya/
+git log --oneline <prior_sha>..<current_sha> -- fablethread/
 ```
 
-**Scope:** Only `ccya/` folder. Ignore `evals/`, `docs/`, `roadmap/`, `plans/`, `scripts/`.
+**Scope:** Only `fablethread/` folder. Ignore `evals/`, `docs/`, `roadmap/`, `plans/`, `scripts/`.
 
 **High-risk areas** (promote to top of rubric review):
-- `ccya/prompts/` — extraction, ruling, narrate, storytell prompts
-- `ccya/engine/` — pacing, convergence, phase machine
-- `ccya/models.py` — state schema changes
+- `fablethread/prompts/` — extraction, ruling, narrate, storytell prompts
+- `fablethread/engine/` — pacing, convergence, phase machine
+- `fablethread/models.py` — state schema changes
 
 Report changes under "Changes Since Last Eval" in the consolidated report.
 

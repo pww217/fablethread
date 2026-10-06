@@ -303,8 +303,8 @@ ev.py check 5 --all --save-dir saves/another-game
 
 ## Checker Registry
 
-The checker registry is maintained in `ccya/ev/checkers/__init__.py`. Each checker module is imported at the bottom of that file to register its checkers. To add a new checker:
+The checker registry is maintained in `fablethread/ev/checkers/__init__.py`. Each checker module is imported at the bottom of that file to register its checkers. To add a new checker:
 
-1. Create a new module in `ccya/ev/checkers/`
+1. Create a new module in `fablethread/ev/checkers/`
 2. Decorate the checker function with `@register_checker(id, type, requires_fields, description, ...)`
-3. Import the module in `ccya/ev/checkers/__init__.py`
+3. Import the module in `fablethread/ev/checkers/__init__.py`

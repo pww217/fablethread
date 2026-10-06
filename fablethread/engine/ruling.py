@@ -1,0 +1,333 @@
+"""Ruling LLM call: prompt building, _call_ruling, retry logic."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from jinja2 import Environment
+from typing import TYPE_CHECKING, Any
+
+
+from fablethread.engine.config import EngineConfig, _find_json, _render
+from fablethread.engine.extraction import _avg_event_ms
+from fablethread.engine.npc_roster import build_npc_roster
+from fablethread.engine._pacing import _compute_ages, derive_allowed_beat_types
+from fablethread.llm_client import chat_with_config as llm_chat, strip_thinking, trim_messages
+from fablethread.models import ArcThread, Band, IntentEnvelope, RulesCheck, RulesOutcome, WorldState
+from fablethread.rules import resolve_check, build_directive
+from fablethread.engine.extraction.utils import _filter_pc_situation
+
+if TYPE_CHECKING:
+    from fablethread.engine.turn_context import TurnContext
+
+_log = logging.getLogger(__name__)
+
+
+def _ruling_messages(
+    env: Environment | None,
+    state: WorldState,
+    user_input: str,
+    *,
+    turn_no: int = 0,
+    npc_roster: list[dict[str, Any]] | None = None,
+    inventory: list[dict[str, Any]] | None = None,
+    recent_turns: list[dict[str, Any]] | None = None,
+    scene_phase: str = "SETUP",
+    beat_candidates: list[dict[str, Any]] | None = None,
+    allowed_beat_types: list[str] | None = None,
+) -> list[dict[str, str]]:
+    assert env is not None, "Jinja Environment must be set before calling _ruling_messages"
+    pc = state.pc
+    location = state.location
+    system_text = _render(env, "ruling_system.j2", {})
+
+    # Build urgent_threads from arc.threads with urgency == "urgent"
+    arc = state.long_term_objective
+    threads = list(arc.threads)
+    urgent_threads = []
+    for t in threads:
+        if isinstance(t, ArcThread) and t.urgency == "urgent":
+            urgent_threads.append({
+                "id": t.id,
+                "summary": t.summary,
+                "progress": list(t.major_updates),
+            })
+
+    user_text = _render(
+        env,
+        "ruling_user.j2",
+        {
+            "pc": pc,
+            "location": location,
+            "user_input": user_input,
+            "meta": {"turn": turn_no},
+            "npc_roster": npc_roster or [],
+            "inventory": inventory or [],
+            "recent_turns": recent_turns or [],
+            "scene_phase": scene_phase,
+            "urgent_threads": urgent_threads,
+            "conditions": list(pc.conditions),
+            "state": state,
+            "pc_situation": _filter_pc_situation(pc.situation, state.pc_situation_schema),
+            "beat_candidates": beat_candidates or [],
+            "allowed_beat_types": allowed_beat_types or [],
+        },
+    )
+    return [
+        {"role": "system", "content": system_text},
+        {"role": "user", "content": user_text},
+    ]
+
+
+async def _call_ruling(
+    messages: list[dict[str, Any]],
+    config: EngineConfig,
+    trace_id: str,
+    turn: int = 0,
+) -> tuple[IntentEnvelope, dict[str, int], str, str, dict[str, Any] | None]:
+    _no_intent = IntentEnvelope(
+        intent="",
+        intent_verb="act",
+        check=RulesCheck(required=False),
+    )
+    _no_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    parse_error = ""
+
+    _log.info(
+        "ruling call start turn=%d messages=%d max_retries=%d",
+        turn, len(messages), config.max_llm_retries,
+        extra={"trace_id": trace_id, "turn": turn},
+    )
+
+    for attempt in range(1 + config.max_llm_retries):
+        try:
+            result = await llm_chat(
+                config,
+                messages,
+                temperature=config.ruling_temperature,
+                top_p=config.ruling_top_p,
+                timeout=float(config.request_timeout_s),
+                num_ctx=config.num_ctx,
+                enable_thinking=False,
+                reasoning_effort="none",
+                thinking_budget=0,
+            )
+            raw = result.content
+            usage = result.usage
+            cleaned = strip_thinking(raw)
+            j = _find_json(cleaned)
+            if j is None:
+                raise ValueError("No JSON found in ruling response")
+            selected_beat = j.pop("selected_beat", None)
+            intent = IntentEnvelope(**j)
+            if not intent.reason.strip():
+                raise ValueError(f"reason is empty — must use [Ruling] [connector] [Reason] structure, max 10 words (got reason={j.get('reason', '')!r})")
+            if intent.check.required and not intent.check.skill:
+                raise ValueError(f"check.required=true but check.skill is missing/empty (got {j.get('check', {}).get('skill', None)})")
+            return intent, {
+                "prompt_tokens": usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
+                "total_tokens": usage.get("total_tokens", 0),
+            }, raw, "", selected_beat
+        except Exception as exc:
+            parse_error = str(exc)
+            _log.warning(
+                "ruling parse failed (attempt %d/%d): %s",
+                attempt + 1,
+                1 + config.max_llm_retries,
+                parse_error,
+                extra={"trace_id": trace_id, "turn": turn},
+            )
+
+            if attempt < config.max_llm_retries:
+                fb = (
+                    f"Your previous output failed to parse: {parse_error[:200]}. "
+                    "Re-emit the IntentEnvelope JSON only. No prose."
+                )
+                messages.append({"role": "user", "content": fb})
+
+    _log.warning(
+        "ruling call failed after all attempts — defaulting to no-roll",
+        extra={"trace_id": trace_id, "turn": turn, "error_kind": "RULING_PARSE_FAILED"},
+    )
+    return _no_intent, _no_usage, "", parse_error, None
+
+
+async def _ruling_phase(ctx: "TurnContext") -> tuple[Any, Any, dict[str, Any], float, list[tuple[str, Any]]]:
+    """Execute ruling phase. Returns (intent, outcome, metrics, deescalate, phase_events)."""
+    config = ctx.config
+    state = ctx.state
+    trace_id = ctx.trace_id
+    turn_no = state.meta.turn + 1
+
+    exp_ruling_ms = _avg_event_ms(ctx.save_dir, "ruling.total_ms")
+    exp_ttft_ms = _avg_event_ms(ctx.save_dir, "narrate.first_token_ms")
+    phase_events: list[tuple[str, Any]] = [("phase", {
+        "phase": "ruling_start",
+        "expected_ms": exp_ruling_ms,
+        "pre_stream_expected_ms": exp_ruling_ms + exp_ttft_ms,
+    })]
+    t_rules = asyncio.get_event_loop().time()
+
+    # Build ruling messages
+    _comp = {nid: entry.model_dump() for nid, entry in (state.compendium.npcs or {}).items()}
+    scene_phase = state.scene.scene_phase
+    beat_candidates = list(state.meta.beat_candidates)
+    allowed_beat_types = derive_allowed_beat_types(scene_phase, directive=state.pc.directives)
+    ruling_messages = _ruling_messages(
+        ctx._env, state, ctx.user_input,
+        turn_no=turn_no,
+        npc_roster=build_npc_roster(_comp, turn_no=turn_no),
+        inventory=[item.model_dump() for item in state.inventory] or None,
+        recent_turns=ctx.recent_turns[-1:],
+        scene_phase=scene_phase,
+        beat_candidates=beat_candidates,
+        allowed_beat_types=allowed_beat_types,
+    )
+    rendered_ruling_system = ruling_messages[0]["content"] if ruling_messages else ""
+    rendered_ruling_user = ruling_messages[-1]["content"] if ruling_messages else ""
+    ctx._rendered_ruling_system = rendered_ruling_system
+    ctx._rendered_ruling_user = rendered_ruling_user
+
+    ruling_messages, ruling_trimmed, ruling_trimmed_chars = trim_messages(
+        ruling_messages, config.context_window,
+    )
+
+    intent, ruling_usage, ruling_raw_response, ruling_parse_error, selected_beat = await _call_ruling(
+        ruling_messages, config, trace_id,
+    )
+    ctx.intent = intent
+    ctx._ruling_raw_response = ruling_raw_response
+    ctx._ruling_parse_error = ruling_parse_error
+    ctx._ruling_trimmed = ruling_trimmed
+    ctx._ruling_trimmed_chars = ruling_trimmed_chars
+    ctx._selected_beat = selected_beat
+
+    # Beat lifecycle: index-based selection from beat_candidates
+    beat_candidates = list(state.meta.beat_candidates)
+    beat: dict[str, Any] | None = None
+    if selected_beat is not None and isinstance(selected_beat, int) and 0 <= selected_beat < len(beat_candidates):
+        beat = beat_candidates[selected_beat]
+
+    # Validate selected beat type against phase constraints
+    if beat and beat.get("type"):
+        directive = state.pc.directives
+        allowed = derive_allowed_beat_types(scene_phase, directive=directive)
+        if beat["type"] not in allowed:
+            _log.warning(
+                "ruling.beat_phase_violation type=%s phase=%s allowed=%s",
+                beat["type"], scene_phase, allowed,
+                extra={"trace_id": trace_id, "turn": turn_no},
+            )
+            beat = None
+
+    if beat and beat.get("type"):
+        state = state.model_copy(update={"meta": state.meta.model_copy(update={"pending_gm_beat": {"type": beat["type"], "effect": beat.get("effect", "")}})})
+    else:
+        state = state.model_copy(update={"meta": state.meta.model_copy(update={"pending_gm_beat": None})})
+
+    # Always discard candidates
+    state = state.model_copy(update={"meta": state.meta.model_copy(update={"beat_candidates": []})})
+
+    # Handle impossible actions: no dice roll, synthesize failure outcome
+    if intent.impossible:
+        intent.check.required = False
+        band: Band = "fail"
+        directive = build_directive(band, intent.intent_verb, intent.check.skill or "")
+        outcome = RulesOutcome(
+            rolled=False,
+            band=band,
+            directive=directive,
+            intent_verb=intent.intent_verb,
+            intent=intent.intent,
+            impossible=True,
+            reason=intent.reason,
+        )
+        _log.info(
+            "impossible action: %s — %s",
+            intent.intent_verb, intent.reason,
+            extra={"trace_id": trace_id, "turn": turn_no, "pack": "", "kind": "ruling"},
+        )
+    elif intent.check.required and intent.check.skill:
+        # Resolve dice in Python (deterministic)
+        try:
+            outcome = resolve_check(
+                skill=intent.check.skill,
+                difficulty=intent.check.difficulty,
+                pc_stats=dict(state.pc.stats),
+                intent_verb=intent.intent_verb,
+                intent=intent.intent,
+                difficulty_mods=config._resolve_difficulty_modifiers(),
+                near_miss_softening=config.near_miss_softening,
+            )
+            outcome.reason = intent.reason
+            outcome.original_difficulty = intent.check.difficulty
+        except Exception as exc:
+            _log.warning(
+                "rules.resolve_check failed: %s", exc, extra={"trace_id": trace_id}
+            )
+            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent, reason=intent.reason)
+    elif intent.check.required and not intent.check.skill:
+        _log.warning(
+            "rules: check required on T%d but skill=%s — no roll will occur",
+            state.meta.turn + 1,
+            intent.check.skill,
+            extra={"trace_id": trace_id, "turn": turn_no},
+        )
+        outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+        outcome.reason = intent.reason
+    else:
+        outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+        outcome.reason = intent.reason
+
+    ctx.outcome = outcome
+
+    # De-escalation magnitude
+    deescalate: float = 0.0
+    if config.thread_deescalate_on_success and outcome.rolled and outcome.band in ("success", "crit_success"):
+        if any(
+            isinstance(t, ArcThread) and t.urgency == "urgent"
+            for t in state.long_term_objective.threads
+        ):
+            deescalate = 1.0 if outcome.band == "crit_success" else 0.6
+
+    # Age counters for narration directives
+    ctx._ages = _compute_ages(state)
+
+    # Pre-compute effective scene age with combat boost for directive thresholds.
+    _scene_age = ctx._ages.get("scene_age", 0)
+    _tags = list(state.scene.tags)
+    if "combat" in _tags:
+        _scene_age += 2
+    ctx._ages["effective_scene_age"] = _scene_age
+
+    # Propagate the mutated state back to the context so downstream phases
+    # (narrate, extraction, world) see pending_gm_beat, cleared beat_candidates,
+    # and any other mutations applied during ruling.
+    ctx.state = state
+
+    ruling_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
+    ruling_metrics = {
+        "total_ms": round(ruling_ms, 1),
+        "rolled": outcome.rolled,
+        "tokens_in": ruling_usage.get("prompt_tokens", 0),
+        "tokens_out": ruling_usage.get("completion_tokens", 0),
+    }
+
+    phase_events.append(("phase", {
+            "phase": "ruling_done",
+            "rolled": outcome.rolled,
+            "band": outcome.band if outcome.rolled else None,
+            "skill": outcome.skill if outcome.rolled else None,
+            "dice": outcome.dice if outcome.rolled else [],
+            "final_total": outcome.final_total if outcome.rolled else 0,
+            "difficulty": outcome.difficulty if outcome.rolled else None,
+            "stat_value": outcome.stat_value if outcome.rolled else 0,
+            "stat_mod": outcome.stat_mod if outcome.rolled else 0,
+            "diff_mod": outcome.diff_mod if outcome.rolled else 0,
+            "directive": outcome.directive if outcome.rolled else "",
+            "intent_verb": intent.intent_verb,
+        },
+    ))
+
+    return intent, outcome, ruling_metrics, deescalate, phase_events

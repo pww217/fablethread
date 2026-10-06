@@ -15,10 +15,10 @@ logs/.gitkeep
 saves/
 
 # Generated CSS (rebuilt by `make css`)
-ccya/static/app.css
+fablethread/static/app.css
 
 # Vendored JS is intentionally committed — do NOT ignore
-# ccya/static/vendor/
+# fablethread/static/vendor/
 
 # IDE
 .idea/

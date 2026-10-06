@@ -77,7 +77,7 @@ All pacing signals are collapsed into one Python-computed struct (`PacingContext
 
 ### Struct definition
 
-Defined in `ccya/engine/turn_context.py`.
+Defined in `fablethread/engine/turn_context.py`.
 
 ```
 PacingContext:

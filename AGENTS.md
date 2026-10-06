@@ -1,4 +1,4 @@
-# AGENTS.md — ccya coding guidance
+# AGENTS.md — Fablethread coding guidance
 
 **CRITICAL:** Read this file first. It is your signpost — it tells you where to go, not what to build.
 
@@ -28,7 +28,7 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module index, entry poin
 ## Prompt rules
 
 - **Do not alter prompts unless explicitly asked to.** If you must, preserve the spirit of the existing wording and intent.
-- Prompt templates shared among multiple files should be made in `ccya/prompts/sections/` and included as subtemplates.
+- Prompt templates shared among multiple files should be made in `fablethread/prompts/sections/` and included as subtemplates.
 
 ### Template disambiguation
 
@@ -36,10 +36,10 @@ Two template systems exist — see `docs/architecture/cross-module-contracts.md`
 
 ### State model
 
-- `ccya/models/state.py` defines `WorldState` (root Pydantic model) and all section models (`Meta`, `PC`, `Scene`, `NPCEntry`, `Compendium`, `LongTermObjective`, etc.).
+- `fablethread/models/state.py` defines `WorldState` (root Pydantic model) and all section models (`Meta`, `PC`, `Scene`, `NPCEntry`, `Compendium`, `LongTermObjective`, etc.).
 - All engine/state functions that read or mutate state take `WorldState` — never `dict[str, Any]`.
 - State is **immutable**. Mutation goes through typed mutator methods (`state.set_turn(n)`, `state.add_npc(id, entry)`, etc.) that return a new `WorldState`. Never use `state["key"] = value` or `state.setdefault("key", value)` in engine code.
-- I/O: `ccya/state/io.py` — `load_state()`, `save_state()`, `init_save_dir()`, `default_world_state()`.
+- I/O: `fablethread/state/io.py` — `load_state()`, `save_state()`, `init_save_dir()`, `default_world_state()`.
 - Typed mutator list and field routing: see [docs/architecture/state-models.md](docs/architecture/state-models.md).
 
 ---
@@ -57,7 +57,7 @@ Two template systems exist — see `docs/architecture/cross-module-contracts.md`
 - Structured logging for new features: turn pipeline phases, state mutations, LLM calls, config changes.
 - Follow existing logging patterns.
 - Existing infra: `logging_setup.py` (JSONL RotatingFileHandler for `logs/game.log` + console handler).
-- Server errors use `ccya.server` logger → `logs/server.log` (rotated) + `saves/server_errors.jsonl` (for turn viewer).
+- Server errors use `fablethread.server` logger → `logs/server.log` (rotated) + `saves/server_errors.jsonl` (for turn viewer).
 - Config: `server.logging.level` (file, default INFO), `server.logging.console_level` (stdout, default INFO).
 - No bare `except: pass` — every exception handler must log at minimum a warning with the exception string.
 
@@ -137,7 +137,7 @@ Only `execute` (code/prompt changes) and `review-code` (PR creation) create bran
 
 - **Always ask before creating a branch.** Before `execute` creates a worktree, ask: "This plan touches N files. Do you want me to create a branch for this, or should I work on main?" If the user says "no branch", execute on main with a descriptive commit.
 - Branch slug is canonical key (from design doc).
-- `execute` creates: `git worktree add -b <slug> ../ccya-<slug> main`
+- `execute` creates: `git worktree add -b <slug> ../fablethread-<slug> main`
 - `review-code` opens PR to merge back to `main`.
 - Commit prefix: `[<slug>] [<ticket_id>]` (e.g., `[pacing-fix] [B-42]`)
 - Authority hierarchy: design doc > plan > source
@@ -157,7 +157,7 @@ Only `execute` (code/prompt changes) and `review-code` (PR creation) create bran
 
 ## Known tooling notes
 
-- Server route handlers use untyped FastAPI decorators (`@app.get`, `@app.post`). Mypy overrides disable `untyped-decorator`, `no-untyped-def`, `no-untyped-call`, `attr-defined`, and `no-any-return` for `ccya.server`.
+- Server route handlers use untyped FastAPI decorators (`@app.get`, `@app.post`). Mypy overrides disable `untyped-decorator`, `no-untyped-def`, `no-untyped-call`, `attr-defined`, and `no-any-return` for `fablethread.server`.
 - Tests are temporarily removed during refactor; this note is deferred until they return.
 
 ---
@@ -179,7 +179,7 @@ Defined in full in global AGENTS.md. Key rules:
 - **review-plan** → review a plan doc for correctness before execution; enhanced chat output with plan summary
 - **execute** → execute a plan exactly as written, review changes, commit; asks before creating branch, uses `[<slug>] [<ticket_id>]` commit prefix
 - **review-design** → review a design doc against source, update and refine it (single mode); outputs key blockers, ambiguities, improvements
-- **review-code** → review a diff or PR for ccya (correctness, contracts, quality); creates PR after review passes
+- **review-code** → review a diff or PR for fablethread (correctness, contracts, quality); creates PR after review passes
 - **ev-run** → iterative eval: 1-5 turns (critical), 10 turns (intermediate), 20-25 turns (balance); phase-gated, skips if no issues found
 - **ev-review** → targeted deep dive on specific mechanics, not full rubric pass
 - **ev** → general-purpose eval/inspect CLI signpost for ev.py
@@ -202,7 +202,7 @@ Cross-cutting tasks:
 - Debug extraction → read `docs/architecture/OVERVIEW.md` (quick reference table) + relevant step subdoc (`step2a-scene.md`, etc.); `docs/repomap.md` (two-channel NPC extraction routing) for code-level mapping
 - Debug/inspect events → read `docs/ev/COMMANDS.md` for ev.py commands; `docs/ev/EVAL-RUNS.md` for eval run storage; `docs/ev/CHECKERS.md` for checker docs
 - Fast prompt testing → `ev.py prompt-eval dump <save-dir> --turn N --stream STREAM [--from-events]` (render only), `ev.py prompt-eval call <scenario.yaml> [--from-events]` (render + LLM + check; `--from-events` uses stored output, no LLM call); during turns `expected_ms` in `extract_stream_done` events comes from `_avg_event_ms()` reading last 5 entries per stream in `events.jsonl`; first-turn frontend uses fallback estimates: scene 3s, state 3s, record 6s
-- Conversation references → `ccya/static/game-utils.js` has extraction row lifecycle: `_showExtractionRow()` (renders 3-bar extraction row), `_activateExtractionBar()` (starts a bar's tick timer), `_completeExtractionBar()` (fills a bar to 100%), `_dismissExtractionRow()` (removes row); pre-stream bar lifecycle: `_showPreStreamBar()` (shows single bar on submit), `_updatePreStreamExpectedMs()` (updates bar's expected duration on `ruling_start`), `_dismissPreStreamBar()` (removes bar on first `narrative_token`); `ccya/static/game.js` SSE phase handler dispatches narrative_token → dismiss pre-stream bar, narrate_done → show extraction row, extract_stream_start → activate bar, extract_stream_done → complete bar; extraction row no longer has an outer grey wrapper (de-wrappered in I-44)
+- Conversation references → `fablethread/static/game-utils.js` has extraction row lifecycle: `_showExtractionRow()` (renders 3-bar extraction row), `_activateExtractionBar()` (starts a bar's tick timer), `_completeExtractionBar()` (fills a bar to 100%), `_dismissExtractionRow()` (removes row); pre-stream bar lifecycle: `_showPreStreamBar()` (shows single bar on submit), `_updatePreStreamExpectedMs()` (updates bar's expected duration on `ruling_start`), `_dismissPreStreamBar()` (removes bar on first `narrative_token`); `fablethread/static/game.js` SSE phase handler dispatches narrative_token → dismiss pre-stream bar, narrate_done → show extraction row, extract_stream_start → activate bar, extract_stream_done → complete bar; extraction row no longer has an outer grey wrapper (de-wrappered in I-44)
 - Run eval scenarios → load `ev` skill for CLI + docs pointers
 
 Any observed inaccuracies in the repomap or documentation should be corrected immediately in the same commit.

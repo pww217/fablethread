@@ -1,0 +1,74 @@
+"""State I/O: load/save YAML state, init save directories."""
+
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+from typing import Any, cast
+
+import yaml
+from enum import Enum
+
+from fablethread.errors import ErrorKind
+from fablethread.models import WorldState
+
+_log = logging.getLogger(__name__)
+
+
+def _coerce_enums(obj: Any) -> Any:
+    """Recursively convert Enum values to their string values for YAML serialization."""
+    if isinstance(obj, Enum):
+        return obj.value
+    if isinstance(obj, dict):
+        return {k: _coerce_enums(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_coerce_enums(v) for v in obj]
+    return obj
+
+
+def default_world_state() -> WorldState:
+    return WorldState()
+
+
+def load_state(save_dir: Path) -> WorldState:
+    path = save_dir / "state.yaml"
+    if not path.exists():
+        _log.error("load_state path=%s not found — returning default state", path,
+                    extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
+        return default_world_state()
+    with open(path) as f:
+        content = f.read()
+    try:
+        raw: dict[str, Any] = cast(dict[str, Any], yaml.safe_load(content))
+    except yaml.YAMLError as e:
+        _log.error("load_state path=%s malformed YAML — returning default state: %s", path, e,
+                    extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
+        return default_world_state()
+    if not raw:
+        _log.error("load_state path=%s empty — returning default state", path,
+                    extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
+        return default_world_state()
+    return WorldState.from_dict(raw)
+
+
+def save_state(save_dir: Path, state: WorldState) -> None:
+    tmp_path = save_dir / "state.yaml.tmp"
+    real_path = save_dir / "state.yaml"
+    raw = state.to_dict()
+    raw = _coerce_enums(raw)
+    with open(tmp_path, "w") as f:
+        yaml.dump(raw, f, default_flow_style=False, allow_unicode=True)
+    os.replace(str(tmp_path), str(real_path))
+
+def init_save_dir(save_dir: Path, seed: WorldState, opening: str | None = None) -> None:
+    save_dir.mkdir(parents=True, exist_ok=True)
+    save_state(save_dir, seed)
+    chronicle_path = save_dir / "chronicle.md"
+    if opening:
+        chronicle_path.write_text(f"\n## Turn 0 — Seed\n\n{opening.strip()}")
+    else:
+        chronicle_path.write_text("")
+    (save_dir / "events.jsonl").write_text("")
+    # Remove stale snapshot from a previous game
+

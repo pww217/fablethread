@@ -34,8 +34,8 @@ None / Phase 01
 
 ### Context files to load
 
-- `ccya/engine/file.py:line` — what this file does
-- `ccya/prompts/template.j2` — what this template does
+- `fablethread/engine/file.py:line` — what this file does
+- `fablethread/prompts/template.j2` — what this template does
 
 ### What changes
 
@@ -77,7 +77,7 @@ Phase 01
 
 ### Context files to load
 
-- `ccya/engine/file.py:line`
+- `fablethread/engine/file.py:line`
 
 ### What changes
 

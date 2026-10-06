@@ -1,5 +1,5 @@
 [project]
-name = "ccya"
+name = "fablethread"
 version = "0.1.0"
 description = "A choose-your-own-adventure game backed by a local LLM (mlx-lm)."
 requires-python = ">=3.11"
@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ccya = "ccya.__main__:main"
+fablethread = "fablethread.__main__:main"
 
 [project.optional-dependencies]
 dev = [
@@ -41,7 +41,7 @@ pythonpath = ["."]
 addopts = "-q"
 
 [tool.ruff.lint.isort]
-known-first-party = ["ccya"]
+known-first-party = ["fablethread"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -52,11 +52,11 @@ plugins = ["pydantic.mypy"]
 disallow_subclassing_any = false
 
 [[tool.mypy.overrides]]
-module = ["ccya.server", "ccya.server.*"]
+module = ["fablethread.server", "fablethread.server.*"]
 disable_error_code = ["untyped-decorator", "no-untyped-def", "no-untyped-call", "attr-defined", "no-any-return"]
 
 [[tool.mypy.overrides]]
-module = ["ccya.rules"]
+module = ["fablethread.rules"]
 disable_error_code = ["name-defined"]
 
 

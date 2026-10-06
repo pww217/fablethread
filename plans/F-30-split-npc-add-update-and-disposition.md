@@ -40,15 +40,15 @@ None
 
 ### Context files to load
 
-- `ccya/models/extraction.py:18-32` — current `CompendiumNpcUpdate` model (to be replaced)
-- `ccya/models/extraction.py:109-112` — `SceneExtractResult` (add `compendium_npc_add`)
-- `ccya/models/extraction.py:75-94` — `StateMerge` (add `compendium_npc_add`)
-- `ccya/models/state.py:77-95` — `NPCEntry` (add `disposition`)
-- `ccya/models/__init__.py:9-12` — exports (add `CompendiumNpcAdd`)
+- `fablethread/models/extraction.py:18-32` — current `CompendiumNpcUpdate` model (to be replaced)
+- `fablethread/models/extraction.py:109-112` — `SceneExtractResult` (add `compendium_npc_add`)
+- `fablethread/models/extraction.py:75-94` — `StateMerge` (add `compendium_npc_add`)
+- `fablethread/models/state.py:77-95` — `NPCEntry` (add `disposition`)
+- `fablethread/models/__init__.py:9-12` — exports (add `CompendiumNpcAdd`)
 
 ### What changes
 
-**Remove `CompendiumNpcUpdate`** from `ccya/models/extraction.py` and **replace with two models**: `CompendiumNpcAdd` and `CompendiumNpcUpdate`.
+**Remove `CompendiumNpcUpdate`** from `fablethread/models/extraction.py` and **replace with two models**: `CompendiumNpcAdd` and `CompendiumNpcUpdate`.
 
 **`CompendiumNpcAdd`** (write-once fields):
 ```python
@@ -79,22 +79,22 @@ class CompendiumNpcUpdate(BaseModel):
     last_seen_location: str | None = None
 ```
 
-**Add `disposition` to `NPCEntry`** in `ccya/models/state.py`, after `bio`, before `motivation`:
+**Add `disposition` to `NPCEntry`** in `fablethread/models/state.py`, after `bio`, before `motivation`:
 ```python
 disposition: str | None = None
 ```
 
-**Add `compendium_npc_add` to `StateMerge`** in `ccya/models/extraction.py`:
+**Add `compendium_npc_add` to `StateMerge`** in `fablethread/models/extraction.py`:
 ```python
 compendium_npc_add: list[CompendiumNpcAdd] = Field(default_factory=list, max_length=6)
 ```
 
-**Add `compendium_npc_add` to `SceneExtractResult`** in `ccya/models/extraction.py`:
+**Add `compendium_npc_add` to `SceneExtractResult`** in `fablethread/models/extraction.py`:
 ```python
 compendium_npc_add: list[CompendiumNpcAdd] = Field(default_factory=list, max_length=6)
 ```
 
-**Export `CompendiumNpcAdd`** from `ccya/models/__init__.py`.
+**Export `CompendiumNpcAdd`** from `fablethread/models/__init__.py`.
 
 ### Why
 
@@ -103,7 +103,7 @@ Two models explicitly separate write-once from updatable fields. `disposition` p
 ### Validation
 
 - `make check` passes (lint + typecheck)
-- `CompendiumNpcAdd` and `CompendiumNpcUpdate` importable from `ccya.models`
+- `CompendiumNpcAdd` and `CompendiumNpcUpdate` importable from `fablethread.models`
 - `NPCEntry` has `disposition` field with default `None`
 
 ---
@@ -116,14 +116,14 @@ Phase 01
 
 ### Context files to load
 
-- `ccya/engine/extraction/pipeline.py:212-231` — dedup loop (processes `compendium_npc_update`, needs Add)
-- `ccya/engine/extraction/pipeline.py:241-254` — StateMerge merge (needs Add)
-- `ccya/engine/extraction/pipeline.py:279` — preview builder (needs Add)
-- `ccya/engine/extraction/context.py:46-54` — post-delta context StateMerge (needs Add)
-- `ccya/engine/extraction/utils.py:88-116` — `_dedup_compendium_update()` (type signature, needs Add support)
-- `ccya/engine/extraction/utils.py:119-136` — `_coerce_scene_json()` (needs Add coercion)
-- `ccya/prompts/extract_scene_system.j2` — scene extraction prompt (two-channel schema)
-- `ccya/prompts/prepare_seed_system.j2` — seed prompt (disposition in schema + field requirements)
+- `fablethread/engine/extraction/pipeline.py:212-231` — dedup loop (processes `compendium_npc_update`, needs Add)
+- `fablethread/engine/extraction/pipeline.py:241-254` — StateMerge merge (needs Add)
+- `fablethread/engine/extraction/pipeline.py:279` — preview builder (needs Add)
+- `fablethread/engine/extraction/context.py:46-54` — post-delta context StateMerge (needs Add)
+- `fablethread/engine/extraction/utils.py:88-116` — `_dedup_compendium_update()` (type signature, needs Add support)
+- `fablethread/engine/extraction/utils.py:119-136` — `_coerce_scene_json()` (needs Add coercion)
+- `fablethread/prompts/extract_scene_system.j2` — scene extraction prompt (two-channel schema)
+- `fablethread/prompts/prepare_seed_system.j2` — seed prompt (disposition in schema + field requirements)
 
 ### What changes
 
@@ -183,12 +183,12 @@ Phase 02
 
 ### Context files to load
 
-- `ccya/state/npcs.py:26-114` — `apply_npc_scene_management()` (rewrite for dual-write)
-- `ccya/state/delta_builder.py:267-271` — `apply_delta()` NPC routing (pass Add list)
-- `ccya/prompts/sections/_npc_roster.j2` — NPC roster rendering (add disposition)
-- `ccya/engine/npc_roster.py:75-98` — `_compute_npc_score()` (add disposition to richness)
-- `ccya/engine/npc_roster.py:139-155` — `build_npc_roster()` (add disposition to output)
-- `ccya/ev/prompt_context.py:33-58` — `_build_npc_roster()` (add disposition)
+- `fablethread/state/npcs.py:26-114` — `apply_npc_scene_management()` (rewrite for dual-write)
+- `fablethread/state/delta_builder.py:267-271` — `apply_delta()` NPC routing (pass Add list)
+- `fablethread/prompts/sections/_npc_roster.j2` — NPC roster rendering (add disposition)
+- `fablethread/engine/npc_roster.py:75-98` — `_compute_npc_score()` (add disposition to richness)
+- `fablethread/engine/npc_roster.py:139-155` — `build_npc_roster()` (add disposition to output)
+- `fablethread/ev/prompt_context.py:33-58` — `_build_npc_roster()` (add disposition)
 
 ### What changes
 
@@ -250,9 +250,9 @@ Phase 03
 
 ### Context files to load
 
-- `ccya/ev/checkers/compendium_lifecycle.py:12-16` — checker registration (requires_fields, description)
-- `ccya/ev/checkers/compendium_lifecycle.py:23-49` — checker logic (iterates `compendium_npc_update`)
-- `ccya/ev/checkers/state_lifecycle.py:131-133` — `npc_presence_decay` checker (reviews for Add references)
+- `fablethread/ev/checkers/compendium_lifecycle.py:12-16` — checker registration (requires_fields, description)
+- `fablethread/ev/checkers/compendium_lifecycle.py:23-49` — checker logic (iterates `compendium_npc_update`)
+- `fablethread/ev/checkers/state_lifecycle.py:131-133` — `npc_presence_decay` checker (reviews for Add references)
 
 ### What changes
 

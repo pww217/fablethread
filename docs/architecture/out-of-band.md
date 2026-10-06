@@ -27,7 +27,7 @@ flowchart LR
 
 ## Pack Loading and Validation
 
-Packs are loaded by `load_pack()` in `ccya/pack.py`. The function resolves the pack directory (accepting `pack_id` in formats like `"flooded-world"`, `"default/flooded-world"`, or `"custom/my-world"`), reads `pack.yaml` into a `PackManifest`, and optionally reads `scenario.yaml`, `opening_scene.md`, and `style.md`.
+Packs are loaded by `load_pack()` in `fablethread/pack.py`. The function resolves the pack directory (accepting `pack_id` in formats like `"flooded-world"`, `"default/flooded-world"`, or `"custom/my-world"`), reads `pack.yaml` into a `PackManifest`, and optionally reads `scenario.yaml`, `opening_scene.md`, and `style.md`.
 
 After loading, `validate_pack()` runs a structural validation gate:
 - Manifest: `id` and `name` non-empty
@@ -81,8 +81,8 @@ After the LLM generates the SeedStateEnvelope, `prepare_seed()` in `seed.py` run
 - Merges baseline world facts from `scenario.world_facts` with any existing world state facts from the seed
 - Clears engine-managed `compendium_touch_order` from seeded compendium NPCs
 - **Injects pack currency**: if `scenario.currency_id` is set and no inventory item with that ID exists, appends an `InventoryItem` with the pack's `starting_currency_amount`
-- **Assigns NPC personalities**: iterates over all NPCs in `state_envelope.seed_state.compendium.npcs`; for any without a `personality` attribute, calls `ccya.personality.assign_personality()` using the NPC's `motivation` and `fear` fields; validates any LLM-provided personality ids via `validate_and_resolve()`; unknown ids fall back to `assign_personality()`
-- **Assigns deterministic colors**: uses `generate_npc_color()`, `generate_pc_color()`, `generate_item_color()` from `ccya.engine.npc_roster` to assign entity-specific colors (48-color NPC palette, green PC palette, blue item palette); preserves existing colors if already set
+- **Assigns NPC personalities**: iterates over all NPCs in `state_envelope.seed_state.compendium.npcs`; for any without a `personality` attribute, calls `fablethread.personality.assign_personality()` using the NPC's `motivation` and `fear` fields; validates any LLM-provided personality ids via `validate_and_resolve()`; unknown ids fall back to `assign_personality()`
+- **Assigns deterministic colors**: uses `generate_npc_color()`, `generate_pc_color()`, `generate_item_color()` from `fablethread.engine.npc_roster` to assign entity-specific colors (48-color NPC palette, green PC palette, blue item palette); preserves existing colors if already set
 
 ### Seed emotional framing contract
 

@@ -55,7 +55,7 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 
 ## Pydantic models
 
-### Core result types (ccya/models/)
+### Core result types (fablethread/models/)
 
 - **IntentEnvelope**: `intent`, `intent_verb`, `target`, `check` (RulesCheck), `impossible`, `reason`, `scene_motion: Literal["hold", "advance", "transition"]`
 - **RulesOutcome**: `rolled`, `skill`, `difficulty`, `original_difficulty`, `stat_value`, `stat_mod`, `diff_mod`, `dice`, `raw_total`, `final_total`, `band`, `directive`, `intent`, `intent_verb`, `impossible`, `reason`, `difficulty_adjustment`
@@ -66,7 +66,7 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 - **StorytellerResult**: `thread_update` (list[ThreadUpdate]), `goal_update` (dict | None, applied directly to arc dict), `arc_resolve` (ArcResolution | None), `thread_resolve` (with outcome sentence + world_state_candidate), `thread_add`, `actions`, `outcome_summary`. **The `gm_beat` field has been removed** — beat generation moved to Step 2d (World), beat selection to Step 0 (Ruling). The Pydantic class name is preserved (`StorytellerResult`); only the field is gone.
 - **SeedEnvelope**: `seed_state: SeedState`, `opening_narrative`, `actions`, `arc: LongTermObjective | None` (unified `threads[]` with `major_updates: list[ProgressEntry]`, `completed_threads[]`)
 
-### State models (ccya/models/state.py)
+### State models (fablethread/models/state.py)
 
 - **ArcThread**: `id`, `summary`, `dormant`, `type`, `urgency`, `major_updates: list[ProgressEntry]`, `resolution_state`, `outcome`, `resolved_turn`, `last_updated_turn`, `added_turn`, `urgency_set_turn`
 - **LongTermObjective**: `long_term_objective`, `threads: list[ArcThread]`, `completed_threads: list[ArcThread]`, `resolution`, `resolved_turn`, `last_thread_created_turn`, `started_turn`
@@ -83,7 +83,7 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 - **SanitizedWorldStateFact**: `id: str`, `text: str`, `tier: Literal["global", "local"] = "global"`, `permanent: bool = False`, `valence: Literal["threat", "complication", "neutral", "boon"] | None = None`, `expires_turn: int | None = None`
 - **WorldState** (root model): typed Pydantic model wrapping the full `state.yaml` shape. Fields: `meta: Meta`, `pc: PC`, `location: LocationRef`, `inventory: list[InventoryItem]`, `long_term_objective: LongTermObjective`, `scene: Scene`, `compendium: Compendium`, `resolved_arcs: list[dict]`, `world_state_candidates: list[dict]`, `world: World`, `seed_meta: dict | None`, `pc_situation_schema: list[dict]`. All functions that read or mutate state take `WorldState` (not `dict[str, Any]`). Immutable — mutation goes through typed mutator methods that return a new `WorldState`.
 
-### Extraction models (ccya/models/extraction.py)
+### Extraction models (fablethread/models/extraction.py)
 
 - **CompendiumNpcUpdate**: NPC identity changes (presence, notes, bio upserts, personality on creation, position)
 - **StateDelta**: Merges scene, state, and storyteller extraction results; contains `location_change`, `location_description`, `compendium_npc_update`, `arc_update` (LongTermObjective), `inventory_add/remove/update`, `pc_condition_add/remove`, `actions`, `inventory_change_reason`, `condition_change_reason`. Note: `gm_beat` is NOT in StateDelta — written directly to `state.meta.pending_gm_beat`. Thread operations (`thread_update`, `thread_resolve`, `thread_add`, `arc_resolve`) are in `StorytellerResult`, not StateDelta.
@@ -92,7 +92,7 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 - **GMBeat**: See above
 - **StorytellerResult**: See above
 
-### Rules models (ccya/models/rules.py)
+### Rules models (fablethread/models/rules.py)
 
 - **RulesCheck**: `required: bool`, `skill: SkillName`, `difficulty: Difficulty`
 - **IntentEnvelope**: See above
@@ -100,12 +100,12 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 
 ### Config models
 
-- **TurnResult** (ccya/models/config.py): `turn`, `trace_id`, `narrative`, `state_delta`, `applied`, `rejected`, `actions`, `diff`, `changes`, `metrics`, `errors`, `ruling`, `outcome_summary`, `outcome_hint`, `scene_phase`, `summary`, `ts`, `state_snapshot`. The `gm_beat` field has been removed; beats flow through `state.meta.pending_gm_beat` and `state.meta.beat_candidates`.
-- **SkillName** (ccya/models/config.py): 4 skills (strength, dexterity, wits, charisma)
-- **Difficulty** (ccya/models/config.py): 5 difficulty levels with modifiers in DIFFICULTY_MOD
-- **Band** (ccya/models/config.py): crit_fail, fail, setback, partial, success, crit_success (1d12 natural: 1=crit_fail, 12=crit_success)
+- **TurnResult** (fablethread/models/config.py): `turn`, `trace_id`, `narrative`, `state_delta`, `applied`, `rejected`, `actions`, `diff`, `changes`, `metrics`, `errors`, `ruling`, `outcome_summary`, `outcome_hint`, `scene_phase`, `summary`, `ts`, `state_snapshot`. The `gm_beat` field has been removed; beats flow through `state.meta.pending_gm_beat` and `state.meta.beat_candidates`.
+- **SkillName** (fablethread/models/config.py): 4 skills (strength, dexterity, wits, charisma)
+- **Difficulty** (fablethread/models/config.py): 5 difficulty levels with modifiers in DIFFICULTY_MOD
+- **Band** (fablethread/models/config.py): crit_fail, fail, setback, partial, success, crit_success (1d12 natural: 1=crit_fail, 12=crit_success)
 
-### Config models (ccya/engine/config.py)
+### Config models (fablethread/engine/config.py)
 
 - **EngineConfig**: LLM settings (host, model, num_ctx, temperatures, top_p, frequency_penalty per stage), pacing thresholds (climax_turn_limit, breather_max_turns, convergence_alpha, convergence_enter/exit_threshold, RISING/CLIMAX/BREATHER_min, roll_starvation_threshold, threat_density_threshold, extension_max, near_miss_softening), thread management (thread_max_active, thread_dormant_threshold, thread_urgency_max_age, thread_creation_cooldown, thread_memory_ttl, arc_memory_ttl, thread_deescalate_on_success), NPC lifecycle (nearby_decay_ttl, departed_archive_ttl, condition_default_ttl), sanitization (sanitize_every, sanitize_temperature), misc (debug_mode, difficulty_curve, scene_pressure/imperative_threshold, recent_beats_max, checkers). Plus `build_engine_config()` factory and `_find_json()` JSON extraction utility.
 
@@ -145,7 +145,7 @@ world.factions: list[dict], world.locations: list[KeyLocation]
 
 ### CompendiumEntry
 - Has explicit `motivation`/`fear`/`leverage`/`tie`/`tie_label`/`personality`/`color` optional string fields alongside existing `name`/`title`/`bio`/`presence`/`position`; runtime code uses `tie` (CompendiumNpcUpdate.tie in `extraction.py`); seed-time model uses `bond` (CompendiumEntry.bond in `pack.py`)
-- **`color`**: deterministic entity color assigned by engine via `generate_npc_color()` from `ccya.engine.npc_roster`; uses SHA256(npc_id) into 48-color NPC palette; persisted to state.yaml; JS fallback uses same djb2 hash algorithm with entity-specific palette offset
+- **`color`**: deterministic entity color assigned by engine via `generate_npc_color()` from `fablethread.engine.npc_roster`; uses SHA256(npc_id) into 48-color NPC palette; persisted to state.yaml; JS fallback uses same djb2 hash algorithm with entity-specific palette offset
 - **bond→tie rename:** Runtime code (`CompendiumNpcUpdate.tie` in `extraction.py`) uses `tie`; seed-time model (`CompendiumEntry.bond` in `pack.py`) still uses `bond`. The scenario model field is `npc_bonds`. Most templates and prompts use `tie`.
 - Seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings
 - Seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only)
@@ -180,4 +180,4 @@ All state mutation goes through immutable typed methods on `WorldState`. Each re
 
 ## I/O
 
-- `ccya/state/io.py` — `load_state(save_dir) -> WorldState`, `save_state(save_dir, state)`, `init_save_dir(save_dir, seed)`, `default_world_state() -> WorldState` (replaces legacy `_default_state()` dict factory). YAML serialization coerces enums to string values via `_coerce_enums()`.
+- `fablethread/state/io.py` — `load_state(save_dir) -> WorldState`, `save_state(save_dir, state)`, `init_save_dir(save_dir, seed)`, `default_world_state() -> WorldState` (replaces legacy `_default_state()` dict factory). YAML serialization coerces enums to string values via `_coerce_enums()`.

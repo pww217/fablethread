@@ -10,10 +10,10 @@ clean-pycache:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 run:
-	uv run ccya --host 0.0.0.0
+	uv run fablethread --host 0.0.0.0
 
 dev:
-	uv run python -m ccya.cli --host 0.0.0.0
+	uv run python -m fablethread.cli --host 0.0.0.0
 
 fmt:
 	uv run ruff format .
@@ -36,7 +36,7 @@ test-integration:
 test-all: test test-integration
 
 typecheck:
-	uv run mypy ccya
+	uv run mypy fablethread
 
 lint-scripts:
 	uv run ruff check scripts/
@@ -45,23 +45,23 @@ validate-packs:
 	uv run python scripts/validate_pack_yamls.py
 
 deadcode:
-	uv run vulture ccya/ scripts/ --min-confidence 80
+	uv run vulture fablethread/ scripts/ --min-confidence 80
 
 check: lint typecheck validate-packs deadcode
 
 css:
-	npx --yes @tailwindcss/cli -i ccya/static/app.src.css -o ccya/static/app.css --minify
+	npx --yes @tailwindcss/cli -i fablethread/static/app.src.css -o fablethread/static/app.css --minify
 
 new-game:
-	uv run python -m ccya --new-game
+	uv run python -m fablethread --new-game
 
 roadmap:
 	uv run python scripts/generate-roadmap.py $(ARGS)
 
 vendor:
-	mkdir -p ccya/static/vendor
-	curl -sL "https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" -o ccya/static/vendor/htmx.min.js
-	curl -sL "https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" -o ccya/static/vendor/alpine.min.js
+	mkdir -p fablethread/static/vendor
+	curl -sL "https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" -o fablethread/static/vendor/htmx.min.js
+	curl -sL "https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" -o fablethread/static/vendor/alpine.min.js
 
 clean:
 	rm -rf .venv dist build *.egg-info __pycache__ .pytest_cache

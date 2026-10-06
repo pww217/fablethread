@@ -94,7 +94,7 @@ flowchart TD
 | `GET /panels/debug` | `_debug.html` | Debug panel — recent turn timings, errors |
 | `GET /panels/state` | `_state.html` | Combined left+right |
 
-### Client state machine (`game()` in `ccya/static/game.js`)
+### Client state machine (`game()` in `fablethread/static/game.js`)
 
 Alpine.js `x-data="game()"` manages:
 - `input` — textarea value
@@ -108,13 +108,13 @@ Alpine.js `x-data="game()"` manages:
 
 ### Resizable sidebars
 - Drag gutters with mousedown/mousemove handlers
-- Widths saved to `localStorage` (`ccya_sidebar_left`, `ccya_sidebar_right`)
+- Widths saved to `localStorage` (`fablethread_sidebar_left`, `fablethread_sidebar_right`)
 - Minimum width enforcement (240px left, 220px right)
 - **Reset button** in sidebar footer: restores viewport-aware defaults (left 320px, right 280px) on click
 - **Ultrawide override** (≥2561px viewport): `--sidebar-w: min(512px, 38vw)` — sidebar defaults to 2x standard width. Sidebar text scaled ~25% smaller via explicit `.sidebar-card-header`, `.stat-row`, `.npc-notes-inline`, `.inventory-item`, etc. overrides in the ultrawide media query.
 
 ### Collapsible cards
-Each sidebar section has a collapse toggle; open/closed state persisted per-card to `localStorage` via `ccya_card_<name>` key.
+Each sidebar section has a collapse toggle; open/closed state persisted per-card to `localStorage` via `fablethread_card_<name>` key.
 
 ### Action pills
 Suggested next actions rendered as buttons that populate the input on click. Updated from `turn_complete.actions` or via HTMX panel refresh.
@@ -145,10 +145,10 @@ Grouped by category via emoji prefix:
 
 | File | Lines | Domain |
 |------|-------|--------|
-| `ccya/static/tokens.css` | 76 | Tailwind directives, design tokens, base reset, fluid typography |
-| `ccya/static/app-shell.css` | 2781 | Main game UI — app shell layout, header, narrative column, action pills, input bar, sidebars, sidebar cards (player/NPCs/inventory/arc/facts/errors/debug), pack picker modal, responsive/mobile drawer, game over modal, character creation, settings panel, entity highlighting, landing page, gutter hints |
-| `ccya/static/chronicle.css` | 312 | Chronicle overlay — turn log shell, panel, blocks, scrollbar styling |
-| `ccya/static/turn-viewer.css` | 1319 | Standalone full-page debug view — pipeline status cards, stage identity, event tables, no-save state |
+| `fablethread/static/tokens.css` | 76 | Tailwind directives, design tokens, base reset, fluid typography |
+| `fablethread/static/app-shell.css` | 2781 | Main game UI — app shell layout, header, narrative column, action pills, input bar, sidebars, sidebar cards (player/NPCs/inventory/arc/facts/errors/debug), pack picker modal, responsive/mobile drawer, game over modal, character creation, settings panel, entity highlighting, landing page, gutter hints |
+| `fablethread/static/chronicle.css` | 312 | Chronicle overlay — turn log shell, panel, blocks, scrollbar styling |
+| `fablethread/static/turn-viewer.css` | 1319 | Standalone full-page debug view — pipeline status cards, stage identity, event tables, no-save state |
 - **`app.src.css`** is the monolithic Tailwind entry point — unchanged during the split, all 4 files extracted alongside it for human readability
 - **Fluid typography**: 3-tier `@media` breakpoints set `html { font-size: clamp(...) }`:
   | Viewport | Font size clamp | Applicable to |
@@ -164,10 +164,10 @@ Grouped by category via emoji prefix:
 
 | File | Lines | Domain |
 |------|-------|--------|
-| `ccya/static/game-utils.js` | 781 | Pure utility functions — card key helper, markdown rendering, entity highlighting, tooltip portal, display drain, progress strip, turn log UI, outcome badge builder, change line grouping |
-| `ccya/static/game.js` | 1161 | Alpine components — `charCreation()`, `worldBuilder()`, `game()` (panel state, drawers, pack picker, turn submission/streaming/SSE handlers, retry/cancel, settings) |
-| `ccya/static/app-init.js` | 163 | DOM initialization — first `DOMContentLoaded` (settings panel wiring, save picker, landing page), second `DOMContentLoaded` (markdown rendering, entity highlighting on history, card persistence, HTMX handlers, pills layout, gutter setup, collapsed hints) |
+| `fablethread/static/game-utils.js` | 781 | Pure utility functions — card key helper, markdown rendering, entity highlighting, tooltip portal, display drain, progress strip, turn log UI, outcome badge builder, change line grouping |
+| `fablethread/static/game.js` | 1161 | Alpine components — `charCreation()`, `worldBuilder()`, `game()` (panel state, drawers, pack picker, turn submission/streaming/SSE handlers, retry/cancel, settings) |
+| `fablethread/static/app-init.js` | 163 | DOM initialization — first `DOMContentLoaded` (settings panel wiring, save picker, landing page), second `DOMContentLoaded` (markdown rendering, entity highlighting on history, card persistence, HTMX handlers, pills layout, gutter setup, collapsed hints) |
 
 ## Server Entry Point
 
-`routes.py:195` — `GET /` handler assembles template context from `state.yaml`, `events.jsonl`, pack manifest, and engine config, then renders `ccya/templates/index.html`.
+`routes.py:195` — `GET /` handler assembles template context from `state.yaml`, `events.jsonl`, pack manifest, and engine config, then renders `fablethread/templates/index.html`.

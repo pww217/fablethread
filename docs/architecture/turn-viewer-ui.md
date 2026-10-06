@@ -171,7 +171,7 @@ Stage accent stripes use `--stage-rules` (violet), `--stage-narrate` (blue), `--
 
 ## CSS Architecture
 
-Turn viewer styles live in **`ccya/static/turn-viewer.css`** (extracted from `app.src.css` lines 2102–3101+):
+Turn viewer styles live in **`fablethread/static/turn-viewer.css`** (extracted from `app.src.css` lines 2102–3101+):
 - `.turn-viewer-page` — full-page grid layout
 - `.tv-turn-card` — card container with header + two-column body
 - `.tv-pipeline-stage` — stage row with accent stripe, header, expandable body

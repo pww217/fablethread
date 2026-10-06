@@ -6,12 +6,12 @@ Two entirely separate template systems exist — do not conflate them:
 
 | System | Location | Purpose | Engine |
 |---|---|---|---|
-| **Prompt templates** | `ccya/prompts/` (`.j2`) | Render LLM messages (system/user prompts) | Jinja2 via `_render()` in `narrate.py` / `extraction.py` |
-| **UI templates** | `ccya/templates/` (`.html`) | Render browser HTML (sidebars, modals, character sheets) | Jinja2 via FastAPI `_render()` in `server/routes.py` |
+| **Prompt templates** | `fablethread/prompts/` (`.j2`) | Render LLM messages (system/user prompts) | Jinja2 via `_render()` in `narrate.py` / `extraction.py` |
+| **UI templates** | `fablethread/templates/` (`.html`) | Render browser HTML (sidebars, modals, character sheets) | Jinja2 via FastAPI `_render()` in `server/routes.py` |
 
 ## Prompt template hierarchy
 
-### Narrator system prompt (`ccya/prompts/narrate_system.j2`)
+### Narrator system prompt (`fablethread/prompts/narrate_system.j2`)
 
 - Restructured into 4-section hierarchy: (1) Task/role, (2) Hard rules (Player Input Is Truth, Inventory, Never Repeat Prior Narration, Fail-Band Outcomes), (3) Behavioral guidance (NPCs merged single section, Style, Pragmatic Interpretation, Pacing, Campaign arc context), (4) Formatting/output (Markdown). Output discipline section removed (narrator emits only prose after ARC UPDATE removal). Dynamic sections (Universe rules, Genre tone) remain at end.
 - Beat mechanism tags: narrator reads mechanism tags as creative brief — generates prose grounded in actual NPC fields in the roster. No quote/prose in mechanism tags; narrator generates the prose itself.
@@ -22,7 +22,7 @@ Two entirely separate template systems exist — do not conflate them:
 - Group NPC introduction: when introducing new groups, describe at least one distinguishing feature per individual in the narration (appearance, demeanor, visible trait). The scene extractor captures these into the group's compendium bio.
 - Group NPC reintroduction: when an existing group NPC reappears, reference their distinguishing features from the compendium bio rather than collapsing to the generic type. Makes reuse feel like the same people, not any two sailors.
 
-### Narrator user prompt (`ccya/prompts/narrate_user.j2`)
+### Narrator user prompt (`fablethread/prompts/narrate_user.j2`)
 
 - Sections reordered by recency: Player Character → Conditions → PC Situation → Inventory → Location → Characters → World State → Immutable Reference → Scene Context → Scene phase → Prior History (renamed from Prior Turns) → Recent Turns → Campaign Arc → This Turn's Result → PLAYER INPUT → directives (most important signal last)
 - Beat mechanism tags rendered as creative guidance: mechanism tags tell the narrator WHAT to blend, narrator generates the prose itself grounded in the actual NPC fields in the roster
@@ -32,7 +32,7 @@ Two entirely separate template systems exist — do not conflate them:
 - `outcome_hint` replaces `directive` as narrator's scene-motion signal: renders `**Outcome:** hold/advance/transition` with value-specific guidance
 - Scene phase display added after Scene Context section: `## Scene phase: {{ state.scene.scene_phase }}` for narrator tone calibration
 
-### Record system prompt (`ccya/prompts/record_system.j2`)
+### Record system prompt (`fablethread/prompts/record_system.j2`)
 
 - Replaces `storytell_system.j2` (deleted in the beat generation split). 4-section hierarchy preserved: (1) Task/role, (2) Hard rules (Output schema, Output discipline, State-presence rule), (3) Behavioral guidance (Actions, Outcome summary, Thread operations, Rules-outcome, World state rules, Latent threads), (4) Campaign arc system. **The GM Beat guidance section is gone** — beat generation moved to World (Step 2d).
 - The `gm_beat` field has been removed from the `StorytellerResult` schema; Record no longer emits beats. Thread management (update/resolve/add) and action/outcome_summary generation remain in Record.
@@ -40,7 +40,7 @@ Two entirely separate template systems exist — do not conflate them:
 - **Thread urgency interpretation rules** (I-32): instructs Record to translate narrator portrayal into urgency labels. Escalate to urgent when threat is immediate/imminent, background thread resurfaces, or phase is CLIMAX. Demote to background when thread is faded/distant/past, associated NPC departed, or dormant 6+ turns. CLIMAX phase awareness: at least one thread MUST be urgent in CLIMAX.
 - **Matching threads to narration** (I-32): instructs Record to match narration events to thread summaries by people, places, and actions (concrete event-mappable criteria, not abstract implications).
 
-### Record user prompt (`ccya/prompts/record_user.j2`)
+### Record user prompt (`fablethread/prompts/record_user.j2`)
 
 - Replaces `storytell_user.j2` (deleted in the beat generation split). Threads and arc context still render; the prompt is now significantly slimmer — forward-looking sections removed:
   - ~~`pacing_context`~~ — moved to World
@@ -51,22 +51,22 @@ Two entirely separate template systems exist — do not conflate them:
 - Sections retained from original: `scene_phase` (still passed from record.py:93)
 - Sections reordered for record's backward-looking scope: arc/threads → world_state → band → scene_phase → prior_history → recent_turns → CURRENT TURN NARRATION
 
-### World system prompt (`ccya/prompts/world_system.j2`)
+### World system prompt (`fablethread/prompts/world_system.j2`)
 
 - New template added in the beat generation split. Constrained beat-candidate generation instructions: mechanism-only tags (no quote/prose), beat priority order (NPC+NPC → NPC+thread → single NPC → single thread, never environmental), diversity ban (5-beat window: ban types/NPCs/threads appearing 2+ times), phase-beat alignment (`allowed_beat_types` constraint), roll-band guidance, dormant thread revival guidance.
 - ~200-250 system tokens, lightweight.
 
-### World user prompt (`ccya/prompts/world_user.j2`)
+### World user prompt (`fablethread/prompts/world_user.j2`)
 
 - New template. Renders present NPC roster (from compendium, filtered to `presence == 'present'`), active threads, `pacing_context`, `recent_beats`, `allowed_beat_types`, roll band, and the most recent narration. ~1000-2000 user tokens.
 
-### Prepare seed system prompt (`ccya/prompts/prepare_seed_system.j2`)
+### Prepare seed system prompt (`fablethread/prompts/prepare_seed_system.j2`)
 
 - Generation order: World facts → Key locations → Arc origin → PC situation → Campaign arc → Opening scene/NPCs → Inventory (8 steps)
 - Schema shows only `SeedState` shape (not full `SeedEnvelope`) — narrative fields (opening_narrative, actions, outcome_summary) are generated separately by narrate_seed
 - CompendiumEntry model has explicit motivation/fear/leverage/personality optional string fields alongside existing name/title/bio/presence/notes; seed prompt schema includes `personality` as `archetype_id` (required for named NPCs) alongside `motivation`/`fear`/`leverage`/`bond` as optional strings; seed prompt has tiered field requirements (named NPCs get `personality` + 2+ fields, unnamed NPCs get `bio` only) and a 12-archetype reference table; runtime code uses `tie` (CompendiumNpcUpdate.tie), seed-time model uses `bond` (CompendiumEntry.bond)
 
-### Narrate seed system prompt (`ccya/prompts/narrate_seed_system.j2`)
+### Narrate seed system prompt (`fablethread/prompts/narrate_seed_system.j2`)
 
 - Generates opening_narrative (~700 words, second person, present tense, 3 movements), actions (exactly 4, 7-10 words each), and outcome_summary (one sentence, 10-20 words)
 - Receives filtered context: pc (name, tagline, situation), location.name only, arc_origin, arc.objective, present NPCs (name/title/bio/presence), setting_info (genre, universe rules, creative direction)
@@ -77,11 +77,11 @@ Two entirely separate template systems exist — do not conflate them:
 
 ## Shared includes
 
-### NPC roster template (`ccya/prompts/sections/_npc_roster.j2`)
+### NPC roster template (`fablethread/prompts/sections/_npc_roster.j2`)
 
 - Shared include rendered by narrate_user.j2, record_user.j2, extract_scene_user.j2; does NOT render personality block (personality_registry removed from `build_npc_roster()` in I-24)
 
-### Thread list include (`ccya/prompts/sections/_thread_list.j2`)
+### Thread list include (`fablethread/prompts/sections/_thread_list.j2`)
 
 - Shared include rendering thread entries with type label, urgency, dormant marker, and summary
 - Used by narrate_user.j2 Scene Context section (eliminates duplicated for-loop in if/elif branches)

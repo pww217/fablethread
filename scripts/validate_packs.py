@@ -12,7 +12,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from ccya.pack import load_pack, validate_pack
+from fablethread.pack import load_pack, validate_pack
 
 
 def main() -> int:

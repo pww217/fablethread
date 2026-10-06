@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI entry point for ev tooling. Delegates to ccya.ev."""
+"""CLI entry point for ev tooling. Delegates to fablethread.ev."""
 
 import sys
 
@@ -8,7 +8,7 @@ if sys.version_info < (3, 13):
     print("Use: .venv/bin/python scripts/debug/ev.py <command>", file=sys.stderr)
     sys.exit(1)
 
-from ccya.ev import main
+from fablethread.ev import main
 
 if __name__ == "__main__":
     main()

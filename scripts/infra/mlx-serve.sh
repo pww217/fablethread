@@ -6,7 +6,7 @@
 # Cache/logging knobs come from config.yaml (mlx.*).
 #
 # Usage:
-#   bash scripts/mlx-serve.sh          # from ccya/ root
+#   bash scripts/mlx-serve.sh          # from fablethread/ root
 #   make mlx-serve                     # same via Makefile
 #
 # Called automatically by `make run` and `make dev`.

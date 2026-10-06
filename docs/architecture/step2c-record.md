@@ -230,7 +230,7 @@ For each ThreadUpdate:
  5. **Auto-dormant** (post-loop, after every thread_updates loop): For each active (dormant=False) thread whose `last_updated_turn` is ≥ 8 turns ago AND is not urgent, set `dormant: True` and `urgency: background`.
  6. **Urgency decay pass**: For each active thread with `urgency_set_turn` set, if age (`turn_no - urgency_set_turn`) >= `thread_urgency_max_age`, demote stepwise (urgent→normal, normal→background). Sets `urgency_set_turn = current turn` on demotion. Skips threads without `urgency_set_turn` (pre-existing data degrades gracefully).
 
-**Progress model:** Every progress entry is a `ProgressEntry` with `kind` field (`"advancement"` or `"setback"`) and `text`. The `major_update_signal` field on `ThreadUpdate` tags each emitted progress entry; default is `"advancement"`. Progress is rendered to prompts as `[KIND] text` by `_fmt_progress()` (module-level function in `ccya/prompts/context.py` — relocated from a static method on `ArcThreadBlock` and from `ccya/engine/narrate.py`).
+**Progress model:** Every progress entry is a `ProgressEntry` with `kind` field (`"advancement"` or `"setback"`) and `text`. The `major_update_signal` field on `ThreadUpdate` tags each emitted progress entry; default is `"advancement"`. Progress is rendered to prompts as `[KIND] text` by `_fmt_progress()` (module-level function in `fablethread/prompts/context.py` — relocated from a static method on `ArcThreadBlock` and from `fablethread/engine/narrate.py`).
 
 **Progress dedup:** Uses `difflib.SequenceMatcher.ratio()` against the last entry to reject near-duplicate progress (≥70% textual overlap). This filters out LLM outputs that rephrase the same progress update without advancing the narrative. A WARNING is logged on rejection.
 

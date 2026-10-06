@@ -27,7 +27,7 @@ from jinja2 import Environment, FileSystemLoader
 import yaml
 
 state = yaml.safe_load(Path('state.yaml').read_text())
-env = Environment(loader=FileSystemLoader('ccya/prompts'), keep_trailing_newline=True)
+env = Environment(loader=FileSystemLoader('fablethread/prompts'), keep_trailing_newline=True)
 
 # Build context matching the pipeline's construction in narrate.py / extraction.py
 ctx = {
@@ -43,9 +43,9 @@ print(rendered)
 
 ### Check for
 
-- **Silent Undefined**: search for empty sections where data should appear. In production Jinja2 (default `Undefined`), missing variables render as empty — no error. Compare against the boundary model in `ccya/prompts/context.py`.
+- **Silent Undefined**: search for empty sections where data should appear. In production Jinja2 (default `Undefined`), missing variables render as empty — no error. Compare against the boundary model in `fablethread/prompts/context.py`.
 - **Wrong-level access**: shared section templates (`_arc.j2`, `_thread_list.j2`) accessed from multiple parent prompts. Verify the variable is passed at the level the section expects.
-- **Boundary alignment**: cross-reference `TEMPLATE_CONTRACTS` in `ccya/prompts/context.py` with the template's actual variable usage. The alignment test in `tests/test_alignment.py` does this via AST parsing.
+- **Boundary alignment**: cross-reference `TEMPLATE_CONTRACTS` in `fablethread/prompts/context.py` with the template's actual variable usage. The alignment test in `tests/test_alignment.py` does this via AST parsing.
 
 ### All user prompts (7 total)
 

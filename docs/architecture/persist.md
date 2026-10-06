@@ -29,9 +29,9 @@ Atomic writes to disk. No LLM calls.
 
 When `config.sanitize_every > 0`, the sanitizer runs on turns divisible by `sanitize_every` (default 5). It appends a separate event to `events.jsonl` with `kind=sanitizer` and `turn=N` matching the turn it ran on. This event is written **after** the turn event, so the last event on a sanitizer turn is always the sanitizer event.
 
-**Important for UI panels:** `_recent_turn_metrics()` and `_turn_log_entries()` in `ccya/server/metrics.py` must filter out `kind=sanitizer` events to avoid duplicate turn entries. `_list_saves()` in `ccya/server/routes.py` must also skip sanitizer events when counting turns.
+**Important for UI panels:** `_recent_turn_metrics()` and `_turn_log_entries()` in `fablethread/server/metrics.py` must filter out `kind=sanitizer` events to avoid duplicate turn entries. `_list_saves()` in `fablethread/server/routes.py` must also skip sanitizer events when counting turns.
 
-**Important for cancel/delete:** `remove_last_event()` in `ccya/state/chronicle.py` parses the last event's `turn` number and removes **all** events matching that turn number (both turn event and sanitizer event). This prevents orphaned sanitizer events after cancel/delete.
+**Important for cancel/delete:** `remove_last_event()` in `fablethread/state/chronicle.py` parses the last event's `turn` number and removes **all** events matching that turn number (both turn event and sanitizer event). This prevents orphaned sanitizer events after cancel/delete.
 
 ### Cancel and delete workflow
 

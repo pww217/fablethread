@@ -136,7 +136,7 @@ flowchart LR
 
 ### Struct fields
 
-Defined in `ccya/engine/turn_context.py`.
+Defined in `fablethread/engine/turn_context.py`.
 
 ```
 PacingContext:
@@ -257,7 +257,7 @@ The thread sanitizer (`thread_sanitizer.py`) performs **two-way urgency adjustme
 | `turn_state.py` | 278-367 | `_apply_thread_resolutions()` |
 | `turn_state.py` | 192-275 | `_apply_arc_resolve()` |
 | `turn_state.py` | 575-649 | Thread add gate + cap eviction (inside _apply_state_updates) |
-| `ccya/state/io.py` | 138 | `save_state()` |
+| `fablethread/state/io.py` | 138 | `save_state()` |
 | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
 | `turn_state.py` | 425 | Invocation in `_apply_state_updates()` |
 
@@ -408,19 +408,19 @@ T6:  normal climax rhythm continues
 
 | Checker | File | What it validates |
 |---------|------|-------------------|
-| `phase_transition_signals` | `ccya/ev/checkers/pacing_convergence.py` | Phase transition triggers match engine logic |
-| `convergence_recompute` | `ccya/ev/checkers/pacing_convergence.py` | Independently recompute convergence score from raw state |
-| `directive_beat_alignment` | `ccya/ev/checkers/pacing_convergence.py` | Selected beat aligns with directive and phase constraints |
-| `phase_transition` | `ccya/ev/checkers/phase_transition.py` | Phase engine transitions follow the state machine, outcome_hint consistency |
+| `phase_transition_signals` | `fablethread/ev/checkers/pacing_convergence.py` | Phase transition triggers match engine logic |
+| `convergence_recompute` | `fablethread/ev/checkers/pacing_convergence.py` | Independently recompute convergence score from raw state |
+| `directive_beat_alignment` | `fablethread/ev/checkers/pacing_convergence.py` | Selected beat aligns with directive and phase constraints |
+| `phase_transition` | `fablethread/ev/checkers/phase_transition.py` | Phase engine transitions follow the state machine, outcome_hint consistency |
 
-| `recent_beats` | `ccya/ev/checkers/recent_beats.py` | recent_beats list structure, cap, monotonic turn numbers |
-| `pacing_directives` | `ccya/ev/checkers/pacing.py` | Outcome hint, directive render, removed directives, beat variety, phase constraints |
-| `phase_persistence` | `ccya/ev/checkers/phase_persistence.py` | scene_phase field present and valid on every turn (regression guard) |
-| `scene_age_tracking` | `ccya/ev/checkers/scene_age_tracking.py` | scene_age increments by 1 each turn, resets on location change |
-| `climax_turn_counting` | `ccya/ev/checkers/climax_turn_counting.py` | climax_turn_count increments in CLIMAX, resets on phase exit |
+| `recent_beats` | `fablethread/ev/checkers/recent_beats.py` | recent_beats list structure, cap, monotonic turn numbers |
+| `pacing_directives` | `fablethread/ev/checkers/pacing.py` | Outcome hint, directive render, removed directives, beat variety, phase constraints |
+| `phase_persistence` | `fablethread/ev/checkers/phase_persistence.py` | scene_phase field present and valid on every turn (regression guard) |
+| `scene_age_tracking` | `fablethread/ev/checkers/scene_age_tracking.py` | scene_age increments by 1 each turn, resets on location change |
+| `climax_turn_counting` | `fablethread/ev/checkers/climax_turn_counting.py` | climax_turn_count increments in CLIMAX, resets on phase exit |
 
-| `breather_enforcement` | `ccya/ev/checkers/breather_enforcement.py` | breather auto-transitions to RISING after breather_max_turns |
-| `roll_band_consistency` | `ccya/ev/checkers/roll_band_consistency.py` | band matches dice roll using rules engine, skill/difficulty valid |
+| `breather_enforcement` | `fablethread/ev/checkers/breather_enforcement.py` | breather auto-transitions to RISING after breather_max_turns |
+| `roll_band_consistency` | `fablethread/ev/checkers/roll_band_consistency.py` | band matches dice roll using rules engine, skill/difficulty valid |
 
 > **EV checker `gm_beat_lifecycle` is deferred cleanup** — it reads `extraction.record.gm_beat` which no longer exists (beat generation moved to World). Tracked in `roadmap/bugs/ev-side-cleanup-storytell-gm-beat-rename.md`. Until that's done, this checker produces vacuous output but does not crash. `beat_phase_validity` has been fixed and reads from `state.meta.beat_candidates` correctly.
 

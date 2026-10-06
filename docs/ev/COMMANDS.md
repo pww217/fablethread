@@ -17,7 +17,7 @@ All inspection commands require `--save-dir DIR`. There is no default or positio
 
 ## Session config (ev.yaml)
 
-Every session directory can contain an `ev.yaml`. Resolution: CLI flags > `ev.yaml` > `ccya/config.yaml`.
+Every session directory can contain an `ev.yaml`. Resolution: CLI flags > `ev.yaml` > `fablethread/config.yaml`.
 
 | Field | Effect |
 |-------|--------|
