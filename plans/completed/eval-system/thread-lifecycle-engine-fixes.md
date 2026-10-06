@@ -237,15 +237,15 @@ After line 240 (end of auto-latent demotion block, before the return statement a
 
 ```python
 # Verify no syntax errors:
-/Users/pwilson/Repos/ccya/.venv/bin/python -c "from ccya.engine.turn import _apply_thread_updates; print('OK')" 2>&1 | head -5
+.venv/bin/python -c "from ccya.engine.turn import _apply_thread_updates; print('OK')" 2>&1 | head -5
 
 # Quick logic sanity check — urgency decay at threshold boundary:
 # NOTE: These tests require Steps 1.1-1.2 to be applied first (ArcThread must have
 # added_turn/urgency_set_turn fields, EngineConfig must have thread_urgency_max_age).
-# Use the venv Python (/Users/pwilson/Repos/ccya/.venv/bin/python) — system Python 3.9 is too old.
-/Users/pwilson/Repos/ccya/.venv/bin/python << 'PYEOF'
+# Use the venv Python (.venv/bin/python) — system Python 3.9 is too old.
+.venv/bin/python << 'PYEOF'
 import sys, os
-sys.path.insert(0, "/Users/pwilson/Repos/ccya")
+sys.path.insert(0, "..")
 
 from ccya.models import ArcThread, CampaignArc, StorytellerResult, ThreadUpdate
 from ccya.engine.config import EngineConfig

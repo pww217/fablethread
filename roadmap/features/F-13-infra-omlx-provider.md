@@ -89,5 +89,5 @@ Full setup and testing report: `docs/olmx-report.md`.
 * **No new capabilities** — existing `localhost:8000` is already MLX on the same M4 Max hardware
 * **No caching benefit** for gemma-4-26b (VLM engine doesn't persist KV cache)
 * **Potential speedup** from oMLX's optimized server wrapper on cold inference
-* **Local reliability** — independent of remote LMStudio on `10.75.100.51:1234`
+* **Local reliability** — independent of remote LMStudio on `127.0.0.1:1234`
 * **No SSD caching advantage** for current workload — only batched-engine models get cache persistence

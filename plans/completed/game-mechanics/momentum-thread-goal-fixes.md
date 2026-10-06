@@ -397,7 +397,7 @@ Current code (lines 1074-1082):
 python3 -c "from ccya.engine.turn import _compute_pacing_context; print('OK')" 2>&1 | head -5
 
 # Verify the counter logic reads pending_gm_beat (not storyteller output):
-grep -n 'consecutive_pressure_turns' /Users/pwilson/repos/ccya/ccya/engine/turn.py | head -10
+grep -n 'consecutive_pressure_turns' ccya/engine/turn.py | head -10
 ```
 
 Expected: all references to `consecutive_pressure_turns` should be in the block at lines 1074-1082 (reading from pending_gm_beat). No other locations should read raw storyteller output for this counter.
@@ -530,7 +530,7 @@ After (line 84):
 # Verify template renders without Jinja errors:
 python3 -c "
 from jinja2 import Environment, FileSystemLoader
-env = Environment(loader=FileSystemLoader('/Users/pwilson/repos/ccya/ccya/prompts'))
+env = Environment(loader=FileSystemLoader('ccya/prompts'))
 t = env.get_template('sanitize_thread.j2')
 print(t.render(visible_goal='test', threads=[], completed_threads=[], turn_no=10, recent_turns=[], prior_history=[]))
 print('Template renders OK')
@@ -606,7 +606,7 @@ After (line 86):
 # Verify template still renders cleanly after all sanitizer changes (#3 goal pivot + #5 temporal decay):
 python3 -c "
 from jinja2 import Environment, FileSystemLoader
-env = Environment(loader=FileSystemLoader('/Users/pwilson/repos/ccya/ccya/prompts'))
+env = Environment(loader=FileSystemLoader('ccya/prompts'))
 t = env.get_template('sanitize_thread.j2')
 print(t.render(visible_goal='test', threads=[], completed_threads=[], turn_no=10, recent_turns=[], prior_history=[]))
 print('Template renders OK after all changes')

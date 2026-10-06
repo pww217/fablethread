@@ -50,7 +50,7 @@ Two edits to the storyteller system prompt: (1) strengthen line 28 with explicit
 ## Implementation — Phase 1: Strengthen storyteller prompt for action-oriented choices
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/prompts/storytell_system.j2` (full file)
+- `ccya/prompts/storytell_system.j2` (full file)
 
 ### Detailed steps
 

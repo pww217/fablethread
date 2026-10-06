@@ -131,8 +131,8 @@ None. These are config file edits with no test suite.
 
 ### Context files to load
 
-- `/Users/pwilson/Repos/ccya/Makefile` (to add `roadmap` target)
-- `/Users/pwilson/Repos/ccya/scripts/` directory (to understand existing script patterns)
+- `Makefile` (to add `roadmap` target)
+- `scripts/` directory (to understand existing script patterns)
 
 ### Detailed steps
 
@@ -156,7 +156,7 @@ If `roadmap/` already exists, skip creation but verify subdirectories exist.
 
 #### Step 2.2 — Create generate-roadmap.py
 
-**File:** `/Users/pwilson/Repos/ccya/scripts/generate-roadmap.py`
+**File:** `scripts/generate-roadmap.py`
 
 **What:** Create a Python script that:
 1. Scans `roadmap/bugs/`, `roadmap/features/`, and `roadmap/archive/` for `*.md` files
@@ -207,7 +207,7 @@ Use the project's Python environment: `#!/usr/bin/env python3` shebang, use `pat
 
 #### Step 2.3 — Add Makefile target
 
-**File:** `/Users/pwilson/Repos/ccya/Makefile`
+**File:** `Makefile`
 
 **What:** Add `roadmap` to the `.PHONY` line and add a new target:
 ```makefile
@@ -339,13 +339,13 @@ None. These are config file edits.
 
 ### Context files to load
 
-- `/Users/pwilson/Repos/ccya/AGENTS.md` (current state)
+- `AGENTS.md` (current state)
 
 ### Detailed steps
 
 #### Step 4.1 — Add roadmap conventions
 
-**File:** `/Users/pwilson/Repos/ccya/AGENTS.md`
+**File:** `AGENTS.md`
 
 **What:** Add a new "Roadmap" section (before or after the "Plan lifecycle" section) documenting:
 - `roadmap/bugs/<slug>.md` — one file per bug
@@ -359,7 +359,7 @@ None. These are config file edits.
 
 #### Step 4.2 — Add branch workflow and worktree rules
 
-**File:** `/Users/pwilson/Repos/ccya/AGENTS.md`
+**File:** `AGENTS.md`
 
 **What:** Update the existing "Plan lifecycle" section (or add a new section) to document:
 - Branch slug is canonical key (from design doc)
@@ -371,7 +371,7 @@ None. These are config file edits.
 
 #### Step 4.3 — Add cross-skill rules summary
 
-**File:** `/Users/pwilson/Repos/ccya/AGENTS.md`
+**File:** `AGENTS.md`
 
 **What:** Add a brief reference to the cross-skill rules (defined in full in global AGENTS.md):
 - Stay in your lane

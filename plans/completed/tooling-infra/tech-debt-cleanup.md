@@ -39,11 +39,11 @@ Phase 01 removes `follow_imports = "skip"` from `[tool.mypy]`, then systematical
 ## Implementation — Phase 01: Remove follow_imports = "skip" and clean up mypy overrides
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/pyproject.toml` (mypy config)
-- `/Users/pwilson/repos/ccya/ccya/server/app.py` (FastAPI app, middleware)
-- `/Users/pwilson/repos/ccya/ccya/server/routes.py` (route handlers)
-- `/Users/pwilson/repos/ccya/ccya/llm_client.py` (OpenAI client usage)
-- `/Users/pwilson/repos/ccya/ccya/engine/names.py` (Faker/Kakasi usage)
+- `pyproject.toml` (mypy config)
+- `ccya/server/app.py` (FastAPI app, middleware)
+- `ccya/server/routes.py` (route handlers)
+- `ccya/llm_client.py` (OpenAI client usage)
+- `ccya/engine/names.py` (Faker/Kakasi usage)
 
 ### Detailed steps
 
@@ -100,7 +100,7 @@ None — tests are temporarily removed during refactor per AGENTS.md.
 ## Implementation — Phase 02: Deduplicate mypy entry in pyproject.toml
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/pyproject.toml`
+- `pyproject.toml`
 
 ### Detailed steps
 
@@ -123,7 +123,7 @@ No changes needed. This is a config-only change with no impact on module boundar
 ## Implementation — Phase 03: Remove nested .venv directory
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/.gitignore` (to confirm `.venv/` is already ignored at root level)
+- `.gitignore` (to confirm `.venv/` is already ignored at root level)
 
 ### Detailed steps
 
@@ -131,7 +131,7 @@ No changes needed. This is a config-only change with no impact on module boundar
 
 **File:** `ccya/.venv/` (entire directory)
 
-**What:** Remove the nested virtualenv at `/Users/pwilson/repos/ccya/ccya/.venv/`. The root-level `.gitignore` already ignores all `.venv/` directories, so this nested one was never tracked in git. It is an accidental artifact from running `uv venv` or similar inside the package directory.
+**What:** Remove the nested virtualenv at `ccya/.venv/`. The root-level `.gitignore` already ignores all `.venv/` directories, so this nested one was never tracked in git. It is an accidental artifact from running `uv venv` or similar inside the package directory.
 
 **Why:** Having two virtualenvs (one at project root, one nested) causes confusion about which Python environment tools use. The nested one serves no purpose — all tooling runs from the project-level `.venv/`. Removing it also cleans up ~256 bytes of filesystem noise and prevents future developers from accidentally activating the wrong env.
 

@@ -45,10 +45,10 @@ Three focused phases: (1) update all four rubrics (`state_correctness.md`, `narr
 ## Implementation — Phase 1: Fix rubrics referencing removed concepts
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/evals/rubrics/state_correctness.md` (Sections 1E, 1F)
-- `/Users/pwilson/Repos/ccya/evals/rubrics/prompt_pipeline.md` (Lines 91, 113)
-- `/Users/pwilson/Repos/ccya/evals/rubrics/meta.md` (Line 51)
-- `/Users/pwilson/Repos/ccya/docs/ARCHITECTURE.md` ("Campaign Arc System" section for reference on current thread model)
+- `evals/rubrics/state_correctness.md` (Sections 1E, 1F)
+- `evals/rubrics/prompt_pipeline.md` (Lines 91, 113)
+- `evals/rubrics/meta.md` (Line 51)
+- `docs/ARCHITECTURE.md` ("Campaign Arc System" section for reference on current thread model)
 
 ### Detailed steps
 
@@ -133,8 +133,8 @@ None for this phase — repomap doesn't reference rubric content directly (it re
 ## Implementation — Phase 2: Fix ARCHITECTURE.md StateDelta diagram
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/docs/ARCHITECTURE.md` (lines ~458-460, Delta Merge → Validate → Apply section)
-- `/Users/pwilson/repos/ccya/ccya/models.py` (StateDelta class definition for reference)
+- `docs/ARCHITECTURE.md` (lines ~458-460, Delta Merge → Validate → Apply section)
+- `ccya/models.py` (StateDelta class definition for reference)
 
 ### Detailed steps
 
@@ -182,9 +182,9 @@ Verify that `docs/repomap.md` "Extraction field routing" section (line 114) alre
 ## Implementation — Phase 3: Fix repomap.md pressure escalation thresholds
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/docs/repomap.md` (line 99)
-- `/Users/pwilson/repos/ccya/ccya/engine/config.py` (EngineConfig defaults for reference)
-- `/Users/pwilson/repos/ccya/ccya/engine/pressure.py` (_expire_scene_pressures function for reference)
+- `docs/repomap.md` (line 99)
+- `ccya/engine/config.py` (EngineConfig defaults for reference)
+- `ccya/engine/pressure.py` (_expire_scene_pressures function for reference)
 
 ### Detailed steps
 

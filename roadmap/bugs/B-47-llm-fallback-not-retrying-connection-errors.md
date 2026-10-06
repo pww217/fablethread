@@ -35,7 +35,7 @@ def _is_retryable(exc: Exception) -> bool:
 
 ### Evidence
 
-(2026-07-16) Config set to `host: http://10.75.100.51:1234/v1` (internal network, LMStudio). When 10.75.100.51 returns a connection error, the fallback at `http://127.0.0.1:8000/v1` is never touched because `_is_retryable()` returns False.
+(2026-07-16) Config set to `host: http://127.0.0.1:1234/v1` (internal network, LMStudio). When 127.0.0.1 returns a connection error, the fallback at `http://127.0.0.1:8000/v1` is never touched because `_is_retryable()` returns False.
 
 ### Fix Plan
 

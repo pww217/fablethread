@@ -1,6 +1,6 @@
 id: noir-t30-state-location
 description: "Noir T30 state extractor — verify location_change output after prompt fix"
-save: /Users/pwilson/Repos/ccya/evals/runs/2026-06-20--0.28.0-29-g69faea92--69faea9/0432--noir-1930s--custom--30t
+save:
 turn: 30
 stream: state
 temp: 0.7

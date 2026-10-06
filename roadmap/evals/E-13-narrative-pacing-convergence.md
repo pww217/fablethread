@@ -499,7 +499,7 @@ If Phase 4 passes, the Noir T12-T15 dead end is resolved. The next step would be
 
 ### Phase 4 Run Configuration
 
-**Endpoint:** `http://10.75.100.51:1234/v1` (LMStudio on internal network — `curl -s http://10.75.100.51:1234/v1/models` returns 3 models: `gemma-4-26b-a4b-it`, `qwen/qwen3.6-35b-a3b`, `text-embedding-nomic-embed-text-v1.5`)
+**Endpoint:** `http://127.0.0.1:1234/v1` (LMStudio on internal network — `curl -s http://127.0.0.1:1234/v1/models` returns 3 models: `gemma-4-26b-a4b-it`, `qwen/qwen3.6-35b-a3b`, `text-embedding-nomic-embed-text-v1.5`)
 
 **Model:** `gemma-4-26b-a4b-it` (loaded in LMStudio; LMStudio accepts both `gemma-4-26b-a4b-it` and `gemma-4-26b-a4b-it@iq3_xxs` suffixes)
 

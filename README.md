@@ -2,6 +2,10 @@
 
 A choose-your-own-adventure game backed by a local **mlx-lm** model served over an OpenAI-compatible API. Each run generates a fresh scenario from a **world pack** — the LLM seeds the character, location, NPCs, quest, and opening narrative from a world bible + scenario constraints.
 
+## License
+
+Licensed under the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0). You may use, modify, and distribute this software for personal, educational, and research purposes. Commercial use — selling, hosting as a paid service, or incorporating into a commercial product — requires a separate license from the copyright holder. This is a source-available license, not an OSI-approved open source license. See `LICENSE` for full terms.
+
 ## Quick Start
 
 ```bash

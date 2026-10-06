@@ -52,7 +52,7 @@ N/A — single phase, single file change.
 ## Implementation — Phase 1: Convert all sizing to fluid units
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/static/app.src.css` (primary target)
+- `ccya/static/app.src.css` (primary target)
 
 ### Detailed steps
 

@@ -330,7 +330,7 @@ No new models. This is a workflow/skill config change only.
 - `~/.config/opencode/skills/review-plan/SKILL.md` — enhanced chat output with plan summary
 - `~/.config/opencode/skills/review-code/SKILL.md` — needs PR creation step, roadmap status update
 - `~/.config/opencode/AGENTS.md` — needs two new cross-skill rules (stay in your lane, assume parallel work), authority hierarchy
-- `/Users/pwilson/Repos/ccya/AGENTS.md` — needs updated skill descriptions, workflow rules, roadmap conventions
-- `/Users/pwilson/Repos/ccya/scripts/generate-roadmap.py` — new file, auto-generates roadmap index
-- `/Users/pwilson/Repos/ccya/Makefile` — add `roadmap` target
+- `AGENTS.md` — needs updated skill descriptions, workflow rules, roadmap conventions
+- `scripts/generate-roadmap.py` — new file, auto-generates roadmap index
+- `Makefile` — add `roadmap` target
 - `roadmap/` directory — new, contains all planning files

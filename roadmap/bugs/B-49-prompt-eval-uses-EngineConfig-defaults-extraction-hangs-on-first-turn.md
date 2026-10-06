@@ -36,7 +36,7 @@ When seed generation completes successfully (via fallback, ~254s), the first tur
 
 The health check system (`_check_health`) uses a 30-second per-host cache (introduced in E-14, commit `323cd26b`). The health probe uses `httpx.Timeout(connect=2.0, read=3.0)` and times out quickly (2-3s) when the primary is unreachable. However:
 
-- The primary LLM at `10.75.100.51:1234` is unreachable at TCP level — SYN packet hangs indefinitely (OS-level timeout, ~457s observed in logs)
+- The primary LLM at `127.0.0.1:1234` is unreachable at TCP level — SYN packet hangs indefinitely (OS-level timeout, ~457s observed in logs)
 - The health probe at `/health` returns HTTP 200 (the server responds), but the inference endpoint (`/chat/completions`) hangs because the model isn't loaded or is unresponsive
 - `_check_health` returns True (health probe succeeds), so `_chat_with_fallback` tries the primary first
 - OpenAI SDK `chat.completions.create()` uses a total timeout (120s default) but does NOT enforce a connect timeout — the socket hangs indefinitely because the SDK timeout only applies to data transfer, not initial socket connection

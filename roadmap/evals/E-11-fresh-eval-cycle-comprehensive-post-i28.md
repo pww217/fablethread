@@ -14,7 +14,7 @@ labels:
 
 ## LLM Backend
 
-- **Primary:** `10.75.100.51:1234` (LMStudio, `google/gemma-4-26b-a4b-it`)
+- **Primary:** `127.0.0.1:1234` (LMStudio, `google/gemma-4-26b-a4b-it`)
 - **Fallback:** `localhost:8000` (mlx-lm, Gemma 4-26B)
 
 ## Purpose

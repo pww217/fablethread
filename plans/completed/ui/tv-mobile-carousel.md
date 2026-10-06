@@ -54,14 +54,14 @@ Add a `@media (max-width: 768px)` block in `app.src.css` that switches `.tv-turn
 ## Implementation — Phase 1: Mobile carousel CSS, header compression, touch targets
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/static/app.src.css` (lines 2346–3450 for turn viewer styles)
-- `/Users/pwilson/repos/ccya/ccya/templates/_turn_viewer.html` (template structure reference only, no changes in this phase)
+- `ccya/static/app.src.css` (lines 2346–3450 for turn viewer styles)
+- `ccya/templates/_turn_viewer.html` (template structure reference only, no changes in this phase)
 
 ### Detailed steps
 
 #### Step 1.1 — Add `@media (max-width: 768px)` block after existing mobile breakpoint
 
-**File:** `/Users/pwilson/repos/ccya/ccya/static/app.src.css`
+**File:** `ccya/static/app.src.css`
 
 **What:** Insert a new media query block immediately after the closing brace of the existing `@media (max-width: 768px)` block (after line 1950). This keeps all mobile styles together in one place. The block contains:
 
@@ -156,13 +156,13 @@ N/A during refactor phase. Tests deferred per AGENTS.md constraints.
 ## Implementation — Phase 2: Alpine carousel state + swipe gesture detection
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/templates/_turn_viewer.html` (lines 324–516 for `tvRoot()` function, lines 99–282 for column HTML structure)
+- `ccya/templates/_turn_viewer.html` (lines 324–516 for `tvRoot()` function, lines 99–282 for column HTML structure)
 
 ### Detailed steps
 
 #### Step 2.1 — Add carousel reactive state to `tvRoot()`
 
-**File:** `/Users/pwilson/repos/ccya/ccya/templates/_turn_viewer.html`
+**File:** `ccya/templates/_turn_viewer.html`
 
 **What:** In the `tvRoot()` return object (line ~326), add:
 - `mobileColumnIndex: 0` — tracks which panel is visible. Index `0` = diff panel, index `1` = pipeline. Default to `0` per user's choice (diff panel by default on mobile).
@@ -172,7 +172,7 @@ N/A during refactor phase. Tests deferred per AGENTS.md constraints.
 
 #### Step 2.2 — Wire carousel index into column containers' transform styles
 
-**File:** `/Users/pwilson/repos/ccya/ccya/templates/_turn_viewer.html`
+**File:** `ccya/templates/_turn_viewer.html`
 
 **What:** On the two column `<div>` elements inside `.tv-turn-columns`:
 - Add `:style="'transform: translateX(' + (mobileColumnIndex === 0 ? '-100%' : mobileColumnIndex === 1 ? '0' : '-100%') + ')'"` to `.tv-pipeline` — this shows pipeline when index is `1`, hides it otherwise.
@@ -186,7 +186,7 @@ Actually, cleaner approach using a computed-style helper method on the Alpine co
 
 #### Step 2.3 — Set default mobile column when expanding a turn card
 
-**File:** `/Users/pwilson/repos/ccya/ccya/templates/_turn_viewer.html`
+**File:** `ccya/templates/_turn_viewer.html`
 
 **What:** In `toggleTurnCollapsed(turn)` method, after setting the collapsed state to false (expanding), add logic that if `_isMobile()`, sets `mobileColumnIndex = 0` (diff panel). This ensures every time a user expands a turn card on mobile they see the diff panel by default.
 
@@ -194,7 +194,7 @@ Actually, cleaner approach using a computed-style helper method on the Alpine co
 
 #### Step 2.4 — Add touch swipe detection scoped to `#tv-root`
 
-**File:** `/Users/pwilson/repos/ccya/ccya/templates/_turn_viewer.html`
+**File:** `ccya/templates/_turn_viewer.html`
 
 **What:** In the `init()` method of `tvRoot()`, after existing initialization, add:
 - Store `_swipeStartX = 0` and `_swipeStartY = 0` on the component instance.
@@ -233,7 +233,7 @@ tvRootEl.addEventListener('touchend', function(e) {
 
 #### Step 2.5 — Add a small visual indicator for carousel position (optional, lightweight)
 
-**File:** `/Users/pwilson/repos/ccya/ccya/templates/_turn_viewer.html`
+**File:** `ccya/templates/_turn_viewer.html`
 
 **What:** Insert a tiny dot indicator row between the turn header and columns showing which panel is active:
 ```html

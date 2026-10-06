@@ -1,6 +1,6 @@
 id: noir-t30-ruling-npc
 description: "Noir T30 ruling — verify NPC absence is not classified as impossible"
-save: /Users/pwilson/Repos/ccya/evals/runs/2026-06-20--0.28.0-29-g69faea92--69faea9/0432--noir-1930s--custom--30t
+save:
 turn: 30
 stream: ruling
 temp: 0.7

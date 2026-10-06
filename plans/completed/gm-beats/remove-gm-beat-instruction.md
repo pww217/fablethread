@@ -46,9 +46,9 @@ Remove `instruction` field entirely from GMBeat model and StorytellerResult vali
 ## Implementation — Phase 1: Model schema simplification
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/models.py` (lines 425-500)
-- `/Users/pwilson/Repos/ccya/docs/architecture/OVERVIEW.md` (state shape + GMBeat section)
-- `/Users/pwilson/Repos/ccya/docs/architecture/step2c-progress.md` (GMBeat schema + lifecycle sections)
+- `ccya/models.py` (lines 425-500)
+- `docs/architecture/OVERVIEW.md` (state shape + GMBeat section)
+- `docs/architecture/step2c-progress.md` (GMBeat schema + lifecycle sections)
 
 ### Detailed steps
 
@@ -95,9 +95,9 @@ if not self.gm_beat.type:
 ## Implementation — Phase 2: Prompt template updates
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/prompts/narrate_user.j2` (lines 75-82, full file)
-- `/Users/pwilson/repos/ccya/ccya/prompts/storytell_system.j2` (full file, focus lines 67-130)
-- `/Users/pwilson/repos/ccya/ccya/prompts/storytell_user.j2` (lines 47-52)
+- `ccya/prompts/narrate_user.j2` (lines 75-82, full file)
+- `ccya/prompts/storytell_system.j2` (full file, focus lines 67-130)
+- `ccya/prompts/storytell_user.j2` (lines 47-52)
 
 ### Detailed steps
 
@@ -169,8 +169,8 @@ No changes needed — prompt template file responsibilities are already document
 ## Implementation — Phase 3: Turn lifecycle simplification + extraction context
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/engine/turn.py` (lines 71-82, 500-543, 876-1109)
-- `/Users/pwilson/repos/ccya/ccya/engine/extraction.py` (line 349)
+- `ccya/engine/turn.py` (lines 71-82, 500-543, 876-1109)
+- `ccya/engine/extraction.py` (line 349)
 
 ### Detailed steps
 
@@ -255,9 +255,9 @@ No changes needed — repomap already correctly describes extraction field routi
 ## Implementation — Phase 4: Test + eval scenario updates + verification
 
 ### Context files to load
-- `/Users/pwilson/Repos/ccya/tests/test_schema.py` (lines 502-528)
-- `/Users/pwilson/Repos/ccya/tests/test_render.py` (lines 171, 284-307)
-- `/Users/pwilson/Repos/ccya/evals/scenarios/gm_beat_lifecycle.py`
+- `tests/test_schema.py` (lines 502-528)
+- `tests/test_render.py` (lines 171, 284-307)
+- `evals/scenarios/gm_beat_lifecycle.py`
 
 ### Detailed steps
 
@@ -320,23 +320,23 @@ No additional changes — repomap updates were covered in Phase 1 Step 1.3.
 
 ## Architecture doc updates required
 
-### `/Users/pwilson/Repos/ccya/docs/architecture/OVERVIEW.md`
+### `docs/architecture/OVERVIEW.md`
 - **Lines ~95** (PacingContext beat_hint): Remove `beat_hint: str | None    # suggested gm_beat type, or None` from PacingContext definition — field is deleted in Phase 3 Step 3.3.
 - **Lines 107-108** (GMBeat schema in state shape table): Remove `instruction: str | None` row from GMBeat entry. Update to show only type + surface_as + beat_expires_turn fields.
 
-### `/Users/pwilson/Repos/ccya/docs/architecture/step2c-progress.md`
+### `docs/architecture/step2c-progress.md`
 - **Line 54** (GMBeat schema in mermaid diagram): Remove `instruction: str (must be ≥40 chars...)` line from schema definition. Update to show only type + surface_as fields.
 - **Phase 2 description** (line 64): Rewrite narration consumption section — remove "narrator integrates the beat's instruction into prose" and replace with "narrator uses beat metadata as creative guidance alongside pacing directive." Remove mention of restoring beat for storyteller disposition since save/restore is deleted.
 - **Phase 3 description** (lines 66-69): Update to reflect that Storytell no longer receives pending beat context in its prompt — it decides beats based solely on current extraction data.
 
-### `/Users/pwilson/Repos/ccya/docs/architecture/step1-narrate.md`
+### `docs/architecture/step1-narrate.md`
 - Check if diagram references `pending_gm_beat` as an input node (line 25). Update to reflect that pending beat is still consumed by narration but without instruction content — only type + surface_as metadata flows through. Beat Hint section should be removed from any flowchart elements since it's deleted in Phase 2 Step 2.1.
 
-### `/Users/pwilson/Repos/ccya/docs/architecture/pacing-context.md`
+### `docs/architecture/pacing-context.md`
 - **Line 10**: Remove `beat_hint: str | None    # suggested gm_beat type, or None` from the PacingContext schema.
 - **Lines 46, 50, 68**: Remove `beat_hint` references from the flowchart nodes (e.g., `BL --> G1["gate = 'block_add'<br>beat_hint = 'breathing_room'"]` → `BL --> G1["gate = 'block_add'"]`).
 - **Line 77**: Remove `beat_hint` from "Narrator template renders only directive and beat_hint".
 - **Line 3**: Update description to remove beat_hint from the collapsed struct list.
 
-### `/Users/pwilson/Repos/ccya/docs/architecture/delta-validate.md`
+### `docs/architecture/delta-validate.md`
 - No changes needed — gm_beat exclusion from StateDelta is still correct (beat written directly to state.meta.pending_gm_beat).

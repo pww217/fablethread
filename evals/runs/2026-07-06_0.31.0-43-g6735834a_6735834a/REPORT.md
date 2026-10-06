@@ -4,7 +4,7 @@
 - **Git SHA:** 6735834a
 - **Branch:** main
 - **Purpose:** Fresh eval cycle after I-28 beat recipe changes and E-8 phase persistence fix
-- **LLM Backend:** Primary (`10.75.100.51:1234`, `google/gemma-4-26b-a4b-it`)
+- **LLM Backend:** Primary (`127.0.0.1:1234`, `google/gemma-4-26b-a4b-it`)
 
 ## Executive Summary
 

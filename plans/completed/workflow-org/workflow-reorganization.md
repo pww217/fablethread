@@ -59,7 +59,7 @@ This plan implements trunk-based development by adding worktree+branch lifecycle
 
 ### Context files to load
 - `~/.config/opencode/AGENTS.md`
-- `/Users/pwilson/Repos/ccya/AGENTS.md`
+- `AGENTS.md`
 
 ### Detailed steps
 
@@ -97,7 +97,7 @@ This plan implements trunk-based development by adding worktree+branch lifecycle
 
 #### Step 1.3 — Update local ccya AGENTS.md skill descriptions
 
-**File:** `/Users/pwilson/Repos/ccya/AGENTS.md`
+**File:** `AGENTS.md`
 
 **What:** Update the Skills section (lines 123-132):
 - Remove `flesh-design` from the list
@@ -109,7 +109,7 @@ This plan implements trunk-based development by adding worktree+branch lifecycle
 
 **Why:** Local AGENTS.md must reflect the new skill descriptions and workflow rules.
 
-**Validation:** `grep -c "flesh-design" /Users/pwilson/Repos/ccya/AGENTS.md` returns 0.
+**Validation:** `grep -c "flesh-design" AGENTS.md` returns 0.
 
 #### Step 1.4 — Verify permission config is correct
 

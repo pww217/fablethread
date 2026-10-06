@@ -3,6 +3,7 @@ name = "ccya"
 version = "0.1.0"
 description = "A choose-your-own-adventure game backed by a local LLM (mlx-lm)."
 requires-python = ">=3.11"
+license = { text = "PolyForm-Noncommercial-1.0.0" }
 dependencies = [
     "fastapi",
     "uvicorn[standard]",

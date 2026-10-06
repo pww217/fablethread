@@ -1,6 +1,6 @@
 id: ww2-t9-scene-imperative
 description: "WW2 T9 storytell — test Scene Imperative allowed beat types compliance"
-save: /Users/pwilson/Repos/ccya/evals/runs/2026-06-17--0.27.0-31-g07266252--0726625/0201--allied-ww2--custom--25t
+save:
 turn: 9
 stream: storytell
 temp: 0.7

@@ -55,3 +55,7 @@ saves/prepare_seed_failures/
 
 # Backup files
 *.bak
+
+# Local notes (not for tracking)
+.rejected-names.md
+COMPETITORS.md

@@ -43,9 +43,9 @@ The turn viewer still references old data models that have been replaced by the 
 ## Implementation — Phase 1: Engine + tv.py changes
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/engine/turn.py` (lines ~555-620 for PacingContext, lines ~574-585 for _build_extraction_context call site, lines ~1345-1400 for event building)
-- `/Users/pwilson/repos/ccya/ccya/server/tv.py` (full file — _tv_state_diff at line 133, compaction sanitization at line 309)
-- `/Users/pwilson/repos/ccya/ccya/engine/extraction.py` (lines ~39-58 for _ExtractionContext dataclass definition and field names)
+- `ccya/engine/turn.py` (lines ~555-620 for PacingContext, lines ~574-585 for _build_extraction_context call site, lines ~1345-1400 for event building)
+- `ccya/server/tv.py` (full file — _tv_state_diff at line 133, compaction sanitization at line 309)
+- `ccya/engine/extraction.py` (lines ~39-58 for _ExtractionContext dataclass definition and field names)
 
 ### Detailed steps
 
@@ -154,8 +154,8 @@ None per AGENTS.md — tests temporarily removed during refactor.
 ## Implementation — Phase 2: Template updates
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/templates/_turn_viewer.html` (full file)
-- `/Users/pwilson/repos/ccya/ccya/prompts/sections/_arc.j2` (lines 13-20 — active_threads section)
+- `ccya/templates/_turn_viewer.html` (full file)
+- `ccya/prompts/sections/_arc.j2` (lines 13-20 — active_threads section)
 
 ### Detailed steps
 

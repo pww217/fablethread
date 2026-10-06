@@ -118,7 +118,7 @@
 
 Key changes touching engine/prompt areas:
 1. `EvConfig.model` default changed from hardcoded to `None`
-2. `build_engine_config` default model set to `VladimirGav/gemma4-26b-16GB-VRAM:latest`
+2. `build_engine_config` default model set to `local Gemma 4 26B (Ollama)`
 3. `EngineConfig` dataclass defaults updated
 4. `world_system.j2` schema updated to include `npcs` field
 5. `world_system.j2` diversity rules strengthened

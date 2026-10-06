@@ -49,14 +49,14 @@ None. All source content is known; this is pure restructuring.
 
 ### Context files to load
 
-- `/Users/pwilson/Repos/ccya/docs/architecture/pacing-context.md`
-- `/Users/pwilson/Repos/ccya/docs/architecture/beat-system.md`
-- `/Users/pwilson/Repos/ccya/docs/architecture/campaign-arcs.md`
-- `/Users/pwilson/Repos/ccya/docs/architecture/thread-lifecycle.md`
-- `/Users/pwilson/Repos/ccya/docs/architecture/step0-ruling.md`
-- `/Users/pwilson/Repos/ccya/docs/architecture/step1-narrate.md`
-- `/Users/pwilson/Repos/ccya/docs/architecture/step2c-progress.md`
-- `/Users/pwilson/Repos/ccya/docs/architecture/OVERVIEW.md`
+- `docs/architecture/pacing-context.md`
+- `docs/architecture/beat-system.md`
+- `docs/architecture/campaign-arcs.md`
+- `docs/architecture/thread-lifecycle.md`
+- `docs/architecture/step0-ruling.md`
+- `docs/architecture/step1-narrate.md`
+- `docs/architecture/step2c-progress.md`
+- `docs/architecture/OVERVIEW.md`
 
 All already read this session.
 

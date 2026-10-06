@@ -40,9 +40,9 @@ When turn_viewer detects zero turns/events, load `state.yaml` to display the ful
 ## Implementation — Phase 1: Persist seed metadata in state.yaml
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/server/routes.py` — new_game handler, _apply_seed_to_save_dir()
-- `/Users/pwilson/repos/ccya/ccya/state/io.py` — init_save_dir(), save_state(), _default_state()
-- `/Users/pwilson/repos/ccya/ccya/models.py` — existing state shape definitions
+- `ccya/server/routes.py` — new_game handler, _apply_seed_to_save_dir()
+- `ccya/state/io.py` — init_save_dir(), save_state(), _default_state()
+- `ccya/models.py` — existing state shape definitions
 
 ### Detailed steps
 
@@ -89,14 +89,14 @@ Update the three call sites in routes.py to pass these new args:
 N/A (tests temporarily removed during refactor per AGENTS.md)
 
 ### REPOMAP updates required
-- `/Users/pwilson/Repos/ccya/docs/repomap.md` — Update "State I/O" section to note __seed_meta__ root-level key in state.yaml. Note that save_state preserves all root-level keys through yaml.dump round-trip. Update "Seed metadata persistence" entry.
+- `docs/repomap.md` — Update "State I/O" section to note __seed_meta__ root-level key in state.yaml. Note that save_state preserves all root-level keys through yaml.dump round-trip. Update "Seed metadata persistence" entry.
 
 ## Implementation — Phase 2: Render seed data in turn_viewer when no turns exist
 
 ### Context files to load
-- `/Users/pwilson/repos/ccya/ccya/server/tv.py` — _turn_viewer_data() function, return value structure
-- `/Users/pwilson/repos/ccya/ccya/templates/_turn_viewer.html` — Alpine.js template, existing rendering logic
-- `/Users/pwilson/repos/ccya/ccya/static/app.src.css` — Existing turn-viewer CSS classes for styling reference
+- `ccya/server/tv.py` — _turn_viewer_data() function, return value structure
+- `ccya/templates/_turn_viewer.html` — Alpine.js template, existing rendering logic
+- `ccya/static/app.src.css` — Existing turn-viewer CSS classes for styling reference
 
 ### Detailed steps
 
@@ -262,4 +262,4 @@ Use existing CSS classes where possible (`.tv-turn-card`, `.tv-pipeline-stage` f
 N/A (tests temporarily removed during refactor per AGENTS.md)
 
 ### REPOMAP updates required
-- `/Users/pwilson/Repos/ccya/docs/repomap.md` — Update "Turn Viewer" section to note seed_info return value from `_turn_viewer_data()`. Note new `__seed_meta__` root-level key in state.yaml. Add entry for initial game state card rendering in turn viewer template.
+- `docs/repomap.md` — Update "Turn Viewer" section to note seed_info return value from `_turn_viewer_data()`. Note new `__seed_meta__` root-level key in state.yaml. Add entry for initial game state card rendering in turn viewer template.

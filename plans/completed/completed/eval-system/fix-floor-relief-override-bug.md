@@ -132,7 +132,7 @@ if _pc.beat_locked:
 
 **Validation:**
 ```bash
-cd /Users/pwilson/Repos/ccya && python -m ccya.eval run --pack eval-pack --scenario full_cycle
+cd .. && python -m ccya.eval run --pack eval-pack --scenario full_cycle
 ```
 
 Expected: state_correctness trace shows `pending_gm_beat` as `{type: breathing_room}` for turns 8–10. `universal.pacing.floor_relief` passes all 13 turns. State fidelity rate improves from 0.538.
@@ -147,7 +147,7 @@ Expected: state_correctness trace shows `pending_gm_beat` as `{type: breathing_r
 
 **Validation:**
 ```bash
-cd /Users/pwilson/Repos/ccya && make check
+cd .. && make check
 ```
 
 Expected: no lint errors, no typecheck errors.
