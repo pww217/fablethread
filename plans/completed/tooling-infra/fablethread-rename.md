@@ -1,6 +1,6 @@
 # Fablethread Rename
 
-**Status:** scoping
+**Status:** implemented
 **Created:** 2026-10-06
 
 ## Goal
