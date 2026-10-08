@@ -59,3 +59,6 @@ saves/prepare_seed_failures/
 # Local notes (not for tracking)
 .rejected-names.md
 COMPETITORS.md
+
+# Local config (contains model keys, never commit)
+config.yaml
