@@ -74,18 +74,14 @@ The server starts at `http://127.0.0.1:8765`.
 ## Documentation
 
 - **Getting Started** — [GETTING_STARTED.md](GETTING_STARTED.md): full install, configuration, LLM setup
+- **Contributing** — [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md): how to report bugs, submit PRs, code standards
 - **Architecture** — [docs/architecture/OVERVIEW.md](docs/architecture/OVERVIEW.md): pipeline, state models, pacing systems
 - **Eval & Debug** — [docs/ev/README.md](docs/ev/README.md): testing, checkers, CLI tools
 - **API Reference** — [docs/architecture/cross-module-contracts.md](docs/architecture/cross-module-contracts.md): routes, models, data shapes
 
 ## Contributing
 
-Bug reports, world-pack ideas, and PRs are welcome. To work on the engine:
-
-1. `make install` — set up a dev environment
-2. `make check` — lint + typecheck before committing
-3. `docs/repomap.md` — module index and entry points
-4. `docs/architecture/OVERVIEW.md` — how the turn pipeline fits together
+Bug reports, world-pack ideas, and PRs are welcome. See [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) for full guidelines.
 
 Note the [PolyForm Noncommercial License](LICENSE): by contributing you agree your contributions are licensed under it and the project stays noncommercial.
 
