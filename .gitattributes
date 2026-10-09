@@ -1,0 +1,10 @@
+# https://help.github.com/articles/adding-catalog-information-to-your-repository/
+
+*.gif binary
+*.gif linguist-detectable=false
+
+*.yaml linguist-detectable=false
+*.yml linguist-detectable=false
+
+*.md linguist-vendored=false
+*.txt linguist-vendored=false
