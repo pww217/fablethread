@@ -298,7 +298,6 @@ def cmd_prompt_eval_narrate_seed(
             state_data = _yaml.safe_load(f)
 
         # Extract only the fields SeedState needs, stripping turn-added data
-        import yaml
         seed_data = {
             "meta": state_data.get("meta", {}),
             "pc": state_data.get("pc", {}),

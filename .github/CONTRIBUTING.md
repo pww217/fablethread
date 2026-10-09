@@ -20,7 +20,7 @@ If you can reliably reproduce a bug, a minimal save directory (`saves/`) that tr
 
 ## Requesting features
 
-Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md). Describe the problem you're trying to solve, not just the solution you have in mind.
+Open an issue with a clear description of the problem you're trying to solve and your proposed solution.
 
 ## Pull requests
 

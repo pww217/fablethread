@@ -1,7 +1,7 @@
 [project]
 name = "fablethread"
 version = "0.1.0"
-description = "A local choose-your-own-adventure engine with an LLM storyteller. Living persistent state, PbtA dice, streaming narration, customizable characters and world packs. Model-neutral — runs on your machine or any OpenAI-compatible inference API."
+description = "A local CYOA engine with persistent world state that remembers. Structured state, PbtA dice, validation, streaming narration. Model-neutral — runs anywhere with an OpenAI-compatible API."
 requires-python = ">=3.11"
 license = { text = "PolyForm-Noncommercial-1.0.0" }
 dependencies = [
