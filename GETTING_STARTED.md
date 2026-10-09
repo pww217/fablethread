@@ -183,7 +183,7 @@ flowchart LR
 - **Turn summary modal:** appears after each turn with emoji-categorized changes (inventory / player / facts / quests). Dismiss via Enter, Escape, or click.
 - **Send → Stop:** while inference runs, the Send button turns red with a spinner; clicking cancels the SSE and restores the previous input and action pills.
 - **Action pills:** clicking a choice inserts it into the input with a trailing space (no auto-submit).
-- **Debug panel:** recent turn timing (narrate/extract seconds + token in/out), status (model, mock mode), errors.
+- **Debug panel:** recent turn timing (narrate/extract seconds + token in/out), status (model), errors.
 
 **Markdown** — Narrative and sidebar snippets rendered with **marked** (GitHub-flavored); narrator/extractor instructed to use light markup.
 
