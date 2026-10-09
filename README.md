@@ -3,9 +3,9 @@
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-0078D4)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![Designed around Gemma 4 26B](https://img.shields.io/badge/designed%20around-Gemma%204%2026B-7C3AED)](#requirements)
-[![Works with any OpenAI-compatible API](https://img.shields.io/badge/works%20with-any%20OpenAI--compatible%20API-412991?logo=openai&logoColor=white)](GETTING_STARTED.md)
+[![Works with any OpenAI-compatible server](https://img.shields.io/badge/works%20with-any%20OpenAI--compatible%20server-412991?logo=openai&logoColor=white)](GETTING_STARTED.md)
 
-A local choose-your-own-adventure engine with an LLM storyteller. Runs entirely on your machine — or on any inference API.
+A local choose-your-own-adventure engine with an LLM storyteller. Runs entirely on your machine, on any OpenAI-compatible server.
 
 Fablethread generates interactive fiction where a local language model narrates your adventure in real time. Each game starts from a **world pack** — a bundle of setting bible, scenario constraints, and style guides that the LLM uses to seed a fresh character, location, NPCs, quest, and opening scene. Your choices drive the story forward through a full turn pipeline: ruling, narration, state extraction, and application.
 
@@ -14,7 +14,7 @@ Fablethread generates interactive fiction where a local language model narrates 
 ## Features
 
 - 🧠 **Living, persistent state** — NPCs, inventory, threads, arcs, conditions, and facts tracked and updated by the LLM across turns. Everything persists in hand-editable YAML, a Markdown chronicle, and a JSONL event log. Restart the server, pick up exactly where you left off
-- 🔌 **Model-neutral** — Works with any OpenAI-compatible API: LMStudio, OMLX, MLX, or a cloud inference endpoint. Run it fully local with no cloud dependency — or point it at a hosted model if you prefer
+- 🔌 **Model-neutral** — Speaks the OpenAI chat-completions protocol, so any compatible server works: LMStudio, OMLX, llama.cpp, Ollama, vLLM — local or on a remote box. No cloud dependency required. (API-key auth isn't configurable yet, so hosted providers that require keys aren't supported out of the box.)
 - 🎲 **PbtA dice engine** — 1d12+modifier system with critical fail/success bands, resolved in pure Python before the LLM sees it
 - 📖 **Streaming narration** — Token-by-token SSE with real-time extraction of state changes from the narrative
 - 🎬 **Pacing system** — Convergence scoring, scene phases (rising/climax/breather), and GM beat injection to keep the story moving
@@ -57,7 +57,7 @@ Don't like the defaults? Two paths:
 | OS | Developed on macOS; no OS-specific dependencies — any platform with Python 3.11+ works |
 | Memory | 16–32 GiB for Gemma 4 26B (A4B MoE) — 4-bit quantization fits ~16 GiB, higher-precision quants up to ~32 GiB |
 | Small machines | A Gemma 4 4B variant works |
-| Backend | Any OpenAI-compatible API — LMStudio, OMLX, MLX, or a cloud inference endpoint. Local or hosted, your choice |
+| Backend | Any OpenAI-compatible server — LMStudio, OMLX, llama.cpp, Ollama, vLLM; local or remote. No API-key config yet (hardcoded placeholder), so keyless servers only. Sends a small `num_ctx` extension (llama.cpp/Ollama-style) that most local servers accept or ignore. |
 
 Fablethread is designed around **Gemma 4 26B** (A4B MoE). Any backend serving the model will do — see [GETTING_STARTED.md](GETTING_STARTED.md) for setup.
 
