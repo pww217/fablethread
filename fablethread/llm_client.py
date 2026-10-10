@@ -4,6 +4,8 @@ Wire protocol: /v1/chat/completions (OpenAI-compatible).
 
 Primary backend: configurable via ``llm.host`` in config.yaml
 (defaults to local LMStudio on port 1234).
+API key: configurable via ``llm.api_key`` in config.yaml
+(defaults to ``"local"`` for keyless servers; set for hosted providers).
 Configurable fallback via ``llm.fallback_host`` in config.yaml.
 
 num_ctx controls the server-side input context window (passed via extra_body).

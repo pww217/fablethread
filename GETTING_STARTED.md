@@ -17,17 +17,16 @@ lmstudio server --model mlx-community/gemma-4-26b-a4b-it-OptiQ-4bit \
 curl http://127.0.0.1:8000/v1/models  # verify model is loaded
 ```
 
-**Remote server (keyless)** — any OpenAI-compatible endpoint that doesn't require an API key (e.g., your own vLLM/llama.cpp box):
+**Remote server** — any OpenAI-compatible endpoint (local or hosted):
 ```yaml
 # config.yaml
 llm:
   host: http://your-server:8000/v1
+  api_key: ""       # leave empty for keyless servers; set for hosted providers
   model: your-model-id
 ```
 
-Note: the client sends a placeholder API key (`local`) with no config for real keys yet, so hosted providers that require authentication (OpenAI, Together, etc.) won't work out of the box.
-
-Also: every call includes `num_ctx` via `extra_body` (llama.cpp/Ollama-style extension for server-side context window). Most local servers accept or ignore it; strictly-standard endpoints may reject it.
+Every call includes `num_ctx` via `extra_body` (llama.cpp/Ollama-style extension for server-side context window). Most local servers accept or ignore it; strictly-standard endpoints may reject it.
 
 **Model sizing:** Fablethread is designed around Gemma 4 26B (A4B MoE). At 4-bit quantization it fits in ~16 GiB of memory; higher-precision quants need up to ~32 GiB. A 4B variant works for smaller machines. Any backend serving the model over an OpenAI-compatible API will do.
 

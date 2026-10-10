@@ -111,7 +111,7 @@ See [`docs/ev/STATE-REFERENCE.md`](../ev/STATE-REFERENCE.md) for full details on
 
 ## LLM Backend
 
-The engine uses an OpenAI-compatible chat API (`/v1/chat/completions`). The client (`fablethread/llm_client.py`) supports both backends via `LLMResult` wrapper (frozen dataclass with `content`, `usage` normalized dict, `elapsed_ms`). Both backends use the `openai` Python SDK with `api_key="local"`. `num_ctx` is passed via `extra_body`. Default `num_ctx=16384`. Client-side token trimming via `trim_messages()` preserves 2000 head + 500 tail tokens; system messages are never dropped.
+The engine uses an OpenAI-compatible chat API (`/v1/chat/completions`). The client (`fablethread/llm_client.py`) supports both backends via `LLMResult` wrapper (frozen dataclass with `content`, `usage` normalized dict, `elapsed_ms`). The client uses the `openai` Python SDK with `api_key` from `llm.api_key` in config.yaml (default `"local"` for keyless servers, set to your API key for hosted providers). `num_ctx` is passed via `extra_body`. Default `num_ctx=16384`. Client-side token trimming via `trim_messages()` preserves 2000 head + 500 tail tokens; system messages are never dropped.
 
 | Backend | Host | Model | Hardware | Speed |
 |---|---|---|---|---|
