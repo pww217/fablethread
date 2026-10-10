@@ -37,6 +37,7 @@ class EngineConfig:
     #                      config panels (future use). Currently none.
     #
     host: str = "http://127.0.0.1:1234/v1"
+    api_key: str = "local"
     model: str = "google/gemma-4-26b-a4b-it"
     num_ctx: int = 16384
     request_timeout_s: int = 1200
@@ -187,6 +188,7 @@ def build_engine_config(
 
     return EngineConfig(
         host=str(llm.get("host", "http://127.0.0.1:1234/v1")),
+        api_key=str(llm.get("api_key", "local")),
         model=str(llm.get("model", "google/gemma-4-26b-a4b-it")),
         num_ctx=int(llm.get("num_ctx", 16384)),
         context_window=int(llm.get("context_window", 16384)),

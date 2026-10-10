@@ -12,6 +12,7 @@
 
 llm:
   host: http://127.0.0.1:1234/v1
+  api_key: ""
   fallback_host: ""
   model: google/gemma-4-26b-a4b-it
   num_ctx: 16384

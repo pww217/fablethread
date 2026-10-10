@@ -14,7 +14,7 @@ Fablethread generates interactive fiction where a local language model narrates 
 ## Features
 
 - 🧠 **Living, persistent state** — NPCs, inventory, threads, arcs, conditions, and facts tracked and updated by the LLM across turns. Everything persists in hand-editable YAML, a Markdown chronicle, and a JSONL event log. Restart the server, pick up exactly where you left off
-- 🔌 **Model-neutral** — Speaks the OpenAI chat-completions protocol, so any compatible server works: LMStudio, OMLX, llama.cpp, Ollama, vLLM — local or on a remote box. No cloud dependency required. (API-key auth isn't configurable yet, so hosted providers that require keys aren't supported out of the box.)
+- 🔌 **Model-neutral** — Speaks the OpenAI chat-completions protocol, so any compatible server works: LMStudio, OMLX, llama.cpp, Ollama, vLLM — local or on a remote box. Configure your API key in `config.yaml` for hosted providers.
 - 🎲 **PbtA dice engine** — 1d12+modifier system with critical fail/success bands, resolved in pure Python before the LLM sees it
 - 📖 **Streaming narration** — Token-by-token SSE with real-time extraction of state changes from the narrative
 - 🎬 **Pacing system** — Convergence scoring, scene phases (rising/climax/breather), and GM beat injection to keep the story moving
@@ -57,7 +57,7 @@ Don't like the defaults? Two paths:
 | OS | Developed on macOS; no OS-specific dependencies — any platform with Python 3.11+ works |
 | Memory | 16–32 GiB for Gemma 4 26B (A4B MoE) — 4-bit quantization fits ~16 GiB, higher-precision quants up to ~32 GiB |
 | Small machines | A Gemma 4 4B variant works |
-| Backend | Any OpenAI-compatible server — LMStudio, OMLX, llama.cpp, Ollama, vLLM; local or remote. No API-key config yet (hardcoded placeholder), so keyless servers only. Sends a small `num_ctx` extension (llama.cpp/Ollama-style) that most local servers accept or ignore. |
+| Backend | Any OpenAI-compatible server — LMStudio, OMLX, llama.cpp, Ollama, vLLM; local or remote. API key configurable via `llm.api_key` in `config.yaml`. Sends a small `num_ctx` extension (llama.cpp/Ollama-style) that most local servers accept or ignore. |
 
 Fablethread is designed around **Gemma 4 26B** (A4B MoE). Any backend serving the model will do — see [GETTING_STARTED.md](GETTING_STARTED.md) for setup.
 

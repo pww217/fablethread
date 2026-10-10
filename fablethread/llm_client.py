@@ -58,6 +58,7 @@ async def _try_host(
     messages: list[dict[str, str]],
     t0: float,
     *,
+    api_key: str = "local",
     temperature: float | None = None,
     max_tokens: int | None = None,
     timeout: float = 180.0,
@@ -71,7 +72,7 @@ async def _try_host(
 ) -> LLMResult:
     """Make a single LLM call to the given host. Re-raises on failure."""
     return await _chat_openai_compat(
-        host, model, messages, t0, temperature, max_tokens, top_p,
+        host, model, messages, t0, api_key, temperature, max_tokens, top_p,
         frequency_penalty, seed, num_ctx, timeout, enable_thinking,
         reasoning_effort, thinking_budget,
     )
@@ -82,6 +83,7 @@ async def _try_host_stream(
     model: str,
     messages: list[dict[str, str]],
     *,
+    api_key: str = "local",
     temperature: float | None = None,
     timeout: float = 180.0,
     stream_stats: MutableMapping[str, Any] | None = None,
@@ -94,7 +96,7 @@ async def _try_host_stream(
     thinking_budget: int | None = None,
 ) -> AsyncIterator[str]:
     """Stream from the given host. Re-raises on failure."""
-    client = _get_client(host)
+    client = _get_client(host, api_key)
     kwargs: dict[str, Any] = {
         "model": model,
         "messages": messages,
@@ -234,6 +236,7 @@ async def _chat_with_fallback(
     model: str,
     messages: list[dict[str, str]],
     *,
+    api_key: str = "local",
     fallback_host: str,
     fallback_cooldown_s: int,
     temperature: float | None = None,
@@ -269,7 +272,7 @@ async def _chat_with_fallback(
                     _record_fallback()
                     return await _try_host(
                         fallback_host, model, messages, t0,
-                        temperature=temperature, max_tokens=max_tokens,
+                        api_key=api_key, temperature=temperature, max_tokens=max_tokens,
                         timeout=timeout, top_p=top_p,
                         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
                         enable_thinking=enable_thinking,
@@ -285,7 +288,7 @@ async def _chat_with_fallback(
     try:
         return await _try_host(
             host, model, messages, t0,
-            temperature=temperature, max_tokens=max_tokens,
+            api_key=api_key, temperature=temperature, max_tokens=max_tokens,
             timeout=timeout, top_p=top_p,
             frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
             enable_thinking=enable_thinking,
@@ -303,7 +306,7 @@ async def _chat_with_fallback(
             try:
                 return await _try_host(
                     host, model, messages, t0,
-                    temperature=temperature, max_tokens=max_tokens,
+                    api_key=api_key, temperature=temperature, max_tokens=max_tokens,
                     timeout=timeout, top_p=top_p,
                     frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
                     enable_thinking=enable_thinking,
@@ -327,7 +330,7 @@ async def _chat_with_fallback(
             try:
                 return await _try_host(
                     fallback_host, model, messages, t0,
-                    temperature=temperature, max_tokens=max_tokens,
+                    api_key=api_key, temperature=temperature, max_tokens=max_tokens,
                     timeout=timeout, top_p=top_p,
                     frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
                     enable_thinking=enable_thinking,
@@ -385,6 +388,7 @@ async def _chat_stream_with_fallback(
     model: str,
     messages: list[dict[str, str]],
     *,
+    api_key: str = "local",
     fallback_host: str,
     fallback_cooldown_s: int,
     temperature: float | None = None,
@@ -403,7 +407,7 @@ async def _chat_stream_with_fallback(
     Same retry/fallback logic as _chat_with_fallback but for streaming.
     """
     _stream_kwargs: dict[str, Any] = dict(
-        temperature=temperature, timeout=timeout,
+        api_key=api_key, temperature=temperature, timeout=timeout,
         stream_stats=stream_stats, top_p=top_p,
         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
         enable_thinking=enable_thinking,
@@ -481,7 +485,7 @@ async def _chat_stream_with_fallback(
                 try:
                     async for chunk in _try_host_stream(
                         fallback_host, model, messages,
-                        temperature=temperature, timeout=timeout,
+                        api_key=api_key, temperature=temperature, timeout=timeout,
                         stream_stats=stream_stats, top_p=top_p,
                         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
                     ):
@@ -496,11 +500,12 @@ async def _chat_stream_with_fallback(
         raise
 
 
-def _get_client(base_url: str) -> AsyncOpenAI:
+def _get_client(base_url: str, api_key: str = "local") -> AsyncOpenAI:
     global _client
     if _client is None:
         _client = {}
-    if base_url not in _client:
+    cache_key = (base_url, api_key)
+    if cache_key not in _client:
         # OpenAI SDK appends /chat/completions to base_url, so we need /v1 prefix
         # for OpenAI-compatible endpoints (LMStudio, OMLX, etc.)
         if not base_url.endswith("/"):
@@ -508,10 +513,10 @@ def _get_client(base_url: str) -> AsyncOpenAI:
         if not base_url.endswith("/v1"):
             base_url = base_url + "/v1"
         http_client = _make_httpx(read_timeout=None)
-        _client[base_url] = AsyncOpenAI(
-            base_url=base_url, api_key="local", http_client=http_client
+        _client[cache_key] = AsyncOpenAI(
+            base_url=base_url, api_key=api_key, http_client=http_client
         )
-    return _client[base_url]
+    return _client[cache_key]
 
 
 def _make_httpx(read_timeout: float | None) -> httpx.AsyncClient:
@@ -594,6 +599,7 @@ async def chat_stream(
     model: str,
     messages: list[dict[str, str]],
     *,
+    api_key: str = "local",
     fallback_host: str = "",
     fallback_cooldown_s: int = 300,
     temperature: float | None = None,
@@ -617,7 +623,7 @@ async def chat_stream(
 
     async for chunk in _chat_stream_with_fallback(
         host, model, messages,
-        fallback_host=fallback_host, fallback_cooldown_s=fallback_cooldown_s,
+        api_key=api_key, fallback_host=fallback_host, fallback_cooldown_s=fallback_cooldown_s,
         temperature=temperature, timeout=timeout,
         stream_stats=stream_stats, top_p=top_p,
         frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -633,6 +639,7 @@ async def chat(
     model: str,
     messages: list[dict[str, str]],
     *,
+    api_key: str = "local",
     fallback_host: str = "",
     fallback_cooldown_s: int = 300,
     temperature: float | None = None,
@@ -666,7 +673,7 @@ async def chat(
     try:
         result = await _chat_with_fallback(
             host, model, messages,
-            fallback_host=fallback_host, fallback_cooldown_s=fallback_cooldown_s,
+            api_key=api_key, fallback_host=fallback_host, fallback_cooldown_s=fallback_cooldown_s,
             temperature=temperature, max_tokens=max_tokens,
             timeout=timeout, top_p=top_p,
             frequency_penalty=frequency_penalty, seed=seed, num_ctx=num_ctx,
@@ -704,7 +711,8 @@ async def chat(
 
 async def _chat_openai_compat(
     host: str, model: str, messages: list[dict[str, str]],
-    t0: float, temperature: float | None, max_tokens: int | None,
+    t0: float, api_key: str,
+    temperature: float | None, max_tokens: int | None,
     top_p: float | None, frequency_penalty: float | None,
     seed: int | None, num_ctx: int | None, timeout: float,
     enable_thinking: bool | None = None,
@@ -712,7 +720,7 @@ async def _chat_openai_compat(
     thinking_budget: int | None = None,
 ) -> LLMResult:
     """Call via OpenAI-compatible /v1/chat/completions endpoint."""
-    client = _get_client(host)
+    client = _get_client(host, api_key)
     kwargs: dict[str, Any] = {
         "model": model,
         "messages": messages,
@@ -759,6 +767,7 @@ async def chat_with_config(
     config: Any,
     messages: list[dict[str, str]],
     *,
+    api_key: str | None = None,
     temperature: float | None = None,
     max_tokens: int | None = None,
     timeout: float = 180.0,
@@ -773,6 +782,7 @@ async def chat_with_config(
     """Call LLM with fallback logic, extracting host/model/fallback from EngineConfig."""
     return await chat(
         host=config.host,
+        api_key=api_key if api_key is not None else config.api_key,
         model=config.model,
         messages=messages,
         fallback_host=config.fallback_host,
@@ -794,6 +804,7 @@ async def chat_stream_with_config(
     config: Any,
     messages: list[dict[str, str]],
     *,
+    api_key: str | None = None,
     temperature: float | None = None,
     timeout: float = 180.0,
     stream_stats: MutableMapping[str, Any] | None = None,
@@ -808,6 +819,7 @@ async def chat_stream_with_config(
     """Stream LLM response with fallback logic, extracting host/model/fallback from EngineConfig."""
     async for chunk in chat_stream(
         host=config.host,
+        api_key=api_key if api_key is not None else config.api_key,
         model=config.model,
         messages=messages,
         fallback_host=config.fallback_host,
