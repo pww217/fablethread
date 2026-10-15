@@ -13,7 +13,7 @@ dependencies = [
     "pydantic==2.13.5",
     "sse-starlette==3.3.4",
     "python-multipart==0.0.32",
-    "openai==2.33.0",
+    "openai==2.54.0",
     "faker==40.41.0",
     "pykakasi==2.3.0",
 ]
