@@ -14,7 +14,7 @@ dependencies = [
     "sse-starlette==3.5.0",
     "python-multipart==0.0.32",
     "openai==2.54.0",
-    "faker==40.42.0",
+    "faker==40.43.0",
     "pykakasi==2.3.0",
 ]
 
