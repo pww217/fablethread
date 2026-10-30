@@ -5,7 +5,7 @@ description = "A local CYOA engine with persistent world state that remembers. S
 requires-python = "==3.15.1"
 license = { text = "PolyForm-Noncommercial-1.0.0" }
 dependencies = [
-    "fastapi==0.160.0",
+    "fastapi==0.161.1",
     "uvicorn[standard]==0.54.0",
     "jinja2==3.1.6",
     "pyyaml==6.0.3",
