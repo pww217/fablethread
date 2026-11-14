@@ -11,7 +11,7 @@ dependencies = [
     "pyyaml==6.0.3",
     "httpx==0.28.1",
     "pydantic==2.14.3",
-    "sse-starlette==3.6.0",
+    "sse-starlette==3.7.0",
     "python-multipart==0.0.33",
     "openai==2.54.0",
     "faker==40.44.0",
