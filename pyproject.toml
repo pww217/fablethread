@@ -12,7 +12,7 @@ dependencies = [
     "httpx==0.28.1",
     "pydantic==2.14.3",
     "sse-starlette==3.7.0",
-    "python-multipart==0.0.33",
+    "python-multipart==0.0.34",
     "openai==2.54.0",
     "faker==40.54.0",
     "pykakasi==2.3.0",
